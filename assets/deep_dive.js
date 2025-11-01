@@ -1,5 +1,5 @@
 // deep_dive.js — DOM + cscs-meta 動的生成（Google Gemini API版 / Bパート専用・CSV&辞書完全排除）
-// 使い方：一度だけブラウザのコンソールで → localStorage.setItem('gemini_api_key','YOUR_KEY')
+// 使い方：APIボタンを押すだけで localStorage.gemini_api_key に保存（ワンクリ）
 
 (function(){
   "use strict";
@@ -11,6 +11,9 @@
     "https://generativelanguage.googleapis.com/v1/"
   ];
   const PANEL_TOP_GAP = 12;
+
+  // ▼ ワンクリ保存で使うハードコードキー（公開コミット厳禁）
+  const DEFAULT_HARDCODED_KEY = "AIzaSyAItFa6e7Q5psu7P7jww89fmMUy89bagXM";
 
   // ====== パス/ストレージヘルパ ======
   function getDayFromPathDD(){
@@ -32,27 +35,85 @@
     return `cscs_dd_${day}_${stem}`;
   }
 
-  // ====== ユーティリティ ======
+  // ====== ユーティリティ（APIキー関連） ======
   function getApiKey(){
     const self = document.querySelector('script[src*="deep_dive.js"]');
-    if (self && self.dataset.geminiKey) return self.dataset.geminiKey.trim();
+    if (self && self.dataset.geminiKey) return self.dataset.gemini_key?.trim?.() || self.dataset.geminiKey.trim();
     try {
       const k = localStorage.getItem("gemini_api_key");
       if (k) return k.trim();
     } catch(_){}
     return "";
   }
-
-  // ▼ iPad Safari 検出（iPadOS の “デスクトップ表示” でも判定できる）
-  function isIPadSafari(){
-    const ua  = navigator.userAgent || "";
-    const iPadUA   = /iPad/.test(ua);
-    const macTouch = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-    return (iPadUA || macTouch) && isSafari;
+  function maskKey(k) {
+    if (!k) return "未設定";
+    if (k.length <= 8) return k.replace(/.(?=.{2})/g, "•");
+    return k.slice(0, 4) + "…" + k.slice(-4);
+  }
+  function toast(msg) {
+    try {
+      const el = document.createElement("div");
+      el.textContent = msg;
+      el.style.cssText = "position:fixed;left:50%;top:20px;transform:translateX(-50%);background:#333;color:#fff;padding:8px 12px;border-radius:8px;z-index:99999;opacity:.95";
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1800);
+    } catch {}
+  }
+  function updateApiBadge() {
+    const ok = !!getApiKey();
+    const badge = document.querySelector("[data-dd-api-badge]") || document.getElementById("dd-api-badge");
+    if (badge) {
+      badge.textContent = ok ? "API: ✅" : "API: ー";
+      badge.classList.toggle("dd-api-ok", ok);
+      badge.classList.toggle("dd-api-ng", !ok);
+    }
+    // 他処理へ通知
+    try { window.dispatchEvent(new CustomEvent("dd:apikey-changed", { detail: { ok } })); } catch(_){}
   }
 
-  // できるだけ確実にコピーする（HTTPS→ClipboardAPI / それ以外→execCommand）
+  // ====== APIキー設定UI（ツールバー左端の「API」ボタン） ======
+  function addApiButton(toolbarEl) {
+    if (!toolbarEl || toolbarEl.__ddApiReady) return;
+    toolbarEl.__ddApiReady = true;
+
+    const apiBtn = document.createElement("button");
+    apiBtn.className = "dd-btn dd-btn--ghost";
+    apiBtn.textContent = "API保存";
+    apiBtn.title = "Gemini APIキーをワンクリ保存";
+    apiBtn.style.marginRight = "";
+    toolbarEl.prepend(apiBtn);
+
+    // ▼ ワンクリ保存（押したら即保存・上書き）
+    apiBtn.addEventListener("click", () => {
+      try {
+        localStorage.setItem("gemini_api_key", DEFAULT_HARDCODED_KEY);
+        updateApiBadge();
+        toast("✅ APIキーを保存しました（この端末のブラウザに保存）");
+      } catch (e) {
+        toast("⚠️ 保存に失敗しました（ブラウザの制限）");
+      }
+    });
+
+    // URLパラメータ経由での自動保存（?key=... or ?gemini_key=...）も併用可
+    (function () {
+      const p = new URLSearchParams(location.search);
+      const k = (p.get("gemini_key") || p.get("key") || "").trim();
+      if (k) {
+        try {
+          localStorage.setItem("gemini_api_key", k);
+          history.replaceState({}, "", location.pathname + location.hash); // クエリ隠す
+          updateApiBadge();
+          toast("✅ APIキーを保存しました（URLパラメータ）");
+        } catch (_) {
+          toast("⚠️ 保存に失敗しました（ブラウザの制限）");
+        }
+      }
+    })();
+
+    updateApiBadge();
+  }
+
+  // ====== できるだけ確実にコピーする（HTTPS→ClipboardAPI / それ以外→execCommand） ======
   async function copyTextSmart(text){
     try{
       if (navigator.clipboard && window.isSecureContext){
@@ -75,6 +136,16 @@
     return false;
   }
 
+  // ====== iPad Safari 検出 ======
+  function isIPadSafari(){
+    const ua  = navigator.userAgent || "";
+    const iPadUA   = /iPad/.test(ua);
+    const macTouch = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    return (iPadUA || macTouch) && isSafari;
+  }
+
+  // ====== メタ/DOM 読み取り ======
   function readInlineData(){
     const el = document.getElementById('cscs-meta');
     if(!el) return null;
@@ -217,7 +288,7 @@
           animation:ddspin 1s linear infinite;vertical-align:-3px;margin-right:8px}
         @keyframes ddspin{to{transform:rotate(360deg)}}
         html[data-dd-open="1"],html[data-dd-open="1"] body{overflow:hidden!important;}
-        html[data-dd-open="1"]{overscroll-behavior:contain;}
+        html[data-dd-open="1"]{overscroll-beavior:contain;}
         html[data-dd-open="1"] .next-overlay{pointer-events:none!important;}
         /* プロンプト表示モーダル */
         #dd-prompt-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
@@ -376,13 +447,17 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
           <div class="dd-title">Deep Dive</div>
           <div class="dd-crumbs">${[meta?.field,meta?.theme].filter(Boolean).join(' / ')}</div>
         </div>
-        <div class="dd-small dd-mono" id="dd-keystate"></div>
+        <div class="dd-small dd-mono">
+          <span id="dd-api-badge" data-dd-api-badge></span>
+          <span id="dd-keystate" style="margin-left:10px;"></span>
+        </div>
       </div>
       <div id="dd-body" class="dd-small">
         ${meta ? `<div style="opacity:.9">「深掘り生成」を押すとAIが深掘り解説を作ります。</div>`
                : `<div class="dd-note">cscs-meta が見つかりません。メタなしでもプロンプト表示は可能です。</div>`}
       </div>
       <div class="dd-toolbar">
+        <!-- 左端に API ボタンを prepend で追加する -->
         <button class="dd-btn" id="dd-generate" ${meta?'':'disabled'}>深掘り生成</button>
         <button class="dd-btn" id="dd-regenerate" disabled>再生成</button>
         <button class="dd-btn" id="dd-copy" disabled>コピー</button>
@@ -400,8 +475,13 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const promptBtn=panel.querySelector('#dd-prompt');
     const clearBtn=panel.querySelector('#dd-clear');
     const closeBtn=panel.querySelector('#dd-close');
+    const toolbarEl=panel.querySelector('.dd-toolbar');
 
-    const showKeyState=()=>{ keyState.textContent=getApiKey()?"API: ✅":"API: 未設定（localStorage.gemini_api_key）"; };
+    // APIボタン（左端）を追加し、バッジ更新
+    addApiButton(toolbarEl);
+    updateApiBadge();
+
+    const showKeyState=()=>{ keyState.textContent=getApiKey()?"（保存済み）":"（未設定: localStorage.gemini_api_key）"; };
     showKeyState();
 
     // 既存（前回生成分）があれば表示
@@ -419,7 +499,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     async function doGenerate(){
       const apiKey = getApiKey();
       if(!apiKey){
-        alert("Gemini APIキーが未設定です。\nlocalStorage.setItem('gemini_api_key','YOUR_KEY') を先に実行してください。");
+        alert("Gemini APIキーが未設定です。\n左下の「API」ボタンから保存してください。");
         return;
       }
       if (!meta){
@@ -449,6 +529,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       }finally{
         genBtn.disabled = false;
         showKeyState();
+        updateApiBadge();
       }
     }
 
@@ -517,18 +598,19 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     // 先にUIだけ用意（Bならボタン必ず出す）
     ensureMounted();
 
-    // ▼ iPad だけツールバー位置を下固定＆15pxに（幅・ポインタ条件も追加可）
+    // ▼ iPad だけツールバー位置を下固定＆調整（必要に応じて拡張）
     if (isIPadSafari() && !document.getElementById("dd-ipad-style")) {
       const st = document.createElement("style");
       st.id = "dd-ipad-style";
       st.textContent = `
         .dd-toolbar{
-          bottom: 18px !important;        }
+          bottom: 18px !important;
+        }
       `;
       document.head.appendChild(st);
     }
 
-    if (!isBPart()) return;           // B専用
+    if (!isBPart()) return; // B専用
 
     // メタの有無に関わらず mount（メタが無ければ生成ボタンだけ無効）
     const meta = readInlineData();
