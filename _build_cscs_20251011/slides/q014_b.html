@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta charset="utf-8">
+  <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #111;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+}
+
+.wrap {
+  margin: 40px auto;
+  font-family: -apple-system, BlinkMacSystemFont,
+               "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  line-height: 1.5;
+  font-size: 32px;
+}
+
+
+.top-title  { opacity:.95; color:#fff; }
+.top-date   { color:#a8b0b8; opacity:.95; }
+.top-number { color:#c9c9c9; }
+.top-level  { color:#a8a8a8; }
+.crumb-field{font-size:26px;font-weight:400}
+.crumb-sep{opacity:.6}
+.crumb-theme{font-size:22px;opacity:.85}
+
+/* ヘッダー部（左右ブロック＋右端日付） */
+.topmeta {
+  display: flex;
+  justify-content: space-between;  /* 左右を分ける */
+  align-items: center;
+  gap: 16px;
+  font-size: 24px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 0.85;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+/* 左ブロック（タイトル／番号／レベル） */
+.topmeta-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+/* 右ブロック（日付だけ右端に寄せる） */
+.topmeta-right {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.qno {
+  font-size: 20px;
+  opacity: .9;
+  margin: 6px 0 2px;
+}
+
+/* 問題文 */
+h1 {
+  font-size: 44px;
+  margin: 10px 0 10px;
+  color: #66d9ff;     /* 明るい水色 */
+  line-height: 1.10;  /* タイトに */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 選択肢 */
+.opts {
+  padding-left: 1.1em;
+  margin-left: 15px;
+  margin-top: 0;
+}
+
+ol.opts {
+    margin-bottom: 20px;
+}
+
+.opts li {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* 区切り線 */
+.hr {
+  height: 1px;
+  background: #444;
+  margin: 0 0 8px;
+}
+
+/* 正解 */
+.answer { margin-top: 12px; font-weight: 600; }
+.answer { word-break: break-word; }
+.answer {
+  font-size: 40px;
+  margin-top: 0;
+  margin-left: 0;
+  color: #fff34d;  /* 明るい黄色 */
+}
+
+/* Bパートの「正解: A　本　文」の“本文”だけ少し小さく */
+.answer .opt-small {
+  font-size: 0.85em;   /* ← ほんの少し小さく（0.85〜0.95で調整） */
+  line-height: 1.25;  /* 任意：行間を少し詰める */
+  opacity: 0.95;      /* 任意：わずかに落として主役のAを強調 */
+  margin-left: 10px;
+}
+
+/* 解説 */
+.explain {
+  font-size: 16px;
+  margin-top: 4px;
+  margin-left: 0;
+  opacity: .92;
+  white-space: pre-wrap;
+}
+
+/* ヒント（B未表示段階） */
+.hint {
+  font-size: 22px;
+  opacity: .6;
+  margin-top: 0;
+  margin-left: 0;
+}
+  
+/* 画面全体クリック用の透明オーバーレイ */
+.next-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: transparent;
+  cursor: pointer;
+  display: block;
+}
+
+
+/* 判定用メッセージだけ少し控えめに */
+#judge {
+  font-size: 28px;
+  margin-top: 12px;
+  opacity: 0.9;
+}
+
+
+/* 失敗時にだけ出る小さな再生ボタン */
+.audio-fallback-btn{
+  position: fixed;
+  right: 16px;
+  bottom: 16px; /* 右下配置（現状維持） */
+  padding: 8px 12px;
+  font-size: 16px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: .9;
+  z-index: 10000; /* Bのオーバーレイより前面 */
+}
+.audio-fallback-btn:hover{ opacity: 1; }
+
+
+/* 左下 [TOPへ戻る] ボタン */
+.back-to-top {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.08);
+  color: #66d9ff;
+  font-size: 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  z-index: 10050; /* オーバーレイ(9999)や他要素より前面にしてクリック可能に */
+  transition: background 0.2s, opacity 0.2s;
+}
+.back-to-top:hover {
+  background: rgba(255,255,255,0.15);
+  opacity: 1.0;
+}
+
+
+/* 選択肢リンクの色を常に本文色に（iOSのvisited/activeの青/紫も潰す） */
+ol.opts a.opt-link,
+ol.opts a.opt-link:link,
+ol.opts a.opt-link:visited,
+ol.opts a.opt-link:active,
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important; /* iOS Safari */
+  text-decoration: none;
+}
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus { text-decoration: underline; }
+
+/* iOSのタップ時ハイライトを控えめに */
+a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
+
+@media screen and (max-width: 600px) {
+  html, body { font-size: 80% !important; }  /* ← 87.5% → 80% に変更 */
+
+  /* h1の問題文をさらに小さくする */
+  h1 {
+    font-size: 3.0rem !important;   /* ← お好みで 1.0〜1.4rem に調整 */
+    line-height: 1.3;
+  }
+  /* 全体的な行間調整 */  
+  .wrap {
+    line-height: 1.3 !important;
+  }
+  
+  /* iPhone表示時は日付を左寄せに */
+  .topmeta-right {
+    margin-right: auto !important;
+    text-align: left;
+    margin-top: -10px;
+    margin-left: inherit !important;
+  }
+
+  /* 選択肢や本文の行間を少し締める */
+  ol.opts li { font-size: 0.95em; line-height: 1.35; }
+
+  /* “解説”は小さくしない（.answer を据え置き） */
+  .answer { font-size: 1rem !important; }
+
+  /* 固定ボタン類は据え置き */
+  .back-to-top,
+  .audio-fallback-btn { font-size: 16px !important; }
+}
+
+</style>
+
+  <script>
+    // 今日の日付（_build_cscs_YYYYMMDD から）
+    function getDayFromPath(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m ? m[1] : "unknown";
+    }
+    // その日の「現在の runId」を保存/取得するキー
+    function runKey(day){ return `cscs_current_runId_${day}`; }
+
+    // 既存データから、その日の最大 runId を得る
+    function getMaxRunIdForDay(day, all){
+      const runs = all.filter(r => r && r.day === day && Number.isInteger(r.runId)).map(r => r.runId);
+      return runs.length ? Math.max.apply(null, runs) : 0;
+    }
+
+    // その日の現在の runId を取得（なければ新規で採番して保存）
+    function ensureCurrentRunId(day){
+      const KEY = "cscs_results";
+      let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+
+      const k = runKey(day);
+      const exists = localStorage.getItem(k);
+      if (exists) return parseInt(exists, 10);
+
+      const next = getMaxRunIdForDay(day, arr) + 1;
+      localStorage.setItem(k, String(next));
+      return next;
+    }
+
+    // 「新しい履歴で開始」指定があれば runId を進める
+    function maybeStartNewRunIfRequested(){
+      const day = getDayFromPath();
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("newrun") === "1"){
+        const KEY = "cscs_results";
+        let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+        const next = getMaxRunIdForDay(day, arr) + 1;
+        localStorage.setItem(runKey(day), String(next));
+      }
+    }
+
+    // その日の最新 runId を取得（なければ 1）
+    function getLatestRunId(day){
+      const KEY = "cscs_results";
+      let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+      const m = getMaxRunIdForDay(day, arr);
+      return m || 1;
+    }
+  </script>
+
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      // ---- (0) 新しい履歴開始の指示があれば採番 ----
+      try { maybeStartNewRunIfRequested(); } catch(_){}
+
+      // ---- (1) Bパート音声（m4aのみ）----
+      (function autoPlayB(){
+        const src = "../audio/q014_b.m4a";
+        const audio = new Audio(src);
+        audio.preload = "auto";
+        audio.playsInline = true;
+
+        const p = audio.play();
+        if (p && typeof p.catch === "function") {
+          p.catch(() => {
+            const btn = document.createElement("button");
+            btn.textContent = "🔊 音声を再生";
+            btn.className = "audio-fallback-btn";
+
+            btn.addEventListener("click", () => {
+              const a2 = new Audio(src);
+              a2.preload = "auto";
+              a2.playsInline = true;
+              a2.play()
+                .then(() => btn.remove())
+                .catch(() => {
+                  btn.textContent = "再生できません（ブラウザ設定を確認）";
+                });
+            });
+
+            document.body.appendChild(btn);
+          });
+        }
+      })();
+
+      // ---- (2) 選択肢テキストと正解をHTMLから動的取得 ----
+      const letters = ["A","B","C","D"];
+      const items   = Array.from(document.querySelectorAll("ol.opts li"));
+      const LABELS  = Object.fromEntries(items.slice(0,4).map((li,i)=>[letters[i], li.textContent.trim()]));
+
+      let CORRECT_CHOICE = "A"; // デフォルト保険
+      const answerEls = Array.from(document.querySelectorAll(".answer"));
+      const ansEl = answerEls.find(el => /正解\s*:/.test(el.textContent));
+      if (ansEl) {
+        const m = ansEl.innerHTML.match(/正解\s*:\s*([A-D])/i);
+        if (m) CORRECT_CHOICE = m[1].toUpperCase();
+      }
+
+      // ---- (3) 判定表示 ----
+      const params  = new URLSearchParams(window.location.search);
+      const choice  = (params.get("choice") || "").toUpperCase();
+      const judgeEl = document.getElementById("judge");
+      if (!judgeEl) return;
+
+      if (!choice || !["A","B","C","D"].includes(choice)) {
+        judgeEl.textContent = "（選択が受け取れませんでした）";
+        judgeEl.style.color = "#ccc";
+        return;
+      }
+
+      const isCorrect = (choice === CORRECT_CHOICE);
+
+      if (isCorrect) {
+        judgeEl.textContent = "◎ 正解!!";
+        judgeEl.style.color = "#fff34d";
+        judgeEl.style.fontSize = "1.1em";
+      } else {
+        const wrongHTML = `
+          <span style="color:#c9c9c9;">× 不正解</span>
+          <span style="color:#c9c9c9"> / <span style="font-size:0.85em;">あなたの選択:</span> ${choice}（${LABELS[choice] || ""}）
+          </span>
+        `;
+        judgeEl.innerHTML = wrongHTML.trim();
+
+        // ▼ 不正解回数を localStorage に記録（A/B共通のqid: YYYYMMDD-NNN）
+        try{
+          function getDayFromPath(){
+            const m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+            return m?m[1]:"unknown";
+          }
+          function getQid(){
+            const day=getDayFromPath();
+            const m=(window.location.pathname||"").match(/q(\d{3})_[ab]\.html$/);
+            const n=m?m[1]:"000";
+            return `${day}-${n}`;
+          }
+          const KEY="cscs_wrong_log";
+          let log={}; try{ log=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(_){ log={}; }
+          const qid=getQid();
+          log[qid]=(log[qid]||0)+1;
+          localStorage.setItem(KEY, JSON.stringify(log));
+          // console.debug('[wrong_log]', qid, '=>', log[qid]); // 必要ならデバッグ表示
+        }catch(e){ console.warn("wrong_log save failed", e); }
+      }
+
+      // ---- (4) 結果をローカルストレージに記録（runId 付き）----
+      
+      try {
+        const KEY = "cscs_results";
+        const day = getDayFromPath();           // 例 "20250926"
+        const stem = "q014";                // 例 "q001"
+        let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+
+        // 現在の runId（なければ採番）
+        const runId = ensureCurrentRunId(day);
+
+        const record = {
+          day,            // "20250926"
+          runId,          // 1,2,3, ...
+          stem,           // "q001"
+          choice,         // "A".."D"
+          correct: isCorrect,
+          correctChoice: CORRECT_CHOICE,
+          label: (LABELS[choice] || ""),
+          ts: Date.now()
+        };
+
+        // 同一 (day, runId, stem) の最後の回答で置き換え
+        arr = arr.filter(r => !(r && r.day === day && r.runId === runId && r.stem === stem));
+        arr.push(record);
+        localStorage.setItem(KEY, JSON.stringify(arr));
+
+        // 後方互換の単品キーは “最新 run” の見かけ用途にだけ残す
+        localStorage.setItem(`cscs_${day}_${stem}`, JSON.stringify(record));
+        localStorage.setItem("cscs_last_day", day);
+
+      } catch (e) {
+        console && console.warn && console.warn("save result failed:", e);
+      }
+    });
+  </script>
+
+
+  <style>
+  .wrong-inline{
+    margin-left: .4em;
+    color: #ff8080;
+    font-size: 0.9em;
+    opacity: .95;
+    white-space: nowrap;
+  }
+  </style>
+  <script>
+  window.addEventListener("DOMContentLoaded", function(){
+    function getDayFromPath(){
+      const m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m?m[1]:"unknown";
+    }
+    function getQid(){
+      const day=getDayFromPath();
+      // A/B どちらでも拾えるように [ab] を許可
+      const m=(window.location.pathname||"").match(/q(\d{3})_[ab]\.html$/);
+      const n=m?m[1]:"000";
+      return `${day}-${n}`;
+    }
+    const KEY="cscs_wrong_log";
+    let log={};
+    try{ log=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(_){ log={}; }
+    const qid=getQid();
+    const count=log[qid]||0;
+    if(count>0){
+      const host=document.querySelector('.top-number');
+      if(host){
+        const badge=document.createElement('span');
+        badge.className='wrong-inline';
+        badge.textContent=`（不正解:${count}回）`;
+        host.appendChild(badge);
+      }
+    }
+  });
+  </script>
+
+
+  <script>
+    (function(){
+      function isDeepDiveOpen(){
+        try{
+          const p = document.getElementById('dd-panel');
+          return p && p.style && p.style.display !== 'none';
+        }catch(_){ return false; }
+      }
+      function clickIsInsideDeepDive(target){
+        return !!(target && (target.closest && (
+          target.closest('#dd-panel') ||         // パネル内
+          target.closest('.deep-dive-btn') ||    // トグルボタン
+          target.closest('.dd-btn')              // 生成/再生成/コピー/閉じる 等
+        )));
+      }
+      const nextHref = "q015_a.html";
+      function goNext(){ window.location.href = nextHref; }
+
+      document.addEventListener("click", (e) => {
+        // Deep Diveを操作中なら遷移しない
+        if (isDeepDiveOpen() || clickIsInsideDeepDive(e.target)) return;
+
+        // 既存の除外：音声ボタン / aタグ
+        if (e.target.closest(".audio-fallback-btn")) return;
+        if (e.target.closest("a")) return;
+
+        // その他のクリックで次へ
+        goNext();
+      });
+
+      document.addEventListener("keydown", (e) => {
+        // Deep Diveを開いているときはキーボード遷移も抑止
+        if (isDeepDiveOpen()) return;
+
+        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
+          e.preventDefault();
+          goNext();
+        }
+      });
+
+      // 念のためオーバーレイの前面化
+      const ov = document.querySelector(".next-overlay");
+      if (ov) {
+        ov.style.zIndex = 9999;
+        ov.setAttribute("aria-label","次の問題へ");
+        ov.setAttribute("role","link");
+        ov.setAttribute("tabindex","0");
+      }
+    })();
+  </script>
+
+
+<style>
+/* 全ページ強制：html/body の高さ指定を解除 */
+html, body { height: auto !important; min-height: 0 !important; }
+</style>
+
+
+<link rel="stylesheet" href="../../assets/main.css">
+
+</head>
+<body>
+  <div class="wrap">
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (16/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>14</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'><div class='top-date'>2025年10月11日</div></div></div>
+    <div class='qno'><span class='crumb-field'>栄養学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>マクロ栄養素バランス（運動生理学）</span></div>
+    <h1 style="font-size:44px">脂質代謝を促進するホルモンはどれか？</h1>
+    <ol class='opts' type='A'><li>インスリン</li><li>アドレナリン</li><li>グルカゴン</li><li>エストロゲン</li></ol>
+    <div id="judge" class="answer" aria-live="polite"></div>
+    <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>アドレナリン</span></div><div class='explain'>アドレナリンは脂肪分解を促進し、長時間運動時のエネルギー供給に寄与する。</div>
+    <!-- <div class="footer">（このスライドは自動生成です）</div> -->
+  </div>
+<script type="application/json" id="cscs-meta">{"qid": "2025年10月11日-014", "field": "栄養学", "theme": "マクロ栄養素バランス（運動生理学）", "level": "Level 2", "date": "2025年10月11日", "number": "14", "quiztype": "単一分野", "tags": {"cause": "アドレナリン分泌", "process": "脂肪分解促進", "outcome": "脂質代謝向上"}}</script>
+
+  <!-- 左下の [TOPへ戻る] ボタン -->
+  <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+/* === Deep Dive Panel (軽量) === */
+.dd-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 72px;
+  z-index: 11000;
+  padding: 10px 12px;
+  font-size: 16px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: .95;
+}
+.dd-toggle:hover { opacity: 1; }
+
+.dd-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 120px;
+  width: min(520px, 92vw);
+  max-height: 60vh;
+  overflow: auto;
+  z-index: 11000;
+  background: #141414;
+  color: #eaeaea;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  padding: 14px 16px;
+  display: none;
+}
+.dd-panel.open { display: block; }
+
+.dd-head {
+  display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px;
+}
+.dd-crumbs { font-size: 14px; opacity: .8; }
+.dd-title { font-size: 18px; font-weight: 700; opacity: .95; }
+
+.dd-sec { margin: 10px 0 0; }
+.dd-sec h3 { font-size: 14px; margin: 0 0 6px; opacity: .9; }
+.dd-tag {
+  display: inline-block;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  padding: 6px 8px;
+  border-radius: 8px;
+  margin: 0 6px 6px 0;
+  font-size: 13px;
+}
+.dd-note { font-size: 12px; opacity: .75; margin-top: 8px; }
+
+.dd-toolbar {
+    position: absolute;
+    bottom: 72px;
+    right: 10px;
+}
+
+/* ===============================
+   deep_dive.css — 追加スタイル
+   =============================== */
+
+/* --- 深掘り本文の基本色を統一（青字の暴走防止） --- */
+#dd-panel {
+  color: #e8ebf0; /* 通常テキストをやや白めに */
+}
+
+/* AI出力内に直接 <span style="color:..."> が入っていても上書き */
+#dd-panel * {
+  color: inherit !important;
+}
+
+#dd-body {
+}
+
+
+
+/* --- 重要語句だけ色付け（ここで再定義） --- */
+#dd-panel .dd-key {
+  color: #6cc7ff !important; /* 落ち着いた水色 */
+  font-weight: 400;
+}
+
+#dd-panel .dd-answer {
+  color: #8fdcff !important; /* 少し明るい水色で差をつける */
+  font-weight: 500;
+}
+
+/* セクション見出し（黄色強調） */
+#dd-panel .dd-sec h3 {
+  color: rgb(255, 243, 77) !important;
+  font-weight: 400;
+}
+
+/* 深掘りパネル内のフォントを全体と統一 */
+#dd-panel {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+               "Noto Sans JP", "Meiryo", sans-serif !important;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.dd-key i,
+.dd-answer i {
+  color: #fff; /* 英語表記だけ白く */
+  font-style: normal;
+  opacity: 0.9;
+}
+
+
+.dd-sec h3 {
+  margin-bottom: 4px;  /* ← 今の8pxを半分に */
+}
+
+.dd-sec p {
+  margin-top: 0;       /* ← h3との間の重なりを消す */
+  margin-bottom: 8px;  /* ← 次の段落との最低限の余白だけ確保 */
+  line-height: 1.6;    /* ← 読みやすさは維持 */
+}

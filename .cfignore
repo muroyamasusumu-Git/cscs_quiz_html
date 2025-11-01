@@ -1,0 +1,5 @@
+audio/
+_build_cscs_*/audio/
+**/*.mp3
+.DS_Store
+Thumbs.db

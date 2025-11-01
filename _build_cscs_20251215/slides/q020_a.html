@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta charset="utf-8">
+  <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #111;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+}
+
+.wrap {
+  margin: 40px auto;
+  font-family: -apple-system, BlinkMacSystemFont,
+               "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  line-height: 1.5;
+  font-size: 32px;
+}
+
+
+.top-title  { opacity:.95; color:#fff; }
+.top-date   { color:#a8b0b8; opacity:.95; }
+.top-number { color:#c9c9c9; }
+.top-level  { color:#a8a8a8; }
+.crumb-field{font-size:26px;font-weight:400}
+.crumb-sep{opacity:.6}
+.crumb-theme{font-size:22px;opacity:.85}
+
+/* ヘッダー部（左右ブロック＋右端日付） */
+.topmeta {
+  display: flex;
+  justify-content: space-between;  /* 左右を分ける */
+  align-items: center;
+  gap: 16px;
+  font-size: 24px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 0.85;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+/* 左ブロック（タイトル／番号／レベル） */
+.topmeta-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+/* 右ブロック（日付だけ右端に寄せる） */
+.topmeta-right {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.qno {
+  font-size: 20px;
+  opacity: .9;
+  margin: 6px 0 2px;
+}
+
+/* 問題文 */
+h1 {
+  font-size: 44px;
+  margin: 10px 0 10px;
+  color: #66d9ff;     /* 明るい水色 */
+  line-height: 1.10;  /* タイトに */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 選択肢 */
+.opts {
+  padding-left: 1.1em;
+  margin-left: 15px;
+  margin-top: 0;
+}
+
+ol.opts {
+    margin-bottom: 20px;
+}
+
+.opts li {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* 区切り線 */
+.hr {
+  height: 1px;
+  background: #444;
+  margin: 0 0 8px;
+}
+
+/* 正解 */
+.answer { margin-top: 12px; font-weight: 600; }
+.answer { word-break: break-word; }
+.answer {
+  font-size: 40px;
+  margin-top: 0;
+  margin-left: 0;
+  color: #fff34d;  /* 明るい黄色 */
+}
+
+/* Bパートの「正解: A　本　文」の“本文”だけ少し小さく */
+.answer .opt-small {
+  font-size: 0.85em;   /* ← ほんの少し小さく（0.85〜0.95で調整） */
+  line-height: 1.25;  /* 任意：行間を少し詰める */
+  opacity: 0.95;      /* 任意：わずかに落として主役のAを強調 */
+  margin-left: 10px;
+}
+
+/* 解説 */
+.explain {
+  font-size: 16px;
+  margin-top: 4px;
+  margin-left: 0;
+  opacity: .92;
+  white-space: pre-wrap;
+}
+
+/* ヒント（B未表示段階） */
+.hint {
+  font-size: 22px;
+  opacity: .6;
+  margin-top: 0;
+  margin-left: 0;
+}
+  
+/* 選択肢リンク：本文色を継承。iOSの強制色・visitedも抑止 */
+.opt-link,
+.opt-link:link,
+.opt-link:visited,
+.opt-link:active {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  text-decoration: none;
+}
+.opt-link:hover, .opt-link:focus { text-decoration: underline; }
+
+
+/* 左下 [TOPへ戻る] ボタン */
+.back-to-top {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.08);
+  color: #66d9ff;
+  font-size: 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  z-index: 10050; /* オーバーレイ(9999)や他要素より前面にしてクリック可能に */
+  transition: background 0.2s, opacity 0.2s;
+}
+.back-to-top:hover {
+  background: rgba(255,255,255,0.15);
+  opacity: 1.0;
+}
+
+
+/* 選択肢リンクの色を常に本文色に（iOSのvisited/activeの青/紫も潰す） */
+ol.opts a.opt-link,
+ol.opts a.opt-link:link,
+ol.opts a.opt-link:visited,
+ol.opts a.opt-link:active,
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important; /* iOS Safari */
+  text-decoration: none;
+}
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus { text-decoration: underline; }
+
+/* iOSのタップ時ハイライトを控えめに */
+a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
+
+@media screen and (max-width: 600px) {
+  html, body { font-size: 80% !important; }  /* ← 87.5% → 80% に変更 */
+
+  /* h1の問題文をさらに小さくする */
+  h1 {
+    font-size: 3.0rem !important;   /* ← お好みで 1.0〜1.4rem に調整 */
+    line-height: 1.3;
+  }
+  /* 全体的な行間調整 */  
+  .wrap {
+    line-height: 1.3 !important;
+  }
+  
+  /* iPhone表示時は日付を左寄せに */
+  .topmeta-right {
+    margin-right: auto !important;
+    text-align: left;
+    margin-top: -10px;
+    margin-left: inherit !important;
+  }
+
+  /* 選択肢や本文の行間を少し締める */
+  ol.opts li { font-size: 0.95em; line-height: 1.35; }
+
+  /* “解説”は小さくしない（.answer を据え置き） */
+  .answer { font-size: 1rem !important; }
+
+  /* 固定ボタン類は据え置き */
+  .back-to-top,
+  .audio-fallback-btn { font-size: 16px !important; }
+}
+
+</style>
+
+  <script>
+    function autoPlayAudio(src) {
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.playsInline = true;
+      const p = audio.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          const btn = document.createElement("button");
+          btn.textContent = "🔊 音声を再生";
+          btn.className = "audio-fallback-btn";
+          btn.addEventListener("click", () => {
+            audio.play().then(() => btn.remove()).catch(() => {
+              btn.textContent = "再生できません（ブラウザ設定を確認）";
+            });
+          });
+          document.body.appendChild(btn);
+        });
+      }
+    }
+    window.addEventListener("DOMContentLoaded", () => {
+      autoPlayAudio("../audio/q020_a.m4a");
+    });
+  </script>
+  <style>
+
+/* 失敗時にだけ出る小さな再生ボタン */
+.audio-fallback-btn{
+  position: fixed;
+  right: 16px;
+  bottom: 16px; /* 右下配置（現状維持） */
+  padding: 8px 12px;
+  font-size: 16px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: .9;
+  z-index: 10000; /* Bのオーバーレイより前面 */
+}
+.audio-fallback-btn:hover{ opacity: 1; }
+
+  </style>
+
+
+  <script>
+    // 今日の日付（_build_cscs_YYYYMMDD から）
+    function getDayFromPath(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m ? m[1] : "unknown";
+    }
+    // その日の「現在の runId」を保存/取得するキー
+    function runKey(day){ return `cscs_current_runId_${day}`; }
+
+    // 既存データから、その日の最大 runId を得る
+    function getMaxRunIdForDay(day, all){
+      const runs = all.filter(r => r && r.day === day && Number.isInteger(r.runId)).map(r => r.runId);
+      return runs.length ? Math.max.apply(null, runs) : 0;
+    }
+
+    // その日の現在の runId を取得（なければ新規で採番して保存）
+    function ensureCurrentRunId(day){
+      const KEY = "cscs_results";
+      let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+
+      const k = runKey(day);
+      const exists = localStorage.getItem(k);
+      if (exists) return parseInt(exists, 10);
+
+      const next = getMaxRunIdForDay(day, arr) + 1;
+      localStorage.setItem(k, String(next));
+      return next;
+    }
+
+    // 「新しい履歴で開始」指定があれば runId を進める
+    function maybeStartNewRunIfRequested(){
+      const day = getDayFromPath();
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("newrun") === "1"){
+        const KEY = "cscs_results";
+        let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+        const next = getMaxRunIdForDay(day, arr) + 1;
+        localStorage.setItem(runKey(day), String(next));
+      }
+    }
+
+    // その日の最新 runId を取得（なければ 1）
+    function getLatestRunId(day){
+      const KEY = "cscs_results";
+      let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+      const m = getMaxRunIdForDay(day, arr);
+      return m || 1;
+    }
+  </script>
+
+
+      <script> try{ maybeStartNewRunIfRequested(); }catch(_){} </script>
+    
+
+<style>
+/* 全ページ強制：html/body の高さ指定を解除 */
+html, body { height: auto !important; min-height: 0 !important; }
+</style>
+
+
+  <style>
+  .wrong-inline{
+    margin-left: .4em;
+    color: #ff8080;
+    font-size: 0.9em;
+    opacity: .95;
+    white-space: nowrap;
+  }
+  </style>
+  <script>
+  window.addEventListener("DOMContentLoaded", function(){
+    function getDayFromPath(){
+      const m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m?m[1]:"unknown";
+    }
+    function getQid(){
+      const day=getDayFromPath();
+      // A/B どちらでも拾えるように [ab] を許可
+      const m=(window.location.pathname||"").match(/q(\d{3})_[ab]\.html$/);
+      const n=m?m[1]:"000";
+      return `${day}-${n}`;
+    }
+    const KEY="cscs_wrong_log";
+    let log={};
+    try{ log=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(_){ log={}; }
+    const qid=getQid();
+    const count=log[qid]||0;
+    if(count>0){
+      const host=document.querySelector('.top-number');
+      if(host){
+        const badge=document.createElement('span');
+        badge.className='wrong-inline';
+        badge.textContent=`（不正解:${count}回）`;
+        host.appendChild(badge);
+      }
+    }
+  });
+  </script>
+
+
+<link rel="stylesheet" href="../../assets/main.css">
+
+</head>
+<body>
+  <div class="wrap">
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (81/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>20</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'><div class='top-date'>2025年12月15日</div></div></div>
+    <div class='qno'><span class='crumb-field'>施設管理と運営</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>スタッフ教育</span></div>
+    <h1 style="font-size:44px">スタッフ教育の評価​KPI​として適切なのはどれか？</h1>
+    <ol class='opts' type='A'><li><a class="opt-link" href="q020_b.html?choice=A">スタッフの筋力PR数</a></li><li><a class="opt-link" href="q020_b.html?choice=B">研修受講率・現場チェック合格率・事故件数推移</a></li><li><a class="opt-link" href="q020_b.html?choice=C">名刺交換数</a></li><li><a class="opt-link" href="q020_b.html?choice=D">SNSフォロワー増加</a></li></ol>
+    <div class='hint'>（この後、正解と解説が表示されます）</div>
+    <!-- <div class="footer">（このスライドは自動生成です）</div> -->
+  </div>
+<script type="application/json" id="cscs-meta">{"qid": "2025年12月15日-020", "field": "施設管理と運営", "theme": "スタッフ教育", "level": "Level 3", "date": "2025年12月15日", "number": "20", "quiztype": "単一分野", "tags": {"cause": "教育プログラム実施", "process": "実技評価|安全KPI測定", "outcome": "教育成果可視化"}}</script>
+
+  <!-- 左下の [TOPへ戻る] ボタン -->
+  <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
+
+</body>
+</html>
