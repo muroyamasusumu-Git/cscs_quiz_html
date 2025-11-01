@@ -299,7 +299,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
       // ---- (1) Bパート音声（m4aのみ）----
       (function autoPlayB(){
-        const src = "../audio/q014_b.m4a";
+        const src = "../../../cscs_csv_v32a/_build_cscs_20251216/audio/q014_b.m4a";
         const audio = new Audio(src);
         audio.preload = "auto";
         audio.playsInline = true;
@@ -521,6 +521,12 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 /* 全ページ強制：html/body の高さ指定を解除 */
 html, body { height: auto !important; min-height: 0 !important; }
 </style>
+
+
+<link rel="stylesheet" href="../../assets/deep_dive.css">
+<script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1"></script>
+
+<script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
 
 
 <link rel="stylesheet" href="../../assets/main.css">
