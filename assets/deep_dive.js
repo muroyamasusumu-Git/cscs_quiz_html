@@ -22,8 +22,9 @@
     return m ? m[1] : "q000";
   }
   function isBPart(){
-    // クエリ/ハッシュ付き、大文字小文字も許容
-    return /_b\.html(?:\?.*)?(?:#.*)?$/i.test(String(location.href||""));
+    // Clean URLs（拡張子なし）と .html 両対応
+    // 例: q001_b?choice=B / q001_b.html?choice=B / 末尾#hash など
+    return /_b(?:\.html)?(?:\?.*)?(?:#.*)?$/i.test(String(location.href||""));
   }
   function ddKey(){
     const day  = getDayFromPathDD();
