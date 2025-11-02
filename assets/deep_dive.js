@@ -754,47 +754,63 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     { id:"review3", label:"3行復習" }
   ];
 
-  // 見出しごとプロンプト作成
+  // 見出しごとプロンプト作成（一括版の詳細プロンプトを各セクション用に最適化・見出し非出力）
   async function buildSectionPrompt(meta, dom, sectionId){
+    const j=(xs,sep=" → ")=>(xs&&xs.length)?xs.join(sep):"（該当なし）";
+    const opts=(dom.options||[]).map((t,i)=>String.fromCharCode(65+i)+") "+t).join("\n");
+
     const base = `
 あなたはNSCA-CSCS学習者向けの「因果で理解する深掘りコーチ」です。
-出力は日本語、平易な「です・ます調」。HTML断片のみを返し、コードフェンスは使わない。
-重要語は <span class="dd-key">…</span>、正解関連語は <span class="dd-answer">…</span> で囲む。
+専門的な内容を初学者にも理解しやすい形で説明します。
+出力は日本語で、平易で明瞭な「です・ます調」。HTML断片のみを返し、コードフェンスは使わない。
+専門用語には簡潔な補足を加え、概念間のつながりが分かるように因果関係を整理して説明します。
 
-【メタ】
+【重要な出力ルール】
+- 重要語句は <span class="dd-key">…</span> で囲む（単語または短い名詞句レベル）。
+- 正解や根拠に関する語句は <span class="dd-answer">…</span> で囲む。
+- 文中の特定語句だけに適用し、全体を囲まない。
+- HTMLタグはエスケープせず、そのままのHTML断片として出力する。
+- コードフェンス（\`\`\`）や不要な前置きは付けない。
+
+【文体の指針】
+- 説明は2〜4文で、背景→要因→結果の流れが伝わるように。
+- 不要な改行や空行は避け、自然な日本語で書く。
+- 情報を整理しつつ、学習者の理解を助ける補足を加える。
+- 英語表記の単語は <span lang="en">…</span> で囲み、括弧内で補足する。
+
+【メタ情報】
 分野: ${meta.field||""}
 テーマ: ${meta.theme||""}
-上流: ${(meta.tagsCause||[]).join(" / ")||"（なし）"}
-中流: ${(meta.tagsProc||[]).join(" / ")||"（なし）"}
-下流: ${(meta.tagsOut||[]).join(" / ")||"（なし）"}
+上流(原因・原理): ${j(meta.tagsCause)}
+中流(過程・具体経路): ${j(meta.tagsProc)}
+下流(結果・明文化): ${j(meta.tagsOut)}
 
-【問題】
-設問: ${dom.question||"(取得できず)"}
-選択肢: ${dom.options && dom.options.length ? dom.options.map((t,i)=>String.fromCharCode(65+i)+") "+t).join(" / ") : "(取得できず)"}
-正解ラベル: ${dom.correct||"(不明)"}
+【問題DOM抜粋】
+${dom.question?`設問: ${dom.question}`:"設問: (取得できず)"}
+${opts?`選択肢:\n${opts}`:"選択肢: (取得できず)"}
+${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得できず)"}
 `.trim();
 
-    // セクション別の指示（見出しタグを除去）
+    // セクション別指示（見出しを出力しないように変更）
     let sectionSpec = "";
     if (sectionId === "theory"){
-      sectionSpec = `<p>上流の原因・原理を因果で整理し、なぜそうなるかを説明してください。</p>`;
+      sectionSpec = `<p>「理論深掘り（上流）」の内容を説明してください。上流の原因や原理を、なぜその仕組みが成り立つのかという視点で2〜4文にまとめてください。</p>`;
     } else if (sectionId === "process"){
-      sectionSpec = `<p>実際のプロセスや具体経路を、ステップの流れが追えるように説明してください。</p>`;
+      sectionSpec = `<p>「事例深掘り（中流）」の内容を説明してください。どのような過程や具体的な経路を経て結果に至るかを、2〜4文で示してください。</p>`;
     } else if (sectionId === "definition"){
-      sectionSpec = `<p>要点を定義として明文化し、誤解しにくい表現でまとめてください。</p>`;
+      sectionSpec = `<p>「定義深掘り（下流）」の内容を説明してください。結果や定義を2〜4文でまとめ、要点と意味を整理してください。</p>`;
     } else if (sectionId === "apply"){
-      sectionSpec = `<p>本問の<span class="dd-answer">正解は ${dom.correct||"（不明）"}</span>です。選択肢に即して因果で根拠を説明し、他選択肢が外れる理由も短く触れてください。</p>`;
+      sectionSpec = `<p>「この問題への当てはめ」を説明してください。本問の<span class="dd-answer">正解は ${dom.correct||"（不明）"}</span>です。その根拠を因果関係に基づいて2〜4文で説明し、他の選択肢が誤る理由も一言で触れてください。</p>`;
     } else if (sectionId === "review3"){
-      sectionSpec = `<ol><li>…</li><li>…</li><li>…</li></ol>`;
+      sectionSpec = `<p>「3行復習」として、この問題の要点を3行でまとめてください。</p>`;
     }
 
     const hardRule = `
 【厳守事項】
-- いま指定したセクションのみをHTML断片で返してください（他セクションは出力しない）。
-- 見出し（<h3>）や <section> は出力しない。本文（<p>…</p> など）のみ返す。
-- 段落は過度な改行を避け、自然な流れで。<br>は見出し以外では使わない。
-- 必要に応じて <span class="dd-key">…</span> と <span class="dd-answer">…</span> を適用。
-- コードフェンスや説明テキストは不要。`.trim();
+- 指定セクション（${sectionId}）のみを出力する。他セクションは出力しない。
+- <h3>や<section>などの見出しタグは出力しない。本文（<p>…</p> など）だけを返す。
+- 文章は2〜4文に収め、冗長な導入や締めを避ける。
+- コードフェンスや注釈文は不要。`.trim();
 
     return [base, hardRule, "", sectionSpec].join("\n\n");
   }
