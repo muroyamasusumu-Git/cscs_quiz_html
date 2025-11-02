@@ -624,6 +624,179 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       // B専用のため追加処理なし
     }
   });
+  // === export for lazy sections ===
+  window.callGemini = callGemini;
+  window.readDom = readDom;
+  window.getApiKey = getApiKey;
+  window.mountAndWire = mountAndWire;
+// === Lazy Deep Dive: 見出しごとオンデマンド生成 ==================================
 
+(function(){
+  // 見出しの定義（ID: ラベル）
+  const DD_SECTIONS = [
+    { id:"theory",  label:"理論深掘り｜上流（原因・原理）" },
+    { id:"process", label:"事例深掘り｜中流（プロセス・具体経路）" },
+    { id:"definition", label:"定義深掘り｜下流（結果・明文化）" },
+    { id:"apply",   label:"この問題への当てはめ" },
+    { id:"review3", label:"3行復習" }
+  ];
+
+  // 見出しごとプロンプト作成
+  async function buildSectionPrompt(meta, dom, sectionId){
+    const base = `
+あなたはNSCA-CSCS学習者向けの「因果で理解する深掘りコーチ」です。
+出力は日本語、平易な「です・ます調」。HTML断片のみを返し、コードフェンスは使わない。
+重要語は <span class="dd-key">…</span>、正解関連語は <span class="dd-answer">…</span> で囲む。
+
+【メタ】
+分野: ${meta.field||""}
+テーマ: ${meta.theme||""}
+上流: ${(meta.tagsCause||[]).join(" / ")||"（なし）"}
+中流: ${(meta.tagsProc||[]).join(" / ")||"（なし）"}
+下流: ${(meta.tagsOut||[]).join(" / ")||"（なし）"}
+
+【問題】
+設問: ${dom.question||"(取得できず)"}
+選択肢: ${dom.options && dom.options.length ? dom.options.map((t,i)=>String.fromCharCode(65+i)+") "+t).join(" / ") : "(取得できず)"}
+正解ラベル: ${dom.correct||"(不明)"}
+`.trim();
+
+    // セクション別の指示
+    let sectionSpec = "";
+    if (sectionId === "theory"){
+      sectionSpec = `<section class="dd-sec"><h3>理論深掘り｜上流（原因・原理）</h3><p>上流の原因・原理を因果で整理し、なぜそうなるかを説明してください。</p></section>`;
+    } else if (sectionId === "process"){
+      sectionSpec = `<section class="dd-sec"><h3>事例深掘り｜中流（プロセス・具体経路）</h3><p>実際のプロセスや具体経路を、ステップの流れが追えるように説明してください。</p></section>`;
+    } else if (sectionId === "definition"){
+      sectionSpec = `<section class="dd-sec"><h3>定義深掘り｜下流（結果・明文化）</h3><p>要点を定義として明文化し、誤解しにくい表現でまとめてください。</p></section>`;
+    } else if (sectionId === "apply"){
+      sectionSpec = `<section class="dd-sec"><h3>この問題への当てはめ</h3><p>本問の<span class="dd-answer">正解は ${dom.correct||"（不明）"}</span>です。選択肢に即して因果で根拠を説明し、他選択肢が外れる理由も短く触れてください。</p></section>`;
+    } else if (sectionId === "review3"){
+      sectionSpec = `<section class="dd-sec"><h3>3行復習</h3><ol><li>…</li><li>…</li><li>…</li></ol></section>`;
+    }
+
+    const hardRule = `
+【厳守事項】
+- いま指定したセクションのみをHTML断片で返してください（他セクションは出力しない）。
+- 段落は過度な改行を避け、自然な流れで。<br>は見出し以外では使わない。
+- 必要に応じて <span class="dd-key">…</span> と <span class="dd-answer">…</span> を適用。
+- コードフェンスや説明テキストは不要。`.trim();
+
+    return [base, hardRule, "", sectionSpec].join("\n\n");
+  }
+
+  // セクション単位の保存キー
+  function sectionStoreKey(sectionId){
+    return ddKey() + ":" + sectionId;
+  }
+
+  // セクション行のDOM
+  function sectionRow(section){
+    const wrap = document.createElement("div");
+    wrap.className = "dd-sec dd-lazy";
+    wrap.dataset.sectionId = section.id;
+    wrap.innerHTML = `
+      <h3 style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
+        <span>${section.label}</span>
+        <span>
+          <button class="dd-btn dd-s-btn" data-act="gen">生成</button>
+          <button class="dd-btn dd-s-btn" data-act="regen" disabled>再生成</button>
+          <button class="dd-btn dd-s-btn" data-act="clear" disabled>消去</button>
+        </span>
+      </h3>
+      <div class="dd-lazy-body dd-small dd-mono" style="opacity:.9">（未生成）</div>
+    `;
+    return wrap;
+  }
+
+  // セクションUIを描画（panel mount後に呼ぶ）
+  async function renderLazySections(meta){
+    const panel = document.getElementById("dd-panel");
+    if (!panel) return;
+    const body = panel.querySelector("#dd-body");
+    if (!body) return;
+
+    // コンテナ
+    const host = document.createElement("div");
+    host.id = "dd-lazy-host";
+    host.style.marginTop = "10px";
+
+    // 既存本文があれば保つ（案内の下に配置）
+    body.appendChild(host);
+
+    // 行追加＆保存済みを復元
+    for (const s of DD_SECTIONS){
+      const row = sectionRow(s);
+      host.appendChild(row);
+
+      const saved = localStorage.getItem(sectionStoreKey(s.id));
+      const bodyEl = row.querySelector(".dd-lazy-body");
+      const btnGen  = row.querySelector('[data-act="gen"]');
+      const btnRe   = row.querySelector('[data-act="regen"]');
+      const btnClr  = row.querySelector('[data-act="clear"]');
+
+      if (saved){
+        bodyEl.innerHTML = saved;
+        btnRe.disabled = false;
+        btnClr.disabled = false;
+      }
+
+      // ボタン動作
+      const click = (h)=> (ev)=>{ ev.preventDefault(); ev.stopPropagation(); h().catch(e=>console.error(e)); };
+
+      const generate = async (force=false)=>{
+        const apiKey = (window.getApiKey? window.getApiKey(): null) || "";
+        if(!apiKey){ alert("Gemini APIキーが未設定です。パネル下部のAPIから保存してください。"); return; }
+
+        // UIロック
+        btnGen.disabled = true; btnRe.disabled = true; btnClr.disabled = true;
+        bodyEl.innerHTML = `<span class="dd-spinner"></span>生成中…`;
+
+        const dom  = await (window.readDom? window.readDom(): {question:"",options:[],correct:""});
+        const prompt = await buildSectionPrompt(meta||{field:"",theme:"",tagsCause:[],tagsProc:[],tagsOut:[]}, dom, s.id);
+
+        try{
+          const html = await window.callGemini(prompt, { apiKey, model: "models/gemini-2.5-flash" });
+          const cleaned = String(html||"").replace(/```html|```/g,"").trim() || `<div class="dd-note">（空の出力）</div>`;
+          bodyEl.innerHTML = cleaned;
+          localStorage.setItem(sectionStoreKey(s.id), cleaned);
+          btnRe.disabled = false; btnClr.disabled = false;
+        }catch(e){
+          bodyEl.innerHTML = `<div class="dd-note">生成に失敗：<span class="dd-mono">${String(e&&e.message||e)}</span></div>`;
+        }finally{
+          btnGen.disabled = false;
+        }
+      };
+
+      btnGen.addEventListener("click", click(()=>generate(false)));
+      btnRe .addEventListener("click", click(()=>generate(true)));
+      btnClr.addEventListener("click", click(async ()=>{
+        localStorage.removeItem(sectionStoreKey(s.id));
+        bodyEl.textContent = "（未生成）";
+        btnRe.disabled = true; btnClr.disabled = true;
+      }));
+    }
+  }
+
+  // 既存の mount にフック：mountAndWire 呼び出し後に lazy を差し込む
+  const _mountAndWire = window.mountAndWire;
+  window.mountAndWire = function(meta){
+    _mountAndWire && _mountAndWire(meta);
+    renderLazySections(meta);
+  };
+
+  // ちょっとした見た目
+  if(!document.getElementById("dd-lazy-style")){
+    const st = document.createElement("style");
+    st.id = "dd-lazy-style";
+    st.textContent = `
+      .dd-s-btn{ font-size:12px; padding:6px 10px; margin-left:6px; }
+      .dd-lazy + .dd-lazy{ margin-top:8px; }
+      .dd-lazy-body{ padding:6px 0 4px; }
+    `;
+    document.head.appendChild(st);
+  }
+})();
+  
   window.DeepDive = window.DeepDive || { init(){} };
 })();
