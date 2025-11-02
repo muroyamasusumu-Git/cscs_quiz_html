@@ -637,6 +637,20 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     };
     showKeyState();
 
+    // 既存（前回の一括保存）があれば、専用コンテナに表示（パネル骨格は壊さない）
+    try{
+      const saved = localStorage.getItem(key);
+      if (saved){
+        const legacy = document.createElement("div");
+        legacy.id = "dd-legacy";
+        legacy.className = "dd-sec dd-small";
+        legacy.innerHTML = `<h3 style="margin:0 0 6px 0">以前の一括生成（読み取り専用）</h3>` + saved;
+        (document.getElementById("dd-static") || bodyEl).appendChild(legacy);
+        regenBtn.disabled = false;
+        copyBtn.disabled  = false;
+      }
+    }catch(_){}
+
     const stopAll = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); };
 
     // 一括生成：各見出しの「生成」ボタンを順に叩く（通常は見出しから個別生成を推奨）
