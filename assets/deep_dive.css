@@ -120,3 +120,12 @@
   margin-bottom: 8px;  /* ← 次の段落との最低限の余白だけ確保 */
   line-height: 1.6;    /* ← 読みやすさは維持 */
 }
+
+#dd-panel .dd-lazy .dd-btn {
+  font-size: 14px;
+  font-weight: 400;
+  padding: 5px 22px;
+  color: #fff !important;               /* ← 白文字 */
+  border: 1px solid #3a3f4b; /* 下部メニューと統一感を保つ */
+  background: #20232a;       /* 下部ボタンと同系色 */
+}

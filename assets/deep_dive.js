@@ -601,7 +601,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       </div>
       <div id="dd-body" class="dd-small">
         <div id="dd-static">
-          ${meta ? `<div style="opacity:.9">各見出しの「生成」から必要な部分だけ出力できます。</div>`
+          ${meta ? ``
                  : `<div class="dd-note">cscs-meta が見つかりません。メタなしでもプロンプト表示は可能です。</div>`}
         </div>
         <div id="dd-lazy-host"></div>
@@ -968,11 +968,6 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     st.id = "dd-lazy-style";
     st.textContent = `
       /* 各見出し行のボタンは指定の見た目に統一（下部ツールバーには影響させない） */
-      .dd-lazy .dd-btn {
-        font-size: 14px;
-        font-weight: 400;
-        padding: 5px 22px;
-      }
       .dd-s-btn{ font-size:12px; padding:6px 10px; margin-left:6px; }
       .dd-lazy + .dd-lazy{ margin-top:8px; }
       .dd-lazy-body{ padding:8px 0 4px; }
