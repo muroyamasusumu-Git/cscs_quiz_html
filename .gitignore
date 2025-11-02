@@ -1,1 +1,12 @@
 .DS_Store
+
+# local backups
+*.bk
+*.bk.*
+*~
+# unused pages functions dir
+
+# local backups
+*.bk
+*.bk.*
+*~

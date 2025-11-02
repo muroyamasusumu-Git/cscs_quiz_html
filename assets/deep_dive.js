@@ -12,8 +12,8 @@
   ];
   const PANEL_TOP_GAP = 12;
 
-  // ▼ ワンクリ保存で使うハードコードキー（公開コミット厳禁）
-  const DEFAULT_HARDCODED_KEY = "AIzaSyAItFa6e7Q5psu7P7jww89fmMUy89bagXM";
+  // ▼ ハードコードキーは廃止（Cloudflare Functions 経由で配布）
+  //   必要なら data-gemini-key / localStorage / /api-key の順で取得します。
 
   // ====== パス/ストレージヘルパ ======
   function getDayFromPathDD(){
@@ -36,14 +36,57 @@
   }
 
   // ====== ユーティリティ（APIキー関連） ======
-  function getApiKey(){
-    const self = document.querySelector('script[src*="deep_dive.js"]');
-    if (self && self.dataset.geminiKey) return self.dataset.gemini_key?.trim?.() || self.dataset.geminiKey.trim();
+  let __GEMINI_KEY_CACHE = null;
+
+  /**
+   * 優先度: data-gemini-key → /api-key(Cloudflare Functions) → localStorage("gemini_api_key")
+   * どこにも無ければ Error。
+   */
+  async function getApiKey() {
+    // 0) メモリキャッシュ
+    if (typeof __GEMINI_KEY_CACHE === 'string' && __GEMINI_KEY_CACHE) {
+      return __GEMINI_KEY_CACHE;
+    }
+
+    // 1) <script src="...deep_dive.js" data-gemini-key="...">
+    const me =
+      document.currentScript ||
+      document.querySelector('script[src*="deep_dive.js"]') ||
+      document.querySelector('script[data-mode][src*="deep_dive.js"]');
+    const attr = me && me.dataset ? (me.dataset.geminiKey || '').trim() : '';
+    if (attr) {
+      __GEMINI_KEY_CACHE = attr;
+      return __GEMINI_KEY_CACHE;
+    }
+
+    // 2) Cloudflare Functions 経由（/api-key が { key: "AIza..." } を返す想定）
     try {
-      const k = localStorage.getItem("gemini_api_key");
-      if (k) return k.trim();
-    } catch(_){}
-    return "";
+      const res = await fetch('/api-key', {
+        method: 'GET',
+        headers: { 'accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data && typeof data.key === 'string' && data.key.trim()) {
+          __GEMINI_KEY_CACHE = data.key.trim();
+          return __GEMINI_KEY_CACHE;
+        }
+      }
+    } catch (_) {
+      // ネットワークエラー時は次の手段へフォールバック
+    }
+
+    // 3) localStorage フォールバック
+    try {
+      const ls = (localStorage.getItem('gemini_api_key') || '').trim();
+      if (ls) {
+        __GEMINI_KEY_CACHE = ls;
+        return __GEMINI_KEY_CACHE;
+      }
+    } catch (_) {}
+
+    // 4) どれも無い
+    throw new Error('GEMINI_API_KEY not found (data-attr, /api-key, localStorage)');
   }
   function maskKey(k) {
     if (!k) return "未設定";
@@ -59,20 +102,24 @@
       setTimeout(() => el.remove(), 1800);
     } catch {}
   }
-  function updateApiBadge() {
-    const ok = !!getApiKey();
+  async function updateApiBadge() {
+    let ok = false;
+    try {
+      const k = await getApiKey();
+      ok = !!(k && k.trim());
+    } catch (_){ ok = false; }
+
     const badge = document.querySelector("[data-dd-api-badge]") || document.getElementById("dd-api-badge");
     if (badge) {
       badge.textContent = ok ? "API: ✅" : "API: ー";
       badge.classList.toggle("dd-api-ok", ok);
       badge.classList.toggle("dd-api-ng", !ok);
     }
-    // 他処理へ通知
     try { window.dispatchEvent(new CustomEvent("dd:apikey-changed", { detail: { ok } })); } catch(_){}
   }
 
   // ====== APIキー設定UI（ツールバー左端の「API」ボタン） ======
-  function addApiButton(toolbarEl) {
+  async function addApiButton(toolbarEl) {
     if (!toolbarEl || toolbarEl.__ddApiReady) return;
     toolbarEl.__ddApiReady = true;
 
@@ -83,26 +130,32 @@
     apiBtn.style.marginRight = "";
     toolbarEl.prepend(apiBtn);
 
-    // ▼ ワンクリ保存（押したら即保存・上書き）
-    apiBtn.addEventListener("click", () => {
+    // ▼ Cloudflare Functions（/api-key）から取得→保存
+    apiBtn.addEventListener("click", async () => {
       try {
-        localStorage.setItem("gemini_api_key", DEFAULT_HARDCODED_KEY);
-        updateApiBadge();
+        const res = await fetch("/api-key", { method: "GET", headers: { accept: "application/json" } });
+        if (!res.ok) throw new Error("fetch failed: " + res.status);
+        const data = await res.json().catch(() => ({}));
+        const k = (data && typeof data.key === "string") ? data.key.trim() : "";
+        if (!k) throw new Error("empty key");
+
+        localStorage.setItem("gemini_api_key", k);
+        await updateApiBadge();
         toast("✅ APIキーを保存しました（この端末のブラウザに保存）");
       } catch (e) {
-        toast("⚠️ 保存に失敗しました（ブラウザの制限）");
+        toast("⚠️ APIキーの取得/保存に失敗しました");
       }
     });
 
     // URLパラメータ経由での自動保存（?key=... or ?gemini_key=...）も併用可
-    (function () {
+    (async function () {
       const p = new URLSearchParams(location.search);
       const k = (p.get("gemini_key") || p.get("key") || "").trim();
       if (k) {
         try {
           localStorage.setItem("gemini_api_key", k);
           history.replaceState({}, "", location.pathname + location.hash); // クエリ隠す
-          updateApiBadge();
+          await updateApiBadge();
           toast("✅ APIキーを保存しました（URLパラメータ）");
         } catch (_) {
           toast("⚠️ 保存に失敗しました（ブラウザの制限）");
@@ -110,7 +163,7 @@
       }
     })();
 
-    updateApiBadge();
+    await updateApiBadge();
   }
 
   // ====== できるだけ確実にコピーする（HTTPS→ClipboardAPI / それ以外→execCommand） ======
@@ -288,7 +341,7 @@
           animation:ddspin 1s linear infinite;vertical-align:-3px;margin-right:8px}
         @keyframes ddspin{to{transform:rotate(360deg)}}
         html[data-dd-open="1"],html[data-dd-open="1"] body{overflow:hidden!important;}
-        html[data-dd-open="1"]{overscroll-beavior:contain;}
+        html[data-dd-open="1"]{overscroll-behavior:contain;}
         html[data-dd-open="1"] .next-overlay{pointer-events:none!important;}
         /* プロンプト表示モーダル */
         #dd-prompt-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
@@ -481,7 +534,14 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     addApiButton(toolbarEl);
     updateApiBadge();
 
-    const showKeyState=()=>{ keyState.textContent=getApiKey()?"（保存済み）":"（未設定: localStorage.gemini_api_key）"; };
+    const showKeyState = async ()=>{
+      try {
+        const k = await getApiKey();
+        keyState.textContent = (k && k.trim()) ? "（保存済み）" : "（未設定: localStorage.gemini_api_key）";
+      } catch (_){
+        keyState.textContent = "（未設定: localStorage.gemini_api_key）";
+      }
+    };
     showKeyState();
 
     // 既存（前回生成分）があれば表示
@@ -497,7 +557,8 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const stopAll = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); };
 
     async function doGenerate(){
-      const apiKey = getApiKey();
+      let apiKey = "";
+      try { apiKey = await getApiKey(); } catch(_){}
       if(!apiKey){
         alert("Gemini APIキーが未設定です。\n左下の「API」ボタンから保存してください。");
         return;
@@ -745,7 +806,8 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       const click = (h)=> (ev)=>{ ev.preventDefault(); ev.stopPropagation(); h().catch(e=>console.error(e)); };
 
       const generate = async (force=false)=>{
-        const apiKey = (window.getApiKey? window.getApiKey(): null) || "";
+        let apiKey = "";
+        try { apiKey = await (window.getApiKey ? window.getApiKey() : Promise.resolve("")); } catch(_){}
         if(!apiKey){ alert("Gemini APIキーが未設定です。パネル下部のAPIから保存してください。"); return; }
 
         // UIロック
