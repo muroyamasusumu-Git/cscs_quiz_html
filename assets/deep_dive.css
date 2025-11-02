@@ -92,7 +92,7 @@
 #dd-panel .dd-sec h3 {
   color: rgb(255, 243, 77) !important;
   font-weight: 400;
-  font-size: 15px !important;
+  font-size: 17px !important;
 }
 
 /* 深掘りパネル内のフォントを全体と統一 */
@@ -134,4 +134,43 @@
 .dd-lazy-body {
     padding: 0px 0 4px !important;
     font-size: 15px !important;
+}
+
+/* === Lazyセクション：テキストベースの操作UIに統一 ===================== */
+/* 見出しリンクの “リンクっぽさ” を無効化（色・下線・カーソル・クリック判定） */
+#dd-panel .dd-lazy-link{
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: default !important;
+  pointer-events: none !important; /* クリック不可にする */
+}
+
+/* 生成 / 消去 を下線付きの白テキストボタンとして表示（ツールバーの .dd-btn には影響させない） */
+#dd-panel .dd-lazy .dd-btn.dd-s-btn{
+  background: transparent !important;
+  border: none !important;
+  padding: 0 8px !important;
+  margin-left: 6px;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #fff !important;             /* ボタン文字は白に固定 */
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+/* hover/focus 時のわずかな強調（色はそのまま、下線を少し強める） */
+#dd-panel .dd-lazy .dd-btn.dd-s-btn:hover,
+#dd-panel .dd-lazy .dd-btn.dd-s-btn:focus{
+  text-decoration-thickness: 2px;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* 無効化時の見た目（押せないことが分かる程度に薄く） */
+#dd-panel .dd-lazy .dd-btn.dd-s-btn:disabled{
+  opacity: .5 !important;
+  cursor: default !important;
+  text-decoration: underline !important;
 }

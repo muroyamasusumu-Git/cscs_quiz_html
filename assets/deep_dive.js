@@ -829,7 +829,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       <h3 class="dd-lazy-h3">
         <a href="#dd=${section.id}" class="dd-lazy-link" data-act="open">${section.label}</a>
         <span class="dd-lazy-actions">
-          <button class="dd-btn dd-s-btn" data-act="gen">生成</button>
+          <button class="dd-btn dd-s-btn" data-act="gen">↓深掘り生成</button>
           <button class="dd-btn dd-s-btn" data-act="clear" disabled>消去</button>
         </span>
       </h3>
@@ -922,7 +922,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         localStorage.removeItem(sectionStoreKey(sid));
         bodyEl.textContent = "（未生成）";
         btnClr.disabled = true;
-        btnGen.textContent = "生成";
+        btnGen.textContent = "↓深掘り生成";
         bodyEl.style.display = "none";
       }));
 
