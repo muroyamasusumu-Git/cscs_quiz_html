@@ -600,16 +600,15 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         </div>
       </div>
       <div id="dd-body" class="dd-small">
-        ${meta ? `<div style="opacity:.9">「深掘り生成」を押すとAIが深掘り解説を作ります。</div>`
-               : `<div class="dd-note">cscs-meta が見つかりません。メタなしでもプロンプト表示は可能です。</div>`}
+        <div id="dd-static">
+          ${meta ? `<div style="opacity:.9">各見出しの「生成」から必要な部分だけ出力できます。※一括生成は任意で実行できます。</div>`
+                 : `<div class="dd-note">cscs-meta が見つかりません。メタなしでもプロンプト表示は可能です。</div>`}
+        </div>
+        <div id="dd-lazy-host"></div>
       </div>
       <div class="dd-toolbar">
         <!-- 左端に API ボタンを prepend で追加する -->
-        <button class="dd-btn" id="dd-generate" ${meta?'':'disabled'}>深掘り生成</button>
-        <button class="dd-btn" id="dd-regenerate" disabled>再生成</button>
-        <button class="dd-btn" id="dd-copy" disabled>コピー</button>
         <button class="dd-btn" id="dd-prompt">指示</button>
-        <button class="dd-btn" id="dd-clear">消去</button>
         <button class="dd-btn" id="dd-close">閉じる</button>
       </div>
     `;
@@ -638,11 +637,15 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     };
     showKeyState();
 
-    // 既存（前回生成分）があれば表示
+    // 既存（前回の一括保存）があれば、専用コンテナに表示（パネル骨格は壊さない）
     try{
       const saved = localStorage.getItem(key);
       if (saved){
-        bodyEl.innerHTML = saved;
+        const legacy = document.createElement("div");
+        legacy.id = "dd-legacy";
+        legacy.className = "dd-sec dd-small";
+        legacy.innerHTML = `<h3 style="margin:0 0 6px 0">以前の一括生成（読み取り専用）</h3>` + saved;
+        (document.getElementById("dd-static") || bodyEl).appendChild(legacy);
         regenBtn.disabled = false;
         copyBtn.disabled  = false;
       }
@@ -650,51 +653,34 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
     const stopAll = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); };
 
-    async function doGenerate(){
-      if (!meta){
-        alert("cscs-meta が見つからないため、生成はできません。プロンプトで確認してください。");
-        return;
+    // 一括生成：各見出しの「生成」ボタンを順に叩く（通常は見出しから個別生成を推奨）
+    async function generateAllSections(){
+      // 下部メニュー簡素化によりボタンが無い場合は何もしない
+      if (!panel || !document.getElementById("dd-lazy-host")) return;
+
+      const host = document.getElementById("dd-lazy-host");
+      const rows = Array.from(host.querySelectorAll(".dd-lazy"));
+      if (!rows.length) return;
+
+      if (genBtn)  genBtn.disabled  = true;
+      if (regenBtn) regenBtn.disabled = true;
+      if (copyBtn) copyBtn.disabled = true;
+
+      for (const row of rows){
+        const btn = row.querySelector('[data-act="gen"]');
+        if (btn && !btn.disabled){
+          btn.click();
+          // 少し間を空けて連打を避ける（必要に応じて調整）
+          await new Promise(r => setTimeout(r, 150));
+        }
       }
 
-      genBtn.disabled = true;
-      regenBtn.disabled = true;
-      copyBtn.disabled  = true;
-
-      const dom = await readDom();
-      const prompt = buildPrompt(meta, dom);
-      try { localStorage.setItem(key + ":prompt", prompt); } catch(_){}
-
-      bodyEl.innerHTML = `<span class="dd-spinner"></span>生成中…`;
-
-      try{
-        const text = await callGemini(prompt, { model: GEMINI_MODEL });
-        const html = text.replace(/```html|```/g, "");
-        bodyEl.innerHTML = html || `<div class="dd-note">（空の出力）</div>`;
-        try { localStorage.setItem(key, bodyEl.innerHTML); } catch(_){}
-        regenBtn.disabled  = false;
-        copyBtn.disabled   = false;
-      }catch(e){
-        bodyEl.innerHTML = `<div class="dd-note">生成に失敗：<br><span class="dd-mono">${String(e.message || e)}</span></div>`;
-      }finally{
-        genBtn.disabled = false;
-        showKeyState();
-        updateApiBadge();
-      }
+      if (genBtn)  genBtn.disabled  = false;
+      if (regenBtn) regenBtn.disabled = false;
+      if (copyBtn) copyBtn.disabled = false;
+      await updateApiBadge();
     }
 
-    genBtn && genBtn.addEventListener('click', (ev)=>{ stopAll(ev); doGenerate(); });
-    regenBtn.addEventListener('click', (ev)=>{ stopAll(ev); doGenerate(); });
-
-    copyBtn.addEventListener('click', async (ev)=>{
-      stopAll(ev);
-      const ok = await copyTextSmart(bodyEl.innerHTML);
-      if (ok){
-        copyBtn.textContent="コピー済み";
-        setTimeout(()=>copyBtn.textContent="コピー",1200);
-      }else{
-        alert("コピーに失敗しました。（HTTPS/localhostが安定）");
-      }
-    });
 
     // ▼ プロンプトコピー：保存→再構築→表示フォールバック
     async function copyOrShowPrompt(){
@@ -727,14 +713,6 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     }
     promptBtn.addEventListener('click', (ev)=>{ stopAll(ev); copyOrShowPrompt(); });
 
-    clearBtn.addEventListener('click', (ev)=>{
-      stopAll(ev);
-      try{ localStorage.removeItem(key); localStorage.removeItem(key + ":prompt"); }catch(_){}
-      bodyEl.innerHTML = `<div class="dd-note">保存内容を消去しました。</div>`;
-      regenBtn.disabled = true;
-      copyBtn.disabled  = true;
-    });
-
     closeBtn.addEventListener('click', (ev)=>{
       stopAll(ev);
       panel.style.display='none';
@@ -763,7 +741,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
     // メタの有無に関わらず mount（メタが無ければ生成ボタンだけ無効）
     const meta = readInlineData();
-    mountAndWire(meta);
+    (window.mountAndWire || mountAndWire)(meta);
   });
 
   // data-autoload（互換ダミー）
@@ -810,23 +788,24 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 正解ラベル: ${dom.correct||"(不明)"}
 `.trim();
 
-    // セクション別の指示
+    // セクション別の指示（見出しタグを除去）
     let sectionSpec = "";
     if (sectionId === "theory"){
-      sectionSpec = `<section class="dd-sec"><h3>理論深掘り｜上流（原因・原理）</h3><p>上流の原因・原理を因果で整理し、なぜそうなるかを説明してください。</p></section>`;
+      sectionSpec = `<p>上流の原因・原理を因果で整理し、なぜそうなるかを説明してください。</p>`;
     } else if (sectionId === "process"){
-      sectionSpec = `<section class="dd-sec"><h3>事例深掘り｜中流（プロセス・具体経路）</h3><p>実際のプロセスや具体経路を、ステップの流れが追えるように説明してください。</p></section>`;
+      sectionSpec = `<p>実際のプロセスや具体経路を、ステップの流れが追えるように説明してください。</p>`;
     } else if (sectionId === "definition"){
-      sectionSpec = `<section class="dd-sec"><h3>定義深掘り｜下流（結果・明文化）</h3><p>要点を定義として明文化し、誤解しにくい表現でまとめてください。</p></section>`;
+      sectionSpec = `<p>要点を定義として明文化し、誤解しにくい表現でまとめてください。</p>`;
     } else if (sectionId === "apply"){
-      sectionSpec = `<section class="dd-sec"><h3>この問題への当てはめ</h3><p>本問の<span class="dd-answer">正解は ${dom.correct||"（不明）"}</span>です。選択肢に即して因果で根拠を説明し、他選択肢が外れる理由も短く触れてください。</p></section>`;
+      sectionSpec = `<p>本問の<span class="dd-answer">正解は ${dom.correct||"（不明）"}</span>です。選択肢に即して因果で根拠を説明し、他選択肢が外れる理由も短く触れてください。</p>`;
     } else if (sectionId === "review3"){
-      sectionSpec = `<section class="dd-sec"><h3>3行復習</h3><ol><li>…</li><li>…</li><li>…</li></ol></section>`;
+      sectionSpec = `<ol><li>…</li><li>…</li><li>…</li></ol>`;
     }
 
     const hardRule = `
 【厳守事項】
 - いま指定したセクションのみをHTML断片で返してください（他セクションは出力しない）。
+- 見出し（<h3>）や <section> は出力しない。本文（<p>…</p> など）のみ返す。
 - 段落は過度な改行を避け、自然な流れで。<br>は見出し以外では使わない。
 - 必要に応じて <span class="dd-key">…</span> と <span class="dd-answer">…</span> を適用。
 - コードフェンスや説明テキストは不要。`.trim();
@@ -839,74 +818,84 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     return ddKey() + ":" + sectionId;
   }
 
-  // セクション行のDOM
+  // セクション行のDOM（見出しリンク化）
   function sectionRow(section){
     const wrap = document.createElement("div");
     wrap.className = "dd-sec dd-lazy";
     wrap.dataset.sectionId = section.id;
     wrap.innerHTML = `
-      <h3 style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-        <span>${section.label}</span>
-        <span>
+      <h3 class="dd-lazy-h3">
+        <a href="#dd=${section.id}" class="dd-lazy-link" data-act="open">${section.label}</a>
+        <span class="dd-lazy-actions">
           <button class="dd-btn dd-s-btn" data-act="gen">生成</button>
-          <button class="dd-btn dd-s-btn" data-act="regen" disabled>再生成</button>
           <button class="dd-btn dd-s-btn" data-act="clear" disabled>消去</button>
         </span>
       </h3>
-      <div class="dd-lazy-body dd-small dd-mono" style="opacity:.9">（未生成）</div>
+      <div class="dd-lazy-body dd-small dd-mono" style="opacity:.9;display:none">（未生成）</div>
     `;
     return wrap;
   }
 
-  // セクションUIを描画（panel mount後に呼ぶ）
+  // セクションUIを描画（panel mount後に呼ぶ）— 見出しリンク/ハッシュ対応
   async function renderLazySections(meta){
     const panel = document.getElementById("dd-panel");
     if (!panel) return;
     const body = panel.querySelector("#dd-body");
     if (!body) return;
 
-    // コンテナ
-    const host = document.createElement("div");
-    host.id = "dd-lazy-host";
-    host.style.marginTop = "10px";
+    // コンテナ（先に mountAndWire が #dd-lazy-host を作る想定。なければ作る）
+    let host = document.getElementById("dd-lazy-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "dd-lazy-host";
+      host.style.marginTop = "10px";
+      body.appendChild(host);
+    } else {
+      // 二重生成防止（再マウント時は一度空にする）
+      host.innerHTML = "";
+    }
 
-    // 既存本文があれば保つ（案内の下に配置）
-    body.appendChild(host);
-
-    // 行追加＆保存済みを復元
-    for (const s of DD_SECTIONS){
-      const row = sectionRow(s);
-      host.appendChild(row);
-
-      const saved = localStorage.getItem(sectionStoreKey(s.id));
+    // 生成ヘルパ（クロージャで row 単位に閉じ込める）
+    function wireRow(row, section){
+      const sid    = section.id;
       const bodyEl = row.querySelector(".dd-lazy-body");
-      const btnGen  = row.querySelector('[data-act="gen"]');
-      const btnRe   = row.querySelector('[data-act="regen"]');
-      const btnClr  = row.querySelector('[data-act="clear"]');
+      const btnGen = row.querySelector('[data-act="gen"]');
+      const btnClr = row.querySelector('[data-act="clear"]');
+      const link   = row.querySelector('[data-act="open"]');
 
+      const saved = localStorage.getItem(sectionStoreKey(sid));
       if (saved){
         bodyEl.innerHTML = saved;
-        btnRe.disabled = false;
+        bodyEl.style.display = "";
         btnClr.disabled = false;
+        btnGen.textContent = "再生成";
       }
 
-      // ボタン動作
-      const click = (h)=> (ev)=>{ ev.preventDefault(); ev.stopPropagation(); h().catch(e=>console.error(e)); };
+      const click = (h)=> (ev)=>{ ev.preventDefault(); ev.stopPropagation(); h().catch(console.error); };
 
-      const generate = async (force=false)=>{
-        // UIロック
-        btnGen.disabled = true; btnRe.disabled = true; btnClr.disabled = true;
+      const ensureOpen = ()=>{
+        if (bodyEl.style.display === "none") bodyEl.style.display = "";
+      };
+
+      const generate = async ()=>{
+        btnGen.disabled = true; btnClr.disabled = true;
+        ensureOpen();
         bodyEl.innerHTML = `<span class="dd-spinner"></span>生成中…`;
 
         const dom  = await (window.readDom? window.readDom(): {question:"",options:[],correct:""});
-        const prompt = await buildSectionPrompt(meta||{field:"",theme:"",tagsCause:[],tagsProc:[],tagsOut:[]}, dom, s.id);
+        const prompt = await buildSectionPrompt(meta||{field:"",theme:"",tagsCause:[],tagsProc:[],tagsOut:[]}, dom, sid);
 
         try{
           const html = await window.callGemini(prompt, { model: "models/gemini-2.5-flash" });
-          const cleaned = String(html||"").replace(/```html|```/g,"").trim() || `<div class="dd-note">（空の出力）</div>`;
+          const cleaned = String(html || "")
+            .replace(/```html|```/g, "")
+            .replace(/^\s*<h3[^>]*>[\s\S]*?<\/h3>\s*/i, "")
+            .replace(/<\/?section[^>]*>/gi, "")
+            .trim() || `<div class="dd-note">（空の出力）</div>`;
           bodyEl.innerHTML = cleaned;
-          localStorage.setItem(sectionStoreKey(s.id), cleaned);
-          btnRe.disabled = false; btnClr.disabled = false;
+          localStorage.setItem(sectionStoreKey(sid), cleaned);
+          btnClr.disabled = false;
+          btnGen.textContent = "再生成";
         }catch(e){
           bodyEl.innerHTML = `<div class="dd-note">生成に失敗：<span class="dd-mono">${String(e&&e.message||e)}</span></div>`;
         }finally{
@@ -914,14 +903,54 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         }
       };
 
-      btnGen.addEventListener("click", click(()=>generate(false)));
-      btnRe .addEventListener("click", click(()=>generate(true)));
-      btnClr.addEventListener("click", click(async ()=>{
-        localStorage.removeItem(sectionStoreKey(s.id));
-        bodyEl.textContent = "（未生成）";
-        btnRe.disabled = true; btnClr.disabled = true;
+      // 見出しリンク：初回は生成、以降は開閉（⌥/Alt/⌘で「再生成」動作）
+      link.addEventListener("click", click(async (ev)=>{
+        const alt = ev && (ev.altKey || ev.metaKey);
+        const has = !!localStorage.getItem(sectionStoreKey(sid));
+        if (!has || alt){
+          await generate();
+        } else {
+          bodyEl.style.display = (bodyEl.style.display === "none") ? "" : "none";
+        }
+        try { history.replaceState({}, "", `#dd=${sid}`); } catch(_){}
       }));
+
+      btnGen.addEventListener("click", click(()=>generate()));
+      btnClr.addEventListener("click", click(async ()=>{
+        localStorage.removeItem(sectionStoreKey(sid));
+        bodyEl.textContent = "（未生成）";
+        btnClr.disabled = true;
+        btnGen.textContent = "生成";
+        bodyEl.style.display = "none";
+      }));
+
+      // セクション直リンク（#dd=theory 等）
+      const hash = (location.hash || "").trim();
+      if (hash === `#dd=${sid}`){
+        if (!saved) { generate(); }
+        else { bodyEl.style.display = ""; }
+        setTimeout(()=> row.scrollIntoView({ block:"start", behavior:"smooth" }), 10);
+      }
     }
+
+    // 行追加
+    for (const s of DD_SECTIONS){
+      const row = sectionRow(s);
+      host.appendChild(row);
+      wireRow(row, s);
+    }
+
+    // 位置合わせ：ハッシュが変わったら対象を開く
+    window.addEventListener("hashchange", ()=>{
+      const m = (location.hash||"").match(/^#dd=([a-z0-9_]+)/i);
+      if (!m) return;
+      const sid = m[1];
+      const row = host.querySelector(`.dd-lazy[data-section-id="${sid}"]`);
+      if (!row) return;
+      const bodyEl = row.querySelector(".dd-lazy-body");
+      if (bodyEl && bodyEl.style.display === "none") bodyEl.style.display = "";
+      row.scrollIntoView({ block:"start", behavior:"smooth" });
+    });
   }
 
   // 既存の mount にフック：mountAndWire 呼び出し後に lazy を差し込む
@@ -936,9 +965,19 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const st = document.createElement("style");
     st.id = "dd-lazy-style";
     st.textContent = `
+      /* 各見出し行のボタンは指定の見た目に統一（下部ツールバーには影響させない） */
+      .dd-lazy .dd-btn {
+        font-size: 14px;
+        font-weight: 400;
+        padding: 5px 22px;
+      }
       .dd-s-btn{ font-size:12px; padding:6px 10px; margin-left:6px; }
       .dd-lazy + .dd-lazy{ margin-top:8px; }
-      .dd-lazy-body{ padding:6px 0 4px; }
+      .dd-lazy-body{ padding:8px 0 4px; }
+      .dd-lazy-h3{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0; }
+      .dd-lazy-link{ color:#cfe8ff; text-decoration:none; }
+      .dd-lazy-link:hover{ text-decoration:underline; }
+      .dd-lazy-actions{ white-space:nowrap; }
     `;
     document.head.appendChild(st);
   }
