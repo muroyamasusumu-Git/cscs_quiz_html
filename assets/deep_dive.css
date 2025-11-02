@@ -92,6 +92,7 @@
 #dd-panel .dd-sec h3 {
   color: rgb(255, 243, 77) !important;
   font-weight: 400;
+  font-size: 15px !important;
 }
 
 /* 深掘りパネル内のフォントを全体と統一 */
@@ -128,4 +129,9 @@
   color: #fff !important;               /* ← 白文字 */
   border: 1px solid #3a3f4b; /* 下部メニューと統一感を保つ */
   background: #20232a;       /* 下部ボタンと同系色 */
+}
+
+.dd-lazy-body {
+    padding: 0px 0 4px !important;
+    font-size: 15px !important;
 }
