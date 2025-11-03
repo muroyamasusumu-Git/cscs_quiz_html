@@ -142,92 +142,106 @@
     try { window.dispatchEvent(new CustomEvent("dd:apikey-changed", { detail: { ok: ok && !disabled, disabled } })); } catch(_){}
   }
 
-  // ====== APIキー設定UI（ツールバー左端の「API」ボタン） ======
-  async function addApiButton(toolbarEl) {
-    if (!toolbarEl || toolbarEl.__ddApiReady) return;
-    toolbarEl.__ddApiReady = true;
+  // ====== APIキー状態表示UI（上部固定・テキスト形式） ======
+  async function addApiButton() {
+    // 既に存在する場合はスキップ
+    if (document.getElementById("dd-api-status")) return;
 
-    const apiBtn = document.createElement("button");
-    apiBtn.className = "dd-btn dd-btn--ghost";
-    apiBtn.style.marginRight = "";
-    toolbarEl.prepend(apiBtn);
+    // 上部に固定表示を作成
+    const apiWrap = document.createElement("div");
+    apiWrap.id = "dd-api-status";
+    apiWrap.style.cssText = "position:fixed;top:6px;left:12px;z-index:10060;font-size:14px;line-height:1.6;color:#222;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);";
+    const badge = document.createElement("span");
+    badge.id = "dd-api-badge";
+    const link = document.createElement("span");
+    link.id = "dd-api-toggle";
+    link.style.cssText = "margin-left:8px;text-decoration:underline;cursor:pointer;display:inline-block;user-select:none;tab-index:0;";
+    link.setAttribute("role", "button");
+    link.setAttribute("aria-label", "API設定の切り替え");
+    apiWrap.appendChild(badge);
+    apiWrap.appendChild(link);
+    document.body.appendChild(apiWrap);
 
-    // ラベル更新
+    // まずは即時プレースホルダー（非同期待ちの間も文言が見える）
+    badge.textContent = "API : ⏸️ （未設定）";
+    link.textContent = "APIを有効化";
+
+    // 状態更新
     async function refreshLabel() {
-      const disabled = isApiDisabled();
-      if (disabled) {
-        apiBtn.textContent = "API有効化";
-        apiBtn.title = "作動解除中。クリックで再有効化（/api-keyから保存）";
-        return;
-      }
-      // 有効判定（キー取得可能なら「削除」）
       try {
-        const k = await getApiKey();
-        if (k && k.trim()) {
-          apiBtn.textContent = "API削除";
-          apiBtn.title = "この端末でAPI作動を解除（localStorageキー削除＋無効フラグON）";
+        const disabled = isApiDisabled();
+        const badgeEl = document.getElementById("dd-api-badge");
+        const linkEl = document.getElementById("dd-api-toggle");
+
+        if (!badgeEl || !linkEl) return;
+
+        if (disabled) {
+          badgeEl.textContent = "API : ⏸️ （未設定）";
+          linkEl.textContent = "APIを有効化";
+          linkEl.onclick = async () => {
+            try {
+              const res = await fetch("/api-key", { method: "GET", headers: { accept: "application/json" } });
+              if (!res || !res.ok) throw new Error("fetch failed");
+              const data = await res.json().catch(() => ({}));
+              const k = (data && typeof data.key === "string") ? data.key.trim() : "";
+              if (!k) throw new Error("empty key");
+              localStorage.setItem("gemini_api_key", k);
+              setApiDisabled(false);
+              __GEMINI_KEY_CACHE = null;
+              await updateApiBadge();
+              await refreshLabel();
+              toast("✅ APIを有効化しました");
+            } catch (_) {
+              toast("⚠️ APIの有効化に失敗しました");
+            }
+          };
         } else {
-          apiBtn.textContent = "API保存";
-          apiBtn.title = "Gemini APIキーをワンクリ保存";
+          const k = (localStorage.getItem("gemini_api_key") || "").trim();
+          const ok = !!k;
+          badgeEl.textContent = ok ? "API : ✅ （保存済）" : "API : ⏸️ （未設定）";
+          linkEl.textContent = ok ? "API解除する" : "APIを有効化";
+          linkEl.onclick = async () => {
+            if (ok) {
+              try {
+                localStorage.removeItem("gemini_api_key");
+                setApiDisabled(true);
+                __GEMINI_KEY_CACHE = null;
+                await updateApiBadge();
+                await refreshLabel();
+                toast("⏸ APIを解除しました");
+              } catch (_) {
+                toast("⚠️ 解除に失敗しました");
+              }
+            } else {
+              // 未設定→有効化へ誘導
+              const evt = new MouseEvent("click");
+              linkEl.dispatchEvent(evt);
+            }
+          };
         }
       } catch (_) {
-        // getApiKey が失敗＝未設定 or 無効化中
-        apiBtn.textContent = isApiDisabled() ? "API有効化" : "API保存";
-        apiBtn.title = isApiDisabled()
-          ? "作動解除中。クリックで再有効化（/api-keyから保存）"
-          : "Gemini APIキーをワンクリ保存";
+        // 安全側フォールバック
+        const badgeEl = document.getElementById("dd-api-badge");
+        const linkEl = document.getElementById("dd-api-toggle");
+        if (badgeEl) badgeEl.textContent = "API : ⏸️ （未設定）";
+        if (linkEl) linkEl.textContent = "APIを有効化";
       }
     }
 
-    // クリック動作（トグル）
-    apiBtn.addEventListener("click", async () => {
-      const disabled = isApiDisabled();
-      if (disabled) {
-        // 再有効化：/api-key から取得→保存→フラグ解除
-        try {
-          const res = await fetch("/api-key", { method: "GET", headers: { accept: "application/json" } });
-          if (!res.ok) throw new Error("fetch failed: " + res.status);
-          const data = await res.json().catch(() => ({}));
-          const k = (data && typeof data.key === "string") ? data.key.trim() : "";
-          if (!k) throw new Error("empty key");
-          localStorage.setItem("gemini_api_key", k);
-          setApiDisabled(false);
-          await updateApiBadge();
-          await refreshLabel();
-          toast("✅ APIを再有効化しました");
-        } catch (e) {
-          toast("⚠️ APIの再有効化に失敗しました");
-        }
-        return;
-      }
-
-      // 有効中 → 「削除」動作（この端末での作動解除）
-      try {
-        localStorage.removeItem("gemini_api_key");
-      } catch (_){}
-      setApiDisabled(true);       // 明示的に無効
-      __GEMINI_KEY_CACHE = null;  // キャッシュも無効化
-      await updateApiBadge();
-      await refreshLabel();
-      toast("⏸ APIをこの端末で作動解除しました");
-    });
-
-    // URLパラメータ経由での自動保存（?key=... or ?gemini_key=...）も併用可
+    // URLパラメータ経由の自動保存（?key=... or ?gemini_key=...）
     (async function () {
-      const p = new URLSearchParams(location.search);
-      const k = (p.get("gemini_key") || p.get("key") || "").trim();
-      if (k) {
-        try {
+      try {
+        const p = new URLSearchParams(location.search);
+        const k = (p.get("gemini_key") || p.get("key") || "").trim();
+        if (k) {
           localStorage.setItem("gemini_api_key", k);
           setApiDisabled(false);
-          history.replaceState({}, "", location.pathname + location.hash); // クエリ隠す
+          __GEMINI_KEY_CACHE = null;
+          history.replaceState({}, "", location.pathname + location.hash);
           await updateApiBadge();
-          await refreshLabel();
-          toast("✅ APIキーを保存しました（URLパラメータ）");
-        } catch (_) {
-          toast("⚠️ 保存に失敗しました（ブラウザの制限）");
         }
-      }
+      } catch (_) {}
+      await refreshLabel();
     })();
 
     await updateApiBadge();
@@ -311,7 +325,19 @@
       if (!active) return;
       const inside = e.target && e.target.closest('#dd-panel');
       if (!inside) return;
-      if (e.target.closest('.dd-btn') || e.target.closest('input,textarea,select,button')) return;
+
+      // ▼ クリック許可条件を拡張：.dd-btn / フォーム要素 / #dd-api-link / data-dd-allow / a / role=button
+      if (
+        e.target.closest('.dd-btn') ||
+        e.target.closest('input,textarea,select,button') ||
+        e.target.closest('#dd-api-link') ||
+        e.target.closest('[data-dd-allow]') ||
+        e.target.closest('a') ||
+        e.target.closest('[role="button"]')
+      ) {
+        return;
+      }
+
       e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     };
     const blockBackgroundScroll = (e) => {
@@ -596,6 +622,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         </div>
         <div class="dd-small dd-mono">
           <span id="dd-api-badge" data-dd-api-badge></span>
+          <span id="dd-api-link" data-dd-allow="1" role="button" tabindex="0" style="margin-left:8px;text-decoration:underline;cursor:pointer;"></span>
           <span id="dd-keystate" style="margin-left:10px;"></span>
         </div>
       </div>
@@ -607,7 +634,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         <div id="dd-lazy-host"></div>
       </div>
       <div class="dd-toolbar">
-        <!-- 左端に API ボタンを prepend で追加する -->
+        <!-- APIボタンは上部固定UIに統合（ここでは生成しない） -->
         <button class="dd-btn" id="dd-prompt">指示</button>
         <button class="dd-btn" id="dd-close">閉じる</button>
       </div>
@@ -623,19 +650,105 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const closeBtn=panel.querySelector('#dd-close');
     const toolbarEl=panel.querySelector('.dd-toolbar');
 
-    // APIボタン（左端）を追加し、バッジ更新
-    addApiButton(toolbarEl);
+    // ヘッダー右上のテキストUIとして有効化/解除を提供（ツールバーには出さない）
+    async function refreshApiPanel(){
+      const badgeEl = panel.querySelector('#dd-api-badge');
+      let linkEl = panel.querySelector('#dd-api-link');
+      if (!linkEl) {
+        linkEl = document.createElement('span');
+        linkEl.id = 'dd-api-link';
+        linkEl.style.cssText = 'margin-left:8px;text-decoration:underline;cursor:pointer;';
+        if (badgeEl && badgeEl.parentNode) badgeEl.after(linkEl);
+      }
+
+      // 常にクリック許可とアクセシビリティ属性を付与
+      linkEl.setAttribute('data-dd-allow', '1');
+      linkEl.setAttribute('role', 'button');
+      linkEl.setAttribute('tabindex', '0');
+
+      // Enter/Space で click を発火
+      linkEl.onkeydown = (ev) => {
+        const k = String(ev.key || '').toLowerCase();
+        if (k === 'enter' || k === ' ') {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (typeof linkEl.onclick === 'function') linkEl.onclick();
+        }
+      };
+
+      try {
+        const disabled = isApiDisabled();
+
+        if (disabled) {
+          if (badgeEl) badgeEl.textContent = "API : ⏸️（未設定）";
+          linkEl.textContent = "APIを有効化";
+          linkEl.onclick = async () => {
+            try {
+              const res = await fetch("/api-key", { method: "GET", headers: { accept: "application/json" } });
+              if (!res || !res.ok) throw new Error("fetch failed");
+              const data = await res.json().catch(() => ({}));
+              const k = (data && typeof data.key === "string") ? data.key.trim() : "";
+              if (!k) throw new Error("empty key");
+              localStorage.setItem("gemini_api_key", k);
+              setApiDisabled(false);
+              __GEMINI_KEY_CACHE = null;
+              updateApiBadge();
+              refreshApiPanel();
+              toast("✅ APIを有効化しました");
+            } catch (_) {
+              toast("⚠️ APIの有効化に失敗しました");
+            }
+          };
+        } else {
+          const k = (localStorage.getItem("gemini_api_key") || "").trim();
+          const ok = !!k;
+          if (badgeEl) badgeEl.textContent = ok ? "API : ✅（保存済）" : "API : ⏸️（未設定）";
+          linkEl.textContent = ok ? "API解除する" : "APIを有効化";
+          linkEl.onclick = async () => {
+            if (ok) {
+              try {
+                localStorage.removeItem("gemini_api_key");
+                setApiDisabled(true);
+                __GEMINI_KEY_CACHE = null;
+                updateApiBadge();
+                refreshApiPanel();
+                toast("⏸ APIを解除しました");
+              } catch (_) {
+                toast("⚠️ 解除に失敗しました");
+              }
+            } else {
+              // 未設定→有効化へ誘導
+              try {
+                const res = await fetch("/api-key", { method: "GET", headers: { accept: "application/json" } });
+                if (!res || !res.ok) throw new Error("fetch failed");
+                const data = await res.json().catch(() => ({}));
+                const k2 = (data && typeof data.key === "string") ? data.key.trim() : "";
+                if (!k2) throw new Error("empty key");
+                localStorage.setItem("gemini_api_key", k2);
+                setApiDisabled(false);
+                __GEMINI_KEY_CACHE = null;
+                updateApiBadge();
+                refreshApiPanel();
+                toast("✅ APIを有効化しました");
+              } catch (_) {
+                toast("⚠️ APIの有効化に失敗しました");
+              }
+            }
+          };
+        }
+      } catch (_) {
+        if (badgeEl) badgeEl.textContent = "API : ⏸️ （未設定）";
+        if (linkEl) { linkEl.textContent = "APIを有効化"; linkEl.onclick = null; }
+      }
+    }
+
+    // updateApiBadge() は状態イベントを飛ばすので、同期して文言も更新
+    window.addEventListener("dd:apikey-changed", () => { try { refreshApiPanel(); } catch(_){ } });
+    refreshApiPanel();
     updateApiBadge();
 
-    const showKeyState = async ()=>{
-      try {
-        const k = await getApiKey();
-        keyState.textContent = (k && k.trim()) ? "（保存済み）" : "（未設定: localStorage.gemini_api_key）";
-      } catch (_){
-        keyState.textContent = "（未設定: localStorage.gemini_api_key）";
-      }
-    };
-    showKeyState();
+    // 旧 showKeyState（APIキー状態テキスト表示）は廃止。
+    // APIバッジと「APIを有効化／解除」リンクで状態表示を統一。
 
     const stopAll = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); };
 
