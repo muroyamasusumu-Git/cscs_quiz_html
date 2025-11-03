@@ -5,3 +5,51 @@ margin: 25px 30px;
 .explain {
     font-size: 18px;
 }
+
+
+
+/* ===============================
+   スマホ (iPhone 等) 表示向け調整
+   =============================== */
+@media screen and (max-width: 600px) {
+  html, body {
+    font-size: 80% !important; /* ← 87.5% → 80% に変更 */
+  }
+
+  /* h1の問題文をさらに小さくする */
+  h1 {
+    font-size: 3.0rem !important; /* ← お好みで 1.0〜1.4rem に調整 */
+    line-height: 1.3;
+  }
+
+  /* 全体的な行間調整 */
+  .wrap {
+    line-height: 1.3 !important;
+    margin: 12px 15px;
+  }
+
+  /* iPhone表示時は日付を左寄せに */
+  .topmeta-right {
+    margin-right: auto !important;
+    text-align: left;
+    margin-top: -10px;
+    margin-left: inherit !important;
+  }
+
+  /* 選択肢や本文の行間を少し締める */
+  ol.opts li {
+    font-size: 0.95em;
+    line-height: 1.35;
+  }
+
+  /* “解説”は小さくしない（.answer を据え置き） */
+  .answer {
+    font-size: 1.9rem !important;
+  }
+
+  /* 固定ボタン類は据え置き */
+  .back-to-top,
+  .audio-fallback-btn {
+    font-size: 16px !important;
+  }
+}

@@ -206,39 +206,7 @@ ol.opts a.opt-link:focus { text-decoration: underline; }
 
 /* iOSのタップ時ハイライトを控えめに */
 a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
-
-@media screen and (max-width: 600px) {
-  html, body { font-size: 80% !important; }  /* ← 87.5% → 80% に変更 */
-
-  /* h1の問題文をさらに小さくする */
-  h1 {
-    font-size: 3.0rem !important;   /* ← お好みで 1.0〜1.4rem に調整 */
-    line-height: 1.3;
-  }
-  /* 全体的な行間調整 */  
-  .wrap {
-    line-height: 1.3 !important;
-  }
-  
-  /* iPhone表示時は日付を左寄せに */
-  .topmeta-right {
-    margin-right: auto !important;
-    text-align: left;
-    margin-top: -10px;
-    margin-left: inherit !important;
-  }
-
-  /* 選択肢や本文の行間を少し締める */
-  ol.opts li { font-size: 0.95em; line-height: 1.35; }
-
-  /* “解説”は小さくしない（.answer を据え置き） */
-  .answer { font-size: 1rem !important; }
-
-  /* 固定ボタン類は据え置き */
-  .back-to-top,
-  .audio-fallback-btn { font-size: 16px !important; }
-}
-
+ ... 
 </style>
 
   <script>
@@ -542,7 +510,7 @@ html, body { height: auto !important; min-height: 0 !important; }
 
 
 <link rel="stylesheet" href="../../assets/deep_dive.css">
-<script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1" data-gemini-key="%GEMINI_API_KEY%"></script>
+<script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1"></script>
 
 <script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
 
