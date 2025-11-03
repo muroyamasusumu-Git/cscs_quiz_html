@@ -65,6 +65,9 @@
 /* --- 深掘り本文の基本色を統一（青字の暴走防止） --- */
 #dd-panel {
   color: #e8ebf0; /* 通常テキストをやや白めに */
+  height: auto !important;
+  padding: 14px 16px 0 !important;
+  bottom: 66px !important;
 }
 
 /* AI出力内に直接 <span style="color:..."> が入っていても上書き */
