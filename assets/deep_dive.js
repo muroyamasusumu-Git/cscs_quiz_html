@@ -381,7 +381,7 @@
     if (isBPart() && !document.getElementById('dd-toggle')){
       const btn=document.createElement('button');
       btn.id='dd-toggle';
-      btn.textContent='🔍この問題を深掘り';
+      btn.textContent='🔍問題を深掘り';
       Object.assign(btn.style,{
         position:'fixed',bottom:'16px',left:'50%',transform:'translateX(-50%)',
         zIndex:10060,background:'#20232a',border:'1px solid #3a3f4b',color:'#fff',
@@ -447,32 +447,7 @@
       document.head.appendChild(st);
     }
 
-    // プロンプト表示用モーダル（フォールバック用）
-    if(!document.getElementById('dd-prompt-modal')){
-      const wrap = document.createElement('div');
-      wrap.id = 'dd-prompt-modal';
-      wrap.innerHTML = `
-        <div id="dd-prompt-box">
-          <h4>送信プロンプト（コピー不可環境フォールバック）</h4>
-          <textarea id="dd-prompt-text" readonly></textarea>
-          <div id="dd-prompt-actions">
-            <button class="dd-btn" id="dd-prompt-copy">コピーを再試行</button>
-            <button class="dd-btn" id="dd-prompt-close">閉じる</button>
-          </div>
-        </div>`;
-      document.body.appendChild(wrap);
-      wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.style.display='none'; });
-      document.addEventListener('click', (e)=>{
-        if (e.target && e.target.id === 'dd-prompt-close') wrap.style.display='none';
-      });
-      document.addEventListener('click', async (e)=>{
-        if (e.target && e.target.id === 'dd-prompt-copy') {
-          const t = document.getElementById('dd-prompt-text').value;
-          const ok = await copyTextSmart(t);
-          alert(ok ? "コピーできました。" : "コピーがブロックされています。手動で Cmd/Ctrl+A → C を使ってください。");
-        }
-      });
-    }
+    // 旧「指示」モーダルは廃止（機能削除に伴いDOM生成を停止）
 
     // トグル
     const btn=document.getElementById('dd-toggle');
@@ -635,7 +610,6 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       </div>
       <div class="dd-toolbar">
         <!-- APIボタンは上部固定UIに統合（ここでは生成しない） -->
-        <button class="dd-btn" id="dd-prompt">指示</button>
         <button class="dd-btn" id="dd-close">閉じる</button>
       </div>
     `;
@@ -645,7 +619,6 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const genBtn  =panel.querySelector('#dd-generate');
     const regenBtn=panel.querySelector('#dd-regenerate');
     const copyBtn =panel.querySelector('#dd-copy');
-    const promptBtn=panel.querySelector('#dd-prompt');
     const clearBtn=panel.querySelector('#dd-clear');
     const closeBtn=panel.querySelector('#dd-close');
     const toolbarEl=panel.querySelector('.dd-toolbar');
@@ -781,36 +754,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     }
 
 
-    // ▼ プロンプトコピー：保存→再構築→表示フォールバック
-    async function copyOrShowPrompt(){
-      const pKey = key + ":prompt";
-      let text = localStorage.getItem(pKey);
-      if (!text){
-        const domNow = await readDom();
-        text = buildPrompt(meta||{field:"",theme:"",tagsCause:[],tagsProc:[],tagsOut:[]}, domNow);
-        try{ localStorage.setItem(pKey, text); }catch(_){}
-      }
-      // 不要部分を削除（HTML断片や<section>タグなど）
-      const cleaned = text
-        .replace(/【出力フォーマット（HTML断片）】[\s\S]*$/i, "")
-        .replace(/<section[\s\S]*?<\/section>/gi, "")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
-
-      const ok = await copyTextSmart(cleaned);
-      if (ok){
-        promptBtn.textContent = "コピー済み";
-        setTimeout(()=> promptBtn.textContent = "指示", 1200);
-        return;
-      }
-      // フォールバック表示（自動選択済み）
-      const wrap = document.getElementById('dd-prompt-modal');
-      const ta = document.getElementById('dd-prompt-text');
-      ta.value = text;
-      wrap.style.display = 'flex';
-      ta.focus(); ta.select();
-    }
-    promptBtn.addEventListener('click', (ev)=>{ stopAll(ev); copyOrShowPrompt(); });
+    // 旧「指示」機能は廃止（ボタン・コピー/モーダル関連処理を削除）
 
     closeBtn.addEventListener('click', (ev)=>{
       stopAll(ev);
