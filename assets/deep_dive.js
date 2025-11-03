@@ -773,9 +773,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       const st = document.createElement("style");
       st.id = "dd-ipad-style";
       st.textContent = `
-        .dd-toolbar{
-          bottom: 18px !important;
-        }
+      
       `;
       document.head.appendChild(st);
     }
