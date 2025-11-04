@@ -248,7 +248,7 @@
 }
 #similar-list ul {
   margin: 0;
-  padding-left: 1.2em;
+  padding-left: 0.7em;
 }
 #similar-list li {
   margin: 2px 0;
