@@ -1,124 +1,290 @@
 <!DOCTYPE html>
-<html><head><meta charset='utf-8'>
-<title>CSCS 問題集一覧</title>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>NSCA CSCS 試験対策問題集（索引）</title>
+<link id="mainCss" rel="stylesheet" href="/assets/main.css">
 <style>
-
-html,body{
-  background:#111;color:#fff;
-  font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',sans-serif;
-  margin:0;
-  height:auto !important; min-height:0 !important;  /* ← 追加 */
+:root{
+  --bg:#111; --fg:#fff; --muted:#a8b0b8; --card:#161616; --line:#2a2a2a;
+  --accent:#66d9ff; --good:#fff34d; --bad:#ff8080;
 }
-.wrap{
-  width:min(1000px,92vw);
-  margin:40px auto;
-  line-height:1.8;
-  font-size:20px;
-}
-h1{font-size:28px;margin:0 0 16px;}
-a{color:#66d9ff;text-decoration:none;}
-a:hover{text-decoration:underline;}
-table{width:100%;border-collapse:separate;border-spacing:0 6px;}
-th,td{padding:10px 12px;background:#161616;vertical-align:middle;}
-th{background:#1c1c1c;font-weight:600;opacity:.9;text-align:left;border-bottom:1px solid #2a2a2a;}
-td:first-child{border-radius:8px 0 0 8px;}
-td:last-child{border-radius:0 8px 8px 0;}
-.col-date{white-space:nowrap;font-variant-numeric:tabular-nums;}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif}
+.wrap{width:min(1200px,92vw);margin:32px auto 80px;line-height:1.6}
+.header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:16px}
+.h-title{font-size:22px;font-weight:700;letter-spacing:.02em}
+.h-sub{font-size:16px;color:var(--muted)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 8px}
+input[type="search"],select{
+  background:#202020;border:1px solid #3a3a3a;color:var(--fg);border-radius:8px;padding:8px 10px;font-size:15px;min-width:220px}
+small.mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:1024px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid #222;border-radius:12px;padding:14px 14px 12px}
+.ctop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}
+.date{font-weight:700}
+.meta{color:var(--muted);font-size:14px}
+.title{font-size:16px;margin:6px 0 4px;letter-spacing:.01em}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.badge{font-size:12px;color:#ddd;border:1px solid #3a3a3a;border-radius:999px;padding:2px 8px}
+.rate{font-weight:700}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+a.btn,button.btn{display:inline-block;background:#202020;border:1px solid #3a3a3a;border-radius:8px;
+  color:var(--fg);padding:6px 10px;text-decoration:none;cursor:pointer;font-size:14px}
+a.btn:hover,button.btn:hover{border-color:#4a4a4a}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.footer{position:fixed;left:16px;bottom:16px}
+.back{background:rgba(255,255,255,.08);border:1px solid #3a3a3a;border-radius:6px;color:var(--accent);padding:6px 10px;text-decoration:none}
+.notice{color:var(--muted);font-size:14px;margin:6px 0}
+.hidden{display:none !important}
+</style>
+<script>
+(function(){
+  "use strict";
 
-</style></head><body><div class='wrap'>
-<h1>NSCA CSCS 試験対策問題集 一覧</h1>
-<table>
-<thead><tr><th>日付</th><th>問題集HTML</th></tr></thead><tbody>
-<tr><td class='col-date'>2025年9月26日</td><td><a href='./_build_cscs_20250926/slides/q001_a.html'>_build_cscs_20250926</a></td></tr>
-<tr><td class='col-date'>2025年9月27日</td><td><a href='./_build_cscs_20250927/slides/q001_a.html'>_build_cscs_20250927</a></td></tr>
-<tr><td class='col-date'>2025年9月28日</td><td><a href='./_build_cscs_20250928/slides/q001_a.html'>_build_cscs_20250928</a></td></tr>
-<tr><td class='col-date'>2025年9月29日</td><td><a href='./_build_cscs_20250929/slides/q001_a.html'>_build_cscs_20250929</a></td></tr>
-<tr><td class='col-date'>2025年9月30日</td><td><a href='./_build_cscs_20250930/slides/q001_a.html'>_build_cscs_20250930</a></td></tr>
-<tr><td class='col-date'>2025年10月1日</td><td><a href='./_build_cscs_20251001/slides/q001_a.html'>_build_cscs_20251001</a></td></tr>
-<tr><td class='col-date'>2025年10月2日</td><td><a href='./_build_cscs_20251002/slides/q001_a.html'>_build_cscs_20251002</a></td></tr>
-<tr><td class='col-date'>2025年10月3日</td><td><a href='./_build_cscs_20251003/slides/q001_a.html'>_build_cscs_20251003</a></td></tr>
-<tr><td class='col-date'>2025年10月4日</td><td><a href='./_build_cscs_20251004/slides/q001_a.html'>_build_cscs_20251004</a></td></tr>
-<tr><td class='col-date'>2025年10月5日</td><td><a href='./_build_cscs_20251005/slides/q001_a.html'>_build_cscs_20251005</a></td></tr>
-<tr><td class='col-date'>2025年10月6日</td><td><a href='./_build_cscs_20251006/slides/q001_a.html'>_build_cscs_20251006</a></td></tr>
-<tr><td class='col-date'>2025年10月7日</td><td><a href='./_build_cscs_20251007/slides/q001_a.html'>_build_cscs_20251007</a></td></tr>
-<tr><td class='col-date'>2025年10月8日</td><td><a href='./_build_cscs_20251008/slides/q001_a.html'>_build_cscs_20251008</a></td></tr>
-<tr><td class='col-date'>2025年10月9日</td><td><a href='./_build_cscs_20251009/slides/q001_a.html'>_build_cscs_20251009</a></td></tr>
-<tr><td class='col-date'>2025年10月10日</td><td><a href='./_build_cscs_20251010/slides/q001_a.html'>_build_cscs_20251010</a></td></tr>
-<tr><td class='col-date'>2025年10月11日</td><td><a href='./_build_cscs_20251011/slides/q001_a.html'>_build_cscs_20251011</a></td></tr>
-<tr><td class='col-date'>2025年10月12日</td><td><a href='./_build_cscs_20251012/slides/q001_a.html'>_build_cscs_20251012</a></td></tr>
-<tr><td class='col-date'>2025年10月13日</td><td><a href='./_build_cscs_20251013/slides/q001_a.html'>_build_cscs_20251013</a></td></tr>
-<tr><td class='col-date'>2025年10月14日</td><td><a href='./_build_cscs_20251014/slides/q001_a.html'>_build_cscs_20251014</a></td></tr>
-<tr><td class='col-date'>2025年10月15日</td><td><a href='./_build_cscs_20251015/slides/q001_a.html'>_build_cscs_20251015</a></td></tr>
-<tr><td class='col-date'>2025年10月16日</td><td><a href='./_build_cscs_20251016/slides/q001_a.html'>_build_cscs_20251016</a></td></tr>
-<tr><td class='col-date'>2025年10月17日</td><td><a href='./_build_cscs_20251017/slides/q001_a.html'>_build_cscs_20251017</a></td></tr>
-<tr><td class='col-date'>2025年10月18日</td><td><a href='./_build_cscs_20251018/slides/q001_a.html'>_build_cscs_20251018</a></td></tr>
-<tr><td class='col-date'>2025年10月19日</td><td><a href='./_build_cscs_20251019/slides/q001_a.html'>_build_cscs_20251019</a></td></tr>
-<tr><td class='col-date'>2025年10月20日</td><td><a href='./_build_cscs_20251020/slides/q001_a.html'>_build_cscs_20251020</a></td></tr>
-<tr><td class='col-date'>2025年10月21日</td><td><a href='./_build_cscs_20251021/slides/q001_a.html'>_build_cscs_20251021</a></td></tr>
-<tr><td class='col-date'>2025年10月22日</td><td><a href='./_build_cscs_20251022/slides/q001_a.html'>_build_cscs_20251022</a></td></tr>
-<tr><td class='col-date'>2025年10月23日</td><td><a href='./_build_cscs_20251023/slides/q001_a.html'>_build_cscs_20251023</a></td></tr>
-<tr><td class='col-date'>2025年10月24日</td><td><a href='./_build_cscs_20251024/slides/q001_a.html'>_build_cscs_20251024</a></td></tr>
-<tr><td class='col-date'>2025年10月25日</td><td><a href='./_build_cscs_20251025/slides/q001_a.html'>_build_cscs_20251025</a></td></tr>
-<tr><td class='col-date'>2025年10月26日</td><td><a href='./_build_cscs_20251026/slides/q001_a.html'>_build_cscs_20251026</a></td></tr>
-<tr><td class='col-date'>2025年10月27日</td><td><a href='./_build_cscs_20251027/slides/q001_a.html'>_build_cscs_20251027</a></td></tr>
-<tr><td class='col-date'>2025年10月28日</td><td><a href='./_build_cscs_20251028/slides/q001_a.html'>_build_cscs_20251028</a></td></tr>
-<tr><td class='col-date'>2025年10月29日</td><td><a href='./_build_cscs_20251029/slides/q001_a.html'>_build_cscs_20251029</a></td></tr>
-<tr><td class='col-date'>2025年10月30日</td><td><a href='./_build_cscs_20251030/slides/q001_a.html'>_build_cscs_20251030</a></td></tr>
-<tr><td class='col-date'>2025年10月31日</td><td><a href='./_build_cscs_20251031/slides/q001_a.html'>_build_cscs_20251031</a></td></tr>
-<tr><td class='col-date'>2025年11月1日</td><td><a href='./_build_cscs_20251101/slides/q001_a.html'>_build_cscs_20251101</a></td></tr>
-<tr><td class='col-date'>2025年11月2日</td><td><a href='./_build_cscs_20251102/slides/q001_a.html'>_build_cscs_20251102</a></td></tr>
-<tr><td class='col-date'>2025年11月3日</td><td><a href='./_build_cscs_20251103/slides/q001_a.html'>_build_cscs_20251103</a></td></tr>
-<tr><td class='col-date'>2025年11月4日</td><td><a href='./_build_cscs_20251104/slides/q001_a.html'>_build_cscs_20251104</a></td></tr>
-<tr><td class='col-date'>2025年11月5日</td><td><a href='./_build_cscs_20251105/slides/q001_a.html'>_build_cscs_20251105</a></td></tr>
-<tr><td class='col-date'>2025年11月6日</td><td><a href='./_build_cscs_20251106/slides/q001_a.html'>_build_cscs_20251106</a></td></tr>
-<tr><td class='col-date'>2025年11月7日</td><td><a href='./_build_cscs_20251107/slides/q001_a.html'>_build_cscs_20251107</a></td></tr>
-<tr><td class='col-date'>2025年11月8日</td><td><a href='./_build_cscs_20251108/slides/q001_a.html'>_build_cscs_20251108</a></td></tr>
-<tr><td class='col-date'>2025年11月9日</td><td><a href='./_build_cscs_20251109/slides/q001_a.html'>_build_cscs_20251109</a></td></tr>
-<tr><td class='col-date'>2025年11月10日</td><td><a href='./_build_cscs_20251110/slides/q001_a.html'>_build_cscs_20251110</a></td></tr>
-<tr><td class='col-date'>2025年11月11日</td><td><a href='./_build_cscs_20251111/slides/q001_a.html'>_build_cscs_20251111</a></td></tr>
-<tr><td class='col-date'>2025年11月12日</td><td><a href='./_build_cscs_20251112/slides/q001_a.html'>_build_cscs_20251112</a></td></tr>
-<tr><td class='col-date'>2025年11月13日</td><td><a href='./_build_cscs_20251113/slides/q001_a.html'>_build_cscs_20251113</a></td></tr>
-<tr><td class='col-date'>2025年11月14日</td><td><a href='./_build_cscs_20251114/slides/q001_a.html'>_build_cscs_20251114</a></td></tr>
-<tr><td class='col-date'>2025年11月15日</td><td><a href='./_build_cscs_20251115/slides/q001_a.html'>_build_cscs_20251115</a></td></tr>
-<tr><td class='col-date'>2025年11月16日</td><td><a href='./_build_cscs_20251116/slides/q001_a.html'>_build_cscs_20251116</a></td></tr>
-<tr><td class='col-date'>2025年11月17日</td><td><a href='./_build_cscs_20251117/slides/q001_a.html'>_build_cscs_20251117</a></td></tr>
-<tr><td class='col-date'>2025年11月18日</td><td><a href='./_build_cscs_20251118/slides/q001_a.html'>_build_cscs_20251118</a></td></tr>
-<tr><td class='col-date'>2025年11月19日</td><td><a href='./_build_cscs_20251119/slides/q001_a.html'>_build_cscs_20251119</a></td></tr>
-<tr><td class='col-date'>2025年11月20日</td><td><a href='./_build_cscs_20251120/slides/q001_a.html'>_build_cscs_20251120</a></td></tr>
-<tr><td class='col-date'>2025年11月21日</td><td><a href='./_build_cscs_20251121/slides/q001_a.html'>_build_cscs_20251121</a></td></tr>
-<tr><td class='col-date'>2025年11月22日</td><td><a href='./_build_cscs_20251122/slides/q001_a.html'>_build_cscs_20251122</a></td></tr>
-<tr><td class='col-date'>2025年11月23日</td><td><a href='./_build_cscs_20251123/slides/q001_a.html'>_build_cscs_20251123</a></td></tr>
-<tr><td class='col-date'>2025年11月24日</td><td><a href='./_build_cscs_20251124/slides/q001_a.html'>_build_cscs_20251124</a></td></tr>
-<tr><td class='col-date'>2025年11月25日</td><td><a href='./_build_cscs_20251125/slides/q001_a.html'>_build_cscs_20251125</a></td></tr>
-<tr><td class='col-date'>2025年11月26日</td><td><a href='./_build_cscs_20251126/slides/q001_a.html'>_build_cscs_20251126</a></td></tr>
-<tr><td class='col-date'>2025年11月27日</td><td><a href='./_build_cscs_20251127/slides/q001_a.html'>_build_cscs_20251127</a></td></tr>
-<tr><td class='col-date'>2025年11月28日</td><td><a href='./_build_cscs_20251128/slides/q001_a.html'>_build_cscs_20251128</a></td></tr>
-<tr><td class='col-date'>2025年11月29日</td><td><a href='./_build_cscs_20251129/slides/q001_a.html'>_build_cscs_20251129</a></td></tr>
-<tr><td class='col-date'>2025年11月30日</td><td><a href='./_build_cscs_20251130/slides/q001_a.html'>_build_cscs_20251130</a></td></tr>
-<tr><td class='col-date'>2025年12月1日</td><td><a href='./_build_cscs_20251201/slides/q001_a.html'>_build_cscs_20251201</a></td></tr>
-<tr><td class='col-date'>2025年12月2日</td><td><a href='./_build_cscs_20251202/slides/q001_a.html'>_build_cscs_20251202</a></td></tr>
-<tr><td class='col-date'>2025年12月3日</td><td><a href='./_build_cscs_20251203/slides/q001_a.html'>_build_cscs_20251203</a></td></tr>
-<tr><td class='col-date'>2025年12月4日</td><td><a href='./_build_cscs_20251204/slides/q001_a.html'>_build_cscs_20251204</a></td></tr>
-<tr><td class='col-date'>2025年12月5日</td><td><a href='./_build_cscs_20251205/slides/q001_a.html'>_build_cscs_20251205</a></td></tr>
-<tr><td class='col-date'>2025年12月6日</td><td><a href='./_build_cscs_20251206/slides/q001_a.html'>_build_cscs_20251206</a></td></tr>
-<tr><td class='col-date'>2025年12月7日</td><td><a href='./_build_cscs_20251207/slides/q001_a.html'>_build_cscs_20251207</a></td></tr>
-<tr><td class='col-date'>2025年12月8日</td><td><a href='./_build_cscs_20251208/slides/q001_a.html'>_build_cscs_20251208</a></td></tr>
-<tr><td class='col-date'>2025年12月9日</td><td><a href='./_build_cscs_20251209/slides/q001_a.html'>_build_cscs_20251209</a></td></tr>
-<tr><td class='col-date'>2025年12月10日</td><td><a href='./_build_cscs_20251210/slides/q001_a.html'>_build_cscs_20251210</a></td></tr>
-<tr><td class='col-date'>2025年12月11日</td><td><a href='./_build_cscs_20251211/slides/q001_a.html'>_build_cscs_20251211</a></td></tr>
-<tr><td class='col-date'>2025年12月12日</td><td><a href='./_build_cscs_20251212/slides/q001_a.html'>_build_cscs_20251212</a></td></tr>
-<tr><td class='col-date'>2025年12月13日</td><td><a href='./_build_cscs_20251213/slides/q001_a.html'>_build_cscs_20251213</a></td></tr>
-<tr><td class='col-date'>2025年12月14日</td><td><a href='./_build_cscs_20251214/slides/q001_a.html'>_build_cscs_20251214</a></td></tr>
-<tr><td class='col-date'>2025年12月15日</td><td><a href='./_build_cscs_20251215/slides/q001_a.html'>_build_cscs_20251215</a></td></tr>
-<tr><td class='col-date'>2025年12月16日</td><td><a href='./_build_cscs_20251216/slides/q001_a.html'>_build_cscs_20251216</a></td></tr>
-<tr><td class='col-date'>2025年12月17日</td><td><a href='./_build_cscs_20251217/slides/q001_a.html'>_build_cscs_20251217</a></td></tr>
-<tr><td class='col-date'>2025年12月18日</td><td><a href='./_build_cscs_20251218/slides/q001_a.html'>_build_cscs_20251218</a></td></tr>
-<tr><td class='col-date'>2025年12月19日</td><td><a href='./_build_cscs_20251219/slides/q001_a.html'>_build_cscs_20251219</a></td></tr>
-<tr><td class='col-date'>2025年12月20日</td><td><a href='./_build_cscs_20251220/slides/q001_a.html'>_build_cscs_20251220</a></td></tr>
-<tr><td class='col-date'>2025年12月21日</td><td><a href='./_build_cscs_20251221/slides/q001_a.html'>_build_cscs_20251221</a></td></tr>
-<tr><td class='col-date'>2025年12月22日</td><td><a href='./_build_cscs_20251222/slides/q001_a.html'>_build_cscs_20251222</a></td></tr>
-<tr><td class='col-date'>2025年12月23日</td><td><a href='./_build_cscs_20251223/slides/q001_a.html'>_build_cscs_20251223</a></td></tr>
-<tr><td class='col-date'>2025年12月24日</td><td><a href='./_build_cscs_20251224/slides/q001_a.html'>_build_cscs_20251224</a></td></tr>
-</tbody></table>
-</div></body></html>
+  // ===== 小ヘルパ =====
+  const qs = s => document.querySelector(s);
+  const el = (tag, props={}) => Object.assign(document.createElement(tag), props);
+  const jaDate = d => /^\d{8}$/.test(d) ? `${d.slice(0,4)}年${parseInt(d.slice(4,6))}月${parseInt(d.slice(6,8))}日` : d;
+
+  // runId 管理（build_quiz.py の仕様と一致）
+  function runKey(day){ return `cscs_current_runId_${day}`; }
+  function latestRunId(day){
+    const KEY="cscs_results";
+    let all=[]; try{ all=JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(_){ all=[]; }
+    const runs = all.filter(r=>r && r.day===day && Number.isInteger(r.runId)).map(r=>r.runId);
+    return runs.length ? Math.max.apply(null, runs) : (parseInt(localStorage.getItem(runKey(day))||"0",10)||0) || 1;
+  }
+  function accuracyForDay(day, total=30){
+    const KEY="cscs_results";
+    let all=[]; try{ all=JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(_){ all=[]; }
+    const runId = latestRunId(day);
+    // 同一 stem は最後の回答を採用
+    const rows = all.filter(r=>r && r.day===day && r.runId===runId).sort((a,b)=>a.ts-b.ts);
+    const lastByStem = new Map();
+    rows.forEach(r=> lastByStem.set(r.stem, r));
+    const picked = Array.from(lastByStem.values());
+    const correct = picked.filter(r=>r.correct).length;
+    const pct = total ? Math.round((correct/total)*100) : 0;
+    return {correct, total, pct, attempted:picked.length};
+  }
+
+  // manifest 読み込み
+  async function loadManifest(){
+    const res = await fetch("./manifest.json", {cache:"no-cache"});
+    if (!res.ok) throw new Error("manifest.json を読み込めませんでした");
+    const data = await res.json();
+    // base_path があれば main.css のパスも直す（存在しなくても害なし）
+    const base = (data.base_path||"").replace(/\/+$/,"");
+    const link = qs("#mainCss");
+    if (link && link.href && base && link.getAttribute("href")?.startsWith("/")){
+      link.setAttribute("href", base + link.getAttribute("href"));
+    }
+    return data;
+  }
+
+  // カード生成
+  function makeCard(dayItem, basePath, idx, totalDays){
+    const d = dayItem.date;           // "YYYYMMDD"
+    const nm = dayItem.path;          // "/_build_cscs_YYYYMMDD/slides/nav_manifest.json"
+    const numLabel = `（${String(idx+1).padStart(2,"0")}/${String(totalDays).padStart(2,"0")}）`;
+    const root = (basePath||"") + ""; // 先頭/末尾のスラッシュは呼び出し側で保証
+    const slidesDir = nm.replace(/\/nav_manifest\.json$/,""); // "/.../slides"
+    const startHref   = root + slidesDir + "/q001_a.html?newrun=1";
+    const resumeHref  = root + slidesDir + "/q001_a.html";
+    const resultHref  = root + slidesDir + "/result.html";
+
+    const c = el("div", {className:"card"});
+    const top = el("div",{className:"ctop"});
+    const l = el("div");
+    const numHtml = `<span class="num-label">${String(idx+1).padStart(2,"0")}/${String(totalDays).padStart(2,"0")}</span>：${jaDate(d)}`;
+l.append(el("div",{className:"date",innerHTML:numHtml}));
+    const r = el("div",{className:"meta"});
+    top.append(l,r);
+
+    // タイトルはDOMには追加せず、後方互換のため変数だけ残す
+    const title = el("div",{className:"title",textContent:""});
+    const badges = el("div",{className:"badges"});
+    const acc = accuracyForDay(d, 30);
+    const rate = el("span",{className:"badge rate"});
+    rate.textContent = `正解率: ${acc.pct}%（${acc.correct}/30）`;
+    if (acc.pct>=80) rate.style.color = "var(--good)";
+    badges.append(rate);
+
+    const actions = el("div",{className:"actions"});
+    const b1 = el("a",{className:"btn",href:startHref, textContent:"開始"});
+    const b2 = el("a",{className:"btn",href:resumeHref,textContent:"続き"});
+    const b3 = el("a",{className:"btn",href:resultHref,textContent:"結果"});
+    actions.append(b1,b2,b3);
+
+    // カード本体を “開始” へのリンクにする（上部ブロック全体が押せる）
+    const mainLink = el("a",{className:"card-main", href:startHref, "aria-label":`開始: ${jaDate(d)} ${numLabel}`});
+    mainLink.append(top, badges);
+
+    c.append(mainLink, actions);
+
+    // 検索用データ属性（nav_manifest.json の中身を読まなくても最低限のキーで検索）
+    c.dataset.search = [d, "NSCA", "CSCS", "試験", "問題集"].join(" ").toLowerCase();
+    c.dataset.date = d;
+    return c;
+  }
+
+  function applyFilter(){
+    const q = (qs("#q").value || "").trim().toLowerCase();
+    const mode = qs("#sort").value;
+    const cards = Array.from(document.querySelectorAll(".card"));
+    // 表示/非表示
+    cards.forEach(cd=>{
+      const hit = !q || cd.dataset.search.includes(q);
+      cd.classList.toggle("hidden", !hit);
+    });
+    // 並び替え
+    const grid = qs(".grid");
+    const visible = cards.filter(c=>!c.classList.contains("hidden"));
+    visible.sort((a,b)=>{
+      if (mode==="asc")  return a.dataset.date.localeCompare(b.dataset.date);
+      if (mode==="desc") return b.dataset.date.localeCompare(a.dataset.date);
+      // 進捗率順
+      const ar = a.querySelector(".rate").textContent.match(/(\d+)%/);
+      const br = b.querySelector(".rate").textContent.match(/(\d+)%/);
+      const ap = ar?parseInt(ar[1],10):0;
+      const bp = br?parseInt(br[1],10):0;
+      return bp - ap;
+    });
+    visible.forEach(c=>grid.appendChild(c));
+    qs("#count").textContent = `${visible.length} 件`;
+  }
+
+  async function boot(){
+    const info = qs("#info");
+    try{
+      const data = await loadManifest();
+      const base = (data.base_path||"").replace(/\/+$/,""); // "" or "/cscs"
+      const grid = qs(".grid");
+      grid.innerHTML = "";
+      const days = data.days || [];
+      days.forEach((day, i) => grid.appendChild(makeCard(day, base, i, days.length)));
+      qs("#total").textContent = (data.count || (data.days||[]).length || 0);
+      applyFilter();
+      info.textContent = `manifest: version=${data.version||"?"} / updated_at=${data.updated_at||"?"}`;
+    }catch(e){
+      console.warn(e);
+      info.textContent = "manifest.json を読み込めませんでした。ファイル配置を確認してください。";
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", ()=>{
+    qs("#q").addEventListener("input", applyFilter);
+    qs("#sort").addEventListener("change", applyFilter);
+    boot();
+  });
+})();
+</script>
+
+<style>
+/* === レイアウト上書き（追記版） === */
+
+/* カードグリッド：モバイル2列 → iPad縦で3列 → 広い画面で4列 */
+.grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:12px;
+  align-items: stretch;
+}
+
+/* iPad縦（約600px〜899px）で3列 */
+@media (min-width: 600px) and (max-width: 899px){
+  .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* iPad横・PC（900px以上）で4列 */
+@media (min-width: 900px){
+  .grid{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* カード周りの余白をグリッドのgapに統一（“変な隙間”対策） */
+.card{ margin:0; position: relative; }
+
+/* カード本体リンク（上部一帯を“開始”に） */
+.card-main{
+  display:block;
+  text-decoration:none;
+  color:inherit;
+}
+.card-main:hover{ text-decoration:none; }
+
+/* ボタン群：詰めて、折り返し可に */
+.btns{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+/* ボタン：短縮テキストに合わせてコンパクト化 */
+.btn{
+  font-size:14px;
+  line-height:1;
+  padding:6px 10px;
+  border-radius:6px;
+}
+
+/* === カードのホバー・タップ時のアクセント === */
+.card {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.card:hover,
+.card:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: translateY(-2px);
+}
+
+/* タップ時（モバイル）も同じ効果 */
+.card:active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: translateY(0);
+}
+
+/* 文字が長くなっても最小限で収める保険（省略記号） */
+.btn{ 
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 100%;
+}
+
+.num-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <div class="h-title">NSCA CSCS 試験対策問題集（索引）</div>
+        <div class="h-sub">全 <span id="total">0</span> 日分 / <small class="mono" id="info">loading…</small></div>
+      </div>
+      <div class="controls">
+        <input id="q" type="search" placeholder="日付・キーワードで検索">
+        <select id="sort">
+          <option value="asc" selected>古い順</option>
+          <option value="desc">新しい順</option>
+          <option value="prog">進捗が高い順</option>
+        </select>
+        <span class="notice">表示: <strong id="count">0 件</strong></span>
+      </div>
+    </div>
+
+    <div class="grid" aria-live="polite"></div>
+  </div>
+
+</body>
+</html>

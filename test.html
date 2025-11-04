@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NSCA CSCS 問題集一覧</title>
+<style>
+  :root{
+    --bg:#0b0b0c; --fg:#e9e9ec; --muted:#a7a7b3; --card:#141418;
+    --line:#2b2b36; --accent:#8ab4ff; --ok:#6ee7a0; --warn:#ffd166; --bad:#ff6b6b;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Hiragino Sans","Noto Sans JP",sans-serif;}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px 16px 40px}
+  header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  header h1{font-size:18px;margin:0 12px 0 0}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .chip{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;cursor:pointer}
+  .chip.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .search{display:flex;gap:8px;align-items:center;margin-left:auto;min-width:260px}
+  .search input{background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%}
+  .grid{
+    display:grid; gap:16px;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+  }
+  /* 3列 */
+  @media (max-width: 1199px){
+    .grid{grid-template-columns: repeat(3, minmax(0,1fr));}
+  }
+  /* 2列（最低2列を保証） */
+  @media (max-width: 959px){
+    .grid{grid-template-columns: repeat(2, minmax(0,1fr));}
+  }
+  /* 2列キープ（超小幅でも1列に崩さない） */
+  @media (max-width: 520px){
+    .wrap{padding-left:10px;padding-right:10px}
+  }
+  .card{
+    border:1px solid var(--line);border-radius:12px;background:var(--card);
+    padding:12px 12px 10px;display:flex;flex-direction:column;gap:10px
+  }
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .row.space{justify-content:space-between}
+  .date{font-weight:600}
+  .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:2px 8px}
+  .badge.ok{color:var(--ok);border-color:var(--ok)}
+  .badge.warn{color:var(--warn);border-color:var(--warn)}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{border:1px solid var(--line);border-radius:10px;padding:2px 8px;font-size:12px;color:var(--muted)}
+  .levels{display:flex;gap:4px;align-items:center}
+  .lvbar{flex:1;height:6px;border:1px solid var(--line);border-radius:999px;overflow:hidden;display:flex}
+  .lvbar span{height:100%;border-right:1px solid var(--bg)}
+  .lv1{flex:var(--l1)} .lv2{flex:var(--l2)} .lv3{flex:var(--l3)} .lv4{flex:var(--l4)} .lv5{flex:var(--l5)}
+  .lv1{background:#7aa2f7} .lv2{background:#9ece6a} .lv3{background:#e0af68}
+  .lv4{background:#f7768e} .lv5{background:#bb9af7}
+  .meter{display:flex;align-items:center;gap:8px}
+  .bar{flex:1;height:8px;border:1px solid var(--line);border-radius:999px;position:relative;background:rgba(255,255,255,0.04)}
+  .fill{position:absolute;inset:0 0 0 0;transform-origin:left center}
+  .fill.progress{background:linear-gradient(90deg,var(--accent),#b5d0ff)}
+  .fill.clear{background:linear-gradient(90deg,var(--ok),#a9f3c5)}
+  .actions{display:flex;gap:10px;align-items:center;border-top:1px dashed var(--line);padding-top:10px}
+  .action{font-size:13px;color:var(--muted);border-bottom:1px dotted var(--muted);cursor:pointer}
+  .action:hover{color:var(--fg);border-color:var(--fg)}
+  .card:hover{border-color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>NSCA CSCS 問題集一覧</h1>
+      <div class="tools">
+        <div class="chip" data-filter="all">すべて</div>
+        <div class="chip" data-filter="todo">未着手</div>
+        <div class="chip" data-filter="doing">進行中</div>
+        <div class="chip" data-filter="done">Clear済み</div>
+        <div class="chip" data-sort="date">日付↓</div>
+        <div class="chip" data-sort="rate">達成度↑</div>
+        <div class="chip" data-sort="level">L比率</div>
+      </div>
+      <div class="search">
+        <input id="q" type="search" placeholder="キーワード検索（分野/テーマなど）" />
+      </div>
+    </header>
+
+    <section class="grid" id="grid"></section>
+  </div>
+
+<script>
+/** ========== 設定 ========== */
+const BUILD_PREFIX = "_build_"; // 例: ./_build_cscs_20251104/slides/q001_a.html
+const USE_MANIFEST = false;     // まずは確実に動かす（後で true に戻す）
+
+/** ========== データ取得（manifest.json優先 → 仮データ） ========== */
+async function fetchManifest(){
+  if(!USE_MANIFEST) return null;
+  try{
+    // ルートに manifest.json がある前提（なければ catch へ）
+    const res = await fetch("./manifest.json", {cache:"no-store"});
+    if(!res.ok) throw new Error("no manifest");
+    return await res.json();
+  }catch(e){
+    return null;
+  }
+}
+
+/** 仮データ（90日分） : 実装の感触出し用 */
+function mockData(){
+  // 例：2025-09-26〜2025-12-24の90日（実データに合わせて調整OK）
+  const start = new Date("2025-09-26T00:00:00");
+  const days = 90;
+  const fields = ["運動生理","バイオメ","栄養","プログラム設計","テクニック","スポーツ心理"];
+  const themes = ["速度-力","特殊集団","プログラム設計","エネルギー供給","テクニック","疲労管理","安全"];
+  const arr = [];
+  for(let i=0;i<days;i++){
+    const d = new Date(start.getTime() + i*86400000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const idStr = `${yyyy}${mm}${dd}`;
+
+    // 仮のレベル比率（L1〜L5）
+    let l1=Math.random()*0.25+0.05, l2=Math.random()*0.3+0.1, l3=Math.random()*0.3+0.1, l4=Math.random()*0.2+0.05, l5=Math.random()*0.15;
+    const sum = l1+l2+l3+l4+l5; l1/=sum; l2/=sum; l3/=sum; l4/=sum; l5/=sum;
+
+    const progress = Math.random();           // 0〜1
+    const clear = Math.max(0, progress-0.2);  // 進捗より少し低め
+    const status = clear >= 1 ? "done" : progress>0 ? "doing" : "todo";
+    const tagset = shuffle([...themes]).slice(0, Math.random()<0.5?2:3);
+    arr.push({
+      idx: i+1, date: dateStr, ymd: idStr,
+      fields: shuffle(fields).slice(0,3),
+      tags: tagset,
+      level: {l1,l2,l3,l4,l5},
+      progress, clear, status
+    });
+  }
+  return arr;
+}
+function shuffle(a){return a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);}
+
+/** manifest.json → カード用データへ（必要に応じて合わせる） */
+function fromManifest(json){
+  // 想定形：[{ date:"2025-11-04", ymd:"20251104", fields:["運動生理",...], tags:["速度-力",...], level:{l1:0.2,...}, progress:0.6, clear:0.4, status:"doing" }, ...]
+  // 実ファイルのキーに合わせてここを調整すればOK
+  if(!Array.isArray(json)) return null;
+  return json.map((e,i)=>{
+    const dateStr = e.date || "";
+    const ymd = e.ymd || dateStr.split("-").join(""); // ← Safari互換
+    return {
+      idx: i+1,
+      date: dateStr,
+      ymd,
+      fields: e.fields||[],
+      tags: e.tags||[],
+      level: e.level||{l1:.2,l2:.3,l3:.2,l4:.2,l5:.1},
+      progress: e.progress ?? 0,
+      clear: e.clear ?? 0,
+      status: e.status || "todo"
+    };
+  });
+}
+
+/** ========== 描画 ========== */
+const grid = document.getElementById("grid");
+let DATA = [];       // 全体データ
+let VIEW = [];       // 表示用（フィルタ/ソート後）
+let CURRENT_FILTER="all";
+let CURRENT_SORT="date";
+let QUERY="";
+
+function percent(n){return Math.round(n*100);}
+function count(n){return Math.round(n*30);}
+
+function cardHTML(item){
+  const {idx,date,ymd,fields,tags,level,progress,clear,status} = item;
+  const link = `./${BUILD_PREFIX}cscs_${ymd}/slides/q001_a.html`;
+  const badge = status==="done" ? "badge ok" : status==="doing" ? "badge warn" : "badge";
+  const doneLabel = status==="done" ? "完了" : status==="doing" ? "進行中" : "未着手";
+  const levelsStyle = `--l1:${level.l1};--l2:${level.l2};--l3:${level.l3};--l4:${level.l4};--l5:${level.l5};`;
+  return `
+  <article class="card" data-date="${date}" data-status="${status}">
+    <div class="row space">
+      <div class="row">
+        <span class="date">${date}</span>
+        <span class="badge">(${idx}/90)</span>
+      </div>
+      <span class="${badge}">${doneLabel}</span>
+    </div>
+
+    <div class="row" style="gap:6px;color:var(--muted);font-size:13px">
+      <span>分野: ${fields.slice(0,3).join(" / ")}</span>
+    </div>
+
+    <div class="tags">
+      ${tags.map(t=>`<span class="tag">${t}</span>`).join("")}
+    </div>
+
+    <div class="levels" title="レベル分布 L1-L5">
+      <small style="color:var(--muted)">L1–L5</small>
+      <div class="lvbar" style="${levelsStyle}">
+        <span class="lv1"></span><span class="lv2"></span><span class="lv3"></span><span class="lv4"></span><span class="lv5"></span>
+      </div>
+    </div>
+
+    <div class="meter">
+      <small style="width:54px;color:var(--muted)">進捗</small>
+      <div class="bar"><div class="fill progress" style="transform:scaleX(${Math.min(progress,1)})"></div></div>
+      <small>${count(progress)}/30</small>
+    </div>
+    <div class="meter">
+      <small style="width:54px;color:var(--muted)">Clear</small>
+      <div class="bar"><div class="fill clear" style="transform:scaleX(${Math.min(clear,1)})"></div></div>
+      <small>${count(clear)}/30</small>
+    </div>
+
+    <div class="actions">
+      <a class="action" href="${link}">▶ 再開</a>
+      <a class="action" href="${link.replace("q001_a.html","result.html")}">📊 統計</a>
+      <a class="action" href="#" onclick="alert('類似問題は後で接続');return false;">🧠 類似問題</a>
+      <a class="action" href="#" onclick="alert('★は後で実装');return false;">🔖 ★</a>
+    </div>
+  </article>
+  `;
+}
+
+function render(){
+  const html = VIEW
+    .filter(it=>{
+      if(CURRENT_FILTER==="todo" && it.status!=="todo") return false;
+      if(CURRENT_FILTER==="doing" && it.status!=="doing") return false;
+      if(CURRENT_FILTER==="done" && it.status!=="done") return false;
+      if(QUERY){
+        const hay = [it.date, ...it.fields, ...it.tags].join(" ").toLowerCase();
+        if(!hay.includes(QUERY)) return false;
+      }
+      return true;
+    })
+    .map(cardHTML)
+    .join("");
+  grid.innerHTML = html || `<div style="color:var(--muted)">該当する問題集がありません。</div>`;
+}
+
+function sortData(){
+  if(CURRENT_SORT==="date"){
+    VIEW.sort((a,b)=> a.date < b.date ? 1 : -1); // 日付↓
+  }else if(CURRENT_SORT==="rate"){
+    VIEW.sort((a,b)=> (b.clear - a.clear) || (b.progress - a.progress));
+  }else if(CURRENT_SORT==="level"){
+    // 例：高レベル(L4+L5)比率が高い順
+    const hv = it => (it.level.l4||0)+(it.level.l5||0);
+    VIEW.sort((a,b)=> hv(b)-hv(a));
+  }
+}
+
+function bindUI(){
+  document.querySelectorAll(".chip[data-filter]").forEach(el=>{
+    el.addEventListener("click",()=>{
+      document.querySelectorAll(".chip[data-filter]").forEach(c=>c.classList.remove("active"));
+      el.classList.add("active");
+      CURRENT_FILTER = el.getAttribute("data-filter");
+      render();
+    });
+  });
+  document.querySelectorAll(".chip[data-sort]").forEach(el=>{
+    el.addEventListener("click",()=>{
+      document.querySelectorAll(".chip[data-sort]").forEach(c=>c.classList.remove("active"));
+      el.classList.add("active");
+      CURRENT_SORT = el.getAttribute("data-sort");
+      sortData(); render();
+    });
+  });
+  const q = document.getElementById("q");
+  q.addEventListener("input",()=>{
+    QUERY = q.value.trim().toLowerCase();
+    render();
+  });
+}
+
+(async function init(){
+  try{
+    let data = await fetchManifest();
+    DATA = data ? fromManifest(data) : mockData();
+    VIEW = [...DATA];
+    sortData();
+    bindUI();
+    // 初期状態の強調
+    document.querySelector('.chip[data-filter="all"]').classList.add("active");
+    document.querySelector('.chip[data-sort="date"]').classList.add("active");
+    render();
+  }catch(err){
+    console.error(err);
+    const wrap = document.querySelector(".wrap");
+    const div = document.createElement("div");
+    div.style.background = "rgba(255,0,0,0.08)";
+    div.style.border = "1px solid #ff6b6b";
+    div.style.color = "#ffb3b3";
+    div.style.padding = "12px";
+    div.style.borderRadius = "8px";
+    div.style.marginTop = "12px";
+    div.textContent = "初期化に失敗しました: " + (err && err.message ? err.message : String(err));
+    wrap.prepend(div);
+  }
+})();
+</script>
+</body>
+</html>
