@@ -449,9 +449,18 @@
 
     // 旧「指示」モーダルは廃止（機能削除に伴いDOM生成を停止）
 
-    // トグル
+    // トグル（開いている間は“✖️閉じる”、閉じたら“🔍問題を深掘り”に戻す）
     const btn=document.getElementById('dd-toggle');
     if(btn && !btn.dataset.ddBound){
+      function syncLabel(){
+        const panel=document.getElementById('dd-panel');
+        const opened = panel && panel.style.display==='block';
+        btn.textContent = opened ? '✖️ 閉じる' : '🔍問題を深掘り';
+        btn.setAttribute('aria-pressed', opened ? 'true' : 'false');
+      }
+      // 初期ラベル
+      syncLabel();
+
       btn.addEventListener('click',(e)=>{
         e.stopPropagation();e.preventDefault();
         const panel=document.getElementById('dd-panel');
@@ -459,6 +468,7 @@
         panel.style.display=willOpen?'block':'none';
         if(willOpen){panel.__ddGuards?.enable?.();panel.focus();}
         else{panel.__ddGuards?.disable?.();}
+        syncLabel();
       });
       btn.dataset.ddBound='1';
     }
@@ -608,10 +618,6 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         </div>
         <div id="dd-lazy-host"></div>
       </div>
-      <div class="dd-toolbar">
-        <!-- APIボタンは上部固定UIに統合（ここでは生成しない） -->
-        <button class="dd-btn" id="dd-close">閉じる</button>
-      </div>
     `;
 
     const keyState=panel.querySelector('#dd-keystate');
@@ -620,8 +626,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const regenBtn=panel.querySelector('#dd-regenerate');
     const copyBtn =panel.querySelector('#dd-copy');
     const clearBtn=panel.querySelector('#dd-clear');
-    const closeBtn=panel.querySelector('#dd-close');
-    const toolbarEl=panel.querySelector('.dd-toolbar');
+    // 旧 closeBtn / toolbarEl は撤去（トグルボタンで開閉）
 
     // ヘッダー右上のテキストUIとして有効化/解除を提供（ツールバーには出さない）
     async function refreshApiPanel(){
@@ -756,11 +761,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
     // 旧「指示」機能は廃止（ボタン・コピー/モーダル関連処理を削除）
 
-    closeBtn.addEventListener('click', (ev)=>{
-      stopAll(ev);
-      panel.style.display='none';
-      panel.__ddGuards && panel.__ddGuards.disable && panel.__ddGuards.disable();
-    });
+    // 旧「閉じる」ボタンは廃止。開閉は画面下部のトグルボタン（dd-toggle）で行います。
   }
 
   // ====== 起動 ======
