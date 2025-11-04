@@ -219,7 +219,7 @@
       const rateText  = (rate != null) ? ("正解率 " + String(rate).padStart(2, " ") + "%") : "正解率 —";
 
       // ▼ 下段は「番号／Level／正解率／×数／Clear」を1行で表示
-      const levelText  = "Level " + (q.Level || "—");
+      const levelText  = " " + (q.Level || "—");
       const line2Text  = pad2(i) + " ／ " + levelText + " ／ " + rateText + " ／ " + wrongText + " ／ " + mark;
 
       const item = document.createElement("div");
