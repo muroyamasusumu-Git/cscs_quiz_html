@@ -102,7 +102,7 @@
     return { correct: correct, wrong: wrong, sc: sc, sw: sw, cleared: cleared, wrongLog: wrongLogCount };
   }
 
-  /* Aパート下部中央のトグルボタンを挿入（開いている間は✖️ 閉じるに変化） */
+  /* Aパート下部中央のトグルボタンを挿入（開いている間は✖️ 閉じる　に変化） */
   function ensureToggle(){
     if (!isAPart()) return;
     if (document.getElementById("nl-toggle")) return;
@@ -114,7 +114,7 @@
     function syncLabel(){
       const panel = document.getElementById("nl-panel");
       const opened = panel && panel.style.display === "block";
-      btn.textContent = opened ? "✖️ 閉じる" : "📋 問題一覧表示";
+      btn.textContent = opened ? "✖️ 閉じる　" : "📋 問題一覧表示";
       btn.setAttribute("aria-pressed", opened ? "true" : "false");
     }
 

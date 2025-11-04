@@ -449,13 +449,13 @@
 
     // 旧「指示」モーダルは廃止（機能削除に伴いDOM生成を停止）
 
-    // トグル（開いている間は“✖️閉じる”、閉じたら“🔍問題を深掘り”に戻す）
+    // トグル（開いている間は“✖️閉じる　”、閉じたら“🔍問題を深掘り”に戻す）
     const btn=document.getElementById('dd-toggle');
     if(btn && !btn.dataset.ddBound){
       function syncLabel(){
         const panel=document.getElementById('dd-panel');
         const opened = panel && panel.style.display==='block';
-        btn.textContent = opened ? '✖️ 閉じる' : '🔍問題を深掘り';
+        btn.textContent = opened ? '✖️ 閉じる　' : '🔍問題を深掘り';
         btn.setAttribute('aria-pressed', opened ? 'true' : 'false');
       }
       // 初期ラベル
