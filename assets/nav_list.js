@@ -211,12 +211,16 @@
       const mark  = stats.cleared ? "★Clear" : "—";
       const url   = "q" + n3 + "_a.html?nav=manual";
 
-      const snippet = (q.Question || "").slice(0,10) + ((q.Question||"").length>10?"…":"");
-      const line1Text = pad2(i) + " [" + (q.Level || "Lv?") + "｜" + (q.Theme || "—") + "]　" + snippet;
+      const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
+      // 1行目は「[テーマ]＋問題文」に変更（番号は下段へ）
+      const line1Text = "[" + (q.Theme || "—") + "] " + snippet;
 
-      const wrongText = "×" + String(stats.wrong).padStart(1,"0") + "（累計 " + String(stats.wrongLog).padStart(1,"0") + "）";
+      const wrongText = "×" + String(stats.wrong).padStart(1, "0") + "（累計 " + String(stats.wrongLog).padStart(1, "0") + "）";
       const rateText  = (rate != null) ? ("正解率 " + String(rate).padStart(2, " ") + "%") : "正解率 —";
-      const line2Text = rateText + " ／ " + wrongText + " ／ " + mark;
+
+      // ▼ 下段は「番号／Level／正解率／×数／Clear」を1行で表示
+      const levelText  = "Level " + (q.Level || "—");
+      const line2Text  = pad2(i) + " ／ " + levelText + " ／ " + rateText + " ／ " + wrongText + " ／ " + mark;
 
       const item = document.createElement("div");
       item.className = "quiz-item";

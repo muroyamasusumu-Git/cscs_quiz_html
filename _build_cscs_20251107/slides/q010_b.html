@@ -262,6 +262,19 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
   <script>
     window.addEventListener("DOMContentLoaded", () => {
+
+      // --- このスクリプト内で自己完結するヘルパ（外部依存を排除） ---
+      function getDayFromPath(){
+        const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+        return m ? m[1] : "unknown";
+      }
+      function getQNumFromPath(){
+        // 末尾の ".html" が省略されていても拾う
+        const m = (window.location.pathname||"").match(/q(\d{3})_[ab](?:\.html)?$/i);
+        return (m && m[1]) ? m[1] : "000";
+      }
+      function getQid(){ return `${getDayFromPath()}-${getQNumFromPath()}`; }
+
       // ---- (0) 新しい履歴開始の指示があれば採番 ----
       try { maybeStartNewRunIfRequested(); } catch(_){}
 
@@ -336,27 +349,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
         // ▼ 不正解回数を localStorage に記録（A/B共通のqid: YYYYMMDD-NNN）
         try{
-          function getDayFromPath(){
-            const m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
-            return m?m[1]:"unknown";
-          }
-          function getQid(){
-            const day=getDayFromPath();
-            const m=(window.location.pathname||"").match(/q(\d{3})_[ab]\.html$/);
-            const n=m?m[1]:"000";
-            return `${day}-${n}`;
-          }
           const KEY="cscs_wrong_log";
           let log={}; try{ log=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(_){ log={}; }
           const qid=getQid();
           log[qid]=(log[qid]||0)+1;
           localStorage.setItem(KEY, JSON.stringify(log));
-          // console.debug('[wrong_log]', qid, '=>', log[qid]); // 必要ならデバッグ表示
         }catch(e){ console.warn("wrong_log save failed", e); }
       }
 
       // ---- (4) 結果をローカルストレージに記録（runId 付き）----
-      
       try {
         const KEY = "cscs_results";
         const day = getDayFromPath();           // 例 "20250926"
@@ -410,8 +411,8 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     }
     function getQid(){
       const day=getDayFromPath();
-      // A/B どちらでも拾えるように [ab] を許可
-      const m=(window.location.pathname||"").match(/q(\d{3})_[ab]\.html$/);
+      // A/B どちらでも拾えるように [ab] を許可 + ".html" は省略も許可
+      const m=(window.location.pathname||"").match(/q(\d{3})_[ab](?:\.html)?$/i);
       const n=m?m[1]:"000";
       return `${day}-${n}`;
     }

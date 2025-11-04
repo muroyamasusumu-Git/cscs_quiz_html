@@ -280,6 +280,321 @@
     return (iPadUA || macTouch) && isSafari;
   }
 
+  // ====== IndexedDB（全日2700問メタ）ユーティリティ ======
+  // DB: 'cscs_meta' / store: 'qmeta' / keyPath: 'qid'（例: 20250926-001）
+  // レコード想定: {
+  //   qid, date, number, field, theme, level, question,
+  //   tokens: [...], // 小文字単語群
+  // }
+  const META_DB_NAME = "cscs_meta";
+  const META_DB_VERSION = 1;
+  const META_STORE = "qmeta";
+
+  function openMetaDB(){
+    return new Promise((resolve, reject)=>{
+      const req = indexedDB.open(META_DB_NAME, META_DB_VERSION);
+      req.onupgradeneeded = (ev)=>{
+        const db = ev.target.result;
+        if(!db.objectStoreNames.contains(META_STORE)){
+          const st = db.createObjectStore(META_STORE, { keyPath: "qid" });
+          st.createIndex("date","date",{unique:false});
+          st.createIndex("field","field",{unique:false});
+          st.createIndex("theme","theme",{unique:false});
+          st.createIndex("level","level",{unique:false});
+        }
+      };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error || new Error("openMetaDB failed"));
+    });
+  }
+
+  function tokenize(s){
+    if(!s) return [];
+    // 全角→半角・英数字化は簡易対応、記号と空白で分割、2文字以上のみ
+    const z2h = String(s).normalize("NFKC").toLowerCase();
+    return z2h.split(/[^a-z0-9一-龠ぁ-んァ-ン]+/).filter(t => t && t.length >= 2);
+  }
+
+  async function putManyToDB(db, rows){
+    if(!rows || !rows.length) return;
+    await new Promise((resolve, reject)=>{
+      const tx = db.transaction(META_STORE, "readwrite");
+      const st = tx.objectStore(META_STORE);
+      rows.forEach(r => st.put(r));
+      tx.oncomplete = ()=> resolve();
+      tx.onerror = ()=> reject(tx.error || new Error("putMany failed"));
+    });
+  }
+
+  async function getAllFromDB(db){
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(META_STORE, "readonly");
+      const st = tx.objectStore(META_STORE);
+      const out = [];
+      const req = st.openCursor();
+      req.onsuccess = (e)=>{
+        const cur = e.target.result;
+        if(cur){ out.push(cur.value); cur.continue(); }
+        else resolve(out);
+      };
+      req.onerror = ()=> reject(req.error || new Error("cursor failed"));
+    });
+  }
+
+  // nav_manifest.json → DB 追加読み込み
+  async function ingestDayNavManifest(db, url){
+    try{
+      const res = await fetch(url, { headers: { "accept":"application/json" }});
+      if(!res.ok) return false;
+      const j = await res.json();
+      const day = j.day || "";
+      const items = Array.isArray(j.questions) ? j.questions : [];
+      const rows = items.map(it=>{
+        const date = (j.day || (it.Date||"")).replace(/\D/g,"");
+        const num  = String(it.Number||"").padStart(3,"0");
+        const qid  = `${date}-${num}`;
+        const field = it.Field || "";
+        const theme = it.Theme || "";
+        const level = it.Level || "";
+        const question = it.Question || "";
+        const tags = [it.Tag_Cause||"", it.Tag_Process||"", it.Tag_Outcome||""].join(" ");
+        const toks = Array.from(new Set([
+          ...tokenize(question), ...tokenize(field), ...tokenize(theme), ...tokenize(level), ...tokenize(tags)
+        ]));
+        return { qid, date, number: num, field, theme, level, question, tokens: toks };
+      });
+      await putManyToDB(db, rows);
+      return true;
+    }catch(_){ return false; }
+  }
+  
+  async function ingestAllDaysFromGlobalManifest(db, opts={}){
+    const {
+      manifestUrl = "/manifest.json",   // quiz_html 直下に build_quiz.py が出力
+      concurrency = 3,                  // 同時取得数（Safari 対策で控えめ）
+      delayMs = 80,                     // 1リクエスト間のスロットリング
+      logPrefix = "[qmeta]"
+    } = opts;
+
+    try{
+      console.time(`${logPrefix} import-all`);
+      console.log(`${logPrefix} fetch manifest:`, manifestUrl);
+
+      const res = await fetch(manifestUrl, { headers: { "accept":"application/json" }});
+      if(!res.ok){
+        console.warn(`${logPrefix} manifest fetch failed:`, res.status);
+        return false;
+      }
+      const mani = await res.json();
+      const days = Array.isArray(mani.days) ? mani.days : [];
+      if(!days.length){
+        console.warn(`${logPrefix} manifest has no days`);
+        return false;
+      }
+
+      // 既に取り込まれている qid を軽く把握（重複投入を避ける）
+      const existingQids = new Set();
+      await new Promise((resolve,reject)=>{
+        const out=[]; const tx=db.transaction('qmeta','readonly');
+        tx.objectStore('qmeta').openCursor().onsuccess = e=>{
+          const c=e.target.result; if(c){ existingQids.add(c.value.qid); c.continue(); } else resolve(out);
+        };
+        tx.onerror = ()=>reject(tx.error);
+      });
+
+      // days[].path は "/_build_cscs_YYYYMMDD/slides/nav_manifest.json"
+      // 並列コントロールしながら順次投入
+      let inFlight = 0;
+      let idx = 0;
+      let ok = 0, ng = 0;
+
+      async function worker(){
+        while(idx < days.length){
+          const me = idx++;
+          const d = days[me];
+          const url = d && d.path ? d.path : null;
+          if(!url) { ng++; continue; }
+
+          // ingestDayNavManifest は内部で putMany を行うが、
+          // 既存 qid が多いと二重投入になるので軽くフィルタするため、
+          // 1回だけ先に JSON を取得して差分投入するバージョンで上書き
+          try{
+            const r = await fetch(url, { headers: { "accept":"application/json" }});
+            if(!r.ok){ ng++; await new Promise(r=>setTimeout(r, delayMs)); continue; }
+            const j = await r.json();
+            const day = j.day || "";
+            const items = Array.isArray(j.questions) ? j.questions : [];
+            const rows = items.map(it=>{
+              const date = (j.day || (it.Date||"")).replace(/\D/g,"");
+              const num  = String(it.Number||"").padStart(3,"0");
+              const qid  = `${date}-${num}`;
+              const field = it.Field || "";
+              const theme = it.Theme || "";
+              const level = it.Level || "";
+              const question = it.Question || "";
+              const tags = [it.Tag_Cause||"", it.Tag_Process||"", it.Tag_Outcome||""].join(" ");
+              const toks = Array.from(new Set([
+                ...tokenize(question),
+                ...tokenize(field),
+                ...tokenize(theme),
+                ...tokenize(level),
+                ...tokenize(tags)
+              ]));
+              return { qid, date, number: num, field, theme, level, question, tokens: toks };
+            }).filter(r => !existingQids.has(r.qid));
+
+            if(rows.length){
+              await putManyToDB(db, rows);
+              rows.forEach(r=>existingQids.add(r.qid));
+            }
+            ok++;
+          }catch(e){
+            console.warn(`${logPrefix} fetch/day failed:`, url, e);
+            ng++;
+          }
+          await new Promise(r=>setTimeout(r, delayMs));
+        }
+      }
+
+      const workers = [];
+      for(let k=0;k<concurrency;k++) workers.push(worker());
+      await Promise.all(workers);
+
+      console.log(`${logPrefix} done: ok=${ok} ng=${ng} (totalDays=${days.length})`);
+      console.timeEnd(`${logPrefix} import-all`);
+      return true;
+    }catch(e){
+      console.warn("[qmeta] import-all error:", e);
+      return false;
+    }
+  }  
+
+  // メタの初期取り込み：
+  // 1) まず“その日”の nav_manifest.json（従来挙動）
+  // 2) 次に（あれば）/manifest.json を使って “全日分” を取り込み
+  async function ensureSomeMetaLoaded(db){
+    // 1) 今日の分（slides/ 配下）
+    const here = location.pathname.replace(/\/[^\/]+$/, "/nav_manifest.json");
+    try { await ingestDayNavManifest(db, here); } catch(_) {}
+
+    // 2) 全日分（quiz_html/manifest.json）
+    //    - すでに DB にレコードが十分ある場合はスキップしてもいいが、
+    //      ここでは id 重複チェックを中でやるのでそのまま呼ぶ。
+    try {
+      await ingestAllDaysFromGlobalManifest(db, {
+        manifestUrl: "/manifest.json",
+        concurrency: 3,
+        delayMs: 80,
+        logPrefix: "[qmeta]"
+      });
+    } catch(_){}
+  }
+  
+  // ====== 初回生成タイミングでのみDB投入するワンショット ======
+  let __qmetaLoadedOnce = false;
+  async function ensureQmetaLoadedOnce(){
+    if (__qmetaLoadedOnce) return;
+    try {
+      const db = await openMetaDB();
+      console.log("[qmeta] lazy: ensureSomeMetaLoaded start");
+      await ensureSomeMetaLoaded(db);
+      console.log("[qmeta] lazy: ensureSomeMetaLoaded done");
+    } catch (e) {
+      console.warn("[qmeta] lazy: ensureSomeMetaLoaded error:", e);
+    }
+    __qmetaLoadedOnce = true;
+  }
+
+  function jaccardScore(aTokens, bTokens){
+    if(!aTokens.length || !bTokens.length) return 0;
+    const A = new Set(aTokens);
+    const B = new Set(bTokens);
+    let inter = 0;
+    for(const t of A){ if(B.has(t)) inter++; }
+    const uni = A.size + B.size - inter;
+    return uni ? inter / uni : 0;
+  }
+
+  // 類似検索：Field/Theme一致を強く、Level近さとトークン重なりでスコア
+  async function findSimilarQuestions(current, { limit = 5 } = {}){
+    const db = await openMetaDB();
+    // 初回は最低限の投入を保証
+    const all0 = await getAllFromDB(db);
+    if (!all0.length) {
+      await ensureSomeMetaLoaded(db);
+    }
+    const all = await getAllFromDB(db);
+
+    // 現在問題のキー情報
+    const curQid   = String(current.qid || "");
+    const curDate  = String(current.date || "").replace(/\D/g,"");
+    const curNum   = String(current.number || "").padStart(3,"0");
+    const curField = (current.field || "").trim();
+    const curTheme = (current.theme || "").trim();
+    const curLevelNum = (String(current.level||"").match(/([0-5])/) || [,""])[1];
+
+    // トークン
+    const curTokens = Array.from(new Set([
+      ...tokenize(current.question||""),
+      ...tokenize(current.field||""),
+      ...tokenize(current.theme||""),
+      ...tokenize(current.level||""),
+      ...tokenize((current.tagsCause||[]).join(" ")),
+      ...tokenize((current.tagsProc||[]).join(" ")),
+      ...tokenize((current.tagsOut||[]).join(" ")),
+    ]));
+
+    // 現在Aページの相対URL（自分判定の保険）
+    const currentHrefA = (function(){
+      const stem = `q${curNum}_a.html`;
+      return `../../_build_cscs_${curDate}/slides/${stem}`;
+    })();
+
+    const candidates = all.filter(r=>{
+      if (!r) return false;
+      // 1) qid 完全一致は除外
+      if (r.qid && curQid && r.qid === curQid) return false;
+      // 2) date+number 一致も除外（qid欠損対策）
+      const rDate = String(r.date||"").replace(/\D/g,"");
+      const rNum  = String(r.number||"").padStart(3,"0");
+      if (rDate === curDate && rNum === curNum) return false;
+      return true;
+    });
+
+    const scored = candidates
+      .map(r=>{
+        const levelNum = (String(r.level||"").match(/([0-5])/)||[,""])[1];
+        const levelClose =
+          (curLevelNum && levelNum)
+            ? (curLevelNum === levelNum ? 1 : (Math.abs(+curLevelNum - +levelNum) === 1 ? 0.6 : 0))
+            : 0;
+
+        const ftBonus =
+          ((r.field||"").trim() === curField ? 1 : 0) +
+          ((r.theme||"").trim() === curTheme ? 1 : 0);
+
+        const tokScore = jaccardScore(curTokens, r.tokens || []);
+        const score = ftBonus * 1.2 + levelClose * 0.6 + tokScore * 0.8;
+
+        // 生成時にリンクが自分自身に一致する可能性を保険で弾くため、hrefも付けておく
+        const hrefA = buildQuestionHref(r.date, r.number, "a");
+        return { ...r, _score: score, _hrefA: hrefA };
+      })
+      // 3) href一致も除外（配信パス差異などの保険）
+      .filter(r => r._score > 0 && r._hrefA !== currentHrefA)
+      .sort((a,b)=> b._score - a._score)
+      .slice(0, limit);
+
+    return scored;
+  }
+
+  function buildQuestionHref(date, number, part /* "a" or "b" */ = "a"){
+    // 現在: /.../quiz_html/_build_cscs_YYYYMMDD/slides/qNNN_b.html
+    // 目標: ../../_build_cscs_YYYYMMDD/slides/qNNN_a.html への相対リンク
+    const stem = `q${String(number||"").padStart(3,"0")}_${part}.html`;
+    return `../../_build_cscs_${date}/slides/${stem}`;
+  }
+
   // ====== メタ/DOM 読み取り ======
   function readInlineData(){
     const el = document.getElementById('cscs-meta');
@@ -765,7 +1080,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
   }
 
   // ====== 起動 ======
-  window.addEventListener('DOMContentLoaded', ()=>{
+  window.addEventListener('DOMContentLoaded', async ()=>{
     // 先にUIだけ用意（Bならボタン必ず出す）
     ensureMounted();
 
@@ -778,6 +1093,8 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       `;
       document.head.appendChild(st);
     }
+
+    // （起動時のDB投入は廃止。初回［生成］時に遅延ロードします）
 
     if (!isBPart()) return; // B専用
 
@@ -803,6 +1120,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 (function(){
   // 見出しの定義（ID: ラベル）
   const DD_SECTIONS = [
+    { id:"similar", label:"類似問題" }, // ← 追加（IndexedDB検索・非API）
     { id:"theory",  label:"理論深掘り｜上流（原因・原理）" },
     { id:"process", label:"事例深掘り｜中流（プロセス・具体経路）" },
     { id:"definition", label:"定義深掘り｜下流（結果・明文化）" },
@@ -881,13 +1199,18 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const wrap = document.createElement("div");
     wrap.className = "dd-sec dd-lazy";
     wrap.dataset.sectionId = section.id;
+
+    // 類似問題だけは「テキストボタン（生成／消去）」、他は従来ボタン
+    const isSimilar = (section.id === "similar");
+    const actionsHTML = `<span class="dd-lazy-actions">
+           <button class="dd-btn dd-s-btn" data-act="gen">${isSimilar ? "↓類似問題表示" : "↓深掘り生成"}</button>
+           <button class="dd-btn dd-s-btn" data-act="clear" disabled>消去</button>
+         </span>`;
+
     wrap.innerHTML = `
       <h3 class="dd-lazy-h3">
         <a href="#dd=${section.id}" class="dd-lazy-link" data-act="open">${section.label}</a>
-        <span class="dd-lazy-actions">
-          <button class="dd-btn dd-s-btn" data-act="gen">↓深掘り生成</button>
-          <button class="dd-btn dd-s-btn" data-act="clear" disabled>消去</button>
-        </span>
+        ${actionsHTML}
       </h3>
       <div class="dd-lazy-body dd-small dd-mono" style="opacity:.9;display:none">（未生成）</div>
     `;
@@ -901,7 +1224,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const body = panel.querySelector("#dd-body");
     if (!body) return;
 
-    // コンテナ（先に mountAndWire が #dd-lazy-host を作る想定。なければ作る）
+    // コンテナ
     let host = document.getElementById("dd-lazy-host");
     if (!host) {
       host = document.createElement("div");
@@ -909,11 +1232,36 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       host.style.marginTop = "10px";
       body.appendChild(host);
     } else {
-      // 二重生成防止（再マウント時は一度空にする）
       host.innerHTML = "";
     }
 
-    // 生成ヘルパ（クロージャで row 単位に閉じ込める）
+    // 現在問題のコンテキスト（類似検索用）
+    // ※ クリーンURL（/q001_b）と .html（/q001_b.html）の両方に対応するため、
+    //    既存ヘルパー getDayFromPathDD() / getStemFromPathDD() を使用。
+    const curDay  = getDayFromPathDD();           // "20250926" など
+    const stemRaw = getStemFromPathDD();          // "q001" など
+    const curNum  = (/^q(\d{3})$/i.test(stemRaw)) ? stemRaw.replace(/^q/i, "") : "000";
+
+    const currentForSimilar = {
+      qid: `${curDay}-${curNum}`,                 // 例: "20250926-001"
+      date: curDay,
+      number: curNum,                             // "001"
+      field: (meta && meta.field) || "",
+      theme: (meta && meta.theme) || "",
+      level: "", // DOMからは抽出しない（0でもスコアは計算可）
+      question: "",
+      tagsCause: (meta && meta.tagsCause) || [],
+      tagsProc:  (meta && meta.tagsProc)  || [],
+      tagsOut:   (meta && meta.tagsOut)   || [],
+    };
+
+    // DOMから補強（設問テキスト・正解など）
+    try{
+      const dom = await (window.readDom ? window.readDom() : {question:"",options:[],correct:""});
+      currentForSimilar.question = dom.question || "";
+    }catch(_){}
+
+    // 行ごとに配線
     function wireRow(row, section){
       const sid    = section.id;
       const bodyEl = row.querySelector(".dd-lazy-body");
@@ -925,23 +1273,24 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       if (saved){
         bodyEl.innerHTML = saved;
         bodyEl.style.display = "";
-        btnClr.disabled = false;
-        btnGen.textContent = "再生成";
+        if(btnClr) btnClr.disabled = false;
+        if(btnGen && sid !== "similar") btnGen.textContent = "再生成";
       }
 
-      const click = (h)=> (ev)=>{ ev.preventDefault(); ev.stopPropagation(); h().catch(console.error); };
+      const click = (h)=> (ev)=>{ ev.preventDefault(); ev.stopPropagation(); h(ev).catch(console.error); };
+      const ensureOpen = ()=>{ if (bodyEl.style.display === "none") bodyEl.style.display = ""; };
 
-      const ensureOpen = ()=>{
-        if (bodyEl.style.display === "none") bodyEl.style.display = "";
-      };
+      async function generateGemini(sectionId){
+        if(!btnGen || !btnClr) return;
 
-      const generate = async ()=>{
+        // ▼ 初回［生成］のときだけDB投入（2,700問メタ）
+        await ensureQmetaLoadedOnce();
+
         btnGen.disabled = true; btnClr.disabled = true;
         ensureOpen();
         bodyEl.innerHTML = `<span class="dd-spinner"></span>生成中…`;
-
         const dom  = await (window.readDom? window.readDom(): {question:"",options:[],correct:""});
-        const prompt = await buildSectionPrompt(meta||{field:"",theme:"",tagsCause:[],tagsProc:[],tagsOut:[]}, dom, sid);
+        const prompt = await buildSectionPrompt(meta||{field:"",theme:"",tagsCause:[],tagsProc:[],tagsOut:[]}, dom, sectionId);
 
         try{
           const html = await window.callGemini(prompt, { model: "models/gemini-2.5-flash" });
@@ -951,7 +1300,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
             .replace(/<\/?section[^>]*>/gi, "")
             .trim() || `<div class="dd-note">（空の出力）</div>`;
           bodyEl.innerHTML = cleaned;
-          localStorage.setItem(sectionStoreKey(sid), cleaned);
+          localStorage.setItem(sectionStoreKey(sectionId), cleaned);
           btnClr.disabled = false;
           btnGen.textContent = "再生成";
         }catch(e){
@@ -959,34 +1308,106 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         }finally{
           btnGen.disabled = false;
         }
-      };
+      }
 
-      // 見出しリンク：初回は生成、以降は開閉（⌥/Alt/⌘で「再生成」動作）
+      async function generateSimilar(){
+        if(btnGen) btnGen.disabled = true;
+        if(btnClr) btnClr.disabled = true;
+
+        // ▼ 初回［生成］のときだけDB投入（2,700問メタ）
+        await ensureQmetaLoadedOnce();
+
+        ensureOpen();
+        bodyEl.innerHTML = `<span class="dd-spinner"></span>検索中…`;
+
+        try{
+          // 余裕を持って多めに取得 → 最終6件に絞る
+          const resultsRaw = await findSimilarQuestions(currentForSimilar, { limit: 12 });
+          const curDate  = String(currentForSimilar.date||"").replace(/\D/g,"");
+          const curNum   = String(currentForSimilar.number||"").padStart(3,"0");
+          const selfHref = buildQuestionHref(curDate, curNum, "a");
+
+          // 最終の自分弾き＆上位6件に整形
+          const results = resultsRaw
+            .filter(r=>{
+              const href = buildQuestionHref(r.date, r.number, "a");
+              return href !== selfHref;
+            })
+            .slice(0,6);
+
+          if(!results.length){
+            const none = `<div class="dd-note">（該当する類似問題が見つかりませんでした）</div>`;
+            bodyEl.innerHTML = none;
+            localStorage.setItem(sectionStoreKey("similar"), none);
+          }else{
+            const lis = results.map(r=>{
+              const href = buildQuestionHref(r.date, r.number, "a");
+              const metaLine = [r.field||"", r.theme||"", r.level||""].filter(Boolean).join(" / ");
+              const label = `${r.date}｜q${String(r.number||"").padStart(3,"0")}`;
+              const qtext = String(r.question||"");
+              return `
+                <li class="dd-simitem">
+                  <a class="dd-simlink" href="${href}">${label}</a>
+                  <div class="dd-simmeta dd-small">${metaLine}</div>
+                  <div class="dd-simq dd-small"><a class="dd-simqlink" href="${href}">${qtext.slice(0,120)}${qtext.length>120?"…":""}</a></div>
+                </li>
+              `;
+            }).join("");
+            const html = `<div class="dd-simwrap"><ul class="dd-simlist">${lis}</ul></div>`;
+            bodyEl.innerHTML = html;
+            localStorage.setItem(sectionStoreKey("similar"), html);
+          }
+          if(btnClr) btnClr.disabled = false;
+        }catch(e){
+          bodyEl.innerHTML = `<div class="dd-note">検索に失敗：<span class="dd-mono">${String(e&&e.message||e)}</span></div>`;
+        }finally{
+          if(btnGen) btnGen.disabled = false;
+        }
+      }
+
+      // 見出しクリック：初回生成 or 開閉（⌥/⌘で再生成）
       link.addEventListener("click", click(async (ev)=>{
         const alt = ev && (ev.altKey || ev.metaKey);
         const has = !!localStorage.getItem(sectionStoreKey(sid));
-        if (!has || alt){
-          await generate();
+        if (sid === "similar"){
+          if (!has || alt){ await generateSimilar(); }
+          else { bodyEl.style.display = (bodyEl.style.display === "none") ? "" : "none"; }
         } else {
-          bodyEl.style.display = (bodyEl.style.display === "none") ? "" : "none";
+          if (!has || alt){ await generateGemini(sid); }
+          else { bodyEl.style.display = (bodyEl.style.display === "none") ? "" : "none"; }
         }
         try { history.replaceState({}, "", `#dd=${sid}`); } catch(_){}
       }));
 
-      btnGen.addEventListener("click", click(()=>generate()));
-      btnClr.addEventListener("click", click(async ()=>{
-        localStorage.removeItem(sectionStoreKey(sid));
-        bodyEl.textContent = "（未生成）";
-        btnClr.disabled = true;
-        btnGen.textContent = "↓深掘り生成";
-        bodyEl.style.display = "none";
-      }));
+      if(btnGen){
+        btnGen.addEventListener("click", click(async ()=>{
+          if (sid === "similar") await generateSimilar();
+          else await generateGemini(sid);
+        }));
+      }
+      if(btnClr){
+        btnClr.addEventListener("click", click(async ()=>{
+          localStorage.removeItem(sectionStoreKey(sid));
+          bodyEl.textContent = "（未生成）";
+          btnClr.disabled = true;
+          if(sid === "similar"){
+            btnGen && (btnGen.textContent = "↓類似問題表示");
+          }else{
+            btnGen && (btnGen.textContent = "↓深掘り生成");
+          }
+          bodyEl.style.display = "none";
+        }));
+      }
 
-      // セクション直リンク（#dd=theory 等）
+      // セクション直リンク（#dd=xxx）
       const hash = (location.hash || "").trim();
       if (hash === `#dd=${sid}`){
-        if (!saved) { generate(); }
-        else { bodyEl.style.display = ""; }
+        if (!saved) {
+          if (sid === "similar") { generateSimilar(); }
+          else { generateGemini(sid); }
+        } else {
+          bodyEl.style.display = "";
+        }
         setTimeout(()=> row.scrollIntoView({ block:"start", behavior:"smooth" }), 10);
       }
     }
@@ -998,7 +1419,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       wireRow(row, s);
     }
 
-    // 位置合わせ：ハッシュが変わったら対象を開く
+    // ハッシュ遷移での開閉
     window.addEventListener("hashchange", ()=>{
       const m = (location.hash||"").match(/^#dd=([a-z0-9_]+)/i);
       if (!m) return;
@@ -1031,6 +1452,46 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       .dd-lazy-link{ color:#cfe8ff; text-decoration:none; }
       .dd-lazy-link:hover{ text-decoration:underline; }
       .dd-lazy-actions{ white-space:nowrap; }
+
+      /* 類似問題のテキストボタン（下線・白） */
+      .dd-tbtn{
+        background: transparent;
+        border: none;
+        color: #fff;
+        text-decoration: underline;
+        padding: 0;
+        margin: 0 4px;
+        font: inherit;
+        cursor: pointer;
+      }
+      .dd-tbtn:disabled{
+        opacity: .6;
+        text-decoration: none;
+        cursor: default;
+      }
+
+      /* 類似問題のグリッド表示（画面幅に応じて横並び） */
+      .dd-simwrap{ margin-top:4px; }
+      .dd-simlist{ list-style:none; padding:0; margin:0; display:grid; grid-template-columns:1fr; gap:10px; }
+      .dd-simitem{ border:1px solid #2a2a2a; background:#151515; border-radius:10px; padding:10px; }
+      .dd-simlink{ display:block; font-weight:700; color:#cfe8ff; text-decoration:none; margin-bottom:4px; }
+      .dd-simlink:hover{ text-decoration:underline; }
+      .dd-simmeta{ opacity:.85; }
+      .dd-simq{ opacity:.9; }
+
+      /* ▼ 問題文リンクは下線なしに統一 */
+      .dd-simqlink{ color:#cfe8ff; text-decoration:none; }
+      .dd-simqlink:hover{ text-decoration:none; }
+
+      @media (min-width: 900px){
+        .dd-simlist{ grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+      }
+      /* iPad縦の幅帯では2列固定 */
+      @media (orientation: portrait) and (min-width: 800px){
+        .dd-simlist{
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
     `;
     document.head.appendChild(st);
   }

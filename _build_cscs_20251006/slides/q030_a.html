@@ -307,8 +307,8 @@ html, body { height: auto !important; min-height: 0 !important; }
     }
     function getQid(){
       const day=getDayFromPath();
-      // A/B どちらでも拾えるように [ab] を許可
-      const m=(window.location.pathname||"").match(/q(\d{3})_[ab]\.html$/);
+      // A/B どちらでも拾えるように [ab] を許可 + ".html" は省略も許可
+      const m=(window.location.pathname||"").match(/q(\d{3})_[ab](?:\.html)?$/i);
       const n=m?m[1]:"000";
       return `${day}-${n}`;
     }
