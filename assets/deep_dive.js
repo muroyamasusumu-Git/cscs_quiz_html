@@ -1073,16 +1073,71 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       await updateApiBadge();
     }
 
-
     // 旧「指示」機能は廃止（ボタン・コピー/モーダル関連処理を削除）
-
     // 旧「閉じる」ボタンは廃止。開閉は画面下部のトグルボタン（dd-toggle）で行います。
   }
 
-  // ====== 起動 ======
+// ====== 起動 ======
   window.addEventListener('DOMContentLoaded', async ()=>{
     // 先にUIだけ用意（Bならボタン必ず出す）
     ensureMounted();
+
+  // ====== Bパート補助解説（localStorageの深掘り6セクションをまとめて表示） ======
+  async function tryInsertGentleExplain() {
+    // 条件: Bパートのみ
+    if (!isBPart()) return;
+
+    const explain = document.querySelector('.explain');
+    if (!explain) return;
+    if (document.getElementById('dd-extra-explain')) return;
+
+    // day と stem をパスから抽出
+    function getDay() {
+      const m = (location.pathname || '').match(/_build_cscs_(\d{8})/);
+      return m ? m[1] : '';
+    }
+    function getStem() {
+      const m = (location.pathname || '').match(/(q\d{3})_b(?:\.html)?$/i);
+      return m ? m[1] : '';
+    }
+    const day = getDay();
+    const stem = getStem();
+    if (!day || !stem) return;
+
+    // 6種類のセクションキーを順に読む
+    const sections = [
+      { key: 'theory',     label: '［理論深掘り｜上流（原因・原理）］' },
+      { key: 'process',    label: '［過程深掘り｜中流（具体経路）］' },
+      { key: 'definition', label: '［定義深掘り｜下流（結果・明文化）］' },
+      { key: 'apply',      label: '［応用深掘り｜事例・活用］' },
+      { key: 'similar',    label: '［類似問題］' },
+      { key: 'review3',    label: '［三行復習］' }
+    ];
+
+    let html = '';
+    for (const s of sections) {
+      const v = localStorage.getItem(`cscs_dd_${day}_${stem}:${s.key}`);
+      if (v && String(v).trim()) {
+        const hasTag = /<[^>]+>/.test(v);
+        const content = String(v).trim();
+        html += `<div class="dd-extra-block" style="margin-top:12px;">`;
+        html += `<div style="font-weight:bold;margin-bottom:4px;">${s.label}</div>`;
+        html += hasTag ? content : `<div>${content}</div>`;
+        html += `</div>`;
+      }
+    }
+
+    if (!html) return; // どれも無ければ何もしない
+
+    const box = document.createElement('div');
+    box.id = 'dd-extra-explain';
+    box.style.fontSize = '18px';
+    box.innerHTML = html;
+    explain.insertAdjacentElement('afterend', box);
+  }
+
+  // ← これを追加！
+  window.tryInsertGentleExplain = tryInsertGentleExplain;
 
     // ▼ iPad だけツールバー位置を下固定＆調整（必要に応じて拡張）
     if (isIPadSafari() && !document.getElementById("dd-ipad-style")) {

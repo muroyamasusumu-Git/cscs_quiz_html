@@ -537,5 +537,27 @@ html, body { height: auto !important; min-height: 0 !important; }
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 
+
+    <script>
+      (async () => {
+        const day = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1];
+        const stem = (location.pathname.match(/(q\d{3})_b(?:\.html)?$/i) || [])[1];
+        const explain = document.querySelector('.explain');
+        const v = localStorage.getItem(`cscs_dd_${day}_${stem}:theory`);
+        if (v && v.trim() && explain) {
+          const styled = v
+            .replace(/<span\s+class=["']dd-key["']>(.*?)<\/span>/g, '<span class="dd-key" style="color:#6cc7ff;">$1</span>')
+            .replace(/<span\s+class=["']dd-answer["']>(.*?)<\/span>/g, '<span class="dd-answer" style="color:#8fdcff;">$1</span>');
+          const html = `<div style="margin-top:12px;font-size:16px;font-weight:300;">${styled}</div>`;
+          const box = document.createElement('div');
+          box.innerHTML = html;
+          explain.insertAdjacentElement('afterend', box);
+          console.log('✅ deep_dive: theory inserted');
+        } else {
+          console.log('⚠️ no theory data found or no .explain element');
+        }
+      })();
+    </script>
+    
 </body>
 </html>
