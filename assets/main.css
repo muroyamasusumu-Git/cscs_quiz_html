@@ -14,6 +14,39 @@ margin: 25px 30px;
     font-size: 19px;
 }
 
+  .wrong-inline{
+    margin-left: 0;
+    color: #fff;
+    font-size: 0.5em;
+    opacity: .95;
+    position: fixed;   /* 画面基準で固定。DOMは.wrap配下でもOK */
+    bottom: 64px;
+    right: 11px;
+    z-index: 10060;
+    pointer-events: none;   /* 誤タップ防止 */
+    white-space: nowrap;
+  }
+  
+  
+/* ===== タイトル文字縮小のための変数・連動設定 ===== */
+:root {
+  --h1-scale: 1;    /* JSが更新する倍率（1〜0.7） */
+  --h1-base: 44px;  /* 通常サイズ */
+  --ol-base:  32px; /* 選択肢フォントの基準サイズ */
+}
+
+.wrap h1, h1.top-title, h1 {
+  font-size: calc(var(--h1-base) * var(--h1-scale));
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.wrap ol.opts {
+  font-size: calc(var(--ol-base) * max(0.7, var(--h1-scale) * 0.85));
+  line-height: 1.35;
+}
+
 /* ===============================
    スマホ (iPhone 等) 表示向け調整
    =============================== */

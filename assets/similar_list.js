@@ -1,10 +1,15 @@
-/* similar_list.js — Aパート下部に「類似問題（全2700問横断）」を表示（JPバイグラム対応版）
-   - cscs_meta_all.json 2系統どちらでも動く:
-     1) { items: [{ day, n3, url, field, theme, level, text }, ...] }
-     2) { questions: [{ Date, Number, Field, Theme, Level, Question }, ...] }
-   - #similar-list 要素 or <script src=...> の data-* で制御:
-     data-k=候補数 / data-src=JSONパス / data-mode=similar|same-field|same-level / data-debug=1 でログ
-     data-qtext=このページの設問（無ければ .question/h1 → body先頭行から自動抽出）
+/* similar_list.js — Aパート下部に「類似／別分野／未着手／要復習問題」を8件（各2件×4カテゴリ）ランダム表示
+   参照:
+     ・/assets/cscs_meta_all.json（全2700問メタ）
+     ・localStorage.cscs_results（回答履歴）
+     ・localStorage.cscs_wrong_log（不正解回数）
+   表示:
+     見出し: 「類似／別分野／未着手／要復習問題」
+     中身:   ［類似］［別分野（低類似）］［未着手］［要復習］を各2件、計8件。毎回シャッフル
+   定義:
+     未着手: 回答回数 0 または ≤1
+     要復習: wrong>=2 かつ 正答率<60%（正解率が高いものは除外）
+     別分野: 現在の問題と分野が異なり、かつ「類似スコア」が低い候補（0を優先、無ければ下位10から抽出）
 */
 (function(){
   "use strict";
@@ -13,29 +18,43 @@
   function $(sel, root){ return (root||document).querySelector(sel); }
   function toInt(x, def){ x=Number(x); return Number.isFinite(x)?x:def; }
   function pad3(n){ return String(n).padStart(3,"0"); }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => (
+      c==="&"?"&amp;":c==="<"?"&lt;":c===">"?"&gt;":c==='"'?"&quot;":"&#39;"
+    ));
+  }
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+  function sample(arr, k){
+    if (!arr || !arr.length) return [];
+    return shuffle(arr).slice(0, k);
+  }
 
-  // 文字列→英数トークン分割（空白言語は分割されにくいので補助で使う）
+  // 文字列→英数トークン分割
   function tokenizeLatin(s){
     return String(s||"")
       .toLowerCase()
       .split(/[^\p{Letter}\p{Number}]+/u)
-      .filter(w => w && w.length >= 3); // 英数は3文字以上で
+      .filter(w => w && w.length >= 3);
   }
-
-  // JP向け：連続文字からバイグラム配列を作る（漢字・ひら・カタ・英数すべて対象）
+  // JP向けバイグラム
   function bigrams(s){
     const t = String(s||"").replace(/\s+/g, "");
     const out = [];
     for (let i=0; i<t.length-1; i++){
       const g = t.slice(i, i+2);
-      // 記号だらけは除外
       if (!/[^\p{Letter}\p{Number}]/u.test(g)) out.push(g);
     }
-    // 重複はOK（スコアで数える）
     return out;
   }
 
-  // JSON正規化：{q, url, field, theme, level, day, n3} に揃える
+  // JSON正規化
   function normalizeMeta(meta){
     let rows = [];
     if (meta && Array.isArray(meta.items)) {
@@ -71,51 +90,34 @@
         n3:    x.n3 || pad3(Number(x.Number||0))
       }));
     }
-    return rows.filter(r => r.q && r.url);
+    return rows.filter(r => r.q && r.url && r.day && r.n3);
   }
 
-  // 類似度（軽量）：
-  //  - クエリから [latin token] と [JPバイグラム] を作成
-  //  - 各候補の問題文に含まれる一致個数を集計（latinは大小無視一致）
-  function scoreSimilar(queryText, rows){
+  // 類似スコア（行＋スコアを返す）
+  function scoreAll(queryText, rows, base){
     const latin = tokenizeLatin(queryText);
     const jps   = bigrams(queryText);
-    if (!latin.length && !jps.length) return [];
+    const out   = [];
 
-    const scored = rows.map(r => {
+    for (const r of rows){
       const textLower = r.q.toLowerCase();
       let s = 0;
-      for (const w of latin){ if (textLower.includes(w)) s += 2; } // 英数一致は重み2
-      for (const bg of jps){ if (r.q.includes(bg)) s += 1; }       // JPバイグラムは重み1
-      return { score: s, row: r };
-    }).filter(o => o.score > 0);
-
-    // 同点なら「同分野/同レベル」を微加点して安定化
-    const baseField = (window.__SIM_BASE__ && window.__SIM_BASE__.field) || "";
-    const baseLevel = (window.__SIM_BASE__ && window.__SIM_BASE__.level) || "";
-    for (const o of scored){
-      if (baseField && (o.row.field||"") === baseField) o.score += 0.5;
-      if (baseLevel && (o.row.level||"") === baseLevel) o.score += 0.25;
+      for (const w of latin){ if (textLower.includes(w)) s += 2; }
+      for (const bg of jps){ if (r.q.includes(bg)) s += 1; }
+      if (base){
+        if (base.field && (r.field||"") === base.field) s += 0.5;
+        const lv = (r.level||"").replace(/\s+/g,"").toLowerCase();
+        const bl = (base.level||"").replace(/\s+/g,"").toLowerCase();
+        if (bl && lv === bl) s += 0.25;
+      }
+      out.push({row:r, score:s});
     }
-
-    scored.sort((a,b)=> b.score - a.score);
-    return scored;
+    // 高スコア順
+    out.sort((a,b)=> b.score - a.score);
+    return out;
   }
 
-  // モード別の絞り込み
-  function filterByMode(mode, baseRow, rows){
-    if (mode === "same-field") {
-      const f = (baseRow.field||"").trim();
-      return rows.filter(r => (r.field||"").trim() === f);
-    }
-    if (mode === "same-level") {
-      const lv = (baseRow.level||"").replace(/\s+/g,"").toLowerCase();
-      return rows.filter(r => (r.level||"").replace(/\s+/g,"").toLowerCase() === lv);
-    }
-    return rows; // "similar" はそのまま
-  }
-
-  // このページの設問テキスト（data-qtext → .question/h1 → body先頭行）
+  // 自ページの設問テキスト
   function resolveQText(hostEl){
     const ds = hostEl ? hostEl.dataset : {};
     if (ds && ds.qtext && ds.qtext.trim()) return ds.qtext.trim();
@@ -126,7 +128,7 @@
     return pick;
   }
 
-  // nav_manifest.json からこのページの Field/Level 等を拾う（スコア安定用）
+  // nav_manifest.json から Field/Level を拾う
   async function tryGetSelfMeta(){
     try{
       const mDay = (location.pathname||"").match(/_build_cscs_(\d{8})/);
@@ -140,29 +142,44 @@
       if (!qnum || !Array.isArray(j.questions)) return null;
       const row = j.questions.find(x => String(x.Number).padStart(3,'0') === qnum);
       if (!row) return null;
-      return {
-        field: row.Field || "",
-        theme: row.Theme || "",
-        level: row.Level || "",
-        day, n3: qnum
-      };
+      return { field: row.Field||"", theme: row.Theme||"", level: row.Level||"", day, n3: qnum };
     }catch(_){ return null; }
   }
 
+  // 回答履歴を集計（day-n3 単位）
+  function readResultsAgg(){
+    const KEY="cscs_results";
+    let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(_){ arr=[]; }
+    const map = new Map(); // key: "YYYYMMDD-NNN" -> {total, correct}
+    arr.forEach(r=>{
+      if (!r || !r.day || !r.stem) return;
+      const n3 = String(r.stem||"").slice(1).padStart(3,"0");
+      const key = `${r.day}-${n3}`;
+      const o = map.get(key) || { total:0, correct:0 };
+      o.total += 1;
+      if (r.correct) o.correct += 1;
+      map.set(key, o);
+    });
+    return map;
+  }
+
+  // 不正解ログを読む
+  function readWrongLog(){
+    try { return JSON.parse(localStorage.getItem("cscs_wrong_log") || "{}"); }
+    catch (_){ return {}; }
+  }
+
   async function run(){
-    // 配置場所（#similar-list があれば優先。無ければ <script src=...> の data-* ）
+    // 配置場所
     let host = document.getElementById("similar-list");
     let ds   = host ? host.dataset : null;
-
     if (!host) {
       const me = [...document.scripts].find(s => (s.src||"").includes("similar_list.js"));
       if (me) ds = me.dataset || null;
     }
     if (!ds) return;
 
-    const k     = toInt(ds.k, 5);
     const src   = ds.src || "../../assets/cscs_meta_all.json";
-    const mode  = (ds.mode || "similar").toLowerCase(); // similar | same-field | same-level
     const debug = ds.debug === "1";
     const qtext = resolveQText(host || document.body);
 
@@ -177,122 +194,178 @@
       return;
     }
     const rows = normalizeMeta(meta);
-    if (!rows.length) {
-      console.warn("similar_list: no rows in JSON (items/questions not found)");
-      return;
-    }
+    if (!rows.length) return;
 
-    // 自ページの field/level を控える
     const selfMeta = await tryGetSelfMeta();
-    window.__SIM_BASE__ = selfMeta || {};
-    if (debug){
-      console.log("[similar] qtext:", qtext);
-      console.log("[similar] rows:", rows.length, rows.slice(0,3));
-      console.log("[similar] selfMeta:", selfMeta);
+    const selfKey = selfMeta && selfMeta.day && selfMeta.n3 ? `${selfMeta.day}-${selfMeta.n3}` : null;
+    if (debug) console.log("[mix8] selfMeta:", selfMeta);
+
+    // ===== カテゴリ用の下準備 =====
+    const scoredAll = scoreAll(qtext, rows, selfMeta);  // 高→低
+    const onlyRows  = scoredAll.map(o => o.row);
+
+    // 1) 類似（上位からランダム2件）— 自分は除外
+    let similarPool = onlyRows;
+    if (selfKey) similarPool = similarPool.filter(r => `${r.day}-${r.n3}` !== selfKey);
+
+    // 2) 未着手（回答0 or ≤1回）— 同分野×同レベル優先
+    const agg = readResultsAgg();
+    const wrongLog = readWrongLog();
+    function attempts(key){
+      const o = agg.get(key);
+      return o ? o.total : 0;
+    }
+    function accuracy(key){
+      const o = agg.get(key);
+      if (!o || !o.total) return 0;
+      return o.correct / o.total;
+    }
+    const sameFieldLevel = rows.filter(r=>{
+      if (!selfMeta) return false;
+      const sameF = (r.field||"").trim() === (selfMeta.field||"").trim();
+      const sameL = (r.level||"").replace(/\s+/g,"").toLowerCase() === (selfMeta.level||"").replace(/\s+/g,"").toLowerCase();
+      return sameF && sameL;
+    });
+    let untriedPool = (sameFieldLevel.length ? sameFieldLevel : rows).filter(r=>{
+      const key = `${r.day}-${r.n3}`;
+      if (selfKey && key === selfKey) return false;
+      const att = attempts(key);
+      return att === 0 || att <= 1;
+    });
+
+    // 3) 要復習（wrong>=2 かつ acc<0.6）— 同分野優先
+    const sameField = rows.filter(r=>{
+      if (!selfMeta) return false;
+      return (r.field||"").trim() === (selfMeta.field||"").trim();
+    });
+    let reviewPool = (sameField.length ? sameField : rows).filter(r=>{
+      const key = `${r.day}-${r.n3}`;
+      if (selfKey && key === selfKey) return false;
+      const wrong = Number(wrongLog[key]||0);
+      const acc   = accuracy(key);
+      return wrong >= 2 && acc < 0.6;
+    });
+
+    // 4) 別分野（低類似）— 分野が異なる & 類似スコアが低い
+    //    まずスコア0 & 別分野を優先、無ければスコア下位10 & 別分野から抽出
+    const baseField = (selfMeta && selfMeta.field) || "";
+    const lowSimZero = scoredAll
+      .filter(o => o.score <= 0 && (o.row.field||"") !== baseField && (!selfKey || `${o.row.day}-${o.row.n3}` !== selfKey))
+      .map(o => o.row);
+
+    let diffFieldPool = lowSimZero;
+    if (!diffFieldPool.length){
+      const bottom = scoredAll.slice(-Math.min(50, scoredAll.length)); // 下位50から
+      diffFieldPool = bottom
+        .filter(o => (o.row.field||"") !== baseField && (!selfKey || `${o.row.day}-${o.row.n3}` !== selfKey))
+        .map(o => o.row);
     }
 
-    // モード適用
-    let cand = rows;
-    if (mode !== "similar") cand = filterByMode(mode, (selfMeta||{}), rows);
+    // ===== 抽出（各2件、重複排除）=====
+    const pickSimilar = sample(similarPool, 2);
+    const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`));
 
-    // 類似スコア
-    let list = [];
-    if (mode === "similar") {
-      const scored = scoreSimilar(qtext, cand);
-      if (debug){
-        console.log("[similar] scored top5:", scored.slice(0,5));
-      }
-      list = scored.map(o => o.row);
-    } else {
-      list = cand.slice().sort((a,b)=> b.q.length - a.q.length);
+    const pickDiff = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
+    pickDiff.forEach(r => used.add(`${r.day}-${r.n3}`));
+
+    const pickUntried = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
+    pickUntried.forEach(r => used.add(`${r.day}-${r.n3}`));
+
+    const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
+    pickReview.forEach(r => used.add(`${r.day}-${r.n3}`));
+
+    // --- 足りない分を「別分野→未着手」で補充して8件にする ---
+    let combined = [
+      ...pickSimilar.map(r => ({ tag:"類似",   cls:"sim",  row:r })),
+      ...pickDiff.map(r    => ({ tag:"別分野", cls:"diff", row:r })),
+      ...pickUntried.map(r => ({ tag:"未着手", cls:"new",  row:r })),
+      ...pickReview.map(r  => ({ tag:"要復習", cls:"rev",  row:r })),
+    ];
+
+    if (combined.length < 8) {
+      const need = 8 - combined.length;
+      const filler1 = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
+      filler1.forEach(r => {
+        used.add(`${r.day}-${r.n3}`);
+        combined.push({ tag:"別分野", cls:"diff", row:r });
+      });
     }
 
-    // 自分自身(同day+n3)は除外
-    if (selfMeta && selfMeta.day && selfMeta.n3) {
-      list = list.filter(r => !(r.day===selfMeta.day && r.n3===selfMeta.n3));
+    if (combined.length < 8) {
+      const need = 8 - combined.length;
+      const filler2 = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
+      filler2.forEach(r => {
+        used.add(`${r.day}-${r.n3}`);
+        combined.push({ tag:"未着手", cls:"new", row:r });
+      });
     }
 
-    // 先頭 k 件
-    list = list.slice(0, k);
+    const finalList = shuffle(combined).slice(0, 8);
 
     // ====== 描画 ======
     const wrap = document.querySelector(".wrap");
-
     if (host) {
-      // 既に存在していて .wrap の外にあるなら、.wrap の末尾へ“移動”
-      if (wrap && host.parentElement !== wrap) {
-        wrap.appendChild(host); // appendChild は既存ノードなら移動になる
-      }
+      if (wrap && host.parentElement !== wrap) wrap.appendChild(host);
     } else {
-      // なければ作って .wrap の末尾（なければ body）に追加
       host = document.createElement("div");
       host.id = "similar-list";
       (wrap || document.body).appendChild(host);
     }
 
-    // スタイル（軽量）
+    // スタイル
     const styleId = "similar-list-style";
     if (!document.getElementById(styleId)) {
       const st = document.createElement("style");
       st.id = styleId;
       st.textContent = `
-#similar-list {
-  margin: 20px 0 0;
-  line-height: 1.5;
-  color: #fff;
-  border-top: 1px solid #555;
-  padding-top: 16px;
+#similar-list{ margin:20px 0 0; line-height:1.5; color:#fff; border-top:1px solid #555; padding-top:16px; }
+#similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:20px; }
+#similar-list ul{
+  margin:0;
+  padding-left:0;
+  list-style:none;   /* ← ドット削除 */
 }
-#similar-list .sl-head {
-  color: #cfe8ff;
-  margin-bottom: 6px;
-  font-size: 20px;
+#similar-list li{ margin:4px 0; font-size:14px; font-weight:300; }
+#similar-list a{ color:#fff; text-decoration:none; }
+#similar-list a:hover{ text-decoration:underline; }
+#similar-list .tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:58px;
+  padding:2px 6px;
+  margin-right:8px;
+  border:1px solid #444;
+  border-radius:6px;
+  font-size:12px;
+  vertical-align:middle;
+  color:#e0e0e0;
+  background:#2b2b2b;
 }
-#similar-list ul {
-  margin: 0;
-  padding-left: 0.7em;
-}
-#similar-list li {
-  margin: 2px 0;
-  font-size: 17px;
-  font-weight: 300;
-}
-#similar-list a {
-  color: #fff;
-  text-decoration: none;
-}
-#similar-list a:hover {
-  text-decoration: underline;
-}
+#similar-list .tag.sim{  background:#2b2b2b; color:#e0e0e0; border-color:#444; }   /* 濃いめグレー */
+#similar-list .tag.diff{ background:#3a3a3a; color:#e6e6e6; border-color:#555; }   /* 少し明るい */
+#similar-list .tag.new{  background:#4a4a4a; color:#efefef; border-color:#666; }   /* さらに明るい */
+#similar-list .tag.rev{  background:#5a5a5a; color:#fafafa; border-color:#777; }   /* 最も明るい */
       `.trim();
       document.head.appendChild(st);
     }
 
-    const label =
-      mode === "same-field" ? "同分野の他問題"
-    : mode === "same-level" ? "同レベルの他問題"
-    : "類似問題（別日から抜粋）";
-
-    let html = `<div class="sl-head">${label}</div>`;
-    if (!list.length) {
+    let html = `<div class="sl-head">類似／別分野／未着手／要復習問題</div>`;
+    if (!finalList.length) {
       html += `<div style="color:#888;">候補なし</div>`;
-      if (debug){
-        const ltok = tokenizeLatin(qtext);
-        const jtok = bigrams(qtext);
-        console.log("[similar] no candidates. latinTokens:", ltok, "jpBigrams:", jtok);
-      }
     } else {
-      html += `<ul>` + list.map(r => (
-        `<li><a href="${r.url}">${escapeHtml(r.q)}</a></li>`
-      )).join("") + `</ul>`;
+      html += `<ul>` + finalList.map(({tag,cls,row})=>{
+        return `<li><span class="tag ${cls}">［${tag}］</span><a href="${row.url}">${escapeHtml(row.q)}</a></li>`;
+      }).join("") + `</ul>`;
     }
     host.innerHTML = html;
-  }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => (
-      c==="&"?"&amp;":c==="<"?"&lt;":c===">"?"&gt;":c==='"'?"&quot;":"&#39;"
-    ));
+    if (debug){
+      console.log("[mix8] similar:", pickSimilar);
+      console.log("[mix8] diffField(low-sim):", pickDiff);
+      console.log("[mix8] untried:", pickUntried);
+      console.log("[mix8] review:", pickReview);
+    }
   }
 
   if (document.readyState === "loading") {
