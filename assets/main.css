@@ -58,12 +58,50 @@ ol.opts {
   transform-origin: left top;
   line-height: 1.35;
   font-size: 1em;      /* 変えない：transform だけで調整 */
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 /* 任意：読み込み中の全体チラつき防止（必要なら有効化）
 .autoscale-hide body { background-color:#111; } 
 */
+
+/* === h1 と ol の間隔を“常に一定の見た目”にする === */
+/* 1) スケール連動の基準ギャップ（pxでOK） */
+:root {
+  --h1-scale: 1;        /* JSが既にセットしているはず */
+  --opts-scale: 1;      /* 同上 */
+  --h1-gap-base: 0;  /* 基本の隙間（調整はここ） */
+}
+
+/* 2) h1 の下だけに“計算済み”の余白を与える。emではなくpx×scaleで見た目に追随 */
+.wrap h1, h1.top-title, h1 {
+  margin-bottom: calc(var(--h1-gap-base) * var(--h1-scale));
+}
+
+/* 3) ol 側は上マージンを0に固定（重なりを防止） */
+.wrap h1 + ol.opts {
+  margin-top: 0;
+}
+
+/* 4) マージンの重なりが起きにくいように、親を flow-root 化（保険） */
+.wrap {
+  display: flow-root;
+}
+
+/* 5) （任意）リストの内側余白を少し整えると“詰まり感”が減る */
+.wrap ol.opts {
+  padding-top: 2px;
+}
+
+/* 6) transformスケールを使っている現行方針に合わせて、隙間の見た目もスケール */
+h1 {
+  transform: scale(var(--h1-scale, 1));
+  transform-origin: left top;
+}
+ol.opts {
+  transform: scale(var(--opts-scale, 1));
+  transform-origin: left top;
+}
 
 /* ===============================
    スマホ (iPhone 等) 表示向け調整
