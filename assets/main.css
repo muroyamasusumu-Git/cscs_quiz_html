@@ -28,24 +28,42 @@ margin: 25px 30px;
   }
   
   
-/* ===== タイトル文字縮小のための変数・連動設定 ===== */
-:root {
-  --h1-scale: 1;    /* JSが更新する倍率（1〜0.7） */
-  --h1-base: 44px;  /* 通常サイズ */
-  --ol-base:  32px; /* 選択肢フォントの基準サイズ */
+/* ===== 無振動オートスケール（初回のみ） ===== */
+
+/* 初期は隠す（スクロール位置は保持したいので visibility を使う） */
+.autoscale-hide h1,
+.autoscale-hide ol.opts {
+  visibility: hidden;
 }
 
-.wrap h1, h1.top-title, h1 {
-  font-size: calc(var(--h1-base) * var(--h1-scale));
+/* スケール変数の初期値 */
+:root {
+  --h1-scale: 1;
+  --opts-scale: 1;
+}
+
+/* h1 は積極的に小さくしてよい（transformのみでサイズ確定） */
+h1 {
+  transform: scale(var(--h1-scale, 1));
+  transform-origin: left top;
   line-height: 1.22;
   overflow-wrap: anywhere;
   word-break: break-word;
+  /* ここでは transition を使わない → “動かない”表示にする */
 }
 
-.wrap ol.opts {
-  font-size: calc(var(--ol-base) * max(0.7, var(--h1-scale) * 0.85));
+/* 選択肢は基本サイズを保ちたいので、最小0.95までしか縮めない */
+ol.opts {
+  transform: scale(var(--opts-scale, 1));
+  transform-origin: left top;
   line-height: 1.35;
+  font-size: 1em;      /* 変えない：transform だけで調整 */
+  margin-bottom: 12px;
 }
+
+/* 任意：読み込み中の全体チラつき防止（必要なら有効化）
+.autoscale-hide body { background-color:#111; } 
+*/
 
 /* ===============================
    スマホ (iPhone 等) 表示向け調整
