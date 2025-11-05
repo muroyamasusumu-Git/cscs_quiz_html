@@ -1,3 +1,11 @@
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Noto Sans JP", sans-serif;
+}
+
+p {
+  margin: 0;
+}
+
 .wrap {
 margin: 25px 30px;
 }
@@ -5,8 +13,6 @@ margin: 25px 30px;
 .explain {
     font-size: 19px;
 }
-
-
 
 /* ===============================
    スマホ (iPhone 等) 表示向け調整
