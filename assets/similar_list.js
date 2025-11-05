@@ -238,8 +238,10 @@
       st.textContent = `
 #similar-list {
   margin: 20px 0 0;
-  line-height: 1.6;
+  line-height: 1.5;
   color: #fff;
+  border-top: 1px solid #555;
+  padding-top: 16px;
 }
 #similar-list .sl-head {
   color: #cfe8ff;

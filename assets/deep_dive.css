@@ -177,3 +177,9 @@
   cursor: default !important;
   text-decoration: underline !important;
 }
+
+
+
+#dd-panel .dd-simitem {
+    line-height: 18px;
+}

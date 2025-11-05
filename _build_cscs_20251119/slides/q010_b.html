@@ -396,10 +396,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
   <style>
   .wrong-inline{
-    margin-left: .4em;
-    color: #ff8080;
-    font-size: 0.9em;
+    margin-left: 0;
+    color: #fff;
+    font-size: 0.5em;
     opacity: .95;
+    position: fixed;   /* 画面基準で固定。DOMは.wrap配下でもOK */
+    bottom: 64px;
+    left: 24px;
+    z-index: 10060;
+    pointer-events: none;   /* 誤タップ防止 */
     white-space: nowrap;
   }
   </style>
@@ -411,24 +416,25 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     }
     function getQid(){
       const day=getDayFromPath();
-      // A/B どちらでも拾えるように [ab] を許可 + ".html" は省略も許可
       const m=(window.location.pathname||"").match(/q(\d{3})_[ab](?:\.html)?$/i);
       const n=m?m[1]:"000";
       return `${day}-${n}`;
     }
+
     const KEY="cscs_wrong_log";
     let log={};
     try{ log=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(_){ log={}; }
     const qid=getQid();
     const count=log[qid]||0;
+
     if(count>0){
-      const host=document.querySelector('.top-number');
-      if(host){
-        const badge=document.createElement('span');
-        badge.className='wrong-inline';
-        badge.textContent=`（不正解:${count}回）`;
-        host.appendChild(badge);
-      }
+      const badge=document.createElement('span');
+      badge.className='wrong-inline';
+      badge.textContent=`（不正解:${count}回）`;
+
+      // ← ここを変更：.wrap があればその“中の一番下”に追加。無ければ body。
+      const wrap = document.querySelector('.wrap');
+      (wrap || document.body).appendChild(badge);
     }
   });
   </script>
@@ -500,11 +506,26 @@ html, body { height: auto !important; min-height: 0 !important; }
 
 <link rel="stylesheet" href="../../assets/main.css">
 
+
+<style>
+.top-date {
+    color: #a8b0b8;
+    opacity: .95;
+    font-size: 22px;
+    width: auto;
+    margin: 0 10px 0 0;
+}
+.crumb-field {
+    font-size: 22px;
+    font-weight: 400;
+}
+</style>
+
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (55/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>10</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'><div class='top-date'>2025年11月19日</div></div></div>
-    <div class='qno'><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>筋肥大期と神経系期</span></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (55/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>10</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
+    <div class='qno'><span class="top-date">2025年11月19日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>筋肥大期と神経系期</span></div>
     <h1 style="font-size:44px">筋力向上期​（​ストレングス期​）​の休息目安として適切なのはどれか？</h1>
     <ol class='opts' type='A'><li>10〜20秒</li><li>30〜60秒</li><li>2〜5分</li><li>6〜8分</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
