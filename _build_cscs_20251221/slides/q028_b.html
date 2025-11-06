@@ -212,35 +212,8 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/b_judge.js" data-stem="q028" data-audio-base="../../../cscs_csv_v32a/_build_cscs_20251221/audio" data-ext=".wav"></script>
 
 
-  <script>
-  window.addEventListener("DOMContentLoaded", function(){
-    function getDayFromPath(){
-      const m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
-      return m?m[1]:"unknown";
-    }
-    function getQid(){
-      const day=getDayFromPath();
-      const m=(window.location.pathname||"").match(/q(\d{3})_[ab](?:\.html)?$/i);
-      const n=m?m[1]:"000";
-      return `${day}-${n}`;
-    }
-
-    const KEY="cscs_wrong_log";
-    let log={};
-    try{ log=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(_){ log={}; }
-    const qid=getQid();
-    const count=log[qid]||0;
-
-    // 常時表示（0回でも）
-    const badge=document.createElement('span');
-    badge.className='wrong-inline';
-    badge.textContent=`（不正解:${count}回）`;
-
-    // .wrap があればその“中の一番下”に追加。無ければ body。
-    const wrap = document.querySelector('.wrap');
-    (wrap || document.body).appendChild(badge);
-  });
-  </script>
+<link rel="stylesheet" href="../../assets/wrong_badge.css">
+<script src="../../assets/wrong_badge.js" defer></script>
 
 
 <link rel="stylesheet" href="../../assets/fav_modal.css">

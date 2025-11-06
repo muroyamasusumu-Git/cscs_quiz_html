@@ -21,7 +21,7 @@ margin: 25px 30px;
     opacity: .95;
     position: fixed;   /* 画面基準で固定。DOMは.wrap配下でもOK */
     bottom: 64px;
-    right: 11px;
+    right: 14px;
     z-index: 10060;
     pointer-events: none;   /* 誤タップ防止 */
     white-space: nowrap;
@@ -36,19 +36,11 @@ margin: 25px 30px;
   visibility: hidden;
 }
 
-/* スケール変数の初期値 */
-:root {
-  --h1-scale: 1;
-  --opts-scale: 1;
-}
-
 /* h1 は積極的に小さくしてよい（transformのみでサイズ確定） */
 h1 {
   transform: scale(var(--h1-scale, 1));
   transform-origin: left top;
   line-height: 1.22;
-  overflow-wrap: anywhere;
-  word-break: break-word;
   /* ここでは transition を使わない → “動かない”表示にする */
 }
 
@@ -102,6 +94,7 @@ ol.opts {
   transform: scale(var(--opts-scale, 1));
   transform-origin: left top;
 }
+
 
 /* ===============================
    スマホ (iPhone 等) 表示向け調整
