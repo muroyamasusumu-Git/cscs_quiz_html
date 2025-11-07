@@ -432,9 +432,15 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       /* 念のため <strong>/<b> も軽く色付け */
       #dd-inline strong, #dd-inline b { color: #6cc7ff !important; }
 
+      /* 「[理論深掘り｜上流（原因・原理）を生成]」を小さく */
+      #dd-inline .dd-body-cause {
+        font-size: 16px !important;
+      }  
+    `;
+
       /* 「この問題への当てはめ」を小さく */
       #dd-inline .dd-body-apply {
-        font-size: 15px !important;
+        font-size: 14px !important;
         line-height: 1.0 !important;
       }  
     `;
