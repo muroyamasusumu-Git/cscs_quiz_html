@@ -78,14 +78,14 @@ h1 + .inline-metas {
   top: 20px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
   display: block;
   font-weight: 400;
-  color: #b5c2cf;
+  color: #a8b0b8;
 }
 
 /* ===== お気に入り種別ごとの色分け ===== */
 .fav-understood { color: #ffd76a; }  /* 黄色 */
 .fav-unanswered { color: #ff9a9a; }  /* 淡い赤 */
 .fav-none       { color: #8fdcff; }  /* 水色 */
-.fav-unset      { color: #b5c2cf; }  /* デフォルト灰 */
+.fav-unset      { color: #a8b0b8; }  /* デフォルト灰 */
 
 /* モバイル調整 */
 @media (max-width: 600px) {
