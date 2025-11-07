@@ -68,14 +68,14 @@ h1 + .inline-metas {
 #cscs-fixed-status .fav-status {
   position: fixed;
   right: 15px;
-  bottom: 90px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
+  top: 44px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
   display: block;
   font-weight: 500;
 }
 #cscs-fixed-status .wrong-status {
   position: fixed;
   right: 15px;
-  bottom: 64px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
+  top: 20px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
   display: block;
   font-weight: 400;
   color: #b5c2cf;
