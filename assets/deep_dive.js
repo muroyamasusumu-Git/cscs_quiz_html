@@ -1082,16 +1082,14 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     // 先にUIだけ用意（Bならボタン必ず出す）
     ensureMounted();
 
+/*
   // ====== Bパート補助解説（localStorageの深掘り6セクションをまとめて表示） ======
   async function tryInsertGentleExplain() {
-    // 条件: Bパートのみ
     if (!isBPart()) return;
-
     const explain = document.querySelector('.explain');
     if (!explain) return;
     if (document.getElementById('dd-extra-explain')) return;
 
-    // day と stem をパスから抽出
     function getDay() {
       const m = (location.pathname || '').match(/_build_cscs_(\d{8})/);
       return m ? m[1] : '';
@@ -1104,7 +1102,6 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const stem = getStem();
     if (!day || !stem) return;
 
-    // 6種類のセクションキーを順に読む
     const sections = [
       { key: 'theory',     label: '［理論深掘り｜上流（原因・原理）］' },
       { key: 'process',    label: '［過程深掘り｜中流（具体経路）］' },
@@ -1116,19 +1113,18 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
     let html = '';
     for (const s of sections) {
-      const v = localStorage.getItem(`cscs_dd_${day}_${stem}:${s.key}`);
+      const v = localStorage.getItem(\`cscs_dd_\${day}_\${stem}:\${s.key}\`);
       if (v && String(v).trim()) {
         const hasTag = /<[^>]+>/.test(v);
         const content = String(v).trim();
-        html += `<div class="dd-extra-block" style="margin-top:12px;">`;
-        html += `<div style="font-weight:bold;margin-bottom:4px;">${s.label}</div>`;
-        html += hasTag ? content : `<div>${content}</div>`;
-        html += `</div>`;
+        html += \`<div class="dd-extra-block" style="margin-top:12px;">\`;
+        html += \`<div style="font-weight:bold;margin-bottom:4px;">\${s.label}</div>\`;
+        html += hasTag ? content : \`<div>\${content}</div>\`;
+        html += \`</div>\`;
       }
     }
 
-    if (!html) return; // どれも無ければ何もしない
-
+    if (!html) return;
     const box = document.createElement('div');
     box.id = 'dd-extra-explain';
     box.style.fontSize = '18px';
@@ -1136,8 +1132,8 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     explain.insertAdjacentElement('afterend', box);
   }
 
-  // ← これを追加！
-  window.tryInsertGentleExplain = tryInsertGentleExplain;
+  // window.tryInsertGentleExplain = tryInsertGentleExplain;
+*/
 
     // ▼ iPad だけツールバー位置を下固定＆調整（必要に応じて拡張）
     if (isIPadSafari() && !document.getElementById("dd-ipad-style")) {

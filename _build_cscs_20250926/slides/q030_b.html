@@ -223,6 +223,12 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/title_autoscale.js" defer></script>
 
 
+<link rel="stylesheet" href="../../assets/deep_dive.css">
+<script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1" defer></script>
+<script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
+<script src="../../assets/deep_dive_inline.js" defer></script>
+
+
 <script src="../../assets/final_export_and_go.js"></script>
 
 
@@ -230,12 +236,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 /* 全ページ強制：html/body の高さ指定を解除 */
 html, body { height: auto !important; min-height: 0 !important; }
 </style>
-
-
-<link rel="stylesheet" href="../../assets/deep_dive.css">
-<script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1"></script>
-
-<script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
 
 
 <link rel="stylesheet" href="../../assets/main.css">
@@ -271,27 +271,5 @@ html, body { height: auto !important; min-height: 0 !important; }
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 
-
-    <script>
-      (async () => {
-        const day = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1];
-        const stem = (location.pathname.match(/(q\d{3})_b(?:\.html)?$/i) || [])[1];
-        const explain = document.querySelector('.explain');
-        const v = localStorage.getItem(`cscs_dd_${day}_${stem}:theory`);
-        if (v && v.trim() && explain) {
-          const styled = v
-            .replace(/<span\s+class=["']dd-key["']>(.*?)<\/span>/g, '<span class="dd-key" style="color:#6cc7ff;">$1</span>')
-            .replace(/<span\s+class=["']dd-answer["']>(.*?)<\/span>/g, '<span class="dd-answer" style="color:#8fdcff;">$1</span>');
-          const html = `<div style="margin-top:10px;font-size:16px;font-weight:300;">${styled}</div>`;
-          const box = document.createElement('div');
-          box.innerHTML = html;
-          explain.insertAdjacentElement('afterend', box);
-          console.log('✅ deep_dive: theory inserted');
-        } else {
-          console.log('⚠️ no theory data found or no .explain element');
-        }
-      })();
-    </script>
-    
 </body>
 </html>
