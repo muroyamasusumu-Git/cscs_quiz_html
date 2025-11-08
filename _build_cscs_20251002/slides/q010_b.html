@@ -220,9 +220,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/fav_modal.js" defer></script>
 
 
-<script src="../../assets/title_autoscale.js" defer></script>
-
-
 <link rel="stylesheet" href="../../assets/deep_dive.css">
 <script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1" defer></script>
 <script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
@@ -329,12 +326,27 @@ html, body { height: auto !important; min-height: 0 !important; }
 h1 { line-height: var(--h1-lh, normal); }
 </style>
 
+
+<style>
+/* 後から --h1-fs で自由に変更可（既定は inherit。UA既定や main.css が決める） */
+h1 { font-size: var(--h1-fs, inherit); }
+</style>
+
+
+<style>
+/* 不正解表示一帯のインラインstyleを後勝ちで無力化。値はCSS変数を参照し、main.cssで定義する */
+#judge span[style*="font-size"] { font-size: var(--judge-choice-fs, 0.95em) !important; }
+#judge span[style*="color"] { color: var(--judge-dim-color, #c9c9c9) !important; }
+/* ここでは --judge-choice-fs / --judge-dim-color を再定義しない（main.cssで指定する） */
+</style>
+
+<!-- JUDGE_OVERRIDE_CSS_APPLIED -->
 </head>
 <body>
   <div class="wrap">
     <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (7/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>10</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月2日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>呼吸循環応答</span></div>
-    <h1 style="font-size:44px">最大下運動中の換気量増加に寄与する要因はどれか？</h1>
+    <h1 style="">最大下運動中の換気量増加に寄与する要因はどれか？</h1>
     <ol class='opts' type='A'><li>呼吸筋活動の上昇</li><li>肺胞換気効率の低下</li><li>心拍出量の低下</li><li>酸素分圧の上昇</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>呼吸筋活動の上昇</span></div><div class='explain'>運動強度の上昇に伴い呼吸筋活動が高まり換気量が増加する。</div>

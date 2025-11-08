@@ -220,9 +220,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/fav_modal.js" defer></script>
 
 
-<script src="../../assets/title_autoscale.js" defer></script>
-
-
 <link rel="stylesheet" href="../../assets/deep_dive.css">
 <script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1" defer></script>
 <script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
@@ -329,12 +326,27 @@ html, body { height: auto !important; min-height: 0 !important; }
 h1 { line-height: var(--h1-lh, normal); }
 </style>
 
+
+<style>
+/* 後から --h1-fs で自由に変更可（既定は inherit。UA既定や main.css が決める） */
+h1 { font-size: var(--h1-fs, inherit); }
+</style>
+
+
+<style>
+/* 不正解表示一帯のインラインstyleを後勝ちで無力化。値はCSS変数を参照し、main.cssで定義する */
+#judge span[style*="font-size"] { font-size: var(--judge-choice-fs, 0.95em) !important; }
+#judge span[style*="color"] { color: var(--judge-dim-color, #c9c9c9) !important; }
+/* ここでは --judge-choice-fs / --judge-dim-color を再定義しない（main.cssで指定する） */
+</style>
+
+<!-- JUDGE_OVERRIDE_CSS_APPLIED -->
 </head>
 <body>
   <div class="wrap">
     <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (69/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>9</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月3日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>無酸素性代謝</span></div>
-    <h1 style="font-size:44px">OBLA​（​血中乳酸​4 mmol​/​L​到達点​）​は何の指標として有用か？</h1>
+    <h1 style="">OBLA​（​血中乳酸​4 mmol​/​L​到達点​）​は何の指標として有用か？</h1>
     <ol class='opts' type='A'><li>最大筋力</li><li>最大心拍数</li><li>無酸素性代謝の完全停止</li><li>持久的能力の限界域</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>持久的能力の限界域</span></div><div class='explain'>OBLAは高強度域での持久的作業許容量の指標で、ペース配分やトレーニング処方に用いられる。</div>

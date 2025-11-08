@@ -110,8 +110,14 @@
       judgeEl.style.fontSize = "1.1em";
     } else {
       const wrongHTML = `
-        <span style="color:#c9c9c9;">× 不正解</span>
-        <span style="color:#c9c9c9"> / <span style="font-size:0.85em;">あなたの選択:</span> ${choice}（${LABELS[choice] || ""}）</span>
+        <span class="judge-msg judge-msg-wrong">× 不正解</span>
+        <span class="your-choice">
+          / <span class="your-choice-label">あなたの選択:</span>
+          <span class="your-choice-value">
+            <span class="your-choice-letter">${choice}</span>
+            <span class="your-choice-text">（${LABELS[choice] || ""}）</span>
+          </span>
+        </span>
       `;
       judgeEl.innerHTML = wrongHTML.trim();
 
