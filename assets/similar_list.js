@@ -262,7 +262,7 @@
     }
 
     // ===== 抽出（各カテゴリ指定数、重複排除）=====
-    const pickSimilar = sample(similarPool, 1);  // ← 1件に変更
+    const pickSimilar = sample(similarPool, 2);  // ← 2件に変更
     const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`));
 
     const pickDiff = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
@@ -271,10 +271,10 @@
     const pickUntried = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
     pickUntried.forEach(r => used.add(`${r.day}-${r.n3}`));
 
-    const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 1);  // ← 1件に変更
+    const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);  // ← 2件に変更
     pickReview.forEach(r => used.add(`${r.day}-${r.n3}`));
 
-    // --- 足りない分を「別分野→未着手」で補充して6件にする ---
+    // --- 足りない分を「別分野→未着手」で補充して8件にする ---
     let combined = [
       ...pickSimilar.map(r => ({ tag:"類似",   cls:"sim",  row:r })),
       ...pickDiff.map(r    => ({ tag:"別分野", cls:"diff", row:r })),
@@ -300,7 +300,7 @@
       });
     }
 
-    const finalList = shuffle(combined).slice(0, 6);
+    const finalList = shuffle(combined).slice(0, 8);
 
     // ====== 描画 ======
     const wrap = document.querySelector(".wrap");
