@@ -318,7 +318,7 @@
       const st = document.createElement("style");
       st.id = styleId;
       st.textContent = `
-#similar-list{ margin:20px 0 0; line-height:1.5; color:#fff; border-top:1px solid #555; padding-top:16px; }
+#similar-list{ line-height:1.5; color:#fff; border-top:1px solid #555; }
 #similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:20px; }
 #similar-list ul{
   margin:0;
