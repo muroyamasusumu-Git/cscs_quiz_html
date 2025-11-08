@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (28/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (28/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月23日</span><span class='crumb-field'>パフォーマンス向上物質</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>β-アラニン</span></div>
     <h1 style="">βアラニンのエルゴ原性機序として適切なのはどれか？</h1>
-    <ol class='opts' type='A'><li>筋内カルノシン増で緩衝能を高める</li><li>赤血球数を増やす</li><li>脂肪分解を直接促す</li><li>ドーパミンを急増させる</li></ol>
+    <ol class='opts' type='A'><li class="is-correct">筋内カルノシン増で緩衝能を高める</li><li>赤血球数を増やす</li><li>脂肪分解を直接促す</li><li>ドーパミンを急増させる</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>筋内カルノシン増で緩衝能を高める</span></div><div class='explain'>βアラニンはカルノシン濃度を上げ，筋内pH緩衝能を高めることで高強度の持続に寄与する。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

@@ -273,13 +273,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (81/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (81/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>30/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月15日</span><span class='crumb-field'>施設管理と運営</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>倫理規定</span></div>
     <h1 style="">重大事故後の対外発信で適切なのはどれか？</h1>
-    <ol class='opts' type='A'><li>詳細が不明でも即断定して発表</li><li>事実関係の確認・被害者配慮・是正措置の説明・再発防止方針の提示</li><li>関係者への連絡前にSNSで先行</li><li>沈黙を続ける</li></ol>
+    <ol class='opts' type='A'><li>詳細が不明でも即断定して発表</li><li class="is-correct">事実関係の確認・被害者配慮・是正措置の説明・再発防止方針の提示</li><li>関係者への連絡前にSNSで先行</li><li>沈黙を続ける</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>事実関係の確認・被害者配慮・是正措置の説明・再発防止方針の提示</span></div><div class='explain'>事実確認と被害者配慮を前提に、是正と再発防止を明示した透明性の高い発表が望ましい。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

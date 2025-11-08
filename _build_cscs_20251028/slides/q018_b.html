@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (33/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>18</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (33/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>18/30</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月28日</span><span class='crumb-field'>テストと評価</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>信頼性</span></div>
     <h1 style="">信頼性​（​reliability​）​の定義として正しいのはどれか？</h1>
-    <ol class='opts' type='A'><li>測定が一貫して同じ結果を示す程度</li><li>測定が真値に近い程度</li><li>測定者の主観的評価</li><li>測定時間の短さ</li></ol>
+    <ol class='opts' type='A'><li class="is-correct">測定が一貫して同じ結果を示す程度</li><li>測定が真値に近い程度</li><li>測定者の主観的評価</li><li>測定時間の短さ</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>測定が一貫して同じ結果を示す程度</span></div><div class='explain'>信頼性とはテストが一貫した結果を出す能力を指す。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

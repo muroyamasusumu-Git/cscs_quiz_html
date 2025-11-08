@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (22/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>7</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (22/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>7/30</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月17日</span><span class='crumb-field'>スポーツ心理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>不安・ストレス</span></div>
     <h1 style="">「チョーキング」現象が発生しやすいのはどのような状況か？</h1>
-    <ol class='opts' type='A'><li>無意識的動作が多い時</li><li>十分な練習が行われた時</li><li>覚醒度が低すぎる時</li><li>過度な自己注目や不安が高い時</li></ol>
+    <ol class='opts' type='A'><li>無意識的動作が多い時</li><li>十分な練習が行われた時</li><li>覚醒度が低すぎる時</li><li class="is-correct">過度な自己注目や不安が高い時</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>過度な自己注目や不安が高い時</span></div><div class='explain'>プレッシャーで自己注目が過剰になると動作が崩れ実力を発揮できなくなる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

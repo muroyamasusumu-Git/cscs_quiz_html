@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (67/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>7</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (67/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>7/30</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月1日</span><span class='crumb-field'>施設管理と運営</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>安全確認手順</span></div>
     <h1 style="">初回オリエンで最優先に説明すべき内容はどれか？</h1>
-    <ol class='opts' type='A'><li>SNS利用規定</li><li>音楽リクエスト方法</li><li>緊急連絡手順と避難経路</li><li>更衣ロッカーの色</li></ol>
+    <ol class='opts' type='A'><li>SNS利用規定</li><li>音楽リクエスト方法</li><li class="is-correct">緊急連絡手順と避難経路</li><li>更衣ロッカーの色</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: C<span class='opt-small'>緊急連絡手順と避難経路</span></div><div class='explain'>重篤事故の初動は教育依存。連絡体制と避難経路の即時理解が最優先事項となる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (90/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>5</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (90/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>5/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月24日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>回復期・再条件付け設計</span></div>
     <h1 style="">回復期トレーニングで最初に再導入すべき運動要素はどれか？</h1>
-    <ol class='opts' type='A'><li>可動域と安定性</li><li>パワー発揮</li><li>持久的有酸素運動</li><li>最大負荷トレーニング</li></ol>
+    <ol class='opts' type='A'><li class="is-correct">可動域と安定性</li><li>パワー発揮</li><li>持久的有酸素運動</li><li>最大負荷トレーニング</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>可動域と安定性</span></div><div class='explain'>組織回復初期は可動域確保と安定性回復を優先する。神経制御と筋協調を取り戻した上で、段階的に強度と複合動作を再導入する。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

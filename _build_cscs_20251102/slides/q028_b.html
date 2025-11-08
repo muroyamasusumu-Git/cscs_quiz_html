@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (38/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>28</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (38/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>28/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月2日</span><span class='crumb-field'>エクササイズテクニック</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>フォーム分析</span></div>
     <h1 style="">クリーンのキャッチ姿勢での前傾はどの筋群の弱化が関係するか？</h1>
-    <ol class='opts' type='A'><li>広背筋</li><li>僧帽筋上部</li><li>肩甲挙筋</li><li>僧帽筋下部と菱形筋</li></ol>
+    <ol class='opts' type='A'><li>広背筋</li><li>僧帽筋上部</li><li>肩甲挙筋</li><li class="is-correct">僧帽筋下部と菱形筋</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>僧帽筋下部と菱形筋</span></div><div class='explain'>僧帽筋下部・菱形筋の弱化で肩甲骨後傾・下制が不足しバー位置が不安定に。上背筋群強化で改善する。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

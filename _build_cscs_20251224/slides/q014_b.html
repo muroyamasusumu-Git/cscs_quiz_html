@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (90/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>14</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (90/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>14/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月24日</span><span class='crumb-field'>指導・安全管理</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>メンタル・コミュニケーション</span></div>
     <h1 style="">選手が萎縮して発言できない状況で最も有効なコーチング対応はどれか？</h1>
-    <ol class='opts' type='A'><li>明確な指示で黙らせる</li><li>全体の前で注意する</li><li>失敗を共有し安心感を与える</li><li>緊張を利用して競争を促す</li></ol>
+    <ol class='opts' type='A'><li>明確な指示で黙らせる</li><li>全体の前で注意する</li><li class="is-correct">失敗を共有し安心感を与える</li><li>緊張を利用して競争を促す</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: C<span class='opt-small'>失敗を共有し安心感を与える</span></div><div class='explain'>心理的安全性を高めるには、失敗を学びに変える姿勢を示すことが重要。安心して発言できる環境が自己効力感と集中力を高める。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

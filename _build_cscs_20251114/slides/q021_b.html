@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (50/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>21</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (50/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>21/30</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月14日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>スピード系</span></div>
     <h1 style="">クラスターセットの利点で最も適切なのはどれか</h1>
-    <ol class='opts' type='A'><li>代謝ストレスの最大化</li><li>心拍数の上昇抑制</li><li>可動域拡大</li><li>中途休息で速度低下を抑える</li></ol>
+    <ol class='opts' type='A'><li>代謝ストレスの最大化</li><li>心拍数の上昇抑制</li><li>可動域拡大</li><li class="is-correct">中途休息で速度低下を抑える</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>中途休息で速度低下を抑える</span></div><div class='explain'>クラスターはセット内小休息で各反復の速度や出力低下を抑える。パワー維持や高品質反復の確保に有効。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

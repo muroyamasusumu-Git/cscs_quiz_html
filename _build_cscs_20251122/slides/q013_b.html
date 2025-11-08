@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (58/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>13</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (58/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>13/30</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月22日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>トレーニング原則</span></div>
     <h1 style="">有酸素と筋力トレを同期間に導入する際の注意はどれか？</h1>
-    <ol class='opts' type='A'><li>順序や量を無視してよい</li><li>必ず同日に連続実施</li><li>高強度間欠のみ許可</li><li>干渉効果を考え分離や順序を工夫</li></ol>
+    <ol class='opts' type='A'><li>順序や量を無視してよい</li><li>必ず同日に連続実施</li><li>高強度間欠のみ許可</li><li class="is-correct">干渉効果を考え分離や順序を工夫</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>干渉効果を考え分離や順序を工夫</span></div><div class='explain'>並行期は干渉効果が生じうる。競技特性に応じて時間帯を分ける、順序や量を調整するなどで強度と回復の両立を図る。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

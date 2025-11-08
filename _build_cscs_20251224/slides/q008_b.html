@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (90/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>8</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (90/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>8/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月24日</span><span class='crumb-field'>テスト評価・測定</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>総合評価</span></div>
     <h1 style="">体力プロファイルを設計する際​、​最も重視すべき原則はどれか？</h1>
-    <ol class='opts' type='A'><li>単一能力の最大値を比較する</li><li>テスト項目を最少化する</li><li>主観的評価のみで判断する</li><li>複数体力要素の相対関係を評価する</li></ol>
+    <ol class='opts' type='A'><li>単一能力の最大値を比較する</li><li>テスト項目を最少化する</li><li>主観的評価のみで判断する</li><li class="is-correct">複数体力要素の相対関係を評価する</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>複数体力要素の相対関係を評価する</span></div><div class='explain'>体力プロファイルでは複数要素（筋力・パワー・持久力など）のバランスを重視する。相対的な強弱を分析し、総合的能力を把握する。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

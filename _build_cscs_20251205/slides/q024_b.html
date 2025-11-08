@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (71/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (71/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月5日</span><span class='crumb-field'>バイオメカニクス</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>速度／パワー</span></div>
     <h1 style="">同じパワーでも高回数​・​低負荷のレジメンが有利になりやすい局面はどれか？</h1>
-    <ol class='opts' type='A'><li>最大力発揮の一発動作</li><li>純粋な静的保持</li><li>長時間の反復速度維持</li><li>等尺最大随意収縮</li></ol>
+    <ol class='opts' type='A'><li>最大力発揮の一発動作</li><li>純粋な静的保持</li><li class="is-correct">長時間の反復速度維持</li><li>等尺最大随意収縮</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: C<span class='opt-small'>長時間の反復速度維持</span></div><div class='explain'>パワー一定なら低負荷高速度は疲労蓄積を抑え反復しやすい。速度維持が重要な場面で有利となる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

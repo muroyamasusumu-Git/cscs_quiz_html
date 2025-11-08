@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (38/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>5</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (38/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>5/30</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月2日</span><span class='crumb-field'>エクササイズテクニック</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>フォーム分析</span></div>
     <h1 style="">スクワットで膝関節が内側に入る原因として最も考えられるのはどれか？</h1>
-    <ol class='opts' type='A'><li>大腿四頭筋の過剰活動</li><li>大腿筋膜張筋の短縮</li><li>腸腰筋の過伸展</li><li>臀筋群の弱化</li></ol>
+    <ol class='opts' type='A'><li>大腿四頭筋の過剰活動</li><li>大腿筋膜張筋の短縮</li><li>腸腰筋の過伸展</li><li class="is-correct">臀筋群の弱化</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>臀筋群の弱化</span></div><div class='explain'>中臀筋・大臀筋の弱化で股関節外転・外旋が保てずニーインが生じる。臀筋群強化と足部アーチ意識が有効。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

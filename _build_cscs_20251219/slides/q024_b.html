@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (85/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (85/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月19日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>筋線維タイプ</span></div>
     <h1 style="">グリコーゲン枯渇のパターンとして正しいのはどれか？</h1>
-    <ol class='opts' type='A'><li>高強度で速筋線維が早期に大きく枯渇</li><li>遅筋のみが枯渇</li><li>全線維は同時同率で枯渇</li><li>枯渇は強度と無関係</li></ol>
+    <ol class='opts' type='A'><li class="is-correct">高強度で速筋線維が早期に大きく枯渇</li><li>遅筋のみが枯渇</li><li>全線維は同時同率で枯渇</li><li>枯渇は強度と無関係</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>高強度で速筋線維が早期に大きく枯渇</span></div><div class='explain'>動員閾値の高い速筋は高強度で先に消費が大きい。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (66/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>15</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (66/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>15/30</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月30日</span><span class='crumb-field'>施設管理と運営</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>施設管理</span></div>
     <h1 style="">日常清掃の優先順位として最も高いのはどれか？</h1>
-    <ol class='opts' type='A'><li>壁面の艶出し</li><li>窓の外側清掃</li><li>高接触面の拭き取りと消毒</li><li>装飾物の除塵</li></ol>
+    <ol class='opts' type='A'><li>壁面の艶出し</li><li>窓の外側清掃</li><li class="is-correct">高接触面の拭き取りと消毒</li><li>装飾物の除塵</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: C<span class='opt-small'>高接触面の拭き取りと消毒</span></div><div class='explain'>ドアノブ・グリップ等の高接触面を高頻度で清拭・記録することが感染対策と衛生維持の要となる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

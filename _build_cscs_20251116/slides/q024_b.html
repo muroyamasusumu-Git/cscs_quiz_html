@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (52/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (52/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月16日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>テーパー</span></div>
     <h1 style="">ラグビー選手が試合​2​週間前に重点を置くべき能力はどれか</h1>
-    <ol class='opts' type='A'><li>最大筋力</li><li>筋肥大</li><li>長距離有酸素のみ</li><li>出力発揮速度と疲労除去</li></ol>
+    <ol class='opts' type='A'><li>最大筋力</li><li>筋肥大</li><li>長距離有酸素のみ</li><li class="is-correct">出力発揮速度と疲労除去</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>出力発揮速度と疲労除去</span></div><div class='explain'>ピーク前期は神経系活性を維持しながら疲労を抜くことが重要。高出力と回復の両立で試合パフォーマンスを最大化。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

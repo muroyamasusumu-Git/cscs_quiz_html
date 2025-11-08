@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (82/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>4</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (82/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>4/30</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月16日</span><span class='crumb-field'>施設管理と運営</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>安全確認手順</span></div>
     <h1 style="">設備の一時故障が発生した直後の最優先対応はどれか？</h1>
-    <ol class='opts' type='A'><li>使用を継続しながら様子を見る</li><li>ロックアウト/タグアウトで使用停止・周知</li><li>口頭注意のみで放置</li><li>SNSで注意喚起のみ発信</li></ol>
+    <ol class='opts' type='A'><li>使用を継続しながら様子を見る</li><li class="is-correct">ロックアウト/タグアウトで使用停止・周知</li><li>口頭注意のみで放置</li><li>SNSで注意喚起のみ発信</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>ロックアウト/タグアウトで使用停止・周知</span></div><div class='explain'>LOTOで即時停止・可視化し、二次事故を防ぎつつ修理手配・記録へ進むのが原則。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

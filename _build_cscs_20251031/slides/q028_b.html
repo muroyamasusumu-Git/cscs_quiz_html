@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (36/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>28</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (36/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>28/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月31日</span><span class='crumb-field'>テストと評価</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>パワーテスト</span></div>
     <h1 style="">投擲競技のパワー評価として現場で妥当なのはどれか？</h1>
-    <ol class='opts' type='A'><li>立位体前屈</li><li>20mシャトルラン</li><li>Tテスト</li><li>メディシンボールスロー</li></ol>
+    <ol class='opts' type='A'><li>立位体前屈</li><li>20mシャトルラン</li><li>Tテスト</li><li class="is-correct">メディシンボールスロー</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>メディシンボールスロー</span></div><div class='explain'>上肢と体幹の爆発的パワーを反映し，競技特異性も高い。測定手順の標準化で信頼性を確保できる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (18/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>25</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (18/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>25/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月13日</span><span class='crumb-field'>栄養学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>食事タイミング</span></div>
     <h1 style="">試合前に避けるべき食事内容はどれか？</h1>
-    <ol class='opts' type='A'><li>高繊維食</li><li>高炭水化物食</li><li>高脂肪食</li><li>適量の糖質摂取</li></ol>
+    <ol class='opts' type='A'><li>高繊維食</li><li>高炭水化物食</li><li class="is-correct">高脂肪食</li><li>適量の糖質摂取</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: C<span class='opt-small'>高脂肪食</span></div><div class='explain'>試合前は消化が遅い高脂肪・高繊維食を避け、エネルギー効率を保つ。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

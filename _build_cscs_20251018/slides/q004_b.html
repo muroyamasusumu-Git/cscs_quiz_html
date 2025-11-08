@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (23/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>4</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (23/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>4/30</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月18日</span><span class='crumb-field'>スポーツ心理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>メンタルスキル</span></div>
     <h1 style="">プレッシャー下でパフォーマンスを安定させるために有効な方法はどれか？</h1>
-    <ol class='opts' type='A'><li>呼吸を止める</li><li>自己対話やルーティンを活用する</li><li>視線を逸らす</li><li>不安を無視する</li></ol>
+    <ol class='opts' type='A'><li>呼吸を止める</li><li class="is-correct">自己対話やルーティンを活用する</li><li>視線を逸らす</li><li>不安を無視する</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>自己対話やルーティンを活用する</span></div><div class='explain'>意識的呼吸とルーティン動作で心拍と注意をコントロールし安定した集中を保つ。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

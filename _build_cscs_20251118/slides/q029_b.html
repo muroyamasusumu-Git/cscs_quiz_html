@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (54/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>29</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (54/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>29/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月18日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>リスクマネジメント（運営管理）</span></div>
     <h1 style="">施設運営の​PDCA​で「C」に該当する行動はどれか？</h1>
-    <ol class='opts' type='A'><li>結果の評価と原因分析</li><li>是正策の実施</li><li>計画立案</li><li>教育告知</li></ol>
+    <ol class='opts' type='A'><li class="is-correct">結果の評価と原因分析</li><li>是正策の実施</li><li>計画立案</li><li>教育告知</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>結果の評価と原因分析</span></div><div class='explain'>Check段階は結果を評価・分析し，改善策を次の計画に反映する過程を指す。 指標の定義と生理的根拠に基づく。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

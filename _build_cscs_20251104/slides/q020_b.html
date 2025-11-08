@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (40/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>20</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (40/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>20/30</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月4日</span><span class='crumb-field'>エクササイズテクニック</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>フォーム分析</span></div>
     <h1 style="">クリーンキャッチで肘が下がる場合の主因はどれか？</h1>
-    <ol class='opts' type='A'><li>手首柔軟性低下</li><li>すべて正しい</li><li>広背筋短縮</li><li>胸椎伸展不足</li></ol>
+    <ol class='opts' type='A'><li>手首柔軟性低下</li><li class="is-correct">すべて正しい</li><li>広背筋短縮</li><li>胸椎伸展不足</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>すべて正しい</span></div><div class='explain'>胸椎伸展や肩外旋、手首伸展の可動性不足がいずれも関与する。胸椎モビリティと前腕の柔軟性改善が鍵となる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

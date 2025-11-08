@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (48/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>3</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (48/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>3/30</span></div><div class='top-level'>Level 1</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月12日</span><span class='crumb-field'>エクササイズテクニック</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>フォーム分析</span></div>
     <h1 style="">ラテラルランジで正しい荷重はどれか？</h1>
-    <ol class='opts' type='A'><li>踏み込んだ脚の踵外側へ集中</li><li>遊脚に体重を残す</li><li>つま先だけに乗せる</li><li>踏み込んだ脚の中足部中心</li></ol>
+    <ol class='opts' type='A'><li>踏み込んだ脚の踵外側へ集中</li><li>遊脚に体重を残す</li><li>つま先だけに乗せる</li><li class="is-correct">踏み込んだ脚の中足部中心</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>踏み込んだ脚の中足部中心</span></div><div class='explain'>踏み込み脚の中足部中心で股関節を後方へ引くと臀筋群で制動し膝剪断を抑えられる。遊脚は軽接地が基本。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

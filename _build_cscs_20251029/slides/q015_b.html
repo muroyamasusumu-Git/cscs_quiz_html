@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (34/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>15</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (34/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>15/30</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月29日</span><span class='crumb-field'>テストと評価</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>持久系テスト</span></div>
     <h1 style="">持久力測定で一般的に使用される生理的指標はどれか？</h1>
-    <ol class='opts' type='A'><li>血中乳酸濃度</li><li>筋断面積</li><li>皮下脂肪厚</li><li>心拍変動</li></ol>
+    <ol class='opts' type='A'><li class="is-correct">血中乳酸濃度</li><li>筋断面積</li><li>皮下脂肪厚</li><li>心拍変動</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: A<span class='opt-small'>血中乳酸濃度</span></div><div class='explain'>血中乳酸は持久的パフォーマンスの評価や疲労蓄積の指標として用いられる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

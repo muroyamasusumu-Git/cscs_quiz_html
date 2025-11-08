@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (85/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>26</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (85/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>26/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月19日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>体温調節</span></div>
     <h1 style="">寒冷環境での体温調節反応として適切なのはどれか？</h1>
-    <ol class='opts' type='A'><li>皮膚血管拡張</li><li>皮膚血管収縮と震えの増加</li><li>発汗増加</li><li>末梢血流増加</li></ol>
+    <ol class='opts' type='A'><li>皮膚血管拡張</li><li class="is-correct">皮膚血管収縮と震えの増加</li><li>発汗増加</li><li>末梢血流増加</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>皮膚血管収縮と震えの増加</span></div><div class='explain'>末梢収縮とシバリングで熱産生・保持を図る。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

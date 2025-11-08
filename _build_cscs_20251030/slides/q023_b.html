@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (35/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>23</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (35/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>23/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月30日</span><span class='crumb-field'>テストと評価</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>反応テスト</span></div>
     <h1 style="">反応時間測定機器を校正する主な目的はどれか？</h1>
-    <ol class='opts' type='A'><li>被験者の動機付け</li><li>時間遅延の補正</li><li>環境温度の一定化</li><li>測定回数の削減</li></ol>
+    <ol class='opts' type='A'><li>被験者の動機付け</li><li class="is-correct">時間遅延の補正</li><li>環境温度の一定化</li><li>測定回数の削減</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>時間遅延の補正</span></div><div class='explain'>反応測定機器は表示や信号の遅延補正を行うことで真値に近づける。校正は測定精度維持に不可欠である。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

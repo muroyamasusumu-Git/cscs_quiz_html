@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (50/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>17</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (50/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>17/30</span></div><div class='top-level'>Level 3</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月14日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>期分け理論</span></div>
     <h1 style="">線形​（​直線​）​ピリオダイゼーションの特徴はどれか</h1>
-    <ol class='opts' type='A'><li>日ごとに反復数が大きく揺れる</li><li>週ごとに負荷上昇・反復低下の流れ</li><li>常に同じ反復域</li><li>競技期にのみ実施</li></ol>
+    <ol class='opts' type='A'><li>日ごとに反復数が大きく揺れる</li><li class="is-correct">週ごとに負荷上昇・反復低下の流れ</li><li>常に同じ反復域</li><li>競技期にのみ実施</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>週ごとに負荷上昇・反復低下の流れ</span></div><div class='explain'>線形はマクロ〜メソで徐々に負荷↑反復↓へ移行。基礎期から試合期に向け計画的に強度を高めてピーキングする。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (55/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>27</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (55/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>27/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年11月19日</span><span class='crumb-field'>プログラムデザイン</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>ピーキング</span></div>
     <h1 style="">チーム競技の週内設計で“試合​2​日前”のセッション方針として適切なのはどれか？</h1>
-    <ol class='opts' type='A'><li>高ボリューム下肢トレ</li><li>高疲労のパワー反復</li><li>全休固定</li><li>神経活性を維持し量は抑制</li></ol>
+    <ol class='opts' type='A'><li>高ボリューム下肢トレ</li><li>高疲労のパワー反復</li><li>全休固定</li><li class="is-correct">神経活性を維持し量は抑制</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: D<span class='opt-small'>神経活性を維持し量は抑制</span></div><div class='explain'>試合2日前は疲労を残さず神経活性を維持する軽量〜中強度・低量の刺激が有効。量の抑制で試合日にピークを合わせる。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

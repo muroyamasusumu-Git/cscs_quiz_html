@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (89/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>11</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (89/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>11/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年12月23日</span><span class='crumb-field'>テスト評価・測定</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>再現性・誤差管理</span></div>
     <h1 style="">再現性を高めるために最も有効な手法はどれか？</h1>
-    <ol class='opts' type='A'><li>毎回異なる環境での測定</li><li>同一測定者による反復測定</li><li>異なる種目を交互に測定</li><li>測定時間を不規則に設定する</li></ol>
+    <ol class='opts' type='A'><li>毎回異なる環境での測定</li><li class="is-correct">同一測定者による反復測定</li><li>異なる種目を交互に測定</li><li>測定時間を不規則に設定する</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>同一測定者による反復測定</span></div><div class='explain'>同一測定者と環境で繰り返し測定することで、測定者間の誤差や外的要因の影響を減らし、再現性を向上させる。これが標準化の基本原理である。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->

@@ -341,13 +341,35 @@ h1 { font-size: var(--h1-fs, inherit); }
 </style>
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
 <body>
   <div class="wrap">
-    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (14/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (14/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>24/30</span></div><div class='top-level'>Level 4</div></div><div class='topmeta-right'></div></div>
     <div class='qno'><span class="top-date">2025年10月9日</span><span class='crumb-field'>バイオメカニクス</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>床反力</span></div>
     <h1 style="">走動作でストライドを伸ばす際にまず優先すべき力学的ポイントはどれか？</h1>
-    <ol class='opts' type='A'><li>空走中の足振り速度</li><li>接地時の前方ブレーキ力低減</li><li>上肢の回内外</li><li>体重増加</li></ol>
+    <ol class='opts' type='A'><li>空走中の足振り速度</li><li class="is-correct">接地時の前方ブレーキ力低減</li><li>上肢の回内外</li><li>体重増加</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
     <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>接地時の前方ブレーキ力低減</span></div><div class='explain'>接地での制動が小さいほど推進成分が有効に使える。前方ブレーキ力を抑え，垂直・後方成分を適切に得ることが重要である。</div>
     <!-- <div class="footer">（このスライドは自動生成です）</div> -->
