@@ -262,45 +262,60 @@
     }
 
     // ===== 抽出（各カテゴリ指定数、重複排除）=====
-    const pickSimilar = sample(similarPool, 2);  // ← 2件に変更
-    const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`));
 
-    const pickDiff = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
-    pickDiff.forEach(r => used.add(`${r.day}-${r.n3}`));
+    // 展開状態に応じた件数セットを受け取り、候補リストを作る関数
+    function buildListByCounts(counts){
+      const { sim, diff, untried, rev, limit } = counts;
 
-    const pickUntried = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);
-    pickUntried.forEach(r => used.add(`${r.day}-${r.n3}`));
+      // まず類似を確定→以降は重複排除しながら抽出
+      const pickSimilar = sample(similarPool, sim);
+      const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`));
 
-    const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), 2);  // ← 2件に変更
-    pickReview.forEach(r => used.add(`${r.day}-${r.n3}`));
+      const pickDiff = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), diff);
+      pickDiff.forEach(r => used.add(`${r.day}-${r.n3}`));
 
-    // --- 足りない分を「別分野→未着手」で補充して8件にする ---
-    let combined = [
-      ...pickSimilar.map(r => ({ tag:"類似",   cls:"sim",  row:r })),
-      ...pickDiff.map(r    => ({ tag:"別分野", cls:"diff", row:r })),
-      ...pickUntried.map(r => ({ tag:"未着手", cls:"new",  row:r })),
-      ...pickReview.map(r  => ({ tag:"要復習", cls:"rev",  row:r })),
-    ];
+      const pickUntried = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), untried);
+      pickUntried.forEach(r => used.add(`${r.day}-${r.n3}`));
 
-    if (combined.length < 8) {
-      const need = 8 - combined.length;
-      const filler1 = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
-      filler1.forEach(r => {
-        used.add(`${r.day}-${r.n3}`);
-        combined.push({ tag:"別分野", cls:"diff", row:r });
-      });
+      const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), rev);
+      pickReview.forEach(r => used.add(`${r.day}-${r.n3}`));
+
+      let combined = [
+        ...pickSimilar.map(r => ({ tag:"類似",   cls:"sim",  row:r })),
+        ...pickDiff.map(r    => ({ tag:"別分野", cls:"diff", row:r })),
+        ...pickUntried.map(r => ({ tag:"未着手", cls:"new",  row:r })),
+        ...pickReview.map(r  => ({ tag:"要復習", cls:"rev",  row:r })),
+      ];
+
+      // 足りない分は「別分野→未着手」で補充
+      if (combined.length < limit) {
+        const need = limit - combined.length;
+        const filler1 = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
+        filler1.forEach(r => {
+          used.add(`${r.day}-${r.n3}`);
+          combined.push({ tag:"別分野", cls:"diff", row:r });
+        });
+      }
+      if (combined.length < limit) {
+        const need = limit - combined.length;
+        const filler2 = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
+        filler2.forEach(r => {
+          used.add(`${r.day}-${r.n3}`);
+          combined.push({ tag:"未着手", cls:"new", row:r });
+        });
+      }
+
+      return shuffle(combined).slice(0, limit);
     }
 
-    if (combined.length < 8) {
-      const need = 8 - combined.length;
-      const filler2 = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
-      filler2.forEach(r => {
-        used.add(`${r.day}-${r.n3}`);
-        combined.push({ tag:"未着手", cls:"new", row:r });
-      });
-    }
+    // 既定（折りたたみ）: 各2件×4カテゴリ=8件
+    const countsCollapsed = { sim:2, diff:2, untried:2, rev:2, limit:8 };
+    // 展開: 各4件×4カテゴリ=16件
+    const countsExpanded  = { sim:4, diff:4, untried:4, rev:4, limit:16 };
 
-    const finalList = shuffle(combined).slice(0, 8);
+    // 初期状態は折りたたみ（8件）
+    let expanded = false;
+    let finalList = buildListByCounts(countsCollapsed);
 
     // ====== 描画 ======
     const wrap = document.querySelector(".wrap");
@@ -320,6 +335,13 @@
       st.textContent = `
 #similar-list{ line-height:1.5; color:#fff; border-top:1px solid #555; }
 #similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:20px; }
+#similar-list .sl-head .sl-toggle{
+  color:#cfe8ff;
+  text-decoration:underline;   /* テキストリンク風 */
+  cursor:pointer;
+}
+#similar-list .sl-head .sl-toggle:hover{ opacity:0.9; }
+
 #similar-list ul{
   margin:0;
   padding-left:0;
@@ -346,25 +368,77 @@
 #similar-list .tag.diff{ background:#3a3a3a; color:#e6e6e6; border-color:#555; }   /* 少し明るい */
 #similar-list .tag.new{  background:#4a4a4a; color:#efefef; border-color:#666; }   /* さらに明るい */
 #similar-list .tag.rev{  background:#5a5a5a; color:#fafafa; border-color:#777; }   /* 最も明るい */
+
+#similar-list .sl-clear{
+  margin-top:13px;            /* ← 隙間を完全になくす */
+  text-align:left;
+  line-height:0;
+  font-weight:300;
+}
+#similar-list .sl-clear .sl-clear-btn{
+  display:inline;           /* ← テキスト扱い */
+  font-size:18px;
+  font-weight:400;
+  color:#ccc;
+  text-decoration:underline; /* ← リンク風 */
+  cursor:pointer;
+}
+#similar-list .sl-clear .sl-clear-btn:hover{
+  color:#fff;               /* ← hover時に少し明るく */
+  opacity:0.9;
+}
       `.trim();
       document.head.appendChild(st);
     }
 
-    let html = `<div class="sl-head">類似／別分野／未着手／要復習問題</div>`;
-    if (!finalList.length) {
-      html += `<div style="color:#888;">候補なし</div>`;
-    } else {
-      html += `<ul>` + finalList.map(({tag,cls,row})=>{
-        return `<li><span class="tag ${cls}">［${tag}］</span><a href="${row.url}">${escapeHtml(row.q)}</a></li>`;
-      }).join("") + `</ul>`;
+    // 描画関数：expanded フラグに応じてヘッダ文言と [× 一覧を消去する] を切替
+    function render(){
+      const titleText = "類似／別分野／未着手／要復習問題を一覧表示";
+      let html = `<div class="sl-head"><a href="#" class="sl-toggle" aria-label="${titleText}">${titleText}</a></div>`;
+
+      if (!finalList.length) {
+        html += `<div style="color:#888;">候補なし</div>`;
+      } else {
+        html += `<ul>` + finalList.map(({tag,cls,row})=>{
+          return `<li><span class="tag ${cls}">［${tag}］</span><a href="${row.url}">${escapeHtml(row.q)}</a></li>`;
+        }).join("") + `</ul>`;
+      }
+
+      // 展開中のみ、最下部に [× 一覧を消去する] を表示
+      if (expanded) {
+        html += `<div class="sl-clear"><a href="#" class="sl-clear-btn">[× 一覧を消去する]</a></div>`;
+      }
+
+      host.innerHTML = html;
+
+      // クリックで 8 ⇔ 16 にトグル
+      const toggle = host.querySelector(".sl-toggle");
+      if (toggle) {
+        toggle.addEventListener("click", (e)=>{
+          e.preventDefault();
+          expanded = !expanded;
+          finalList = buildListByCounts(expanded ? countsExpanded : countsCollapsed);
+          render();
+        });
+      }
+
+      // [× 一覧を消去する] で折りたたみへ戻す
+      const clearBtn = host.querySelector(".sl-clear-btn");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          expanded = false;
+          finalList = buildListByCounts(countsCollapsed);
+          render();
+        });
+      }
     }
-    host.innerHTML = html;
+
+    // 初回描画
+    render();
 
     if (debug){
-      console.log("[mix8] similar:", pickSimilar);
-      console.log("[mix8] diffField(low-sim):", pickDiff);
-      console.log("[mix8] untried:", pickUntried);
-      console.log("[mix8] review:", pickReview);
+      // 参考ログ（カテゴリごとの内訳などを見たい場合は buildListByCounts 内に仕込む）
     }
   }
 
