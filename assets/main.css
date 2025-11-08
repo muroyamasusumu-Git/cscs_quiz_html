@@ -13,6 +13,7 @@ margin: 10px 0;
 h1 {
 line-height: 0.95 !important;
 margin-top: 22px;
+font-size: 40px;
 }
 
 .wrap {
@@ -69,6 +70,11 @@ z-index: 10060;
 pointer-events: none;   /* 誤タップ防止 */
 white-space: nowrap;
 }
+
+.wrap ol.opts {
+padding-top: 0;
+}
+
   
   
 /* ===== 無振動オートスケール（初回のみ） ===== */
@@ -113,7 +119,7 @@ ol.opts {
 
 /* 3) ol 側は上マージンを0に固定（重なりを防止） */
 .wrap h1 + ol.opts {
-  margin-top: 0;
+  margin-top: -10px;
 }
 
 /* 4) マージンの重なりが起きにくいように、親を flow-root 化（保険） */
@@ -122,9 +128,6 @@ ol.opts {
 }
 
 /* 5) （任意）リストの内側余白を少し整えると“詰まり感”が減る */
-.wrap ol.opts {
-  padding-top: 2px;
-}
 
 /* 6) transformスケールを使っている現行方針に合わせて、隙間の見た目もスケール */
 h1 {
