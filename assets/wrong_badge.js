@@ -9,13 +9,25 @@
   }
 
   function readWrongCount() {
+    // 表示用：「1日1回だけカウントされる不正解」（counted）を読む
     try {
-      const m = JSON.parse(localStorage.getItem("cscs_wrong_log")||"{}");
-      const { key } = getDayAndN3();
-      if (!key) return "--";
-      const v = m[key];
-      return (typeof v === "number" && isFinite(v)) ? v : "--";
-    } catch { return "--"; }
+      const daily = JSON.parse(localStorage.getItem("cscs_wrong_daily_log") || "{}");
+      const { day, n3 } = getDayAndN3();
+      if (!day || !n3) return "--";
+      const d = daily[day];
+      // d = { raw: 数値累積, counted: 0 or 1 } を想定
+      if (d && typeof d.counted === "number" && isFinite(d.counted)) {
+        return d.counted; // 0 or 1
+      }
+      // 互換: なければ従来raw表示にフォールバック
+      try {
+        const m = JSON.parse(localStorage.getItem("cscs_wrong_log") || "{}");
+        const v = m[`${day}-${n3}`];
+        return (typeof v === "number" && isFinite(v)) ? v : "--";
+      } catch { return "--"; }
+    } catch {
+      return "--";
+    }
   }
 
   // 文字列版 → ラベル
@@ -86,25 +98,58 @@
     return box;
   }
 
+  // 表示用：「1日1回だけカウントされる正解」（counted）を読む
+  function readCorrectCount() {
+    try {
+      const daily = JSON.parse(localStorage.getItem("cscs_correct_daily_log") || "{}");
+      const { day } = getDayAndN3();
+      if (!day) return "--";
+      const d = daily[day];
+      if (d && typeof d.counted === "number" && isFinite(d.counted)) {
+        return d.counted; // 0 or 1
+      }
+      return "--";
+    } catch {
+      return "--";
+    }
+  }
+
   function render() {
     const { label, type } = readFavLabelAndKey();
     const wrong = readWrongCount();
+    const correct = readCorrectCount();
     const box = ensureFixedBox();
     const favSpan = box.querySelector(".fav-status");
     const wrongSpan = box.querySelector(".wrong-status");
 
     if (favSpan) {
       favSpan.textContent = `［${label}］`;
-      favSpan.className = `fav-status fav-${type}`; // ← 色分けクラスを追加
+      favSpan.className = `fav-status fav-${type}`;
     }
-    if (wrongSpan) wrongSpan.textContent = `（不正解:${wrong}回）`;
+
+    if (wrongSpan) {
+      wrongSpan.textContent = `(正解:${correct}回 / 不正解:${wrong}回)`; // 両方表示
+      // raw も分かるとデバッグしやすい：タイトルに出す
+      try {
+        const { day, n3 } = getDayAndN3();
+        const m = JSON.parse(localStorage.getItem("cscs_wrong_log") || "{}");
+        const rawWrong = (day && n3) ? (m[`${day}-${n3}`] ?? "--") : "--";
+        const m2 = JSON.parse(localStorage.getItem("cscs_correct_daily_log") || "{}");
+        const rawCorrect = (day && m2[day]) ? (m2[day].raw ?? "--") : "--";
+        wrongSpan.title = `raw 正解:${rawCorrect} / 不正解:${rawWrong}`;
+      } catch {
+        wrongSpan.title = "";
+      }
+    }
   }
 
   // 初回描画
   window.addEventListener("DOMContentLoaded", render);
   // 値変更で再描画
   window.addEventListener("storage", (e) => {
-    if (["cscs_fav", "cscs_fav_map", "cscs_wrong_log"].includes(e.key)) render();
+    if (["cscs_fav", "cscs_fav_map", "cscs_wrong_log", "cscs_wrong_daily_log"].includes(e.key)) {
+      render();
+    }
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") render();

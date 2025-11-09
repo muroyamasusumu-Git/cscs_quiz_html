@@ -184,6 +184,34 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
+      <script>
+        (function(){
+          function getDayFromPath(){
+            var m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+            return m?m[1]:"unknown";
+          }
+          function getQNumFromPath(){
+            var m=(window.location.pathname||"").match(/q(\d{3})_a(?:\.html)?$/i);
+            return (m && m[1]) ? m[1] : "000";
+          }
+          function setABToken(qid){
+            try{
+              var KEY = "cscs_from_a_token:" + qid;
+              // TTL付きトークン（発行時刻ms）
+              var payload = { ts: Date.now(), ttl_ms: 3*60*1000 };
+              localStorage.setItem(KEY, JSON.stringify(payload));
+            }catch(_){}
+          }
+          document.addEventListener("click", function(e){
+            var a = e.target && e.target.closest ? e.target.closest("a.opt-link") : null;
+            if (!a) return;
+            var qid = getDayFromPath() + "-" + getQNumFromPath();
+            setABToken(qid);
+          }, true);
+        })();
+      </script>
+    
+
   <script>
     function autoPlayAudio(src) {
       const audio = new Audio(src);

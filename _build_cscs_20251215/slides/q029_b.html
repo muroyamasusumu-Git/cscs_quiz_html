@@ -212,6 +212,114 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/b_judge.js" data-stem="q029" data-audio-base="../../../cscs_csv_v32a/_build_cscs_20251215/audio" data-ext=".wav"></script>
 
 
+    <script>
+    (function(){
+      function getDayFromPath(){
+        var m=(location.pathname||"").match(/_build_cscs_(\d{8})/);
+        return m?m[1]:"unknown";
+      }
+      function getQNumFromPath(){
+        var m=(location.pathname||"").match(/q(\d{3})_b(?:\.html)?$/i);
+        return (m && m[1]) ? m[1] : "000";
+      }
+      function getChoiceFromQuery(){
+        var sp = new URLSearchParams(location.search);
+        var c = (sp.get("choice")||"").trim().toUpperCase();
+        return /^[ABCD]$/.test(c) ? c : "";
+      }
+      function pickCorrectLetter(){
+        // 1) cscs-meta 最優先
+        try{
+          var el = document.getElementById('cscs-meta');
+          if(el){
+            var meta = JSON.parse(el.textContent||"{}");
+            var c = (meta.Correct||meta.correct||"").toString().trim().toUpperCase();
+            if(/^[ABCD]$/.test(c)) return c;
+          }
+        }catch(_){}
+        // 2) #judge / .answer からテキスト抽出
+        try{
+          var t = "";
+          var j = document.getElementById('judge');
+          if(j) t += " " + (j.textContent||j.innerText||"");
+          var a = document.querySelector('.answer');
+          if(a) t += " " + (a.textContent||"");
+          var m = t.match(/[正せ][解い]\s*[:：]?\s*([ABCD])/i);
+          if(m && m[1]) return m[1].toUpperCase();
+        }catch(_){}
+        return "";
+      }
+      function incIntLS(key, by){
+        try{
+          var n = parseInt(localStorage.getItem(key)||"0",10);
+          if(!Number.isFinite(n)) n = 0;
+          n += by;
+          localStorage.setItem(key, String(n));
+        }catch(_){}
+      }
+
+      // --- 本体 ---
+      var day  = getDayFromPath();         // 例 "20250926"
+      var qnum = getQNumFromPath();        // 例 "001"
+      var qid  = day + "-" + qnum;         // 例 "20250926-001"
+
+      // A→Bトークンが無ければ（直叩き・リロード）はノーカウント
+      var tokenKey = "cscs_from_a:" + qid;
+      var token = null;
+      try{ token = sessionStorage.getItem(tokenKey); }catch(_){}
+
+      if(!token){
+        // 何もせず終了（Bリロードによる水増し防止）
+        return;
+      }
+
+      // 確認できたので消費し、以後のリロードではノーカウントにする
+      try{ sessionStorage.removeItem(tokenKey); }catch(_){}
+
+      // 正解判定（クエリの choice と ページ側の正解を突合）
+      var choice  = getChoiceFromQuery();
+      var correct = pickCorrectLetter();
+
+      if(!choice || !correct){ return; }
+      var isCorrect = (choice === correct);
+
+      if(!isCorrect){
+        // 不正解時は“正解数ロジック”を動かさない（従来の不正解ログは別JSに任せる）
+        return;
+      }
+
+      // --- ここから「一日一回だけカウント」＋「試行回数は保持」 ---
+      // 1) 正解試行回数（その日ぶん）をインクリメント（履歴保持用）
+      //    key: "cscs_correct_attempts_YYYYMMDD" → 整数
+      var attemptsKey = "cscs_correct_attempts_" + day;
+      incIntLS(attemptsKey, 1);
+
+      // 2) “日次カウント”は一日一回だけ
+      //    フラグ key: "cscs_daily_unique_done:YYYYMMDD"
+      var dailyFlagKey = "cscs_daily_unique_done:" + day;
+      var already = null;
+      try{ already = localStorage.getItem(dailyFlagKey); }catch(_){}
+
+      if(!already){
+        // 初回のみ：日次カウントを+1して、フラグを立てる
+        // 合計格納先は "cscs_daily_unique_total"（任意）と
+        // 当日値 "cscs_daily_unique_count_YYYYMMDD"（確認/表示用）の二本立て
+        incIntLS("cscs_daily_unique_total", 1);
+        incIntLS("cscs_daily_unique_count_" + day, 1);
+        try{ localStorage.setItem(dailyFlagKey, "1"); }catch(_){}
+      }
+
+      // 3) もし“全正解試行の時系列ログ”も残したい場合は配列にpush（必要に応じてUI側で可視化）
+      try{
+        var k = "cscs_correct_attempt_log_" + day;
+        var arr = []; try{ arr = JSON.parse(localStorage.getItem(k)||"[]"); }catch(_){ arr=[]; }
+        arr.push({ ts: Date.now(), qid: qid, choice: choice });
+        localStorage.setItem(k, JSON.stringify(arr));
+      }catch(_){}
+    })();
+    </script>
+    
+
 <link rel="stylesheet" href="../../assets/wrong_badge.css">
 <script src="../../assets/wrong_badge.js" defer></script>
 
