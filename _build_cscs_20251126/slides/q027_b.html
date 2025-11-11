@@ -212,113 +212,67 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/b_judge.js" data-stem="q027" data-audio-base="/_build_cscs_20251126/audio" data-ext=".m4a"></script>
 
 
+<script>
+// CSCS backfill 抑止シム（TTL内のみ backfill を無効化。リアルタイム記録は稼働）
+(() => {
+  const epoch = Number(localStorage.getItem('cscs_reset_epoch') || 0);
+  const ttl   = Number(localStorage.getItem('cscs_reset_ttl_ms') || 0);
+  const suppressed = (Date.now() - epoch) < ttl;
+  window.__CSCS_BACKFILL_SUPPRESSED__ = suppressed;
+
+  // b_judge_record.js が定義する backfill 関数を NOOP に差し替え
+  function patch(){
+    if (!suppressed) return;                  // 抑止期間外なら何もしない
+    const f1 = window.cscsBackfillIfNeeded;
+    const f2 = window.cscs_backfill_if_needed;
+    if (!f1 && !f2) { setTimeout(patch, 0); return; }  // 本体未読込なら次のtickで再試行
+    const noop = () => console.info('🚫 backfill suppressed (TTL)');
+    if (typeof f1 === 'function') window.cscsBackfillIfNeeded    = noop;
+    if (typeof f2 === 'function') window.cscs_backfill_if_needed = noop;
+  }
+  setTimeout(patch, 0);
+})();
+</script>
+
+<script src="../../assets/b_judge_record.js" defer></script>
+
+
     <script>
     (function(){
-      function getDayFromPath(){
-        var m=(location.pathname||"").match(/_build_cscs_(\d{8})/);
-        return m?m[1]:"unknown";
-      }
-      function getQNumFromPath(){
-        var m=(location.pathname||"").match(/q(\d{3})_b(?:\.html)?$/i);
-        return (m && m[1]) ? m[1] : "000";
-      }
-      function getChoiceFromQuery(){
-        var sp = new URLSearchParams(location.search);
-        var c = (sp.get("choice")||"").trim().toUpperCase();
-        return /^[ABCD]$/.test(c) ? c : "";
-      }
-      function pickCorrectLetter(){
-        // 1) cscs-meta 最優先
-        try{
-          var el = document.getElementById('cscs-meta');
-          if(el){
-            var meta = JSON.parse(el.textContent||"{}");
-            var c = (meta.Correct||meta.correct||"").toString().trim().toUpperCase();
-            if(/^[ABCD]$/.test(c)) return c;
+      if (window.__b_audio_btn_installed) return;
+      window.__b_audio_btn_installed = true;
+      const src = "/_build_cscs_20251126/audio/q027_b.m4a";
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.playsInline = true;
+
+      function ensureBtn(){
+        var btn = document.querySelector(".audio-fallback-btn");
+        if (btn) return btn;
+        btn = document.createElement("button");
+        btn.textContent = "🔊 音声を再生";
+        btn.className = "audio-fallback-btn";
+        btn.addEventListener("click", function(){
+          try{
+            audio.currentTime = 0;
+            audio.play().catch(function(){
+              btn.textContent = "再生できません（ブラウザ設定を確認）";
+            });
+          }catch(e){
+            btn.textContent = "再生できません（ブラウザ設定を確認）";
           }
-        }catch(_){}
-        // 2) #judge / .answer からテキスト抽出
-        try{
-          var t = "";
-          var j = document.getElementById('judge');
-          if(j) t += " " + (j.textContent||j.innerText||"");
-          var a = document.querySelector('.answer');
-          if(a) t += " " + (a.textContent||"");
-          var m = t.match(/[正せ][解い]\s*[:：]?\s*([ABCD])/i);
-          if(m && m[1]) return m[1].toUpperCase();
-        }catch(_){}
-        return "";
-      }
-      function incIntLS(key, by){
-        try{
-          var n = parseInt(localStorage.getItem(key)||"0",10);
-          if(!Number.isFinite(n)) n = 0;
-          n += by;
-          localStorage.setItem(key, String(n));
-        }catch(_){}
+        });
+        document.addEventListener("DOMContentLoaded", function(){
+          document.body.appendChild(btn);
+        });
+        return btn;
       }
 
-      // --- 本体 ---
-      var day  = getDayFromPath();         // 例 "20250926"
-      var qnum = getQNumFromPath();        // 例 "001"
-      var qid  = day + "-" + qnum;         // 例 "20250926-001"
-
-      // A→Bトークンが無ければ（直叩き・リロード）はノーカウント
-      var tokenKey = "cscs_from_a:" + qid;
-      var token = null;
-      try{ token = sessionStorage.getItem(tokenKey); }catch(_){}
-
-      if(!token){
-        // 何もせず終了（Bリロードによる水増し防止）
-        return;
-      }
-
-      // 確認できたので消費し、以後のリロードではノーカウントにする
-      try{ sessionStorage.removeItem(tokenKey); }catch(_){}
-
-      // 正解判定（クエリの choice と ページ側の正解を突合）
-      var choice  = getChoiceFromQuery();
-      var correct = pickCorrectLetter();
-
-      if(!choice || !correct){ return; }
-      var isCorrect = (choice === correct);
-
-      if(!isCorrect){
-        // 不正解時は“正解数ロジック”を動かさない（従来の不正解ログは別JSに任せる）
-        return;
-      }
-
-      // --- ここから「一日一回だけカウント」＋「試行回数は保持」 ---
-      // 1) 正解試行回数（その日ぶん）をインクリメント（履歴保持用）
-      //    key: "cscs_correct_attempts_YYYYMMDD" → 整数
-      var attemptsKey = "cscs_correct_attempts_" + day;
-      incIntLS(attemptsKey, 1);
-
-      // 2) “日次カウント”は一日一回だけ
-      //    フラグ key: "cscs_daily_unique_done:YYYYMMDD"
-      var dailyFlagKey = "cscs_daily_unique_done:" + day;
-      var already = null;
-      try{ already = localStorage.getItem(dailyFlagKey); }catch(_){}
-
-      if(!already){
-        // 初回のみ：日次カウントを+1して、フラグを立てる
-        // 合計格納先は "cscs_daily_unique_total"（任意）と
-        // 当日値 "cscs_daily_unique_count_YYYYMMDD"（確認/表示用）の二本立て
-        incIntLS("cscs_daily_unique_total", 1);
-        incIntLS("cscs_daily_unique_count_" + day, 1);
-        try{ localStorage.setItem(dailyFlagKey, "1"); }catch(_){}
-      }
-
-      // 3) もし“全正解試行の時系列ログ”も残したい場合は配列にpush（必要に応じてUI側で可視化）
-      try{
-        var k = "cscs_correct_attempt_log_" + day;
-        var arr = []; try{ arr = JSON.parse(localStorage.getItem(k)||"[]"); }catch(_){ arr=[]; }
-        arr.push({ ts: Date.now(), qid: qid, choice: choice });
-        localStorage.setItem(k, JSON.stringify(arr));
-      }catch(_){}
+      // 常時ボタンを出しておく（自動再生はしない）
+      ensureBtn();
     })();
     </script>
-    
+        
 
 <link rel="stylesheet" href="../../assets/wrong_badge.css">
 <script src="../../assets/wrong_badge.js" defer></script>
@@ -487,5 +441,31 @@ ol.opts li.is-correct a.opt-link {
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 
+
+    <script>
+    (function(){
+      try{
+        const href = location.href;
+        const choice = (href.match(/[?&]choice=([A-E])/i)||[])[1]||"";
+        const day = (href.match(/_build_cscs_(\d{8})/i)||[])[1]||"";
+        const num = (href.match(/q(\d{3})_b/i)||[])[1]||"";
+        if(!day || !num) return;
+        const qid = `${day}-${num}`;
+        // CSCS.recordResult or record_result を順に探す
+        const f = (window.CSCS && typeof window.CSCS.recordResult==="function") ?
+                    window.CSCS.recordResult :
+                    (typeof window.record_result==="function" ? window.record_result : null);
+        if(f){
+          console.log("🧩 auto record shim: calling record function", qid, choice);
+          f(qid, choice, true);
+        }else{
+          console.warn("⚠️ auto record shim: record function not found");
+        }
+      }catch(e){
+        console.warn("⚠️ auto record shim failed:", e);
+      }
+    })();
+    </script>
+    
 </body>
 </html>

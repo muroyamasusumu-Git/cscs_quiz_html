@@ -10,7 +10,7 @@ html,body{
   margin:0; padding:0;
   background:#111; color:#fff;
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
-  height:auto !important; min-height:0 !important;  /* ← 追加 */
+  height:auto !important; min-height:0 !重要;  /* ← 追加（ビルド出力を最優先に） */
 }
 .wrap{ width:min(1000px,90vw); margin:40px auto; line-height:1.5; font-size:32px; }
 
@@ -58,7 +58,16 @@ select,button,a.btn{
   cursor:pointer;
   font-size:.6em;
 }
-.summary{font-size:.75em;margin:1em 0;}
+.summary{font-size:.75em;margin:1em 0;line-height:1.6;}
+.summary .pill{
+  display:inline-block;
+  background:#1d1d1d;
+  border:1px solid #343434;
+  border-radius:999px;
+  padding:2px 8px;
+  font-size:.8em;
+  margin-left:.6em;
+}
 table{
   width:100%;
   border-collapse:collapse;
@@ -136,6 +145,37 @@ a:hover{text-decoration:underline;}
   const total = 30;
   const runSel = document.getElementById("runSelect");
 
+  // ▼ 追加：問題文を nav_manifest.json から引くための簡易ローダ
+  //   - qtextMap: "q001" → "問題文テキスト"
+  //   - 初回 render() 時に未ロードなら非同期で取得→完了後に再 render()
+  let qtextMap = null;
+  let navLoading = false;
+  function ensureNavManifest(cb){
+    if (qtextMap && qtextMap.size) { cb && cb(); return; }
+    if (navLoading) { return; }
+    navLoading = true;
+    fetch("nav_manifest.json")
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("failed to load nav_manifest.json")))
+      .then(data => {
+        const map = new Map();
+        try{
+          const arr = (data && data.questions) ? data.questions : [];
+          arr.forEach(q => {
+            const n = q && typeof q.Number === "number" ? q.Number : 0;
+            const stem = n ? ("q" + String(n).padStart(3, "0")) : "";
+            if (stem) {
+              const qt = (q.Question || "").toString().trim();
+              map.set(stem, qt);
+            }
+          });
+        }catch(_){}
+        qtextMap = map;
+        navLoading = false;
+        cb && cb();
+      })
+      .catch(_ => { navLoading = false; /* 失敗時は空のまま */ });
+  }
+
   // ▼ 正解率用ヘルパ：日付=day の全履歴から stem ごとに {total, correct} を作る
   function buildAccuracyMap(allResults, day){
     const byStem = new Map();
@@ -155,7 +195,7 @@ a:hover{text-decoration:underline;}
     const pct = Math.round((correct / total) * 100);
     return `${pct}% (${correct}/${total})`;
   }
-    // ▼ 不正解回数ログ（cscs_wrong_log）を読むヘルパ
+  // ▼ 不正解回数ログ（cscs_wrong_log）を読むヘルパ
   function getWrongLog(){
     try { return JSON.parse(localStorage.getItem("cscs_wrong_log") || "{}"); }
     catch (_){ return {}; }
@@ -165,6 +205,20 @@ a:hover{text-decoration:underline;}
     const qnum = (stem || "").slice(1);
     const qid  = `${day}-${qnum}`;
     return wrongLog[qid] || 0;
+  }
+
+  // ▼ 追加カウンタ（b_judge_record.js で記録している想定鍵）
+  function readInt(key, def=0){
+    const v = localStorage.getItem(key);
+    if (v == null) return def;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : def;
+  }
+  function readBool01(key){
+    const v = localStorage.getItem(key);
+    if (v == null) return 0;
+    if (v === "1" || v === "true") return 1;
+    return 0;
   }
 
   // ヘッダー右側に日付を表示
@@ -186,7 +240,14 @@ a:hover{text-decoration:underline;}
       opt.value=String(r); opt.textContent=`run #${r}`;
       runSel.appendChild(opt);
     });
-    runSel.value = String(runs[runs.length-1]); // 最新 run
+
+    // ★ 変更点：保存済みの現在runがあればそれを優先、無ければ最新runを選択
+    const saved = localStorage.getItem(runKey(day));
+    if (saved && runs.includes(parseInt(saved,10))) {
+      runSel.value = String(parseInt(saved,10));
+    } else {
+      runSel.value = String(runs[runs.length-1]); // デフォルト: 最新 run
+    }
   }
 
   function render(){
@@ -197,7 +258,21 @@ a:hover{text-decoration:underline;}
     table.innerHTML="";
 
     if(results.length===0){
-      summary.textContent="この run の回答はまだありません。";
+      // カウンタもゼロで出す
+      const uniq = readBool01(`cscs_daily_unique_done:${day}`);
+      const ca   = readInt(`cscs_correct_attempts_${day}`, 0);
+      const wa   = readInt(`cscs_wrong_attempts_${day}`, 0);
+      const s3t  = readInt(`cscs_streak3_today_${day}`, 0);
+      const s3   = readInt("cscs_streak3_total", 0);
+      summary.innerHTML = [
+        `日付：<strong>${formatJa(day)}</strong>`,
+        `run：<strong>#${runId}</strong>`,
+        `正解数：<strong>0</strong> / ${total}（0%）`,
+        `<span class="pill">今日のユニーク正解：${uniq ? "1" : "0"}</span>`,
+        `<span class="pill">今日の正解試行：${ca}</span>`,
+        `<span class="pill">今日の不正試行：${wa}</span>`,
+        `<span class="pill">3連正解（今日/累計）：${s3t} / ${s3}</span>`
+      ].join("　");
       return;
     }
 
@@ -207,22 +282,50 @@ a:hover{text-decoration:underline;}
     const picked = Array.from(lastByStem.values()).sort((a,b)=>a.stem.localeCompare(b.stem));
 
     const correct = picked.filter(r=>r.correct).length;
-    summary.innerHTML=`日付：<strong>${formatJa(day)}</strong>　run：<strong>#${runId}</strong>　正解数：<strong>${correct}</strong> / ${total}（${Math.round(correct/total*100)}%）`;
+
+    // 追加カウンタ読み出し
+    const uniq = readBool01(`cscs_daily_unique_done:${day}`);
+    const ca   = readInt(`cscs_correct_attempts_${day}`, 0);
+    const wa   = readInt(`cscs_wrong_attempts_${day}`, 0);
+    const s3t  = readInt(`cscs_streak3_today_${day}`, 0);
+    const s3   = readInt("cscs_streak3_total", 0);
+
+    summary.innerHTML=[
+      `日付：<strong>${formatJa(day)}</strong>`,
+      `run：<strong>#${runId}</strong>`,
+      `正解数：<strong>${correct}</strong> / ${total}（${Math.round(correct/total*100)}%）`,
+      `<span class="pill">今日のユニーク正解：${uniq ? "1" : "0"}</span>`,
+      `<span class="pill">今日の正解試行：${ca}</span>`,
+      `<span class="pill">今日の不正試行：${wa}</span>`,
+      `<span class="pill">3連正解（今日/累計）：${s3t} / ${s3}</span>`
+    ].join("　");
 
     const header=document.createElement("tr");
-    header.innerHTML="<th>番号</th><th>選択</th><th>正解</th><th>判定</th><th>正解率</th><th>不正解回数</th>";
+    header.innerHTML="<th>番号</th><th>問題文</th><th>選択</th><th>正解</th><th>判定</th><th>正解率</th><th>不正解回数</th>";
     table.appendChild(header);
 
     const wrongLog = getWrongLog();
     const accMap   = buildAccuracyMap(all, day);
+
+    // ▼ nav_manifest が未読込なら読み込んでから再描画（初回のみ）
+    if (!qtextMap || !qtextMap.size) {
+      ensureNavManifest(render);
+    }
 
     picked.forEach(r=>{
       const tr=document.createElement("tr");
       const wrongCnt = wrongCountForStem(day, r.stem, wrongLog);
       const agg = accMap.get(r.stem) || { total: 0, correct: 0 };
       const rate = formatPct(agg.correct, agg.total);
+      const qtext = (qtextMap && qtextMap.get(r.stem)) ? qtextMap.get(r.stem) : (navLoading ? "取得中…" : "");
 
-      tr.innerHTML=`<td>${r.stem}</td><td>${r.choice}</td><td>${r.correctChoice}</td>
+      // 番号セルは A へリンク（例：q001 → q001_a.html）
+      const numCell = `<a href="${r.stem}_a.html">${r.stem}</a>`;
+
+      tr.innerHTML=`<td>${numCell}</td>
+        <td>${qtext}</td>
+        <td>${r.choice}</td>
+        <td>${r.correctChoice}</td>
         <td style='color:${r.correct?"#fff34d":"#c9c9c9"}'>${r.correct?"◎ 正解":"× 不正解"}</td>
         <td>${rate}</td>
         <td>${wrongCnt}</td>`;
