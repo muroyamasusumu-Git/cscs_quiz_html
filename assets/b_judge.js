@@ -1,4 +1,3 @@
-async function run(){// b_judge.js — 正答判定＋日次/全期間リアルタイム集計（A→Bトークン連携）
 (function(){
   if (window.__cscsBJudgeInstalled) return;
   window.__cscsBJudgeInstalled = true;
@@ -222,32 +221,57 @@ async function run(){// b_judge.js — 正答判定＋日次/全期間リアル�
     let alreadyConsumed = false;
     try { alreadyConsumed = sessionStorage.getItem(guardKey) === '1'; } catch(_) {}
 
-    // 既にこのタブで消費済み（＝リロード）の場合は、先に A→B トークンを除去して以降の加算条件を不成立にする
+    // 既にこのタブで消費済み（＝リロード）の場合は、再加算を防ぐためトークンのみ除去（選択肢 Kc は残す）
     if (alreadyConsumed) {
       try { localStorage.removeItem(Kt); } catch(_) {}
-      try { localStorage.removeItem(Kc); } catch(_) {}
     }
 
-    // 従来どおりトークン読み取り（上で除去されていれば token は null になる）
-    const {token,choice}=await readTokenWithRetries({retries:6,delayMs:30});
-    if(!token){wlog('no token (skip tally)',{qid});return;}
+    // トークンと（あれば）選択肢を読み取り（バックフィルは readTokenWithRetries 内で実施）
+    const {token,choice} = await readTokenWithRetries({retries:6,delayMs:30});
+    const canTally = !!token && !alreadyConsumed;
 
     // 初回到着（＝このタブで未消費）なら consumed mark を立てる
     if (!alreadyConsumed) {
       try { sessionStorage.setItem(guardKey, '1'); } catch(_) {}
     }
 
-    const userChoice=(choice||getChoiceFallbackFromURL()||'').toUpperCase();
-    if(!/^[A-E]$/.test(userChoice)){wlog('no choice (skip)',{qid});return;}
+    // --- Choice の救済フォールバック ---
+    // token 無し時は readTokenWithRetries が choice を返さない設計のため、Kc → URL → '' の順で復元
+    let finalChoice = choice;
+    if (!finalChoice) {
+      try { finalChoice = localStorage.getItem(Kc) || null; } catch(_) {}
+    }
+    if (!finalChoice) {
+      finalChoice = getChoiceFallbackFromURL() || '';
+    }
 
-    const correct=getCorrectChoiceFromDOM();
-    if(!correct){wlog('no correct label (skip)',{qid});return;}
+    // UI は常に描画（token の有無に依存させない）
+    const userChoice = (finalChoice || '').toUpperCase();
+    if (!/^[A-E]$/.test(userChoice)) {
+      wlog('no choice (skip)', { qid });
+      return;
+    }
 
-    const result=(userChoice===correct)?'correct':'wrong';
-    updateUI(result,userChoice,correct);
-    tally(result,userChoice);
+    const correct = getCorrectChoiceFromDOM();
+    if (!correct) {
+      wlog('no correct label (skip)', { qid });
+      return;
+    }
+
+    const result = (userChoice === correct) ? 'correct' : 'wrong';
+    updateUI(result, userChoice, correct);
+
+    // 集計は token があり、かつ未消費タブのときだけ実行
+    if (canTally) {
+      tally(result, userChoice);
+    } else {
+      dlog('tally skipped', { qid, alreadyConsumed, hasToken: !!token, hasChoice: !!finalChoice });
+    }
   }
 
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run,{once:true});
-  else run();
-})();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run, { once: true });
+  } else {
+    run();
+  }
+})();  // ← IIFE を確実に閉じる
