@@ -70,7 +70,7 @@
     box.id = boxId;
     box.innerHTML = `
       <span class="fav-status">［--］</span>
-      <span class="wrong-status" role="text" aria-label="成績の統計を表示">（正解:--回 / 不正解:--回）</span>
+      <a href="#" class="wrong-status" role="button" aria-label="成績の統計を表示" title="">（正解:--回 / 不正解:--回）</a>
     `;
     document.body.appendChild(box);
     return box;
@@ -175,6 +175,68 @@
     ].join("\n"));
   }
 
+  // ===== モーダル（簡易） =====
+  function openResetPanel(qid, correct, wrong) {
+    // 既存があれば一度除去
+    const old = document.getElementById("cscs-reset-modal");
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    const overlay = document.createElement("div");
+    overlay.id = "cscs-reset-modal";
+    overlay.style.cssText = [
+      "position:fixed","inset:0","z-index:999999",
+      "background:rgba(0,0,0,.5)","display:flex",
+      "align-items:center","justify-content:center"
+    ].join(";");
+
+    const panel = document.createElement("div");
+    panel.style.cssText = [
+      "min-width:320px","max-width:90vw","background:#1c1c1c",
+      "color:#fff","border-radius:10px","padding:16px",
+      "box-shadow:0 10px 30px rgba(0,0,0,.4)","font:14px/1.6 -apple-system,system-ui,Segoe UI,Roboto,sans-serif"
+    ].join(";");
+
+    panel.innerHTML = `
+      <div style="font-weight:600;margin-bottom:8px;">回数記録のリセット</div>
+      <div style="opacity:.9;margin-bottom:12px;">
+        <div style="margin-bottom:4px;">qid: <code>${qid}</code></div>
+        <div style="margin-bottom:8px;">現在の累計（延べ）：<b>正解:${correct}回 / 不正解:${wrong}回</b></div>
+        <div>この問題のみの正誤回数（<code>cscs_q_correct_total:${qid}</code> / <code>cscs_q_wrong_total:${qid}</code>）を削除します。</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" id="cscs-reset-cancel" style="padding:8px 12px;border-radius:8px;border:1px solid #555;background:#2b2b2b;color:#ddd;cursor:pointer; width: 130px;">キャンセル</button>
+        <button type="button" id="cscs-reset-do" style="padding:8px 12px;border-radius:8px;border:0 solid #c33;background:#a35757;color:#fff;cursor:pointer; width: 130px;">回数記録のリセット</button>
+      </div>
+    `;
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    function close() {
+      try { overlay.remove(); } catch(_){}
+    }
+    panel.querySelector("#cscs-reset-cancel").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    });
+    panel.querySelector("#cscs-reset-do").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { localStorage.removeItem(`cscs_q_correct_total:${qid}`); } catch(_){}
+      try { localStorage.removeItem(`cscs_q_wrong_total:${qid}`); } catch(_){}
+      close();
+      // 反映
+      try { console.info("[reset] cleared per-problem totals", { qid }); } catch(_){}
+      render();
+    });
+
+    // 透過部クリックで閉じる
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+  }
+
   // ===== 描画 =====
   function render() {
     const { label, type } = readFavLabelAndType();
@@ -190,16 +252,24 @@
 
     const box = ensureFixedBox();
     const favSpan = box.querySelector(".fav-status");
-    const wrongSpan = box.querySelector(".wrong-status");
+    const wrongLink = box.querySelector(".wrong-status");
 
     if (favSpan) {
       favSpan.textContent = `［${label}］`;
       favSpan.className = `fav-status fav-${type}`;
     }
-    if (wrongSpan) {
-      // 累計（延べ）を明示
-      wrongSpan.textContent = `(正解:${correct}回 / 不正解:${wrong}回)`;
-      wrongSpan.title = qid ? `qid: ${qid} の累計（延べ）` : `qid未特定（パス判定不可）`;
+    if (wrongLink) {
+      // 表示（リンク）
+      wrongLink.textContent = `(正解:${correct}回 / 不正解:${wrong}回)`;
+      wrongLink.setAttribute("title", qid ? `qid: ${qid} の累計（延べ）` : `qid未特定（パス判定不可）`);
+      wrongLink.setAttribute("href", "#");
+
+      // クリックでモーダル
+      wrongLink.onclick = (e) => {
+        e.preventDefault();
+        if (!qid) return;
+        openResetPanel(qid, correct, wrong);
+      };
     }
   }
 
