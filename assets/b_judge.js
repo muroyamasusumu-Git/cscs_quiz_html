@@ -1,3 +1,64 @@
+/**
+ * === SPEC HEADER: DO NOT REMOVE ===
+ * このコメントブロックは b_judge.js の公式仕様定義（同期対象）です。
+ * ChatGPT や他AIが本ファイルを解析・改修する際は、
+ * 下記ドキュメントを実装と常に整合させて更新してください。
+ *
+ * 仕様更新ルール:
+ *  - このブロックはスクリプトの「機能・責務・構造・排他設計」を示す。
+ *  - スクリプトの挙動を変更した場合は、必ず該当箇所の説明文を更新すること。
+ *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
+ *
+ * ファイル: b_judge.js
+ * 最終更新: 2025-11-13
+ *
+ * === SPEC CONTENT ===
+ * b_judge.js — Bパート正答判定＋リロード耐性付き集計処理（ver.2025-11）
+ *
+ * 【責務】
+ *  - Bページにおいて A→Bトークンを受け取り、ユーザー選択と正答を照合して集計。
+ *  - DOM描画（#judge）と localStorage への集計更新を統合的に管理。
+ *  - Aパートで生成されたトークンを確実に一度だけ消費し、リロード時の重複加算を防止。
+ *
+ * 【構成】
+ *  1. Preflight（タブ限定）
+ *     - 既に sessionStorage[cscs_ab_consumed:<qid>] がある場合、
+ *       localStorage[cscs_from_a_token:<qid>] を削除し再加算を抑止。
+ *
+ *  2. トークン読取（readTokenWithRetries）
+ *     - 影トークン方式（sessionStorage）に対応。
+ *       優先順位: KsT/KsC → localStorage[Kt/Kc]。
+ *       A側ミラー（cscs_last_token_*）からの復活は常時停止（shadow-mode）。
+ *
+ *  3. リロードガード（run内）
+ *     - qid単位で guardKey=cscs_ab_consumed:<qid> を保持。
+ *       初回アクセス時: mark=1 を立て、集計を許可。
+ *       再読込時: Ktを除去して tally() をスキップ。
+ *
+ *  4. 集計（tally）
+ *     - 日別（raw / counted）・全期間・ロールアップに反映。
+ *     - 各 qid 単位の延べ（cscs_q_*_total）も自動更新。
+ *
+ *  5. UI更新
+ *     - 常に userChoice / correct の比較結果を #judge に描画。
+ *     - トークン有無に関わらず視覚出力を保証（責務分離: UIと集計）。
+ *
+ *  6. トークン破棄
+ *     - tally() 後に localStorage[Kt] および sessionStorage[KsT/KsC] を削除。
+ *       → 二重加算・他タブ干渉を完全防止。
+ *
+ * 【排他設計】
+ *  - sessionStorageスコープ（タブ単位）での mark によりリロード耐性を確保。
+ *  - localStorageはA→B受け渡し専用であり、加算後は即破棄。
+ *  - UIは token 状態に依存せず描画（UX分離）。
+ *
+ * 【関連ファイル】
+ *  - b_judge_record.js …… 問題別/日別カウントの正統記録器（変更禁止）
+ *  - build_quiz.py …… Bプリフライト (#3.6) で影トークンを注入・rollup監視
+ *  - wrong_badge.js …… 延べ値可視化＋リセットモーダル
+ */
+ // === END SPEC HEADER (keep synchronized with implementation) ===
+ 
 (function(){
   if (window.__cscsBJudgeInstalled) return;
   window.__cscsBJudgeInstalled = true;
@@ -188,9 +249,10 @@
         return;
       }
 
-      // 表示をクリア
+      // 表示をクリアしつつベース高さを維持（レイアウトのガタつき防止）
       host.innerHTML='';
-      host.removeAttribute('style');
+      const BASE = 'min-height:1em;display:block;';
+      host.setAttribute('style', BASE);
 
       const ESC=(s)=> (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
       function findChoiceText(letter){
@@ -229,6 +291,14 @@
   }
 
   async function run(){
+    // 先に #judge のベース高さを確保（描画前のガタつき防止）
+    try {
+      const host0 = document.getElementById('judge');
+      if (host0) {
+        host0.setAttribute('style', 'min-height:1em;display:block;');
+      }
+    } catch(_) {}
+
     // --- Reload Guard（同一タブ内の再読込での再加算を抑止） ---
     // URL 変化に左右されないよう、qid のみでガードキーを生成（タブ内一意）
     const guardKey = `cscs_ab_consumed:${qid}`;
