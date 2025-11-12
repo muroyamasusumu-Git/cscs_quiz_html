@@ -409,6 +409,21 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         if (window.__cscsBPreflightInstalled) return;
         window.__cscsBPreflightInstalled = true;
 
+        // === consumedタブなら最優先で Kt を削除（b_judge_record.js 起動前に潰す） ===
+        try {
+          const mDay = (location.pathname.match(/_build_cscs_(\d{8})/)||[])[1];
+          const n3   = (location.pathname.match(/q(\d{3})_b/i)||[])[1];
+          if (mDay && n3) {
+            const qid   = `${mDay}-${n3}`;
+            const gk    = `cscs_ab_consumed:${qid}`;
+            const ktKey = `cscs_from_a_token:${qid}`;
+            if (sessionStorage.getItem(gk) === '1') {
+              try { localStorage.removeItem(ktKey); } catch(_){}
+              console.debug('[B:preflight] removed Kt before record.js', {qid});
+            }
+          }
+        } catch(_){}
+
         // qid = YYYYMMDD-NNN（Bページ限定）
         const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
         const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_b(?:\.html)?(?:\/)?$/i);
@@ -417,8 +432,24 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         const num3 = mStem[1].slice(1);
         const qid  = `${day}-${num3}`;
 
-        const Kt = `cscs_from_a_token:${qid}`;
-        const Kc = `cscs_from_a:${qid}`;
+        const Kt  = `cscs_from_a_token:${qid}`;
+        const Kc  = `cscs_from_a:${qid}`;
+        const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorage）
+        const KsC = `cscs_ab_shadow_choice:${qid}`;  // 影choice（sessionStorage）
+
+        // ★ 初回到着フレームで Kt/Kc を「影」に退避 → localStorage からは見えなくする
+        try{
+          const hasShadow = sessionStorage.getItem(KsT);
+          const lt = localStorage.getItem(Kt);
+          const lc = localStorage.getItem(Kc);
+          if (!hasShadow && (lt || lc)) {
+            if (lt) { try{ sessionStorage.setItem(KsT, lt); }catch(_){} }
+            if (lc) { try{ sessionStorage.setItem(KsC, lc); }catch(_){} }
+            try{ localStorage.removeItem(Kt); }catch(_){}
+            // Kc は UI 復元に使うので local 側も残す（※消さない）
+            console.debug('[B:preflight] moved Kt/Kc to session shadow', { qid });
+          }
+        }catch(_){}
 
         // 画面左上に診断用パネル（B）
         const diag = document.createElement('div');
@@ -487,7 +518,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
           blog('sessionStorage get exception:', String(e));
         }
 
-        blog('arrived', { qid, Kt, Kc, initLocalToken, initLocalChoice, sessQid, sessToken, sessChoice });
+        const shadowToken  = (function(){ try{ return sessionStorage.getItem(KsT); }catch(_){ return null; } })();
+        const shadowChoice = (function(){ try{ return sessionStorage.getItem(KsC); }catch(_){ return null; } })();
+        blog('arrived', {
+          qid, Kt, Kc,
+          initLocalToken, initLocalChoice,
+          shadowToken: !!shadowToken,
+          shadowChoice: shadowChoice || null,
+          sessQid, sessToken: !!sessToken, sessChoice
+        });
 
         // --- ロールアップ（集計）ユーティリティ ---
         function ensureDayIndex(dayStr){
@@ -541,15 +580,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
         // ◆ロールアップへ即時反映（token/choice のどちらかがあれば記録）
         try{
-          if (initLocalToken || initLocalChoice) {
-            recordArrival(qid, initLocalToken, initLocalChoice || sessChoice || null);
-            try {
-              window.dispatchEvent(new CustomEvent('cscs:b-recorded', {
-                detail: { qid, token: !!initLocalToken, choice: initLocalChoice || sessChoice || null }
-              }));
-            } catch(_){}
-          } else {
-            blog('rollup skip: no token/choice yet');
+          // consumed タブ、または直後A→B初回（未消費）では rollup を保留
+          const gk = `cscs_ab_consumed:${qid}`;
+          const alreadyConsumed = sessionStorage.getItem(gk) === '1';
+          if (alreadyConsumed) {
+            blog('rollup skip: already consumed tab', { qid });
+          } else if (!alreadyConsumed) {
+            // 初回タブでも、まだ b_judge.js が tally 前の Kt を持つ状態。
+            // ここでは rollup を保留し、b_judge.js 側に任せる。
+            blog('rollup deferred: let b_judge.js handle tally', { qid });
           }
         }catch(e){
           blog('rollup exception:', String(e));
@@ -557,11 +596,13 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
         setPanel({
           qid,
-          localToken:  initLocalToken ? 'set' : 'null',
-          localChoice: initLocalChoice || 'null',
-          sessQid:     sessQid || 'null',
-          sessToken:   sessToken ? 'set' : 'null',
-          sessChoice:  sessChoice || 'null'
+          localToken:   initLocalToken ? 'set' : 'null',
+          localChoice:  initLocalChoice || 'null',
+          shadowToken:  (function(){ try{ return sessionStorage.getItem(KsT) ? 'set' : 'null'; }catch(_){ return 'err'; } })(),
+          shadowChoice: (function(){ try{ return sessionStorage.getItem(KsC) || 'null'; }catch(_){ return 'err'; } })(),
+          sessQid:      sessQid || 'null',
+          sessToken:    sessToken ? 'set' : 'null',
+          sessChoice:   sessChoice || 'null'
         });
 
         // 以降、誰が localStorage を書き換えるか監視（stack 付き）

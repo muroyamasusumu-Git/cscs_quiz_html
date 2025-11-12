@@ -2,6 +2,21 @@
   if (window.__cscsBJudgeInstalled) return;
   window.__cscsBJudgeInstalled = true;
 
+  // --- Preflight (tab-scoped): consumed タブなら最優先で Kt を即削除して再加算の芽を潰す ---
+  try {
+    // Bページの qid を URL から復元（_build_cscs_YYYYMMDD / qNNN_b）
+    const mDay  = (location.pathname.match(/_build_cscs_(\d{8})/)||[])[1];
+    const n3    = (location.pathname.match(/q(\d{3})_b/i)||[])[1];
+    if (mDay && n3) {
+      const qid   = `${mDay}-${n3}`;
+      const gk    = `cscs_ab_consumed:${qid}`;                  // guardKey は qid 固定
+      const ktKey = `cscs_from_a_token:${qid}`;                 // A→B トークン
+      if (sessionStorage.getItem(gk) === '1') {
+        try { localStorage.removeItem(ktKey); } catch(_) {}
+      }
+    }
+  } catch(_) {}
+
   const dlog = (...a)=>{ try{ console.debug('[B:judge]', ...a); }catch(_){} };
   const wlog = (...a)=>{ try{ console.warn('[B:judge]', ...a); }catch(_){} };
 
@@ -15,6 +30,8 @@
 
   const Kt = `cscs_from_a_token:${qid}`;
   const Kc = `cscs_from_a:${qid}`;
+  const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorage）
+  const KsC = `cscs_ab_shadow_choice:${qid}`;  // 影choice（sessionStorage）
 
   // ==== 1) util ====
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
@@ -29,29 +46,26 @@
   }
 
   function backfillFromSessionIfNeeded(){
-    try{
-      if(localStorage.getItem(Kt)) return false;
-      const sq=sessionStorage.getItem('cscs_last_token_qid');
-      const sv=sessionStorage.getItem('cscs_last_token_value');
-      const sc=sessionStorage.getItem('cscs_last_choice');
-      if(sq===qid && sv){
-        try{localStorage.setItem(Kt,sv);}catch(_){}
-        if(sc){try{localStorage.setItem(Kc,sc);}catch(_){}}
-        dlog('backfilled from sessionStorage', {qid});
-        return true;
-      }
-    }catch(e){wlog('backfill error',e);}
+    // 影トークン方式へ移行したため、A側ミラーからの復活は常時停止
+    try { dlog('backfill disabled (shadow-mode)', { qid }); } catch(_) {}
     return false;
   }
 
   async function readTokenWithRetries({retries=6,delayMs=30}={}){
-    backfillFromSessionIfNeeded();
+    // 1) 影トークン（sessionStorage）を最優先
+    try{
+      const st = sessionStorage.getItem(KsT);
+      const sc = sessionStorage.getItem(KsC);
+      if (st) return { token: st, choice: (sc || null) };
+    }catch(_){}
+
+    // 2) backfill は行わない。localStorage に Kt が残っている場合のみ読む
     for(let i=0;i<=retries;i++){
       try{
-        const t=localStorage.getItem(Kt);
-        const c=localStorage.getItem(Kc);
-        if(t) return {token:t,choice:(c||null)};
-      }catch(e){wlog('read token fail',e);}
+        const t = localStorage.getItem(Kt);
+        const c = localStorage.getItem(Kc);
+        if (t) return { token: t, choice: (c || null) };
+      }catch(e){ wlog('read token fail', e); }
       if(i<retries) await sleep(delayMs);
     }
     return {token:null,choice:null};
@@ -216,8 +230,8 @@
 
   async function run(){
     // --- Reload Guard（同一タブ内の再読込での再加算を抑止） ---
-    // qid は上で確定済み。ページ固有性を持たせるため pathname+search を含める
-    const guardKey = `cscs_ab_consumed:${qid}:${location.pathname}${location.search}`;
+    // URL 変化に左右されないよう、qid のみでガードキーを生成（タブ内一意）
+    const guardKey = `cscs_ab_consumed:${qid}`;
     let alreadyConsumed = false;
     try { alreadyConsumed = sessionStorage.getItem(guardKey) === '1'; } catch(_) {}
 
@@ -263,9 +277,13 @@
 
     // 集計は token があり、かつ未消費タブのときだけ実行
     if (canTally) {
-      tally(result, userChoice);
+      tally(result,userChoice);
+      // 初回 tally 後は A→B トークンと影トークンを確実に破棄
+      try { localStorage.removeItem(Kt); } catch(_) {}
+      try { sessionStorage.removeItem(KsT); } catch(_) {}
+      try { sessionStorage.removeItem(KsC); } catch(_) {}
     } else {
-      dlog('tally skipped', { qid, alreadyConsumed, hasToken: !!token, hasChoice: !!finalChoice });
+      dlog('tally skipped',{qid,alreadyConsumed,hasToken:!!token,hasChoice:!!finalChoice});
     }
   }
 
