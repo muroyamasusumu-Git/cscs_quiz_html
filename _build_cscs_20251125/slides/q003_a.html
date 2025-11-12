@@ -433,23 +433,45 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
           diag.textContent = '[B:preflight] ' + Object.entries(o).map(([k,v]) => `${k}: ${v}`).join(' | ');
         }catch(_){ } };
 
-        // 到着直後：不足なら sessionStorage から即時バックフィル
+        // 到着直後：不足なら sessionStorage から即時バックフィル（★リロード時は実行しない＆一度使ったら即消す）
         let initLocalToken = null, initLocalChoice = null;
         try {
+          // 1) 既存 localStorage を確認
           initLocalToken  = localStorage.getItem(Kt);
           initLocalChoice = localStorage.getItem(Kc);
 
-          if (!initLocalToken) {
+          // 2) ブラウザのナビゲーション種別を判定（reload の場合はバックフィル禁止）
+          let isReload = false;
+          try {
+            const nav = (performance && performance.getEntriesByType)
+              ? (performance.getEntriesByType('navigation')[0] || null)
+              : null;
+            isReload = !!(nav && nav.type === 'reload');
+          } catch(_){ /* noop */ }
+
+          // 3) token が無く、かつリロードではない場合のみ sessionStorage から一度だけ補填
+          if (!initLocalToken && !isReload) {
             const sq = sessionStorage.getItem('cscs_last_token_qid');
             const sv = sessionStorage.getItem('cscs_last_token_value');
             const sc = sessionStorage.getItem('cscs_last_choice');
+
             if (sq === qid && sv) {
+              // backfill → 直後に sessionStorage を必ず消去（※リロード時の再バックフィル防止）
               try { localStorage.setItem(Kt, sv); } catch(_){}
               if (sc) { try { localStorage.setItem(Kc, sc); } catch(_){ } }
+
+              try {
+                sessionStorage.removeItem('cscs_last_token_qid');
+                sessionStorage.removeItem('cscs_last_token_value');
+                sessionStorage.removeItem('cscs_last_choice');
+              } catch(_){}
+
               initLocalToken  = localStorage.getItem(Kt);
               initLocalChoice = localStorage.getItem(Kc);
-              blog('backfilled from sessionStorage:', { qid, Kt, Kc });
+              blog('backfilled from sessionStorage (once, then cleared):', { qid, Kt, Kc });
             }
+          } else if (isReload) {
+            blog('skip backfill on reload');
           }
         } catch (e) {
           blog('localStorage get exception:', String(e));

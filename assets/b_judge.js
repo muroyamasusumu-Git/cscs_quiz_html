@@ -1,4 +1,4 @@
-// b_judge.js — 正答判定＋日次/全期間リアルタイム集計（A→Bトークン連携）
+async function run(){// b_judge.js — 正答判定＋日次/全期間リアルタイム集計（A→Bトークン連携）
 (function(){
   if (window.__cscsBJudgeInstalled) return;
   window.__cscsBJudgeInstalled = true;
@@ -216,8 +216,26 @@
   }
 
   async function run(){
+    // --- Reload Guard（同一タブ内の再読込での再加算を抑止） ---
+    // qid は上で確定済み。ページ固有性を持たせるため pathname+search を含める
+    const guardKey = `cscs_ab_consumed:${qid}:${location.pathname}${location.search}`;
+    let alreadyConsumed = false;
+    try { alreadyConsumed = sessionStorage.getItem(guardKey) === '1'; } catch(_) {}
+
+    // 既にこのタブで消費済み（＝リロード）の場合は、先に A→B トークンを除去して以降の加算条件を不成立にする
+    if (alreadyConsumed) {
+      try { localStorage.removeItem(Kt); } catch(_) {}
+      try { localStorage.removeItem(Kc); } catch(_) {}
+    }
+
+    // 従来どおりトークン読み取り（上で除去されていれば token は null になる）
     const {token,choice}=await readTokenWithRetries({retries:6,delayMs:30});
     if(!token){wlog('no token (skip tally)',{qid});return;}
+
+    // 初回到着（＝このタブで未消費）なら consumed mark を立てる
+    if (!alreadyConsumed) {
+      try { sessionStorage.setItem(guardKey, '1'); } catch(_) {}
+    }
 
     const userChoice=(choice||getChoiceFallbackFromURL()||'').toUpperCase();
     if(!/^[A-E]$/.test(userChoice)){wlog('no choice (skip)',{qid});return;}

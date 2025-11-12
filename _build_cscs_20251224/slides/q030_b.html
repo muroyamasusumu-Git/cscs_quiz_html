@@ -373,31 +373,5 @@ ol.opts li.is-correct a.opt-link {
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 
-
-    <script>
-    (function(){
-      try{
-        const href = location.href;
-        const choice = (href.match(/[?&]choice=([A-E])/i)||[])[1]||"";
-        const day = (href.match(/_build_cscs_(\d{8})/i)||[])[1]||"";
-        const num = (href.match(/q(\d{3})_b/i)||[])[1]||"";
-        if(!day || !num) return;
-        const qid = `${day}-${num}`;
-        // CSCS.recordResult or record_result を順に探す
-        const f = (window.CSCS && typeof window.CSCS.recordResult==="function") ?
-                    window.CSCS.recordResult :
-                    (typeof window.record_result==="function" ? window.record_result : null);
-        if(f){
-          console.log("🧩 auto record shim: calling record function", qid, choice);
-          f(qid, choice, true);
-        }else{
-          console.warn("⚠️ auto record shim: record function not found");
-        }
-      }catch(e){
-        console.warn("⚠️ auto record shim failed:", e);
-      }
-    })();
-    </script>
-    
 </body>
 </html>

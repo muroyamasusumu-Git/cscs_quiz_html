@@ -3,6 +3,75 @@
 // Bパート：正誤判定＋日替わり集計＋3連正解トラッキング
 // JST対応・問題別総試行／計測済み／未計測付き
 // -------------------------------------------
+// ===========================================================
+// 📊 CSCS 計測仕様サマリー（b_judge_record.js）
+// JST基準：YYYYMMDD
+//
+// 🧮 記録対象とキー一覧
+//
+// ┌────────────┬───────────────────────────────┬───────────────────────────────────────────────────────┐
+// │ 区分       │ キー名（prefix）                      │ 内容・カウント条件・備考                                │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 日次試行系 │ cscs_correct_attempts_<日付>         │ 当日中の正解試行数（Bパート到達・正解ごとに +1）            │
+// │             │ cscs_wrong_attempts_<日付>           │ 当日中の不正解試行数（Bパート到達・不正解ごとに +1）        │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 日次ユニーク│ cscs_correct_done:<日付>              │ 当日に1回でも正解した印。初回のみ "1"                     │
+// │             │ cscs_wrong_done:<日付>                │ 当日に1回でも不正解した印。初回のみ "1"                   │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 日数カウンタ│ cscs_correct_days_total              │ 正解した「日」の累計数。*_done 新規立ち上げ時 +1             │
+// │             │ cscs_wrong_days_total                │ 不正解した「日」の累計数。同上                            │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 日別ログ    │ cscs_correct_attempt_log_<日付>       │ 当日の全正解ログ。{ts,qid,choice,counted} の配列            │
+// │             │ cscs_wrong_attempt_log_<日付>         │ 当日の全不正解ログ。同構造                                 │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 問題別累計 │ cscs_q_correct_total:{qid}           │ その問題が正解した延べ回数（正規ルートに統合。毎回 +1）     │
+// │             │ cscs_q_wrong_total:{qid}             │ その問題が不正解した延べ回数（正規ルートに統合。毎回 +1）   │
+// │             │ cscs_q_correct_counted_total:{qid}    │ “ユニーク採用”正解（同日初回の正解時 +1。日次と同期）        │
+// │             │ cscs_q_wrong_counted_total:{qid}      │ “ユニーク採用”不正解（同日初回の不正解時 +1。日次と同期）    │
+// │             │ cscs_q_correct_uncounted_total:{qid}  │ 同日2回目以降の正解（正規ルートに統合）                      │
+// │             │ cscs_q_wrong_uncounted_total:{qid}    │ 同日2回目以降の不正解（正規ルートに統合）                    │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 不正解履歴 │ cscs_wrong_log                        │ {qid: 累積不正回数} の連想配列形式（軽量マップ）            │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 連続正解   │ cscs_correct_streak_len               │ 現在の連続正解数                                           │
+// │             │ cscs_correct_streak3_total            │ 3連正解達成回数の累計                                     │
+// │             │ cscs_correct_streak3_log              │ 3連正解達成履歴。{ts,qid,day,choice} の配列                │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 実行メタ   │ cscs_current_runId_<日付>            │ その日の一意ランID（セッション識別用）                     │
+// │             │ cscs_last_seen_day                   │ 直近に計測した日付（JST基準）                              │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 問題別累計 │ cscs_q_correct_total:{qid}           │ その問題が正解した延べ回数（全日通算。毎回 +1）             │
+// │             │ cscs_q_wrong_total:{qid}             │ その問題が不正解した延べ回数（全日通算。毎回 +1）           │
+// │             │ cscs_q_correct_counted_total:{qid}    │ “ユニーク採用”正解（同日に初回のみ +1）                     │
+// │             │ cscs_q_wrong_counted_total:{qid}      │ “ユニーク採用”不正解（同日に初回のみ +1）                   │
+// │             │ cscs_q_correct_uncounted_total:{qid}  │ 同日2回目以降の正解                                         │
+// │             │ cscs_q_wrong_uncounted_total:{qid}    │ 同日2回目以降の不正解                                       │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+//
+// ⚙️ カウント条件まとめ
+// - A→B 正規遷移かつトークン存在時のみ有効
+// - B直叩き／リロード時はノーカウント
+// - その日初めての正解/不正解時 → *_done フラグを立てる + *_counted_total 加算
+// - 同日2回目以降 → *_uncounted_total のみ加算
+// - 正解: streak_len++、不正解: streak_len=0
+// - 3連正解時に streak3_total +1、ログに記録
+//
+// 🕒 日付基準
+// JST (UTC+9) の "YYYYMMDD" 文字列で集計
+// 🆕 2025-11-12 更新
+// ・各問題ごとの総正解数 / 総不正解数を個別キー（cscs_q_correct_total:QID, cscs_q_wrong_total:QID）として集計追加
+// 🆕 2025-11-12 修正
+// ・QID（例: 20250926-001）のハイフンを常に ASCII "-" に統一。
+//   全角ハイフン混入による localStorage キー不一致を防止。
+// 🆕 2025-11-13 正規化
+// ・問題別集計（cscs_q_* 系）を日別・全体集計と同一フローに統合。
+// ・これにより、各問題ごとの延べ試行・ユニーク試行も
+//   日別・全体カウンタと同一ロジックで同期。
+// ・正解抽出ロジックを本流 (b_judge.js) と完全統一。
+//   → pickCorrectLetter() が ol.opts li.is-correct を最優先に参照。
+//   → #judge（空 .answer）を除外して誤検出を防止。
+//   → メタ情報 (#cscs-meta) およびテキスト抽出はフォールバック扱い。
+// ===========================================================
 (function(){
   // …（ここに前回の修正版スクリプト全文をそのまま貼り付け）…
     (function(){
@@ -30,7 +99,22 @@
         return /^[ABCD]$/.test(c) ? c : "";
       }
       function pickCorrectLetter(){
-        // 1) cscs-meta 最優先
+        // 0) 本流と同じ方式：ol.opts li.is-correct から判定（最優先）
+        try{
+          var ol = document.querySelector('ol.opts');
+          if (ol) {
+            // A起点の並びを前提に、is-correct の li のインデックスから A/B/C/D を算出
+            var lis = Array.prototype.slice.call(ol.querySelectorAll('li'));
+            var idx = lis.findIndex(function(li){ return li.classList.contains('is-correct'); });
+            if (idx >= 0) {
+              var base = 65; // 'A'.charCodeAt(0)
+              var letter = String.fromCharCode(base + idx);
+              if (/^[ABCD]$/.test(letter)) return letter;
+            }
+          }
+        }catch(_){}
+
+        // 1) cscs-meta フォールバック
         try{
           var el = document.getElementById('cscs-meta');
           if(el){
@@ -39,16 +123,20 @@
             if(/^[ABCD]$/.test(c)) return c;
           }
         }catch(_){}
-        // 2) #judge / .answer からテキスト抽出
+
+        // 2) テキスト抽出フォールバック
         try{
           var t = "";
           var j = document.getElementById('judge');
           if(j) t += " " + (j.textContent||j.innerText||"");
-          var a = document.querySelector('.answer');
+          // 空の #judge.answer を避けるため、「#judge 以外の .answer」を優先
+          var a = document.querySelector('.answer:not(#judge)');
+          if(!a){ a = document.querySelector('.answer'); }
           if(a) t += " " + (a.textContent||"");
           var m = t.match(/[正せ][解い]\s*[:：]?\s*([ABCD])/i);
           if(m && m[1]) return m[1].toUpperCase();
         }catch(_){}
+
         return "";
       }
       function incIntLS(key, by){
@@ -84,7 +172,8 @@
       var dayPath  = getDayFromPath();           // 例 "20250926"（qid用・後方互換）
       var dayPlay  = getTodayYYYYMMDD_JST();     // 例 "20251110"（JSTの実プレイ日ベース）
       var qnum     = getQNumFromPath();          // 例 "001"
-      var qid      = dayPath + "-" + qnum;       // 例 "20250926-001"（既存互換）
+      // ⚙️ 2025-11-12 修正: QID のハイフンを常に ASCII "-" に統一（全角・異体字対策）
+      var qid      = (dayPath + "-" + qnum).replace(/[^\x20-\x7E]/g, "-");  // 例 "20250926-001"
 
       // A→Bトークンが無ければ（直叩き・リロード）はノーカウント
       // 後方互換：旧 "cscs_from_a:" と新 "cscs_from_a_token:" の両方を許可
@@ -146,11 +235,9 @@
       //            ログ -> cscs_correct_streak3_log (配列)
 
       if(isCorrect){
-        // 今日の試行回数（正解：全体）
+        // 今日の試行回数（正解：全体＋問題別総試行を正規フローに統合）
         incIntLS("cscs_correct_attempts_" + dayPlay, 1);
-
-        // 問題別：総試行（正解）
-        incPerProblem("cscs_q_correct_total:", qid, 1);
+        incIntLS("cscs_q_correct_total:" + qid, 1);
 
         // その日の"正解"ユニーク消費状況
         var cFlag = "cscs_correct_done:" + dayPlay;
@@ -159,11 +246,11 @@
           // 全体：日数の累計＋今日のユニーク消費
           incIntLS("cscs_correct_days_total", 1);
           try{ localStorage.setItem(cFlag, "1"); }catch(_){}
-          // 問題別："計測された"正解
-          incPerProblem("cscs_q_correct_counted_total:", qid, 1);
+          // 問題別："計測された"正解（正規フローに統合）
+          incIntLS("cscs_q_correct_counted_total:" + qid, 1);
         }else{
           // 問題別："計測されない"正解（同日2回目以降や他問題で既に消費済み）
-          incPerProblem("cscs_q_correct_uncounted_total:", qid, 1);
+          incIntLS("cscs_q_correct_uncounted_total:" + qid, 1);
         }
 
         // ---- 3連正解ストリーク（非重複：3達成ごとに1加算、達成時に長さを0にリセット）----
@@ -190,12 +277,12 @@
           carr.push({ ts: Date.now(), qid: qid, choice: choice, counted: (!cDone ? 1 : 0) });
           localStorage.setItem(ck, JSON.stringify(carr));
         }catch(_){}
-      }else{
-        // 今日の試行回数（不正：全体）
-        incIntLS("cscs_wrong_attempts_" + dayPlay, 1);
 
-        // 問題別：総試行（不正）
-        incPerProblem("cscs_q_wrong_total:", qid, 1);
+        // （重複加算防止）問題別の総正解は incPerProblem("cscs_q_correct_total:", qid, 1) で既に加算済み
+      }else{
+        // 今日の試行回数（不正：全体＋問題別総試行を正規フローに統合）
+        incIntLS("cscs_wrong_attempts_" + dayPlay, 1);
+        incIntLS("cscs_q_wrong_total:" + qid, 1);
 
         // その日の"不正"ユニーク消費状況
         var wFlag = "cscs_wrong_done:" + dayPlay;
@@ -204,11 +291,11 @@
           // 全体：日数の累計＋今日のユニーク消費
           incIntLS("cscs_wrong_days_total", 1);
           try{ localStorage.setItem(wFlag, "1"); }catch(_){}
-          // 問題別："計測された"不正
-          incPerProblem("cscs_q_wrong_counted_total:", qid, 1);
+          // 問題別："計測された"不正（正規フローに統合）
+          incIntLS("cscs_q_wrong_counted_total:" + qid, 1);
         }else{
           // 問題別："計測されない"不正
-          incPerProblem("cscs_q_wrong_uncounted_total:", qid, 1);
+          incIntLS("cscs_q_wrong_uncounted_total:" + qid, 1);
         }
 
         // 不正解が出たらストリークはリセット
@@ -229,6 +316,8 @@
           warr.push({ ts: Date.now(), qid: qid, choice: choice, counted: (!wDone ? 1 : 0) });
           localStorage.setItem(wk, JSON.stringify(warr));
         }catch(_){}
+
+        // （重複加算防止）問題別の総不正解は incPerProblem("cscs_q_wrong_total:", qid, 1) で既に加算済み
       }
     })();
 })();
