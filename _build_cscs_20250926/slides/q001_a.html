@@ -908,11 +908,44 @@ h1 { font-size: var(--h1-fs, inherit); }
       <div style="margin-bottom:4px;opacity:.8;">SYNC test: <b>${QID}</b></div>
       <div id="cscs_sync_totals" style="margin-bottom:6px;font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>
       <button id="cscs_sync_ok" style="margin-right:6px">+correct</button>
-      <button id="cscs_sync_ng">+incorrect</button>
+      <button id="cscs_sync_ng" style="margin-right:6px">+incorrect</button>
+      <button id="cscs_sync_reset">reset</button>
     `;
     document.body.appendChild(box);
+
+    // 正解カウント +1
     box.querySelector("#cscs_sync_ok").onclick = () => CSCS_SYNC.recordCorrect();
+
+    // 不正解カウント +1
     box.querySelector("#cscs_sync_ng").onclick = () => CSCS_SYNC.recordIncorrect();
+
+    // SYNC上のカウントをリセット（KVをクリア）するテスト用ボタン
+    box.querySelector("#cscs_sync_reset").onclick = async () => {
+      try {
+        const res = await fetch("/api/sync/reset", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}) // ボディは空オブジェクト（サーバ側で全体リセット扱い）
+        });
+        if (!res.ok) {
+          throw new Error(res.status + " " + res.statusText);
+        }
+        const latest = await res.json();
+        console.log("[SYNC] reset done:", latest);
+
+        // この問題の最新トータルを 0 クリア後の状態としてUIに反映
+        if (QID && latest && typeof latest === "object") {
+          const nowCorrect = (latest.correct && latest.correct[QID]) || 0;
+          const nowIncorrect = (latest.incorrect && latest.incorrect[QID]) || 0;
+          updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
+        } else {
+          // 念のため強制的に 0 / 0 を表示
+          updateSyncTotalsDisplay(0, 0);
+        }
+      } catch (e) {
+        console.warn("[SYNC] reset failed", e);
+      }
+    };
   })();
 
   // オンライン復帰時に残っていたキューを再送
