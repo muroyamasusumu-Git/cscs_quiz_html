@@ -255,7 +255,10 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   var KEY_RESULTS = "cscs_results";
   var MARK_PREFIX = "cscs_sync_sent:";  // 同じ解答(row.ts)には一度しか送らないための印
 
-  function findLatestRow(day, stem){
+  // ★ 変更ポイント：
+  //   day/stem では絞り込まず、cscs_results の中で
+  //   「ts が最大のレコード」を 1件だけ採用する
+  function findLatestRow(){
     var raw, arr;
     try{
       raw = localStorage.getItem(KEY_RESULTS) || "[]";
@@ -263,19 +266,21 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     }catch(_){
       arr = [];
     }
-    if (!Array.isArray(arr)) return null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+
     var latest = null;
     for (var i = 0; i < arr.length; i++){
       var r = arr[i];
-      if (!r || r.day !== day || r.stem !== stem) continue;
-      if (typeof r.ts !== "number") continue;
+      if (!r || typeof r.ts !== "number") continue;
+      // correct が boolean か number 的な値を持っているものだけを対象
+      if (typeof r.correct !== "boolean" && typeof r.correct !== "number") continue;
       if (!latest || r.ts > latest.ts) latest = r;
     }
     return latest;
   }
 
   async function sendOnce(){
-    var row = findLatestRow(info.day, info.stem);
+    var row = findLatestRow();
     if (!row) return;
 
     // 「day + stem + ts」でこの解答を一意に識別
