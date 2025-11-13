@@ -274,207 +274,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     </script>
         
 
-      <script>
-      (function () {
-        // このページの QID を URL から組み立てる（例: 20250926:q001）
-        function detectQidFromLocation() {
-          // /_build_cscs_YYYYMMDD/slides/qNNN_b または qNNN_b.html から YYYYMMDD と NNN を取る
-          const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
-          if (!m) return null;
-          const day = m[1]; // YYYYMMDD
-          const num = m[2]; // NNN
-          return day + ":q" + num;
-        }
-
-        // ユーザーの選択肢を URL (?choice=A など) から取得
-        function detectUserChoice() {
-          try {
-            const params = new URLSearchParams(location.search);
-            const choice = params.get("choice");
-            if (!choice) return null;
-            const up = choice.trim().toUpperCase();
-            const letters = ["A", "B", "C", "D"];
-            return letters.includes(up) ? up : null;
-          } catch (e) {
-            console.warn("[SYNC_TEST] failed to detect userChoice", e);
-            return null;
-          }
-        }
-
-        // 正解の選択肢を BパートHTMLから検出（.opts li.is-correct の位置）
-        function detectCorrectChoice() {
-          try {
-            const ol = document.querySelector("ol.opts");
-            if (!ol) return null;
-            const lis = Array.prototype.slice.call(ol.querySelectorAll("li"));
-            if (!lis.length) return null;
-            const idx = lis.findIndex(function (li) {
-              return li.classList.contains("is-correct");
-            });
-            if (idx === -1) return null;
-            const letters = ["A", "B", "C", "D"];
-            return letters[idx] || null;
-          } catch (e) {
-            console.warn("[SYNC_TEST] failed to detect correctChoice", e);
-            return null;
-          }
-        }
-
-        // ▼ SYNCテストUI用：右下の「correct / incorrect 表示」を更新
-        function updateSyncTotalsDisplay(correctCount, incorrectCount) {
-          const el = document.getElementById("cscs_sync_totals_b");
-          if (!el) return;
-          el.textContent =
-            "correct:" + (correctCount | 0) + " / incorrect:" + (incorrectCount | 0);
-        }
-
-        // ▼ SYNCテストUI用：右下に小さな表示BOXだけを出す（ボタンなし）
-        function addSyncBox() {
-          if (document.getElementById("cscs_sync_box_b")) return; // 二重生成防止
-          const box = document.createElement("div");
-          box.id = "cscs_sync_box_b";
-          box.style.cssText =
-            "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;" +
-            "border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui;" +
-            "box-shadow:0 0 0 1px rgba(0,0,0,.4);";
-          box.innerHTML =
-            '<div style="margin-bottom:4px;opacity:.8;">SYNC(B): <b>' +
-            (QID || "unknown") +
-            '</b></div>' +
-            '<div id="cscs_sync_totals_b" style="font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>';
-          document.body.appendChild(box);
-        }
-
-        // ▼ SYNC済みフラグ用のキーを生成（例: cscs_sync_sent:20250926:q001）
-        function getSyncSentKey(qid) {
-          return "cscs_sync_sent:" + qid;
-        }
-
-        // ▼ 現在のサーバ状態を取得して Bパート表示用BOXに反映
-        async function fetchAndDisplayTotals() {
-          if (!QID) return;
-          try {
-            const r = await fetch("/api/sync/state");
-            if (!r.ok) throw new Error(r.status + " " + r.statusText);
-            const s = await r.json();
-            const nowCorrect = (s.correct && s.correct[QID]) || 0;
-            const nowIncorrect = (s.incorrect && s.incorrect[QID]) || 0;
-            console.log(
-              "[SYNC_TEST] (B) " +
-                QID +
-                " server totals → correct:" +
-                nowCorrect +
-                ", incorrect:" +
-                nowIncorrect
-            );
-            updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
-          } catch (e) {
-            console.warn("[SYNC_TEST] (B) fetch state failed", e);
-          }
-        }
-
-        // 判定結果を SYNC (/api/sync/merge) に1回だけ送信する簡易版ヘルパ
-        async function sendToSync(judge, qid) {
-          try {
-            const payload = {
-              correctDelta: {},
-              incorrectDelta: {}
-            };
-            if (judge === "correct") {
-              payload.correctDelta[qid] = 1;
-            } else {
-              payload.incorrectDelta[qid] = 1;
-            }
-
-            const res = await fetch("/api/sync/merge", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            if (!res.ok) {
-              throw new Error(res.status + " " + res.statusText);
-            }
-            const latest = await res.json();
-            console.log("[SYNC_TEST] SYNC 送信成功:", latest);
-
-            // 送信後の最新トータルを、この問題のBOXに反映
-            if (QID && latest && typeof latest === "object") {
-              const nowCorrect = (latest.correct && latest.correct[QID]) || 0;
-              const nowIncorrect = (latest.incorrect && latest.incorrect[QID]) || 0;
-              updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
-            }
-
-            // ★ 成功したので、このQIDは SYNC 済みとして localStorage に記録
-            try {
-              const key = getSyncSentKey(qid);
-              localStorage.setItem(key, "1");
-              console.log("[SYNC_TEST] SYNC済みフラグを保存:", key);
-            } catch (e) {
-              console.warn("[SYNC_TEST] SYNC済みフラグの保存に失敗しました", e);
-            }
-          } catch (e) {
-            console.warn(
-              "[SYNC_TEST] SYNC 送信に失敗しました（今回はクラウド側のカウントは変化しません）",
-              e
-            );
-          }
-        }
-
-        const QID = detectQidFromLocation();
-
-        window.addEventListener("DOMContentLoaded", function () {
-          if (!QID) {
-            console.warn("[SYNC_TEST] QID not detected from location");
-            return;
-          }
-
-          // 右下に表示BOXを出し、現在のSYNC値を表示
-          addSyncBox();
-          fetchAndDisplayTotals();
-
-          // すでにこの問題は SYNC 済みなら、以降の送信処理はスキップ
-          try {
-            const key = getSyncSentKey(QID);
-            const stored = localStorage.getItem(key);
-            if (stored === "1") {
-              console.log(
-                "[SYNC_TEST] このQIDはすでにSYNC済みのため、送信処理をスキップします。QID:",
-                QID
-              );
-              return;
-            }
-          } catch (e) {
-            console.warn(
-              "[SYNC_TEST] SYNC済みフラグの読み込みに失敗しました（通常通り判定・送信を試みます）",
-              e
-            );
-          }
-
-          const user = detectUserChoice();
-          const correct = detectCorrectChoice();
-
-          console.log("[SYNC_TEST] QID:", QID, "userChoice:", user, "correctChoice:", correct);
-
-          if (!user || !correct) {
-            console.log(
-              "[SYNC_TEST] 判定に必要な情報が不足しているため、SYNC連携はスキップします。"
-            );
-            return;
-          }
-
-          const judge = user === correct ? "correct" : "incorrect";
-          console.log(
-            "[SYNC_TEST] 判定結果:",
-            judge,
-            "→ SYNC に送信を試みます（Bパート本番テスト）"
-          );
-          // ★ ここでクラウド側のカウンタに +1 を試みる（ローカルの挙動はまだ変更しない）
-          sendToSync(judge, QID);
-        });
-      })();
-      </script>
-    
-
 <link rel="stylesheet" href="../../assets/wrong_badge.css">
 <script src="../../assets/wrong_badge.js" defer></script>
 
@@ -639,8 +438,170 @@ ol.opts li.is-correct a.opt-link {
   </div>
 <script type="application/json" id="cscs-meta">{"qid": "2025年9月26日-001", "field": "運動生理学", "theme": "筋収縮", "level": "Level 1", "date": "2025年9月26日", "number": "1", "quiztype": "単一分野", "tags": {"cause": "活動電位伝達", "process": "Ca2+放出|トロポニン結合", "outcome": "アクチンミオシン相互作用開始"}}</script>
 
+
+  <!-- ▼ Bパートの正解/不正解判定ロジック + SYNC送信 + SYNCカウント表示（ローカルの仕様はまだ変えない） -->
+  <script>
+    (function () {
+      // このページの QID を URL から組み立てる（例: 20250926:q001）
+      function detectQidFromLocation() {
+        // /_build_cscs_YYYYMMDD/slides/qNNN_b または qNNN_b.html から YYYYMMDD と NNN を取る
+        const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+        if (!m) return null;
+        const day = m[1]; // YYYYMMDD
+        const num = m[2]; // NNN
+        return day + ":q" + num;
+      }
+
+      // ユーザーの選択肢を URL (?choice=A など) から取得
+      function detectUserChoice() {
+        try {
+          const params = new URLSearchParams(location.search);
+          const choice = params.get("choice");
+          if (!choice) return null;
+          const up = choice.trim().toUpperCase();
+          const letters = ["A", "B", "C", "D"];
+          return letters.includes(up) ? up : null;
+        } catch (e) {
+          console.warn("[SYNC_TEST] failed to detect userChoice", e);
+          return null;
+        }
+      }
+
+      // 正解の選択肢を BパートHTMLから検出（.opts li.is-correct の位置）
+      function detectCorrectChoice() {
+        try {
+          const ol = document.querySelector("ol.opts");
+          if (!ol) return null;
+          const lis = Array.prototype.slice.call(ol.querySelectorAll("li"));
+          if (!lis.length) return null;
+          const idx = lis.findIndex(function (li) {
+            return li.classList.contains("is-correct");
+          });
+          if (idx === -1) return null;
+          const letters = ["A", "B", "C", "D"];
+          return letters[idx] || null;
+        } catch (e) {
+          console.warn("[SYNC_TEST] failed to detect correctChoice", e);
+          return null;
+        }
+      }
+
+      // ▼ SYNCテストUI用：右下の「correct / incorrect 表示」を更新
+      function updateSyncTotalsDisplay(correctCount, incorrectCount) {
+        const el = document.getElementById("cscs_sync_totals_b");
+        if (!el) return;
+        el.textContent = "correct:" + correctCount + " / incorrect:" + incorrectCount;
+      }
+
+      // ▼ SYNCテストUI用：右下に小さな表示BOXだけを出す（ボタンなし）
+      function addSyncBox() {
+        if (document.getElementById("cscs_sync_box_b")) return; // 二重生成防止
+        const box = document.createElement("div");
+        box.id = "cscs_sync_box_b";
+        box.style.cssText =
+          "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;" +
+          "border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui";
+        box.innerHTML =
+          '<div style="margin-bottom:4px;opacity:.8;">SYNC(B): <b>' +
+          (QID || "unknown") +
+          '</b></div>' +
+          '<div id="cscs_sync_totals_b" style="font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>';
+        document.body.appendChild(box);
+      }
+
+      // ▼ 現在のサーバ状態を取得して Bパート表示用BOXに反映
+      async function fetchAndDisplayTotals() {
+        if (!QID) return;
+        try {
+          const r = await fetch("/api/sync/state");
+          if (!r.ok) throw new Error(r.status + " " + r.statusText);
+          const s = await r.json();
+          const nowCorrect = (s.correct && s.correct[QID]) || 0;
+          const nowIncorrect = (s.incorrect && s.incorrect[QID]) || 0;
+          console.log(
+            "[SYNC_TEST] (B) " + QID + " server totals → correct:" + nowCorrect + ", incorrect:" + nowIncorrect
+          );
+          updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
+        } catch (e) {
+          console.warn("[SYNC_TEST] (B) fetch state failed", e);
+        }
+      }
+
+      // 判定結果を SYNC (/api/sync/merge) に1回だけ送信する簡易版ヘルパ
+      async function sendToSync(judge, qid) {
+        try {
+          const payload = {
+            correctDelta: {},
+            incorrectDelta: {}
+          };
+          if (judge === "correct") {
+            payload.correctDelta[qid] = 1;
+          } else {
+            payload.incorrectDelta[qid] = 1;
+          }
+
+          const res = await fetch("/api/sync/merge", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) {
+            throw new Error(res.status + " " + res.statusText);
+          }
+          const latest = await res.json();
+          console.log("[SYNC_TEST] SYNC 送信成功:", latest);
+
+          // 送信後の最新トータルを、この問題のBOXに反映
+          if (QID && latest && typeof latest === "object") {
+            const nowCorrect = (latest.correct && latest.correct[QID]) || 0;
+            const nowIncorrect = (latest.incorrect && latest.incorrect[QID]) || 0;
+            updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
+          }
+        } catch (e) {
+          console.warn(
+            "[SYNC_TEST] SYNC 送信に失敗しました（今回はクラウド側のカウントは変化しません）",
+            e
+          );
+        }
+      }
+
+      const QID = detectQidFromLocation();
+
+      window.addEventListener("DOMContentLoaded", function () {
+        if (!QID) {
+          console.warn("[SYNC_TEST] QID not detected from location");
+          return;
+        }
+
+        // 右下に表示BOXを出し、現在のSYNC値を表示
+        addSyncBox();
+        fetchAndDisplayTotals();
+
+        const user = detectUserChoice();
+        const correct = detectCorrectChoice();
+
+        console.log("[SYNC_TEST] QID:", QID, "userChoice:", user, "correctChoice:", correct);
+
+        if (!user || !correct) {
+          console.log(
+            "[SYNC_TEST] 判定に必要な情報が不足しているため、SYNC連携はスキップします。"
+          );
+          return;
+        }
+
+        const judge = user === correct ? "correct" : "incorrect";
+        console.log(
+          "[SYNC_TEST] 判定結果:",
+          judge,
+          "→ SYNC に送信を試みます（Bパート本番テスト）"
+        );
+        // ★ ここでクラウド側のカウンタに +1 を試みる（ローカルの挙動はまだ変更しない）
+        sendToSync(judge, QID);
+      });
+    })();
+  </script>
+  
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
-
 </body>
 </html>
