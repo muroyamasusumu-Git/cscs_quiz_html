@@ -803,9 +803,9 @@ h1 { font-size: var(--h1-fs, inherit); }
 <script>
   // === ① このページの qid を URL から組み立てる（例: 20250927:q001） ===
   function detectQidFromLocation() {
-    // /_build_cscs_YYYYMMDD/slides/qNNN_a / qNNN_b またはそれぞれの .html から YYYYMMDD と NNN を取る
+    // /_build_cscs_YYYYMMDD/slides/qNNN_a または qNNN_a.html から YYYYMMDD と NNN を取る
     // 末尾の .html はあってもなくてもOK
-    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_[ab](?:\.html)?$/);
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
     if (!m) return null;
     const day = m[1];        // YYYYMMDD
     const num = m[2];        // NNN
@@ -821,6 +821,13 @@ h1 { font-size: var(--h1-fs, inherit); }
     if (!navigator.onLine) return; // オフラインなら溜めるだけ
     clearTimeout(sendTimer);
     sendTimer = setTimeout(sendDelta, 1000); // 1秒デバウンス
+  }
+
+  // ▼ テストUI用：右下ボックスの「correct / incorrect 表示」を更新
+  function updateSyncTotalsDisplay(correctCount, incorrectCount) {
+    const el = document.getElementById("cscs_sync_totals");
+    if (!el) return;
+    el.textContent = `correct:${correctCount} / incorrect:${incorrectCount}`;
   }
 
   async function sendDelta() {
@@ -847,6 +854,13 @@ h1 { font-size: var(--h1-fs, inherit); }
 
       const latest = await res.json();
       console.log("[SYNC] server state:", latest);
+
+      // この問題の最新トータル値を UI に反映
+      if (QID && latest && typeof latest === "object") {
+        const nowCorrect = (latest.correct && latest.correct[QID]) || 0;
+        const nowIncorrect = (latest.incorrect && latest.incorrect[QID]) || 0;
+        updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
+      }
     } catch (e) {
       console.warn("[SYNC] merge failed; will retry later", e);
     }
@@ -868,29 +882,18 @@ h1 { font-size: var(--h1-fs, inherit); }
       const r = await fetch("/api/sync/state");
       if (!r.ok) throw new Error(r.statusText);
       return r.json(); // {correct:{}, incorrect:{}, updatedAt}
-    },
-    async resetAll() {
-      // ユーザー単位で全問題の正誤をリセット
-      const r = await fetch("/api/sync/reset", {
-        method: "POST"
-      });
-      if (!r.ok) {
-        throw new Error(r.statusText);
-      }
-      const data = await r.json();
-      console.log("[SYNC] reset done:", data);
-      return data;
     }
   };
 
-  // === ④ 初回ロード時にサーバの累積を表示（Console） ===
+  // === ④ 初回ロード時にサーバの累積を表示（Console＆UI） ===
   window.addEventListener("DOMContentLoaded", async () => {
     if (!QID) return;
     try {
       const s = await CSCS_SYNC.fetchServer();
-      const nowCorrect = s.correct?.[QID] || 0;
-      const nowIncorrect = s.incorrect?.[QID] || 0;
+      const nowCorrect = (s.correct && s.correct[QID]) || 0;
+      const nowIncorrect = (s.incorrect && s.incorrect[QID]) || 0;
       console.log(`[SYNC] ${QID} server totals → correct:${nowCorrect}, incorrect:${nowIncorrect}`);
+      updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
     } catch (e) {
       console.warn("[SYNC] fetch state failed", e);
     }
@@ -902,21 +905,14 @@ h1 { font-size: var(--h1-fs, inherit); }
     const box = document.createElement("div");
     box.style.cssText = "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui";
     box.innerHTML = `
-      <div style="margin-bottom:6px;opacity:.8;">SYNC test: <b>${QID}</b></div>
+      <div style="margin-bottom:4px;opacity:.8;">SYNC test: <b>${QID}</b></div>
+      <div id="cscs_sync_totals" style="margin-bottom:6px;font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>
       <button id="cscs_sync_ok" style="margin-right:6px">+correct</button>
-      <button id="cscs_sync_ng" style="margin-right:6px">+incorrect</button>
-      <button id="cscs_sync_reset">reset</button>
+      <button id="cscs_sync_ng">+incorrect</button>
     `;
     document.body.appendChild(box);
     box.querySelector("#cscs_sync_ok").onclick = () => CSCS_SYNC.recordCorrect();
     box.querySelector("#cscs_sync_ng").onclick = () => CSCS_SYNC.recordIncorrect();
-    box.querySelector("#cscs_sync_reset").onclick = async () => {
-      try {
-        await CSCS_SYNC.resetAll();
-      } catch (e) {
-        console.warn("[SYNC] reset failed", e);
-      }
-    };
   })();
 
   // オンライン復帰時に残っていたキューを再送
