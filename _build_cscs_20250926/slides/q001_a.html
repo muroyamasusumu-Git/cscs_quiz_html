@@ -868,6 +868,18 @@ h1 { font-size: var(--h1-fs, inherit); }
       const r = await fetch("/api/sync/state");
       if (!r.ok) throw new Error(r.statusText);
       return r.json(); // {correct:{}, incorrect:{}, updatedAt}
+    },
+    async resetAll() {
+      // ユーザー単位で全問題の正誤をリセット
+      const r = await fetch("/api/sync/reset", {
+        method: "POST"
+      });
+      if (!r.ok) {
+        throw new Error(r.statusText);
+      }
+      const data = await r.json();
+      console.log("[SYNC] reset done:", data);
+      return data;
     }
   };
 
