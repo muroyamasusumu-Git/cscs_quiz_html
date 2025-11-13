@@ -197,12 +197,42 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         const num3 = mStem[1].slice(1);
         const qid  = `${day}-${num3}`;
 
-        // デバッグパネルは非表示（コンソール出力のみ）
+        // --- A用デバッグパネル（左上小窓） ---
+        let diag = null;
+        function ensurePanel(){
+          if (diag) return diag;
+          diag = document.createElement('div');
+          diag.id = 'cscs_token_diag_a';
+          diag.style.cssText =
+            'position:fixed;z-index:99999;left:8px;top:8px;max-width:46vw;' +
+            'font:12px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;' +
+            'background:rgba(22,22,22,.8);color:#fff;padding:8px 10px;' +
+            'border-radius:6px;white-space:pre-wrap;word-break:break-word;' +
+            'pointer-events:none;';
+          diag.textContent = '[A:nav-guard] init…';
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.appendChild(diag);
+          });
+          return diag;
+        }
+        function setPanel(obj){
+          try{
+            const d = ensurePanel();
+            d.textContent = '[A:nav-guard] ' +
+              Object.entries(obj).map(([k,v]) => `${k}: ${v}`).join(' | ');
+          }catch(_){}
+        }
+
+        // コンソール＋パネル両方に出すログ
         function dlog(...args){
           try{
             console.log('[A:nav-guard]', ...args);
           }catch(_){}
         }
+
+        // 初期状態を表示
+        ensurePanel();
+        setPanel({ qid, state: 'ready' });
 
         // 保存状態
         const SAVE = { tried:false, ok:false, lastHref:null, lastChoice:null };
@@ -259,6 +289,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
             return r === v;
           }catch(err){
             dlog('selftest NG:', String(err));
+            setPanel({ qid, state: 'selftest NG' });
             return false;
           }
         }
@@ -299,10 +330,17 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
             SAVE.lastChoice = choice || null;
 
             dlog('save:', { ok: SAVE.ok, choice: SAVE.lastChoice, wrote: !!rt });
+            setPanel({
+              qid,
+              state: SAVE.ok ? 'saved' : 'save-failed',
+              choice: SAVE.lastChoice || '-',
+              wrote: SAVE.ok ? 'yes' : 'no'
+            });
             return SAVE.ok;
           }catch(err){
             dlog('save exception:', String(err));
             SAVE.ok = false;
+            setPanel({ qid, state: 'exception', error: String(err) });
             return false;
           }
         }
@@ -316,6 +354,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         function navigateIfSaved(a){
           if (!SAVE.ok){
             dlog('nav blocked: token missing');
+            setPanel({ qid, state: 'nav-blocked', reason: 'no token' });
             return;
           }
           const url = new URL(SAVE.lastHref || a.getAttribute('href') || '', location.href);
@@ -365,10 +404,12 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
             const rt = localStorage.getItem(Kt);
             if (!rt) {
               dlog('click STOP (no token in localStorage)');
+              setPanel({ qid, state: 'click-stop', reason: 'no token in localStorage' });
               return;
             }
           } catch (e) {
             dlog('click STOP (exception on localStorage check):', String(e));
+            setPanel({ qid, state: 'click-stop', reason: 'exception on localStorage check' });
             return;
           }
 
@@ -390,10 +431,12 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
             const rt = localStorage.getItem(Kt);
             if (!rt) {
               dlog('kbd STOP (no token in localStorage)');
+              setPanel({ qid, state: 'kbd-stop', reason: 'no token in localStorage' });
               return;
             }
           } catch (e) {
             dlog('kbd STOP (exception on localStorage check):', String(e));
+            setPanel({ qid, state: 'kbd-stop', reason: 'exception on localStorage check' });
             return;
           }
 
