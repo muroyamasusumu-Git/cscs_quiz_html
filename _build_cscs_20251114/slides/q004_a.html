@@ -195,44 +195,14 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         if (!mDay || !mStem) return;
         const day  = mDay[1];
         const num3 = mStem[1].slice(1);
-        const qid  = `${day}-${num3}`;
+        const qid  = ${day}-${num3};
 
-        // --- A用デバッグパネル（左上小窓） ---
-        let diag = null;
-        function ensurePanel(){
-          if (diag) return diag;
-          diag = document.createElement('div');
-          diag.id = 'cscs_token_diag_a';
-          diag.style.cssText =
-            'position:fixed;z-index:99999;left:8px;top:8px;max-width:46vw;' +
-            'font:12px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;' +
-            'background:rgba(22,22,22,.8);color:#fff;padding:8px 10px;' +
-            'border-radius:6px;white-space:pre-wrap;word-break:break-word;' +
-            'pointer-events:none;';
-          diag.textContent = '[A:nav-guard] init…';
-          document.addEventListener('DOMContentLoaded', () => {
-            document.body.appendChild(diag);
-          });
-          return diag;
-        }
-        function setPanel(obj){
-          try{
-            const d = ensurePanel();
-            d.textContent = '[A:nav-guard] ' +
-              Object.entries(obj).map(([k,v]) => `${k}: ${v}`).join(' | ');
-          }catch(_){}
-        }
-
-        // コンソール＋パネル両方に出すログ
+        // デバッグパネルは非表示（コンソール出力のみ）
         function dlog(...args){
           try{
             console.log('[A:nav-guard]', ...args);
           }catch(_){}
         }
-
-        // 初期状態を表示
-        ensurePanel();
-        setPanel({ qid, state: 'ready' });
 
         // 保存状態
         const SAVE = { tried:false, ok:false, lastHref:null, lastChoice:null };
@@ -241,9 +211,9 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
           try{
             const a = new Uint32Array(2);
             crypto.getRandomValues(a);
-            return `${qid}:${a[0].toString(36)}${a[1].toString(36)}`;
+            return ${qid}:${a[0].toString(36)}${a[1].toString(36)};
           }catch(_){
-            return `${qid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+            return ${qid}:${Date.now()}:${Math.random().toString(36).slice(2)};
           }
         }
 
@@ -289,7 +259,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
             return r === v;
           }catch(err){
             dlog('selftest NG:', String(err));
-            setPanel({ qid, state: 'selftest NG' });
             return false;
           }
         }
@@ -301,8 +270,8 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
           const choice = pickChoice(a);
           const token  = makeToken();
-          const Kt = `cscs_from_a_token:${qid}`;
-          const Kc = `cscs_from_a:${qid}`;
+          const Kt = cscs_from_a_token:${qid};
+          const Kc = cscs_from_a:${qid};
 
           const selfOK = storageSelfTest();
           if (!selfOK){
@@ -330,17 +299,10 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
             SAVE.lastChoice = choice || null;
 
             dlog('save:', { ok: SAVE.ok, choice: SAVE.lastChoice, wrote: !!rt });
-            setPanel({
-              qid,
-              state: SAVE.ok ? 'saved' : 'save-failed',
-              choice: SAVE.lastChoice || '-',
-              wrote: SAVE.ok ? 'yes' : 'no'
-            });
             return SAVE.ok;
           }catch(err){
             dlog('save exception:', String(err));
             SAVE.ok = false;
-            setPanel({ qid, state: 'exception', error: String(err) });
             return false;
           }
         }
@@ -354,7 +316,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         function navigateIfSaved(a){
           if (!SAVE.ok){
             dlog('nav blocked: token missing');
-            setPanel({ qid, state: 'nav-blocked', reason: 'no token' });
             return;
           }
           const url = new URL(SAVE.lastHref || a.getAttribute('href') || '', location.href);
@@ -399,17 +360,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
           if (!SAVE.ok) await saveTokenFor(a);
 
           try {
-            const Kt = `cscs_from_a_token:${qid}`;
+            const Kt = cscs_from_a_token:${qid};
             await Promise.resolve();
             const rt = localStorage.getItem(Kt);
             if (!rt) {
               dlog('click STOP (no token in localStorage)');
-              setPanel({ qid, state: 'click-stop', reason: 'no token in localStorage' });
               return;
             }
           } catch (e) {
             dlog('click STOP (exception on localStorage check):', String(e));
-            setPanel({ qid, state: 'click-stop', reason: 'exception on localStorage check' });
             return;
           }
 
@@ -426,17 +385,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
           if (!SAVE.ok) await saveTokenFor(a);
 
           try {
-            const Kt = `cscs_from_a_token:${qid}`;
+            const Kt = cscs_from_a_token:${qid};
             await Promise.resolve();
             const rt = localStorage.getItem(Kt);
             if (!rt) {
               dlog('kbd STOP (no token in localStorage)');
-              setPanel({ qid, state: 'kbd-stop', reason: 'no token in localStorage' });
               return;
             }
           } catch (e) {
             dlog('kbd STOP (exception on localStorage check):', String(e));
-            setPanel({ qid, state: 'kbd-stop', reason: 'exception on localStorage check' });
             return;
           }
 
@@ -457,9 +414,9 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
           const mDay = (location.pathname.match(/_build_cscs_(\d{8})/)||[])[1];
           const n3   = (location.pathname.match(/q(\d{3})_b/i)||[])[1];
           if (mDay && n3) {
-            const qid   = `${mDay}-${n3}`;
-            const gk    = `cscs_ab_consumed:${qid}`;
-            const ktKey = `cscs_from_a_token:${qid}`;
+            const qid   = ${mDay}-${n3};
+            const gk    = cscs_ab_consumed:${qid};
+            const ktKey = cscs_from_a_token:${qid};
             if (sessionStorage.getItem(gk) === '1') {
               try { localStorage.removeItem(ktKey); } catch(_){}
               console.debug('[B:preflight] removed Kt before record.js', {qid});
@@ -473,12 +430,12 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         if (!mDay || !mStem) return;
         const day  = mDay[1];
         const num3 = mStem[1].slice(1);
-        const qid  = `${day}-${num3}`;
+        const qid  = ${day}-${num3};
 
-        const Kt  = `cscs_from_a_token:${qid}`;
-        const Kc  = `cscs_from_a:${qid}`;
-        const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorage）
-        const KsC = `cscs_ab_shadow_choice:${qid}`;  // 影choice（sessionStorage）
+        const Kt  = cscs_from_a_token:${qid};
+        const Kc  = cscs_from_a:${qid};
+        const KsT = cscs_ab_shadow_token:${qid};   // 影トークン（sessionStorage）
+        const KsC = cscs_ab_shadow_choice:${qid};  // 影choice（sessionStorage）
 
         // ★ 初回到着フレームで Kt/Kc を「影」に退避 → localStorage からは見えなくする
         try{
@@ -504,7 +461,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
         const blog = (...a) => { try { console.debug('[B:preflight]', ...a); } catch(_){} };
         const setPanel = (o) => { try{
-          diag.textContent = '[B:preflight] ' + Object.entries(o).map(([k,v]) => `${k}: ${v}`).join(' | ');
+          diag.textContent = '[B:preflight] ' + Object.entries(o).map(([k,v]) => ${k}: ${v}).join(' | ');
         }catch(_){ } };
 
         // 到着直後：不足なら sessionStorage から即時バックフィル（★リロード時は実行しない＆一度使ったら即消す）
@@ -573,7 +530,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
         // --- ロールアップ（集計）ユーティリティ ---
         function ensureDayIndex(dayStr){
-          const dk = `cscs_rollup:${dayStr}`;
+          const dk = cscs_rollup:${dayStr};
           let arr = [];
           try {
             const raw = localStorage.getItem(dk);
@@ -624,7 +581,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
         // ◆ロールアップへ即時反映（token/choice のどちらかがあれば記録）
         try{
           // consumed タブ、または直後A→B初回（未消費）では rollup を保留
-          const gk = `cscs_ab_consumed:${qid}`;
+          const gk = cscs_ab_consumed:${qid};
           const alreadyConsumed = sessionStorage.getItem(gk) === '1';
           if (alreadyConsumed) {
             blog('rollup skip: already consumed tab', { qid });
@@ -730,7 +687,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       return m ? m[1] : "unknown";
     }
     // その日の「現在の runId」を保存/取得するキー
-    function runKey(day){ return `cscs_current_runId_${day}`; }
+    function runKey(day){ return cscs_current_runId_${day}; }
 
     // 既存データから、その日の最大 runId を得る
     function getMaxRunIdForDay(day, all){
@@ -832,152 +789,6 @@ h1 { font-size: var(--h1-fs, inherit); }
   </div>
 <script type="application/json" id="cscs-meta">{"qid": "2025年11月14日-004", "field": "プログラムデザイン", "theme": "年間計画", "level": "Level 1", "date": "2025年11月14日", "number": "4", "quiztype": "単一分野", "tags": {"cause": "中級者対象", "process": "週3回頻度設定", "outcome": "回復平衡|刺激最適化"}}</script>
 
-      <script>
-      (function(){
-        if (window.__cscs_sync_box_a_installed) return;
-        window.__cscs_sync_box_a_installed = true;
-
-        function detectQidFromLocation(){
-          var mDay  = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1];
-          var mStem = (location.pathname.match(/(?:^|\/)(q\d{3})_a(?:\.html)?(?:\/)?$/i) || [])[1];
-          if (!mDay || !mStem) return null;
-          var num3 = mStem.slice(1);
-          return mDay + ":q" + num3;
-        }
-
-        var QID = detectQidFromLocation();
-        var currentCorrect = 0;
-        var currentIncorrect = 0;
-
-        function updateDisplay(c, ic){
-          currentCorrect = c|0;
-          currentIncorrect = ic|0;
-          var el = document.getElementById("cscs_sync_totals_a");
-          if (!el) return;
-          el.textContent = "correct:" + currentCorrect + " / incorrect:" + currentIncorrect;
-        }
-
-        function addBox(){
-          if (document.getElementById("cscs_sync_box_a")) return;
-          var box = document.createElement("div");
-          box.id = "cscs_sync_box_a";
-          box.style.cssText =
-            "position:fixed;right:12px;bottom:12px;z-index:9999;background:#222;color:#eee;" +
-            "border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui;" +
-            "box-shadow:0 0 0 1px rgba(0,0,0,.4);";
-
-          var title = document.createElement("div");
-          title.style.marginBottom = "4px";
-          title.style.opacity = "0.85";
-          title.innerHTML = 'SYNC(A): <b>' + (QID || "unknown") + "</b>";
-
-          var totals = document.createElement("div");
-          totals.id = "cscs_sync_totals_a";
-          totals.style.fontSize = "11px";
-          totals.style.marginBottom = "4px";
-          totals.style.opacity = "0.85";
-          totals.textContent = "correct:0 / incorrect:0";
-
-          var btnRow = document.createElement("div");
-          btnRow.style.display = "flex";
-          btnRow.style.gap = "4px";
-          btnRow.style.flexWrap = "wrap";
-
-          function makeBtn(label){
-            var b = document.createElement("button");
-            b.type = "button";
-            b.textContent = label;
-            b.style.fontSize = "10px";
-            b.style.padding = "2px 6px";
-            b.style.background = "#333";
-            b.style.color = "#fff";
-            b.style.border = "1px solid #555";
-            b.style.borderRadius = "4px";
-            b.style.cursor = "pointer";
-            return b;
-          }
-
-          var btnPlusC = makeBtn("+correct");
-          var btnPlusW = makeBtn("+wrong");
-          var btnReset = makeBtn("reset");
-
-          btnRow.appendChild(btnPlusC);
-          btnRow.appendChild(btnPlusW);
-          btnRow.appendChild(btnReset);
-
-          box.appendChild(title);
-          box.appendChild(totals);
-          box.appendChild(btnRow);
-
-          document.addEventListener("DOMContentLoaded", function(){
-            document.body.appendChild(box);
-          });
-
-          return { btnPlusC: btnPlusC, btnPlusW: btnPlusW, btnReset: btnReset };
-        }
-
-        async function fetchAndDisplayTotals(){
-          if (!QID) return;
-          try{
-            var r = await fetch("/api/sync/state");
-            if (!r.ok) throw new Error(r.status + " " + r.statusText);
-            var s = await r.json();
-            var c  = (s.correct   && s.correct[QID])   || 0;
-            var ic = (s.incorrect && s.incorrect[QID]) || 0;
-            console.log("[SYNC_TEST] (A) " + QID + " server totals → correct:" + c + ", incorrect:" + ic);
-            updateDisplay(c, ic);
-          }catch(e){
-            console.warn("[SYNC_TEST] (A) fetch state failed", e);
-          }
-        }
-
-        async function applyDelta(dc, di){
-          if (!QID) return;
-          try{
-            var payload = { correctDelta: {}, incorrectDelta: {} };
-            if (dc) payload.correctDelta[QID]   = dc;
-            if (di) payload.incorrectDelta[QID] = di;
-            var res = await fetch("/api/sync/merge", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            if (!res.ok) throw new Error(res.status + " " + res.statusText);
-            var latest = await res.json();
-            var c  = (latest.correct   && latest.correct[QID])   || 0;
-            var ic = (latest.incorrect && latest.incorrect[QID]) || 0;
-            updateDisplay(c, ic);
-          }catch(e){
-            console.warn("[SYNC_TEST] (A) merge failed", e);
-          }
-        }
-
-        function wireButtons(btns){
-          if (!btns) return;
-          btns.btnPlusC.addEventListener("click", function(){
-            applyDelta(1, 0);
-          });
-          btns.btnPlusW.addEventListener("click", function(){
-            applyDelta(0, 1);
-          });
-          btns.btnReset.addEventListener("click", function(){
-            if (!window.confirm("SYNC カウントを 0 にリセットしますか？")) return;
-            var dc = currentCorrect   ? -currentCorrect   : 0;
-            var di = currentIncorrect? -currentIncorrect : 0;
-            if (!dc && !di) return;
-            applyDelta(dc, di);
-          });
-        }
-
-        document.addEventListener("DOMContentLoaded", function(){
-          var btns = addBox();
-          fetchAndDisplayTotals();
-          wireButtons(btns);
-        });
-      })();
-      </script>
-    
-
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 
@@ -989,5 +800,104 @@ h1 { font-size: var(--h1-fs, inherit); }
 <!-- Aパート：類似問題（全2700問横断） -->
 <div id="similar-list" data-src="../../assets/cscs_meta_all.json" data-mode="similar" data-qtext="トレーニング頻度の一般目安​：​中級者の全身法は週何回が適切か"></div>
 <script src="../../assets/similar_list.js" data-src="../../assets/cscs_meta_all.json" data-mode="similar"></script>
+
+<script>
+  // === ① detectQid ===
+  function detectQidFromLocation() {
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+    if (!m) return null;
+    return `${m[1]}:q${m[2]}`;
+  }
+  const QID = detectQidFromLocation();
+
+  // === ② 差分キュー ===
+  const queue = { correctDelta: {}, incorrectDelta: {} };
+  let sendTimer = null;
+  function scheduleSend(){
+    if (!navigator.onLine) return;
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(sendDelta, 1000);
+  }
+
+  function updateSyncTotalsDisplay(c,i){
+    const el = document.getElementById("cscs_sync_totals");
+    if (el) el.textContent = `correct:${c} / incorrect:${i}`;
+  }
+
+  async function sendDelta(){
+    const hasC = Object.keys(queue.correctDelta).length>0;
+    const hasI = Object.keys(queue.incorrectDelta).length>0;
+    if (!hasC && !hasI) return;
+    const payload = { correctDelta: queue.correctDelta, incorrectDelta: queue.incorrectDelta };
+    try{
+      const res = await fetch("/api/sync/merge", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(res.status);
+      queue.correctDelta={}; queue.incorrectDelta={};
+      const latest = await res.json();
+      if (QID){
+        updateSyncTotalsDisplay(
+          (latest.correct && latest.correct[QID])||0,
+          (latest.incorrect && latest.incorrect[QID])||0
+        );
+      }
+    }catch(e){ console.warn("[SYNC] merge failed", e); }
+  }
+
+  window.CSCS_SYNC = {
+    recordCorrect(){ if(QID){ queue.correctDelta[QID]=(queue.correctDelta[QID]||0)+1; scheduleSend(); } },
+    recordIncorrect(){ if(QID){ queue.incorrectDelta[QID]=(queue.incorrectDelta[QID]||0)+1; scheduleSend(); } },
+    async fetchServer(){
+      const r = await fetch("/api/sync/state");
+      if(!r.ok) throw new Error(r.statusText);
+      return r.json();
+    }
+  };
+
+  // === ④ 初期ロードでサーバの累積取得 ===
+  window.addEventListener("DOMContentLoaded", async () => {
+    if (!QID) return;
+    try{
+      const s = await CSCS_SYNC.fetchServer();
+      updateSyncTotalsDisplay(
+        (s.correct && s.correct[QID])||0,
+        (s.incorrect && s.incorrect[QID])||0
+      );
+    }catch(e){ console.warn("[SYNC] fetch failed", e); }
+  });
+
+  // === ⑤ テストUI ===
+  (function(){
+    if (!QID) return;
+    const box = document.createElement("div");
+    box.style.cssText="position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui";
+    box.innerHTML = `
+      <div style="margin-bottom:4px;opacity:.8;">SYNC test: <b>${QID}</b></div>
+      <div id="cscs_sync_totals" style="margin-bottom:6px;font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>
+      <button id="cscs_sync_ok" style="margin-right:6px">+correct</button>
+      <button id="cscs_sync_ng" style="margin-right:6px">+incorrect</button>
+      <button id="cscs_sync_reset">reset</button>
+    `;
+    document.body.appendChild(box);
+    box.querySelector("#cscs_sync_ok").onclick = ()=>CSCS_SYNC.recordCorrect();
+    box.querySelector("#cscs_sync_ng").onclick = ()=>CSCS_SYNC.recordIncorrect();
+    box.querySelector("#cscs_sync_reset").onclick = async ()=>{
+      try{
+        const r = await fetch("/api/sync/reset",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+        const latest = await r.json();
+        updateSyncTotalsDisplay(
+          (latest.correct && latest.correct[QID])||0,
+          (latest.incorrect && latest.incorrect[QID])||0
+        );
+      }catch(e){ console.warn("[SYNC] reset failed", e); }
+    };
+  })();
+
+  window.addEventListener("online", sendDelta);
+</script>
+
 </body>
 </html>
