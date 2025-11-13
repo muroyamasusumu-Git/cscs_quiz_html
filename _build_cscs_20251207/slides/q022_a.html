@@ -806,7 +806,10 @@ h1 { font-size: var(--h1-fs, inherit); }
   function detectQidFromLocation() {
     const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
     if (!m) return null;
-    return `${m[1]}:q${m[2]}`;
+    const day  = m[1];   // 例: "20250926"
+    const num3 = m[2];   // 例: "001"
+    // qid 形式を「YYYYMMDD-NNN」に統一（例: 20250926-001）
+    return `${day}-${num3}`;
   }
   const QID = detectQidFromLocation();
 

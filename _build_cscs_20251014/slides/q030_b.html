@@ -243,10 +243,11 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   function detectInfo(){
     var m = (location.pathname || "").match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
     if (!m) return null;
-    var day  = m[1];
-    var n3   = m[2];
-    var stem = "q" + n3;
-    var qid  = day + ":" + stem;  // AのSYNCと同じ形式に揃える
+    var day  = m[1];      // 例: "20250926"
+    var n3   = m[2];      // 例: "001"
+    var stem = "q" + n3;  // 例: "q001"
+    // qid 形式を「YYYYMMDD-NNN」に統一（例: 20250926-001）
+    var qid  = day + "-" + n3;
     return { day: day, stem: stem, qid: qid };
   }
   var info = detectInfo();
@@ -471,7 +472,10 @@ ol.opts li.is-correct a.opt-link {
     function detectQidFromLocationB(){
       const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
       if (!m) return null;
-      return `${m[1]}:q${m[2]}`;
+      const day  = m[1];  // 例: "20250926"
+      const num3 = m[2];  // 例: "001"
+      // qid 形式を「YYYYMMDD-NNN」に統一（例: 20250926-001）
+      return `${day}-${num3}`;
     }
     const QID = detectQidFromLocationB();
     if (!QID) return;
