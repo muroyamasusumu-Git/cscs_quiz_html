@@ -904,11 +904,19 @@ h1 { font-size: var(--h1-fs, inherit); }
     box.innerHTML = `
       <div style="margin-bottom:6px;opacity:.8;">SYNC test: <b>${QID}</b></div>
       <button id="cscs_sync_ok" style="margin-right:6px">+correct</button>
-      <button id="cscs_sync_ng">+incorrect</button>
+      <button id="cscs_sync_ng" style="margin-right:6px">+incorrect</button>
+      <button id="cscs_sync_reset">reset</button>
     `;
     document.body.appendChild(box);
     box.querySelector("#cscs_sync_ok").onclick = () => CSCS_SYNC.recordCorrect();
     box.querySelector("#cscs_sync_ng").onclick = () => CSCS_SYNC.recordIncorrect();
+    box.querySelector("#cscs_sync_reset").onclick = async () => {
+      try {
+        await CSCS_SYNC.resetAll();
+      } catch (e) {
+        console.warn("[SYNC] reset failed", e);
+      }
+    };
   })();
 
   // オンライン復帰時に残っていたキューを再送
