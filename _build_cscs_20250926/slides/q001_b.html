@@ -439,7 +439,7 @@ ol.opts li.is-correct a.opt-link {
 <script type="application/json" id="cscs-meta">{"qid": "2025年9月26日-001", "field": "運動生理学", "theme": "筋収縮", "level": "Level 1", "date": "2025年9月26日", "number": "1", "quiztype": "単一分野", "tags": {"cause": "活動電位伝達", "process": "Ca2+放出|トロポニン結合", "outcome": "アクチンミオシン相互作用開始"}}</script>
 
 
-  <!-- ▼ Bパートの正解/不正解判定ロジックのテスト（まだ SYNC には書き込まない） -->
+  <!-- ▼ Bパートの正解/不正解判定ロジック + SYNC送信（ローカルの仕様はまだ変えない） -->
   <script>
     (function () {
       // このページの QID を URL から組み立てる（例: 20250926:q001）
@@ -486,6 +486,37 @@ ol.opts li.is-correct a.opt-link {
         }
       }
 
+      // 判定結果を SYNC (/api/sync/merge) に1回だけ送信する簡易版ヘルパ
+      async function sendToSync(judge, qid) {
+        try {
+          const payload = {
+            correctDelta: {},
+            incorrectDelta: {}
+          };
+          if (judge === "correct") {
+            payload.correctDelta[qid] = 1;
+          } else {
+            payload.incorrectDelta[qid] = 1;
+          }
+
+          const res = await fetch("/api/sync/merge", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) {
+            throw new Error(res.status + " " + res.statusText);
+          }
+          const latest = await res.json();
+          console.log("[SYNC_TEST] SYNC 送信成功:", latest);
+        } catch (e) {
+          console.warn(
+            "[SYNC_TEST] SYNC 送信に失敗しました（今回はクラウド側のカウントは変化しません）",
+            e
+          );
+        }
+      }
+
       const QID = detectQidFromLocation();
 
       window.addEventListener("DOMContentLoaded", function () {
@@ -499,12 +530,14 @@ ol.opts li.is-correct a.opt-link {
         console.log("[SYNC_TEST] QID:", QID, "userChoice:", user, "correctChoice:", correct);
 
         if (!user || !correct) {
-          console.log("[SYNC_TEST] 判定に必要な情報が不足しているため、まだSYNC連携はしません。");
+          console.log("[SYNC_TEST] 判定に必要な情報が不足しているため、SYNC連携はスキップします。");
           return;
         }
 
         const judge = user === correct ? "correct" : "incorrect";
-        console.log("[SYNC_TEST] 判定結果:", judge, "→ 今後ここから SYNC に送る予定（現時点では送信しない）");
+        console.log("[SYNC_TEST] 判定結果:", judge, "→ SYNC に送信を試みます（Bパート本番テスト）");
+        // ★ ここでクラウド側のカウンタに +1 を試みる（ローカルの挙動はまだ変更しない）
+        sendToSync(judge, QID);
       });
     })();
   </script>
