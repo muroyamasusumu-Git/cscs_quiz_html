@@ -128,7 +128,7 @@ a:hover{text-decoration:underline;}
     const m=(window.location.pathname||"").match(/_build_cscs_(\d{8})/);
     return m?m[1]:"unknown";
   }
-  function runKey(day){ return cscs_current_runId_${day}; }
+  function runKey(day){ return `cscs_current_runId_${day}`; }
   function getRunsForDay(day, all){
     const set = new Set(all.filter(r=>r && r.day===day && Number.isInteger(r.runId)).map(r=>r.runId));
     return Array.from(set).sort((a,b)=>a-b);
@@ -136,7 +136,7 @@ a:hover{text-decoration:underline;}
   function formatJa(day){ // "20251003" -> "2025年10月3日"
     if(!/^\d{8}$/.test(day)) return day;
     const y=day.slice(0,4), m=parseInt(day.slice(4,6),10), d=parseInt(day.slice(6,8),10);
-    return ${y}年${m}月${d}日;
+    return `${y}年${m}月${d}日`;
   }
 
   const KEY="cscs_results";
@@ -193,7 +193,7 @@ a:hover{text-decoration:underline;}
   function formatPct(correct, total){
     if (!total) return "0% (0/0)";
     const pct = Math.round((correct / total) * 100);
-    return ${pct}% (${correct}/${total});
+    return `${pct}% (${correct}/${total})`;
   }
   // ▼ 不正解回数ログ（cscs_wrong_log）を読むヘルパ
   function getWrongLog(){
@@ -203,7 +203,7 @@ a:hover{text-decoration:underline;}
   function wrongCountForStem(day, stem, wrongLog){
     // stem: "q001" → "001"
     const qnum = (stem || "").slice(1);
-    const qid  = ${day}-${qnum};
+    const qid  = `${day}-${qnum}`;
     return wrongLog[qid] || 0;
   }
 
@@ -237,7 +237,7 @@ a:hover{text-decoration:underline;}
     }
     runs.forEach(r=>{
       const opt=document.createElement("option");
-      opt.value=String(r); opt.textContent=run #${r};
+      opt.value=String(r); opt.textContent=`run #${r}`;
       runSel.appendChild(opt);
     });
 
@@ -259,19 +259,19 @@ a:hover{text-decoration:underline;}
 
     if(results.length===0){
       // カウンタもゼロで出す
-      const uniq = readBool01(cscs_daily_unique_done:${day});
-      const ca   = readInt(cscs_correct_attempts_${day}, 0);
-      const wa   = readInt(cscs_wrong_attempts_${day}, 0);
-      const s3t  = readInt(cscs_streak3_today_${day}, 0);
+      const uniq = readBool01(`cscs_daily_unique_done:${day}`);
+      const ca   = readInt(`cscs_correct_attempts_${day}`, 0);
+      const wa   = readInt(`cscs_wrong_attempts_${day}`, 0);
+      const s3t  = readInt(`cscs_streak3_today_${day}`, 0);
       const s3   = readInt("cscs_streak3_total", 0);
       summary.innerHTML = [
-        日付：<strong>${formatJa(day)}</strong>,
-        run：<strong>#${runId}</strong>,
-        正解数：<strong>0</strong> / ${total}（0%）,
-        <span class="pill">今日のユニーク正解：${uniq ? "1" : "0"}</span>,
-        <span class="pill">今日の正解試行：${ca}</span>,
-        <span class="pill">今日の不正試行：${wa}</span>,
-        <span class="pill">3連正解（今日/累計）：${s3t} / ${s3}</span>
+        `日付：<strong>${formatJa(day)}</strong>`,
+        `run：<strong>#${runId}</strong>`,
+        `正解数：<strong>0</strong> / ${total}（0%）`,
+        `<span class="pill">今日のユニーク正解：${uniq ? "1" : "0"}</span>`,
+        `<span class="pill">今日の正解試行：${ca}</span>`,
+        `<span class="pill">今日の不正試行：${wa}</span>`,
+        `<span class="pill">3連正解（今日/累計）：${s3t} / ${s3}</span>`
       ].join("　");
       return;
     }
@@ -284,20 +284,20 @@ a:hover{text-decoration:underline;}
     const correct = picked.filter(r=>r.correct).length;
 
     // 追加カウンタ読み出し
-    const uniq = readBool01(cscs_daily_unique_done:${day});
-    const ca   = readInt(cscs_correct_attempts_${day}, 0);
-    const wa   = readInt(cscs_wrong_attempts_${day}, 0);
-    const s3t  = readInt(cscs_streak3_today_${day}, 0);
+    const uniq = readBool01(`cscs_daily_unique_done:${day}`);
+    const ca   = readInt(`cscs_correct_attempts_${day}`, 0);
+    const wa   = readInt(`cscs_wrong_attempts_${day}`, 0);
+    const s3t  = readInt(`cscs_streak3_today_${day}`, 0);
     const s3   = readInt("cscs_streak3_total", 0);
 
     summary.innerHTML=[
-      日付：<strong>${formatJa(day)}</strong>,
-      run：<strong>#${runId}</strong>,
-      正解数：<strong>${correct}</strong> / ${total}（${Math.round(correct/total*100)}%）,
-      <span class="pill">今日のユニーク正解：${uniq ? "1" : "0"}</span>,
-      <span class="pill">今日の正解試行：${ca}</span>,
-      <span class="pill">今日の不正試行：${wa}</span>,
-      <span class="pill">3連正解（今日/累計）：${s3t} / ${s3}</span>
+      `日付：<strong>${formatJa(day)}</strong>`,
+      `run：<strong>#${runId}</strong>`,
+      `正解数：<strong>${correct}</strong> / ${total}（${Math.round(correct/total*100)}%）`,
+      `<span class="pill">今日のユニーク正解：${uniq ? "1" : "0"}</span>`,
+      `<span class="pill">今日の正解試行：${ca}</span>`,
+      `<span class="pill">今日の不正試行：${wa}</span>`,
+      `<span class="pill">3連正解（今日/累計）：${s3t} / ${s3}</span>`
     ].join("　");
 
     const header=document.createElement("tr");
@@ -320,15 +320,15 @@ a:hover{text-decoration:underline;}
       const qtext = (qtextMap && qtextMap.get(r.stem)) ? qtextMap.get(r.stem) : (navLoading ? "取得中…" : "");
 
       // 番号セルは A へリンク（例：q001 → q001_a.html）
-      const numCell = <a href="${r.stem}_a.html">${r.stem}</a>;
+      const numCell = `<a href="${r.stem}_a.html">${r.stem}</a>`;
 
-      tr.innerHTML=<td>${numCell}</td>
+      tr.innerHTML=`<td>${numCell}</td>
         <td>${qtext}</td>
         <td>${r.choice}</td>
         <td>${r.correctChoice}</td>
         <td style='color:${r.correct?"#fff34d":"#c9c9c9"}'>${r.correct?"◎ 正解":"× 不正解"}</td>
         <td>${rate}</td>
-        <td>${wrongCnt}</td>;
+        <td>${wrongCnt}</td>`;
       table.appendChild(tr);
     });
 
@@ -342,7 +342,7 @@ a:hover{text-decoration:underline;}
   // --- この履歴(run)を削除 ---
   document.getElementById("deleteRunBtn").addEventListener("click", () => {
     const runId = parseInt(runSel.value, 10);
-    if (!confirm(run #${runId} を削除しますか？\nこの日のこの履歴の回答がすべて消えます。)) return;
+    if (!confirm(`run #${runId} を削除しますか？\nこの日のこの履歴の回答がすべて消えます。`)) return;
 
     try {
       let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(_){ arr = []; }
