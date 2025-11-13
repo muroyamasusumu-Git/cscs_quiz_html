@@ -731,6 +731,152 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   </script>
 
 
+      <script>
+      (function(){
+        if (window.__cscs_sync_box_a_installed) return;
+        window.__cscs_sync_box_a_installed = true;
+
+        function detectQidFromLocation(){
+          var mDay  = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1];
+          var mStem = (location.pathname.match(/(?:^|\/)(q\d{3})_a(?:\.html)?(?:\/)?$/i) || [])[1];
+          if (!mDay || !mStem) return null;
+          var num3 = mStem.slice(1);
+          return mDay + ":q" + num3;
+        }
+
+        var QID = detectQidFromLocation();
+        var currentCorrect = 0;
+        var currentIncorrect = 0;
+
+        function updateDisplay(c, ic){
+          currentCorrect = c|0;
+          currentIncorrect = ic|0;
+          var el = document.getElementById("cscs_sync_totals_a");
+          if (!el) return;
+          el.textContent = "correct:" + currentCorrect + " / incorrect:" + currentIncorrect;
+        }
+
+        function addBox(){
+          if (document.getElementById("cscs_sync_box_a")) return;
+          var box = document.createElement("div");
+          box.id = "cscs_sync_box_a";
+          box.style.cssText =
+            "position:fixed;right:12px;bottom:12px;z-index:9999;background:#222;color:#eee;" +
+            "border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui;" +
+            "box-shadow:0 0 0 1px rgba(0,0,0,.4);";
+
+          var title = document.createElement("div");
+          title.style.marginBottom = "4px";
+          title.style.opacity = "0.85";
+          title.innerHTML = 'SYNC(A): <b>' + (QID || "unknown") + "</b>";
+
+          var totals = document.createElement("div");
+          totals.id = "cscs_sync_totals_a";
+          totals.style.fontSize = "11px";
+          totals.style.marginBottom = "4px";
+          totals.style.opacity = "0.85";
+          totals.textContent = "correct:0 / incorrect:0";
+
+          var btnRow = document.createElement("div");
+          btnRow.style.display = "flex";
+          btnRow.style.gap = "4px";
+          btnRow.style.flexWrap = "wrap";
+
+          function makeBtn(label){
+            var b = document.createElement("button");
+            b.type = "button";
+            b.textContent = label;
+            b.style.fontSize = "10px";
+            b.style.padding = "2px 6px";
+            b.style.background = "#333";
+            b.style.color = "#fff";
+            b.style.border = "1px solid #555";
+            b.style.borderRadius = "4px";
+            b.style.cursor = "pointer";
+            return b;
+          }
+
+          var btnPlusC = makeBtn("+correct");
+          var btnPlusW = makeBtn("+wrong");
+          var btnReset = makeBtn("reset");
+
+          btnRow.appendChild(btnPlusC);
+          btnRow.appendChild(btnPlusW);
+          btnRow.appendChild(btnReset);
+
+          box.appendChild(title);
+          box.appendChild(totals);
+          box.appendChild(btnRow);
+
+          document.addEventListener("DOMContentLoaded", function(){
+            document.body.appendChild(box);
+          });
+
+          return { btnPlusC: btnPlusC, btnPlusW: btnPlusW, btnReset: btnReset };
+        }
+
+        async function fetchAndDisplayTotals(){
+          if (!QID) return;
+          try{
+            var r = await fetch("/api/sync/state");
+            if (!r.ok) throw new Error(r.status + " " + r.statusText);
+            var s = await r.json();
+            var c  = (s.correct   && s.correct[QID])   || 0;
+            var ic = (s.incorrect && s.incorrect[QID]) || 0;
+            console.log("[SYNC_TEST] (A) " + QID + " server totals → correct:" + c + ", incorrect:" + ic);
+            updateDisplay(c, ic);
+          }catch(e){
+            console.warn("[SYNC_TEST] (A) fetch state failed", e);
+          }
+        }
+
+        async function applyDelta(dc, di){
+          if (!QID) return;
+          try{
+            var payload = { correctDelta: {}, incorrectDelta: {} };
+            if (dc) payload.correctDelta[QID]   = dc;
+            if (di) payload.incorrectDelta[QID] = di;
+            var res = await fetch("/api/sync/merge", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(res.status + " " + res.statusText);
+            var latest = await res.json();
+            var c  = (latest.correct   && latest.correct[QID])   || 0;
+            var ic = (latest.incorrect && latest.incorrect[QID]) || 0;
+            updateDisplay(c, ic);
+          }catch(e){
+            console.warn("[SYNC_TEST] (A) merge failed", e);
+          }
+        }
+
+        function wireButtons(btns){
+          if (!btns) return;
+          btns.btnPlusC.addEventListener("click", function(){
+            applyDelta(1, 0);
+          });
+          btns.btnPlusW.addEventListener("click", function(){
+            applyDelta(0, 1);
+          });
+          btns.btnReset.addEventListener("click", function(){
+            if (!window.confirm("SYNC カウントを 0 にリセットしますか？")) return;
+            var dc = currentCorrect   ? -currentCorrect   : 0;
+            var di = currentIncorrect? -currentIncorrect : 0;
+            if (!dc && !di) return;
+            applyDelta(dc, di);
+          });
+        }
+
+        document.addEventListener("DOMContentLoaded", function(){
+          var btns = addBox();
+          fetchAndDisplayTotals();
+          wireButtons(btns);
+        });
+      })();
+      </script>
+    
+
       <script> try{ maybeStartNewRunIfRequested(); }catch(_){} </script>
     
 

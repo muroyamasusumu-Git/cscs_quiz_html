@@ -731,6 +731,152 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   </script>
 
 
+      <script>
+      (function(){
+        if (window.__cscs_sync_box_a_installed) return;
+        window.__cscs_sync_box_a_installed = true;
+
+        function detectQidFromLocation(){
+          var mDay  = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1];
+          var mStem = (location.pathname.match(/(?:^|\/)(q\d{3})_a(?:\.html)?(?:\/)?$/i) || [])[1];
+          if (!mDay || !mStem) return null;
+          var num3 = mStem.slice(1);
+          return mDay + ":q" + num3;
+        }
+
+        var QID = detectQidFromLocation();
+        var currentCorrect = 0;
+        var currentIncorrect = 0;
+
+        function updateDisplay(c, ic){
+          currentCorrect = c|0;
+          currentIncorrect = ic|0;
+          var el = document.getElementById("cscs_sync_totals_a");
+          if (!el) return;
+          el.textContent = "correct:" + currentCorrect + " / incorrect:" + currentIncorrect;
+        }
+
+        function addBox(){
+          if (document.getElementById("cscs_sync_box_a")) return;
+          var box = document.createElement("div");
+          box.id = "cscs_sync_box_a";
+          box.style.cssText =
+            "position:fixed;right:12px;bottom:12px;z-index:9999;background:#222;color:#eee;" +
+            "border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui;" +
+            "box-shadow:0 0 0 1px rgba(0,0,0,.4);";
+
+          var title = document.createElement("div");
+          title.style.marginBottom = "4px";
+          title.style.opacity = "0.85";
+          title.innerHTML = 'SYNC(A): <b>' + (QID || "unknown") + "</b>";
+
+          var totals = document.createElement("div");
+          totals.id = "cscs_sync_totals_a";
+          totals.style.fontSize = "11px";
+          totals.style.marginBottom = "4px";
+          totals.style.opacity = "0.85";
+          totals.textContent = "correct:0 / incorrect:0";
+
+          var btnRow = document.createElement("div");
+          btnRow.style.display = "flex";
+          btnRow.style.gap = "4px";
+          btnRow.style.flexWrap = "wrap";
+
+          function makeBtn(label){
+            var b = document.createElement("button");
+            b.type = "button";
+            b.textContent = label;
+            b.style.fontSize = "10px";
+            b.style.padding = "2px 6px";
+            b.style.background = "#333";
+            b.style.color = "#fff";
+            b.style.border = "1px solid #555";
+            b.style.borderRadius = "4px";
+            b.style.cursor = "pointer";
+            return b;
+          }
+
+          var btnPlusC = makeBtn("+correct");
+          var btnPlusW = makeBtn("+wrong");
+          var btnReset = makeBtn("reset");
+
+          btnRow.appendChild(btnPlusC);
+          btnRow.appendChild(btnPlusW);
+          btnRow.appendChild(btnReset);
+
+          box.appendChild(title);
+          box.appendChild(totals);
+          box.appendChild(btnRow);
+
+          document.addEventListener("DOMContentLoaded", function(){
+            document.body.appendChild(box);
+          });
+
+          return { btnPlusC: btnPlusC, btnPlusW: btnPlusW, btnReset: btnReset };
+        }
+
+        async function fetchAndDisplayTotals(){
+          if (!QID) return;
+          try{
+            var r = await fetch("/api/sync/state");
+            if (!r.ok) throw new Error(r.status + " " + r.statusText);
+            var s = await r.json();
+            var c  = (s.correct   && s.correct[QID])   || 0;
+            var ic = (s.incorrect && s.incorrect[QID]) || 0;
+            console.log("[SYNC_TEST] (A) " + QID + " server totals → correct:" + c + ", incorrect:" + ic);
+            updateDisplay(c, ic);
+          }catch(e){
+            console.warn("[SYNC_TEST] (A) fetch state failed", e);
+          }
+        }
+
+        async function applyDelta(dc, di){
+          if (!QID) return;
+          try{
+            var payload = { correctDelta: {}, incorrectDelta: {} };
+            if (dc) payload.correctDelta[QID]   = dc;
+            if (di) payload.incorrectDelta[QID] = di;
+            var res = await fetch("/api/sync/merge", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(res.status + " " + res.statusText);
+            var latest = await res.json();
+            var c  = (latest.correct   && latest.correct[QID])   || 0;
+            var ic = (latest.incorrect && latest.incorrect[QID]) || 0;
+            updateDisplay(c, ic);
+          }catch(e){
+            console.warn("[SYNC_TEST] (A) merge failed", e);
+          }
+        }
+
+        function wireButtons(btns){
+          if (!btns) return;
+          btns.btnPlusC.addEventListener("click", function(){
+            applyDelta(1, 0);
+          });
+          btns.btnPlusW.addEventListener("click", function(){
+            applyDelta(0, 1);
+          });
+          btns.btnReset.addEventListener("click", function(){
+            if (!window.confirm("SYNC カウントを 0 にリセットしますか？")) return;
+            var dc = currentCorrect   ? -currentCorrect   : 0;
+            var di = currentIncorrect? -currentIncorrect : 0;
+            if (!dc && !di) return;
+            applyDelta(dc, di);
+          });
+        }
+
+        document.addEventListener("DOMContentLoaded", function(){
+          var btns = addBox();
+          fetchAndDisplayTotals();
+          wireButtons(btns);
+        });
+      })();
+      </script>
+    
+
       <script> try{ maybeStartNewRunIfRequested(); }catch(_){} </script>
     
 
@@ -800,156 +946,5 @@ h1 { font-size: var(--h1-fs, inherit); }
 <!-- Aパート：類似問題（全2700問横断） -->
 <div id="similar-list" data-src="../../assets/cscs_meta_all.json" data-mode="similar" data-qtext="筋収縮開始の直接トリガーはどれか？"></div>
 <script src="../../assets/similar_list.js" data-src="../../assets/cscs_meta_all.json" data-mode="similar"></script>
-<script>
-  // === ① このページの qid を URL から組み立てる（例: 20250927:q001） ===
-  function detectQidFromLocation() {
-    // /_build_cscs_YYYYMMDD/slides/qNNN_a または qNNN_a.html から YYYYMMDD と NNN を取る
-    // 末尾の .html はあってもなくてもOK
-    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
-    if (!m) return null;
-    const day = m[1];        // YYYYMMDD
-    const num = m[2];        // NNN
-    return `${day}:q${num}`;
-  }
-  const QID = detectQidFromLocation();
-
-  // === ② 差分キュー（まとめて送る） ===
-  const queue = { correctDelta: {}, incorrectDelta: {} };
-  let sendTimer = null;
-
-  function scheduleSend() {
-    if (!navigator.onLine) return; // オフラインなら溜めるだけ
-    clearTimeout(sendTimer);
-    sendTimer = setTimeout(sendDelta, 1000); // 1秒デバウンス
-  }
-
-  // ▼ テストUI用：右下ボックスの「correct / incorrect 表示」を更新
-  function updateSyncTotalsDisplay(correctCount, incorrectCount) {
-    const el = document.getElementById("cscs_sync_totals");
-    if (!el) return;
-    el.textContent = `correct:${correctCount} / incorrect:${incorrectCount}`;
-  }
-
-  async function sendDelta() {
-    const hasCorrect = Object.keys(queue.correctDelta).length > 0;
-    const hasIncorrect = Object.keys(queue.incorrectDelta).length > 0;
-    if (!hasCorrect && !hasIncorrect) return;
-
-    const payload = {
-      correctDelta: queue.correctDelta,
-      incorrectDelta: queue.incorrectDelta
-    };
-
-    try {
-      const res = await fetch("/api/sync/merge", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error(res.status + " " + res.statusText);
-
-      // 送信成功 → キューをリセット
-      queue.correctDelta = {};
-      queue.incorrectDelta = {};
-
-      const latest = await res.json();
-      console.log("[SYNC] server state:", latest);
-
-      // この問題の最新トータル値を UI に反映
-      if (QID && latest && typeof latest === "object") {
-        const nowCorrect = (latest.correct && latest.correct[QID]) || 0;
-        const nowIncorrect = (latest.incorrect && latest.incorrect[QID]) || 0;
-        updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
-      }
-    } catch (e) {
-      console.warn("[SYNC] merge failed; will retry later", e);
-    }
-  }
-
-  // === ③ このページの問題に対して「手動で」加算するためのAPI ===
-  window.CSCS_SYNC = {
-    recordCorrect() {
-      if (!QID) return;
-      queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
-      scheduleSend();
-    },
-    recordIncorrect() {
-      if (!QID) return;
-      queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
-      scheduleSend();
-    },
-    async fetchServer() {
-      const r = await fetch("/api/sync/state");
-      if (!r.ok) throw new Error(r.statusText);
-      return r.json(); // {correct:{}, incorrect:{}, updatedAt}
-    }
-  };
-
-  // === ④ 初回ロード時にサーバの累積を表示（Console＆UI） ===
-  window.addEventListener("DOMContentLoaded", async () => {
-    if (!QID) return;
-    try {
-      const s = await CSCS_SYNC.fetchServer();
-      const nowCorrect = (s.correct && s.correct[QID]) || 0;
-      const nowIncorrect = (s.incorrect && s.incorrect[QID]) || 0;
-      console.log(`[SYNC] ${QID} server totals → correct:${nowCorrect}, incorrect:${nowIncorrect}`);
-      updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
-    } catch (e) {
-      console.warn("[SYNC] fetch state failed", e);
-    }
-  });
-
-  // === ⑤ テスト用の簡易UI（右下にボタンを出す） ===
-  (function addTestUi() {
-    if (!QID) return;
-    const box = document.createElement("div");
-    box.style.cssText = "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui";
-    box.innerHTML = `
-      <div style="margin-bottom:4px;opacity:.8;">SYNC test: <b>${QID}</b></div>
-      <div id="cscs_sync_totals" style="margin-bottom:6px;font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>
-      <button id="cscs_sync_ok" style="margin-right:6px">+correct</button>
-      <button id="cscs_sync_ng" style="margin-right:6px">+incorrect</button>
-      <button id="cscs_sync_reset">reset</button>
-    `;
-    document.body.appendChild(box);
-
-    // 正解カウント +1
-    box.querySelector("#cscs_sync_ok").onclick = () => CSCS_SYNC.recordCorrect();
-
-    // 不正解カウント +1
-    box.querySelector("#cscs_sync_ng").onclick = () => CSCS_SYNC.recordIncorrect();
-
-    // SYNC上のカウントをリセット（KVをクリア）するテスト用ボタン
-    box.querySelector("#cscs_sync_reset").onclick = async () => {
-      try {
-        const res = await fetch("/api/sync/reset", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({}) // ボディは空オブジェクト（サーバ側で全体リセット扱い）
-        });
-        if (!res.ok) {
-          throw new Error(res.status + " " + res.statusText);
-        }
-        const latest = await res.json();
-        console.log("[SYNC] reset done:", latest);
-
-        // この問題の最新トータルを 0 クリア後の状態としてUIに反映
-        if (QID && latest && typeof latest === "object") {
-          const nowCorrect = (latest.correct && latest.correct[QID]) || 0;
-          const nowIncorrect = (latest.incorrect && latest.incorrect[QID]) || 0;
-          updateSyncTotalsDisplay(nowCorrect, nowIncorrect);
-        } else {
-          // 念のため強制的に 0 / 0 を表示
-          updateSyncTotalsDisplay(0, 0);
-        }
-      } catch (e) {
-        console.warn("[SYNC] reset failed", e);
-      }
-    };
-  })();
-
-  // オンライン復帰時に残っていたキューを再送
-  window.addEventListener("online", sendDelta);
-</script>
 </body>
 </html>
