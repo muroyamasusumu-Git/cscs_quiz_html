@@ -438,6 +438,77 @@ ol.opts li.is-correct a.opt-link {
   </div>
 <script type="application/json" id="cscs-meta">{"qid": "2025年9月26日-001", "field": "運動生理学", "theme": "筋収縮", "level": "Level 1", "date": "2025年9月26日", "number": "1", "quiztype": "単一分野", "tags": {"cause": "活動電位伝達", "process": "Ca2+放出|トロポニン結合", "outcome": "アクチンミオシン相互作用開始"}}</script>
 
+
+  <!-- ▼ Bパートの正解/不正解判定ロジックのテスト（まだ SYNC には書き込まない） -->
+  <script>
+    (function () {
+      // このページの QID を URL から組み立てる（例: 20250926:q001）
+      function detectQidFromLocation() {
+        // /_build_cscs_YYYYMMDD/slides/qNNN_b または qNNN_b.html から YYYYMMDD と NNN を取る
+        const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+        if (!m) return null;
+        const day = m[1]; // YYYYMMDD
+        const num = m[2]; // NNN
+        return day + ":q" + num;
+      }
+
+      // ユーザーの選択肢を URL (?choice=A など) から取得
+      function detectUserChoice() {
+        try {
+          const params = new URLSearchParams(location.search);
+          const choice = params.get("choice");
+          if (!choice) return null;
+          const up = choice.trim().toUpperCase();
+          const letters = ["A", "B", "C", "D"];
+          return letters.includes(up) ? up : null;
+        } catch (e) {
+          console.warn("[SYNC_TEST] failed to detect userChoice", e);
+          return null;
+        }
+      }
+
+      // 正解の選択肢を BパートHTMLから検出（.opts li.is-correct の位置）
+      function detectCorrectChoice() {
+        try {
+          const ol = document.querySelector("ol.opts");
+          if (!ol) return null;
+          const lis = Array.prototype.slice.call(ol.querySelectorAll("li"));
+          if (!lis.length) return null;
+          const idx = lis.findIndex(function (li) {
+            return li.classList.contains("is-correct");
+          });
+          if (idx === -1) return null;
+          const letters = ["A", "B", "C", "D"];
+          return letters[idx] || null;
+        } catch (e) {
+          console.warn("[SYNC_TEST] failed to detect correctChoice", e);
+          return null;
+        }
+      }
+
+      const QID = detectQidFromLocation();
+
+      window.addEventListener("DOMContentLoaded", function () {
+        if (!QID) {
+          console.warn("[SYNC_TEST] QID not detected from location");
+          return;
+        }
+        const user = detectUserChoice();
+        const correct = detectCorrectChoice();
+
+        console.log("[SYNC_TEST] QID:", QID, "userChoice:", user, "correctChoice:", correct);
+
+        if (!user || !correct) {
+          console.log("[SYNC_TEST] 判定に必要な情報が不足しているため、まだSYNC連携はしません。");
+          return;
+        }
+
+        const judge = user === correct ? "correct" : "incorrect";
+        console.log("[SYNC_TEST] 判定結果:", judge, "→ 今後ここから SYNC に送る予定（現時点では送信しない）");
+      });
+    })();
+  </script>
+  
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 </body>
