@@ -237,6 +237,92 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/b_judge_record.js" defer></script>
 
 
+<script>
+(function(){
+  // Bページ専用：今回の解答ぶんだけ SYNC に1回だけ送信する
+  function detectInfo(){
+    var m = (location.pathname || "").match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+    if (!m) return null;
+    var day  = m[1];
+    var n3   = m[2];
+    var stem = "q" + n3;
+    var qid  = day + ":" + stem;  // AのSYNCと同じ形式に揃える
+    return { day: day, stem: stem, qid: qid };
+  }
+  var info = detectInfo();
+  if (!info) return;
+
+  var KEY_RESULTS = "cscs_results";
+  var MARK_PREFIX = "cscs_sync_sent:";  // 同じ解答(row.ts)には一度しか送らないための印
+
+  function findLatestRow(day, stem){
+    var raw, arr;
+    try{
+      raw = localStorage.getItem(KEY_RESULTS) || "[]";
+      arr = JSON.parse(raw);
+    }catch(_){
+      arr = [];
+    }
+    if (!Array.isArray(arr)) return null;
+    var latest = null;
+    for (var i = 0; i < arr.length; i++){
+      var r = arr[i];
+      if (!r || r.day !== day || r.stem !== stem) continue;
+      if (typeof r.ts !== "number") continue;
+      if (!latest || r.ts > latest.ts) latest = r;
+    }
+    return latest;
+  }
+
+  async function sendOnce(){
+    var row = findLatestRow(info.day, info.stem);
+    if (!row) return;
+
+    // 「day + stem + ts」でこの解答を一意に識別
+    var markId  = info.day + ":" + info.stem + ":" + row.ts;
+    var markKey = MARK_PREFIX + markId;
+
+    try{
+      if (localStorage.getItem(markKey) === "1") {
+        // すでにこの解答はSYNC済み → リロードなどなので何もしない
+        return;
+      }
+    }catch(_){}
+
+    // b_judge_record.js が残した row.correct に従って、正解/不正解どちらを+1するか決める
+    var payload = { correctDelta: {}, incorrectDelta: {} };
+    if (row.correct) {
+      payload.correctDelta[info.qid] = 1;
+    } else {
+      payload.incorrectDelta[info.qid] = 1;
+    }
+
+    try{
+      var res = await fetch("/api/sync/merge", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      try{
+        localStorage.setItem(markKey, "1");  // この解答は送信済みとしてマーク
+      }catch(_){}
+      console.debug("[SYNC/B] merged:", payload);
+    }catch(e){
+      console.warn("[SYNC/B] merge failed:", e);
+      // 通信に失敗した場合はマークしない → 次回B表示時にリトライ
+    }
+  }
+
+  if (document.readyState === "loading") {
+    window.addEventListener("DOMContentLoaded", sendOnce);
+  } else {
+    sendOnce();
+  }
+})();
+</script>
+
+
     <script>
     (function(){
       if (window.__b_audio_btn_installed) return;
