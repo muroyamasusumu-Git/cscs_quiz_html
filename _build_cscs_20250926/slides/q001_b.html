@@ -443,8 +443,9 @@ ol.opts li.is-correct a.opt-link {
 <script>
   // === ① このページの qid を URL から組み立てる（例: 20250927:q001） ===
   function detectQidFromLocation() {
-    // /_build_cscs_YYYYMMDD/slides/qNNN_b.html から YYYYMMDD と NNN を取る
-    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b\.html$/);
+    // /_build_cscs_YYYYMMDD/slides/qNNN_b または qNNN_b.html から YYYYMMDD と NNN を取る
+    // 末尾の .html はあってもなくてもOK
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
     if (!m) return null;
     const day = m[1];        // YYYYMMDD
     const num = m[2];        // NNN
