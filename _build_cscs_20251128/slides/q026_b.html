@@ -239,28 +239,32 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 <script>
 (function(){
+  // Bページの URL から qid = "YYYYMMDD-NNN" を取得
   function detectInfo(){
     const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b/);
     if (!m) return null;
-    const day  = m[1];       // "20250926"
-    const n3   = m[2];       // "001"
-    const qid  = `${day}-${n3}`;  // 20250926-001
+    const day = m[1];       // 例: "20250926"
+    const n3  = m[2];       // 例: "001"
+    const qid = `${day}-${n3}`;
     return { day, n3, qid };
   }
+
   const info = detectInfo();
   if (!info) return;
 
-  // b_judge_record.js が更新している累積キー
-  const KEY_COR = `cscs_q_correct_total:${info.qid}`;
-  const KEY_WRG = `cscs_q_wrong_total:${info.qid}`;
+  // b_judge_record.js が管理している「本物の累積キー」
+  const KEY_COR      = `cscs_q_correct_total:${info.qid}`;
+  const KEY_WRG      = `cscs_q_wrong_total:${info.qid}`;
 
-  // B側で保持する「前回 SYNC 済み時点の値」
+  // B側だけで使う「最後に SYNC 済みだったときの累積値」
   const KEY_LAST_COR = `cscs_sync_last_c:${info.qid}`;
   const KEY_LAST_WRG = `cscs_sync_last_w:${info.qid}`;
 
   function loadInt(key){
     const v = localStorage.getItem(key);
-    return v ? (parseInt(v, 10) || 0) : 0;
+    if (v == null) return 0;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : 0;
   }
 
   function saveInt(key, value){
@@ -268,26 +272,25 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   }
 
   async function syncFromTotals(){
-    // 現在の累積値（b_judge_record.js が管理している本物）
+    // 1) 現在の累積（b_judge_record.js が書いた値）
     const cNow = loadInt(KEY_COR);
     const wNow = loadInt(KEY_WRG);
 
-    // 前回 SYNC 時点の値（B側でのみ使用）
-    const cLastRaw = localStorage.getItem(KEY_LAST_COR);
-    const wLastRaw = localStorage.getItem(KEY_LAST_WRG);
-    const cLast = cLastRaw != null ? (parseInt(cLastRaw, 10) || 0) : null;
-    const wLast = wLastRaw != null ? (parseInt(wLastRaw, 10) || 0) : null;
+    // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
+    const cLast = loadInt(KEY_LAST_COR);
+    const wLast = loadInt(KEY_LAST_WRG);
 
-    // 今回送るべきか？（1 回答ぶんだけ +1 送信）
-    const shouldSendCorrect   = (cNow > 0 && (cLast === null || cNow > cLast));
-    const shouldSendIncorrect = (wNow > 0 && (wLast === null || wNow > wLast));
+    // 3) 差分（マイナスは送らない）
+    const dc = Math.max(0, cNow - cLast);
+    const dw = Math.max(0, wNow - wLast);
 
-    // どちらも変化なしなら何もしない
-    if (!shouldSendCorrect && !shouldSendIncorrect) return;
+    // 送るべき差分が無ければ何もしない
+    if (!dc && !dw) return;
 
+    // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
     const payload = {
-      correct:   shouldSendCorrect   ? { [info.qid]: 1 } : {},
-      incorrect: shouldSendIncorrect ? { [info.qid]: 1 } : {},
+      correctDelta:   dc ? { [info.qid]: dc } : {},
+      incorrectDelta: dw ? { [info.qid]: dw } : {},
       updatedAt: Date.now()
     };
 
@@ -299,25 +302,27 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       });
       if (!res.ok) throw new Error(res.status);
 
-      // 成功したら今回の値を保存（次回の変化検知用）
-      if (shouldSendCorrect) {
-        saveInt(KEY_LAST_COR, cNow);
-      }
-      if (shouldSendIncorrect) {
-        saveInt(KEY_LAST_WRG, wNow);
-      }
+      // 5) 成功したら「今回送信後の累積値」を保存して次回差分の基準にする
+      if (dc) saveInt(KEY_LAST_COR, cNow);
+      if (dw) saveInt(KEY_LAST_WRG, wNow);
     }catch(e){
       console.warn("[SYNC/B] merge failed", e);
     }
   }
 
-  if (document.readyState === "loading"){
-    window.addEventListener("DOMContentLoaded", function(){
+  // b_judge_record.js の集計が終わったタイミングに近づけるため、
+  // DOM 完成後に 1 tick 遅らせて実行
+  function schedule(){
+    if (document.readyState === "loading") {
+      window.addEventListener("DOMContentLoaded", function(){
+        setTimeout(syncFromTotals, 0);
+      });
+    } else {
       setTimeout(syncFromTotals, 0);
-    });
-  } else {
-    setTimeout(syncFromTotals, 0);
+    }
   }
+
+  schedule();
 })();
 </script>
 
