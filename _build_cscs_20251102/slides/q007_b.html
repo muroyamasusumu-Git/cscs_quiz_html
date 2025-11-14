@@ -273,19 +273,21 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     const wNow = loadInt(KEY_WRG);
 
     // 前回 SYNC 時点の値（B側でのみ使用）
-    const cPrev = loadInt(KEY_LAST_COR);
-    const wPrev = loadInt(KEY_LAST_WRG);
+    const cLastRaw = localStorage.getItem(KEY_LAST_COR);
+    const wLastRaw = localStorage.getItem(KEY_LAST_WRG);
+    const cLast = cLastRaw != null ? (parseInt(cLastRaw, 10) || 0) : null;
+    const wLast = wLastRaw != null ? (parseInt(wLastRaw, 10) || 0) : null;
 
-    // 今回増えたぶん（マイナスは切り捨て）
-    const dC = Math.max(0, cNow - cPrev);
-    const dW = Math.max(0, wNow - wPrev);
+    // 今回送るべきか？（1 回答ぶんだけ +1 送信）
+    const shouldSendCorrect   = (cNow > 0 && (cLast === null || cNow > cLast));
+    const shouldSendIncorrect = (wNow > 0 && (wLast === null || wNow > wLast));
 
-    // 変化がなければ何もしない
-    if (dC + dW <= 0) return;
+    // どちらも変化なしなら何もしない
+    if (!shouldSendCorrect && !shouldSendIncorrect) return;
 
     const payload = {
-      correct:   dC > 0 ? { [info.qid]: dC } : {},
-      incorrect: dW > 0 ? { [info.qid]: dW } : {},
+      correct:   shouldSendCorrect   ? { [info.qid]: 1 } : {},
+      incorrect: shouldSendIncorrect ? { [info.qid]: 1 } : {},
       updatedAt: Date.now()
     };
 
@@ -297,9 +299,13 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       });
       if (!res.ok) throw new Error(res.status);
 
-      // 成功したら今回の値を保存（次回の差分計算用）
-      saveInt(KEY_LAST_COR, cNow);
-      saveInt(KEY_LAST_WRG, wNow);
+      // 成功したら今回の値を保存（次回の変化検知用）
+      if (shouldSendCorrect) {
+        saveInt(KEY_LAST_COR, cNow);
+      }
+      if (shouldSendIncorrect) {
+        saveInt(KEY_LAST_WRG, wNow);
+      }
     }catch(e){
       console.warn("[SYNC/B] merge failed", e);
     }
