@@ -239,7 +239,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 <script>
 (function(){
-  // Bページ専用：今回の解答ぶんだけ処理する（ローカル attempt_log ＋ SYNC）
+  // Bページ専用：b_judge_record.js の attempt ログを 1件だけ SYNC へ送る
   function detectInfo(){
     var m = (location.pathname || "").match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
     if (!m) return null;
@@ -253,89 +253,75 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   var info = detectInfo();
   if (!info) return;
 
-  var KEY_RESULTS = "cscs_results";
-  var MARK_PREFIX = "cscs_sync_sent:";   // 同じ解答(row.ts)には一度しか処理しないための印
-  var LOG_KEY     = "cscs_attempt_log";  // ★ 永続セーブデータ（問題別 正解/不正解 回数）
+  var MARK_PREFIX = "cscs_sync_sent:";   // 同じ解答(ts)には一度しか送らないための印
 
-  function loadLog(){
+  function loadArray(key){
     var raw;
     try{
-      raw = localStorage.getItem(LOG_KEY) || "{}";
+      raw = localStorage.getItem(key) || "[]";
     }catch(_){
-      raw = "{}";
+      raw = "[]";
     }
-    var obj;
+    var arr;
     try{
-      obj = JSON.parse(raw);
-    }catch(_){
-      obj = {};
-    }
-    if (!obj || typeof obj !== "object") obj = {};
-    return obj;
-  }
-
-  function saveLog(obj){
-    try{
-      localStorage.setItem(LOG_KEY, JSON.stringify(obj));
-    }catch(_){}
-  }
-
-  // cscs_results から「ts 最大のレコード」を 1件だけ採用
-  // ここは b_judge_record.js が書き出した配列をそのまま信頼する
-  function findLatestRow(){
-    var raw, arr;
-    try{
-      raw = localStorage.getItem(KEY_RESULTS) || "[]";
       arr = JSON.parse(raw);
     }catch(_){
       arr = [];
     }
-    if (!Array.isArray(arr) || arr.length === 0) return null;
+    if (!Array.isArray(arr)) arr = [];
+    return arr;
+  }
 
-    var latest = null;
-    for (var i = 0; i < arr.length; i++){
-      var r = arr[i];
-      if (!r || typeof r.ts !== "number") continue;
-      // correct が boolean か number 的な値を持っているものだけを対象
-      if (typeof r.correct !== "boolean" && typeof r.correct !== "number") continue;
-      if (!latest || r.ts > latest.ts) latest = r;
+  // correct/incorrect 両方のログから、該当 qid の最新 1件を探す
+  function findLatestFromAttemptLogs(info){
+    var day = info.day;
+    var qid = info.qid;
+
+    var correctArr = loadArray("cscs_correct_attempt_log_" + day);
+    var wrongArr   = loadArray("cscs_wrong_attempt_log_" + day);
+
+    var candidates = [];
+
+    for (var i = 0; i < correctArr.length; i++){
+      var r = correctArr[i];
+      if (!r || r.qid !== qid) continue;
+      candidates.push({ row: r, isCorrect: true });
     }
-    return latest;
+    for (var j = 0; j < wrongArr.length; j++){
+      var w = wrongArr[j];
+      if (!w || w.qid !== qid) continue;
+      candidates.push({ row: w, isCorrect: false });
+    }
+
+    if (candidates.length === 0) return null;
+
+    // ts の大きいものを最新とみなす（ts が無ければ配列末尾が新しいと想定）
+    candidates.sort(function(a, b){
+      var ta = (a.row && typeof a.row.ts === "number") ? a.row.ts : 0;
+      var tb = (b.row && typeof b.row.ts === "number") ? b.row.ts : 0;
+      return tb - ta;
+    });
+
+    return candidates[0];
   }
 
   async function sendOnce(){
-    var row = findLatestRow();
-    if (!row) return;
+    var latest = findLatestFromAttemptLogs(info);
+    if (!latest) return;
 
-    // 「day + stem + ts」でこの解答を一意に識別
-    var markId  = info.day + ":" + info.stem + ":" + row.ts;
+    var ts = (latest.row && typeof latest.row.ts === "number") ? latest.row.ts : Date.now();
+    var markId  = info.day + ":" + info.qid + ":" + ts;
     var markKey = MARK_PREFIX + markId;
 
     try{
       if (localStorage.getItem(markKey) === "1") {
-        // すでにこの解答は処理済み → リロードなどなので何もしない
+        // すでにこの解答は SYNC 済み → リロードなどなので何もしない
         return;
       }
     }catch(_){}
 
-    // ---- 1) ローカル attempt_log（永続セーブデータ）を更新 ----
-    try{
-      var log   = loadLog();
-      var entry = log[info.qid] || { correct: 0, incorrect: 0 };
-      if (row.correct) {
-        entry.correct = (entry.correct | 0) + 1;
-      } else {
-        entry.incorrect = (entry.incorrect | 0) + 1;
-      }
-      log[info.qid] = entry;
-      saveLog(log);
-    }catch(_){
-      // attempt_log 更新失敗は致命的ではないので握りつぶす
-    }
-
-    // ---- 2) SYNC へ +1 を送る（失敗しても attempt_log は残る） ----
     var payload = { correctDelta: {}, incorrectDelta: {} };
-    if (row.correct) {
+    if (latest.isCorrect) {
       payload.correctDelta[info.qid] = 1;
     } else {
       payload.incorrectDelta[info.qid] = 1;
@@ -349,16 +335,16 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       });
       if (!res.ok) throw new Error(String(res.status));
       try{
-        localStorage.setItem(markKey, "1");  // この解答は「attempt_log も SYNC も完了」としてマーク
+        localStorage.setItem(markKey, "1");  // この解答は SYNC 完了としてマーク
       }catch(_){}
-      console.debug("[SYNC/B] merged & logged:", payload);
+      console.debug("[SYNC/B] merged:", payload);
     }catch(e){
-      console.warn("[SYNC/B] merge failed (attempt_log updated only)", e);
-      // 通信失敗時は markKey を付けない → 次回B表示時に再試行（attempt_log はすでに +1 済み）
+      console.warn("[SYNC/B] merge failed", e);
+      // 通信失敗時は markKey を付けない → 次回 B 表示時に再試行
     }
   }
 
-  // b_judge_record.js が cscs_results を書き出した後に動くよう、DOM読み込み後の次ティックで実行
+  // b_judge_record.js が attempt ログを書いた後に動くよう、DOM 読み込み後の次ティックで実行
   if (document.readyState === "loading") {
     window.addEventListener("DOMContentLoaded", function(){
       setTimeout(sendOnce, 0);
