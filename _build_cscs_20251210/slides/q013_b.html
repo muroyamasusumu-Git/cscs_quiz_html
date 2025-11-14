@@ -346,15 +346,21 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
     const payload = {
-      correctDelta:   dc ? { [info.qid]: dc } : {},
-      incorrectDelta: dw ? { [info.qid]: dw } : {},
+      correctDelta:   dc > 0 ? { [info.qid]: dc } : {},
+      incorrectDelta: dw > 0 ? { [info.qid]: dw } : {},
       updatedAt: Date.now()
     };
 
+    // ★★★ 追加：送信直前ログ ★★★
+    console.log("[SYNC/B] trying to send", {
+      qid: info.qid,
+      payload
+    });
+
     try{
       const res = await fetch("/api/sync/merge", {
-        method: "POST",
-        headers: { "content-type":"application/json" },
+        method:"POST",
+        headers:{ "content-type":"application/json" },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(res.status);

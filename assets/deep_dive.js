@@ -50,59 +50,12 @@
   }
 
   /**
-   * 優先度: data-gemini-key → /api-key(Cloudflare Functions) → localStorage("gemini_api_key")
-   * ただし、ユーザーが明示的に「作動解除」している場合は常に例外。
+   * （新方式）APIキーはブラウザ側では扱わない。
+   * /api-key などの鍵取得処理はすべて廃止。
+   * 深掘りは Worker (/api/deep-dive) が代理実行する。
    */
   async function getApiKey() {
-    // 事前に「作動解除」なら常に失敗させる（UI側で再有効化を促す）
-    if (isApiDisabled()) {
-      throw new Error('DISABLED_BY_USER');
-    }
-
-    // 0) メモリキャッシュ
-    if (typeof __GEMINI_KEY_CACHE === 'string' && __GEMINI_KEY_CACHE) {
-      return __GEMINI_KEY_CACHE;
-    }
-
-    // 1) <script src="...deep_dive.js" data-gemini-key="...">
-    const me =
-      document.currentScript ||
-      document.querySelector('script[src*="deep_dive.js"]') ||
-      document.querySelector('script[data-mode][src*="deep_dive.js"]');
-    const attr = me && me.dataset ? (me.dataset.geminiKey || '').trim() : '';
-    if (attr) {
-      __GEMINI_KEY_CACHE = attr;
-      return __GEMINI_KEY_CACHE;
-    }
-
-    // 2) Cloudflare Functions 経由（/api-key が { key: "AIza..." } を返す想定）
-    try {
-      const res = await fetch('/api-key', {
-        method: 'GET',
-        headers: { 'accept': 'application/json' }
-      });
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data && typeof data.key === 'string' && data.key.trim()) {
-          __GEMINI_KEY_CACHE = data.key.trim();
-          return __GEMINI_KEY_CACHE;
-        }
-      }
-    } catch (_) {
-      // ネットワークエラー時は次の手段へフォールバック
-    }
-
-    // 3) localStorage フォールバック
-    try {
-      const ls = (localStorage.getItem('gemini_api_key') || '').trim();
-      if (ls) {
-        __GEMINI_KEY_CACHE = ls;
-        return __GEMINI_KEY_CACHE;
-      }
-    } catch (_){}
-
-    // 4) どれも無い
-    throw new Error('GEMINI_API_KEY not found (data-attr, /api-key, localStorage)');
+    throw new Error("APIキーはブラウザ側では使用しません");
   }
   function maskKey(k) {
     if (!k) return "未設定";
