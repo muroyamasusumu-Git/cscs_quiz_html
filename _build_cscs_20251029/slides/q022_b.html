@@ -239,118 +239,72 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 <script>
 (function(){
-  // Bページ専用：b_judge_record.js の attempt ログを 1件だけ SYNC へ送る
   function detectInfo(){
-    var m = (location.pathname || "").match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b/);
     if (!m) return null;
-    var day  = m[1];      // 例: "20250926"
-    var n3   = m[2];      // 例: "001"
-    var stem = "q" + n3;  // 例: "q001"
-    // qid 形式を「YYYYMMDD-NNN」に統一（例: 20250926-001）
-    var qid  = day + "-" + n3;
-    return { day: day, stem: stem, qid: qid };
+    const day  = m[1];       // "20250926"
+    const n3   = m[2];       // "001"
+    const qid  = `${day}-${n3}`;  // 20250926-001
+    return { day, n3, qid };
   }
-  var info = detectInfo();
+  const info = detectInfo();
   if (!info) return;
 
-  var MARK_PREFIX = "cscs_sync_sent:";   // 同じ解答(ts)には一度しか送らないための印
+  // b_judge_record.js が更新している“正しい累積キー”
+  const KEY_COR = `cscs_q_correct_total:${info.qid}`;
+  const KEY_WRG = `cscs_q_wrong_total:${info.qid}`;
 
-  function loadArray(key){
-    var raw;
-    try{
-      raw = localStorage.getItem(key) || "[]";
-    }catch(_){
-      raw = "[]";
-    }
-    var arr;
-    try{
-      arr = JSON.parse(raw);
-    }catch(_){
-      arr = [];
-    }
-    if (!Array.isArray(arr)) arr = [];
-    return arr;
-  }
+  // 同じ1回答を二重送信しないためのマーク
+  const MARK_KEY = `cscs_sync_total_sent:${info.qid}`;
 
-  // correct/incorrect 両方のログから、該当 qid の最新 1件を探す
-  function findLatestFromAttemptLogs(info){
-    var day = info.day;
-    var qid = info.qid;
-
-    var correctArr = loadArray("cscs_correct_attempt_log_" + day);
-    var wrongArr   = loadArray("cscs_wrong_attempt_log_" + day);
-
-    var candidates = [];
-
-    for (var i = 0; i < correctArr.length; i++){
-      var r = correctArr[i];
-      if (!r || r.qid !== qid) continue;
-      candidates.push({ row: r, isCorrect: true });
-    }
-    for (var j = 0; j < wrongArr.length; j++){
-      var w = wrongArr[j];
-      if (!w || w.qid !== qid) continue;
-      candidates.push({ row: w, isCorrect: false });
-    }
-
-    if (candidates.length === 0) return null;
-
-    // ts の大きいものを最新とみなす（ts が無ければ配列末尾が新しいと想定）
-    candidates.sort(function(a, b){
-      var ta = (a.row && typeof a.row.ts === "number") ? a.row.ts : 0;
-      var tb = (b.row && typeof b.row.ts === "number") ? b.row.ts : 0;
-      return tb - ta;
-    });
-
-    return candidates[0];
+  function loadInt(k){
+    const v = localStorage.getItem(k);
+    return v ? (parseInt(v,10) || 0) : 0;
   }
 
   async function sendOnce(){
-    var latest = findLatestFromAttemptLogs(info);
-    if (!latest) return;
+    // すでに SYNC 済みなら送らない
+    if (localStorage.getItem(MARK_KEY) === "1") return;
 
-    var ts = (latest.row && typeof latest.row.ts === "number") ? latest.row.ts : Date.now();
-    var markId  = info.day + ":" + info.qid + ":" + ts;
-    var markKey = MARK_PREFIX + markId;
+    // b_judge_record.js が確定させた累積数を参照
+    const c = loadInt(KEY_COR);
+    const w = loadInt(KEY_WRG);
 
-    try{
-      if (localStorage.getItem(markKey) === "1") {
-        // すでにこの解答は SYNC 済み → リロードなどなので何もしない
-        return;
-      }
-    }catch(_){}
-
-    var payload = { correctDelta: {}, incorrectDelta: {} };
-    if (latest.isCorrect) {
+    // 判定：今回の1回答ぶんは correct か incorrect か？
+    // （B到達時点でどちらかが +1 増えている前提）
+    let payload = { correctDelta:{}, incorrectDelta:{} };
+    if (c > 0 && localStorage.getItem(`__prev_c_${info.qid}`) != c){
       payload.correctDelta[info.qid] = 1;
-    } else {
+    } else if (w > 0 && localStorage.getItem(`__prev_w_${info.qid}`) != w){
       payload.incorrectDelta[info.qid] = 1;
+    } else {
+      return; // 今回増えていない（Bにアクセスしただけ）
     }
 
+    // 送信
     try{
-      var res = await fetch("/api/sync/merge", {
+      const res = await fetch("/api/sync/merge", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers:{ "content-type":"application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(String(res.status));
-      try{
-        localStorage.setItem(markKey, "1");  // この解答は SYNC 完了としてマーク
-      }catch(_){}
-      console.debug("[SYNC/B] merged:", payload);
+      if (!res.ok) throw new Error(res.status);
+
+      // 二重送信防止
+      localStorage.setItem(MARK_KEY,"1");
     }catch(e){
       console.warn("[SYNC/B] merge failed", e);
-      // 通信失敗時は markKey を付けない → 次回 B 表示時に再試行
     }
+
+    // 今回の値を記録（次回比較用）
+    localStorage.setItem(`__prev_c_${info.qid}`, c);
+    localStorage.setItem(`__prev_w_${info.qid}`, w);
   }
 
-  // b_judge_record.js が attempt ログを書いた後に動くよう、DOM 読み込み後の次ティックで実行
-  if (document.readyState === "loading") {
-    window.addEventListener("DOMContentLoaded", function(){
-      setTimeout(sendOnce, 0);
-    });
-  } else {
-    setTimeout(sendOnce, 0);
+  if (document.readyState === "loading"){
+    window.addEventListener("DOMContentLoaded",()=>setTimeout(sendOnce,0));
+  }else{
+    setTimeout(sendOnce,0);
   }
 })();
 </script>
