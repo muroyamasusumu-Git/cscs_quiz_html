@@ -892,7 +892,14 @@ h1 { font-size: var(--h1-fs, inherit); }
       const hasI = Object.keys(queue.incorrectDelta).length>0;
       if (!hasC && !hasI) return;
 
-      const payload = { correctDelta: queue.correctDelta, incorrectDelta: queue.incorrectDelta };
+      // ★ 差分送信用のペイロード（qid とタイムスタンプ付き）
+      const payload = {
+        qid: QID || null,
+        correctDelta: queue.correctDelta,
+        incorrectDelta: queue.incorrectDelta,
+        updatedAt: Date.now()
+      };
+
       lastSyncStatus = "sending";
       lastSyncError  = "";
       updateMonitor();
@@ -904,8 +911,11 @@ h1 { font-size: var(--h1-fs, inherit); }
           body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(String(res.status));
+
+        // 送信が成功したら差分キューをクリア
         queue.correctDelta   = {};
         queue.incorrectDelta = {};
+
         const latest = await res.json();
         if (QID){
           const c = (latest.correct   && latest.correct[QID])   || 0;
