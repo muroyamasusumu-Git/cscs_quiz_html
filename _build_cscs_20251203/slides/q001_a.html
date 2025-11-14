@@ -941,6 +941,44 @@ h1 { font-size: var(--h1-fs, inherit); }
       }
     };
 
+    // 🧪 SYNC 動作テスト用ショートカット（必ず貼っておくテストコード）
+    //   URL に ?sync_test=ok / ng / send / pull を付けてアクセスすると、
+    //   対応するテスト操作を自動で一度だけ実行する。
+    (function(){
+      try{
+        const params = new URLSearchParams(location.search || "");
+        const mode = params.get("sync_test");
+        if (!mode) return;
+
+        if (mode === "ok") {
+          // 正解1回ぶんの差分をキューに積む
+          window.CSCS_SYNC.recordCorrect();
+          console.log("[SYNC TEST] recordCorrect() called");
+        } else if (mode === "ng") {
+          // 不正解1回ぶんの差分をキューに積む
+          window.CSCS_SYNC.recordIncorrect();
+          console.log("[SYNC TEST] recordIncorrect() called");
+        } else if (mode === "send") {
+          // 現在キューされている差分を /api/sync/merge に送信
+          console.log("[SYNC TEST] sendDelta() called");
+          sendDelta();
+        } else if (mode === "pull") {
+          // サーバー側の現在値を取得してコンソールに表示
+          console.log("[SYNC TEST] fetchServer() called");
+          (async () => {
+            try{
+              const state = await window.CSCS_SYNC.fetchServer();
+              console.log("[SYNC TEST] /api/sync/state =", state);
+            }catch(e){
+              console.warn("[SYNC TEST] fetchServer failed:", e);
+            }
+          })();
+        }
+      }catch(e){
+        console.warn("[SYNC TEST] param handler error:", e);
+      }
+    })();
+
     // 初期ロードでサーバ側の累積を取得
     async function initialFetch(){
       if (!QID) return;
