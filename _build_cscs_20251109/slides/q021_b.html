@@ -250,61 +250,67 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   const info = detectInfo();
   if (!info) return;
 
-  // b_judge_record.js が更新している“正しい累積キー”
+  // b_judge_record.js が更新している累積キー
   const KEY_COR = `cscs_q_correct_total:${info.qid}`;
   const KEY_WRG = `cscs_q_wrong_total:${info.qid}`;
 
-  // 同じ1回答を二重送信しないためのマーク
-  const MARK_KEY = `cscs_sync_total_sent:${info.qid}`;
+  // B側で保持する「前回 SYNC 済み時点の値」
+  const KEY_LAST_COR = `cscs_sync_last_c:${info.qid}`;
+  const KEY_LAST_WRG = `cscs_sync_last_w:${info.qid}`;
 
-  function loadInt(k){
-    const v = localStorage.getItem(k);
-    return v ? (parseInt(v,10) || 0) : 0;
+  function loadInt(key){
+    const v = localStorage.getItem(key);
+    return v ? (parseInt(v, 10) || 0) : 0;
   }
 
-  async function sendOnce(){
-    // すでに SYNC 済みなら送らない
-    if (localStorage.getItem(MARK_KEY) === "1") return;
+  function saveInt(key, value){
+    localStorage.setItem(key, String(value));
+  }
 
-    // b_judge_record.js が確定させた累積数を参照
-    const c = loadInt(KEY_COR);
-    const w = loadInt(KEY_WRG);
+  async function syncFromTotals(){
+    // 現在の累積値（b_judge_record.js が管理している本物）
+    const cNow = loadInt(KEY_COR);
+    const wNow = loadInt(KEY_WRG);
 
-    // 判定：今回の1回答ぶんは correct か incorrect か？
-    // （B到達時点でどちらかが +1 増えている前提）
-    let payload = { correctDelta:{}, incorrectDelta:{} };
-    if (c > 0 && localStorage.getItem(`__prev_c_${info.qid}`) != c){
-      payload.correctDelta[info.qid] = 1;
-    } else if (w > 0 && localStorage.getItem(`__prev_w_${info.qid}`) != w){
-      payload.incorrectDelta[info.qid] = 1;
-    } else {
-      return; // 今回増えていない（Bにアクセスしただけ）
-    }
+    // 前回 SYNC 時点の値（B側でのみ使用）
+    const cPrev = loadInt(KEY_LAST_COR);
+    const wPrev = loadInt(KEY_LAST_WRG);
 
-    // 送信
+    // 今回増えたぶん（マイナスは切り捨て）
+    const dC = Math.max(0, cNow - cPrev);
+    const dW = Math.max(0, wNow - wPrev);
+
+    // 変化がなければ何もしない
+    if (dC + dW <= 0) return;
+
+    const payload = {
+      correct:   dC > 0 ? { [info.qid]: dC } : {},
+      incorrect: dW > 0 ? { [info.qid]: dW } : {},
+      updatedAt: Date.now()
+    };
+
     try{
       const res = await fetch("/api/sync/merge", {
         method: "POST",
-        headers:{ "content-type":"application/json" },
+        headers: { "content-type":"application/json" },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(res.status);
 
-      // 二重送信防止
-      localStorage.setItem(MARK_KEY,"1");
+      // 成功したら今回の値を保存（次回の差分計算用）
+      saveInt(KEY_LAST_COR, cNow);
+      saveInt(KEY_LAST_WRG, wNow);
     }catch(e){
       console.warn("[SYNC/B] merge failed", e);
     }
-
-    // 今回の値を記録（次回比較用）
-    localStorage.setItem(`__prev_c_${info.qid}`, c);
-    localStorage.setItem(`__prev_w_${info.qid}`, w);
   }
 
   if (document.readyState === "loading"){
-    window.addEventListener("DOMContentLoaded",()=>setTimeout(sendOnce,0));
-  }else{
-    setTimeout(sendOnce,0);
+    window.addEventListener("DOMContentLoaded", function(){
+      setTimeout(syncFromTotals, 0);
+    });
+  } else {
+    setTimeout(syncFromTotals, 0);
   }
 })();
 </script>
