@@ -802,104 +802,205 @@ h1 { font-size: var(--h1-fs, inherit); }
 <script src="../../assets/similar_list.js" data-src="../../assets/cscs_meta_all.json" data-mode="similar"></script>
 
 <script>
-  // === ① detectQid ===
-  function detectQidFromLocation() {
-    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
-    if (!m) return null;
-    const day  = m[1];   // 例: "20250926"
-    const num3 = m[2];   // 例: "001"
-    // qid 形式を「YYYYMMDD-NNN」に統一（例: 20250926-001）
-    return `${day}-${num3}`;
-  }
-  const QID = detectQidFromLocation();
-
-  // === ② 差分キュー ===
-  const queue = { correctDelta: {}, incorrectDelta: {} };
-  let sendTimer = null;
-  function scheduleSend(){
-    if (!navigator.onLine) return;
-    clearTimeout(sendTimer);
-    sendTimer = setTimeout(sendDelta, 1000);
-  }
-
-  function updateSyncTotalsDisplay(c,i){
-    const el = document.getElementById("cscs_sync_totals");
-    if (el) el.textContent = `correct:${c} / incorrect:${i}`;
-  }
-
-  async function sendDelta(){
-    const hasC = Object.keys(queue.correctDelta).length>0;
-    const hasI = Object.keys(queue.incorrectDelta).length>0;
-    if (!hasC && !hasI) return;
-    const payload = { correctDelta: queue.correctDelta, incorrectDelta: queue.incorrectDelta };
-    try{
-      const res = await fetch("/api/sync/merge", {
-        method:"POST",
-        headers:{ "content-type":"application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error(res.status);
-      queue.correctDelta={}; queue.incorrectDelta={};
-      const latest = await res.json();
-      if (QID){
-        updateSyncTotalsDisplay(
-          (latest.correct && latest.correct[QID])||0,
-          (latest.incorrect && latest.incorrect[QID])||0
-        );
-      }
-    }catch(e){ console.warn("[SYNC] merge failed", e); }
-  }
-
-  window.CSCS_SYNC = {
-    recordCorrect(){ if(QID){ queue.correctDelta[QID]=(queue.correctDelta[QID]||0)+1; scheduleSend(); } },
-    recordIncorrect(){ if(QID){ queue.incorrectDelta[QID]=(queue.incorrectDelta[QID]||0)+1; scheduleSend(); } },
-    async fetchServer(){
-      const r = await fetch("/api/sync/state");
-      if(!r.ok) throw new Error(r.statusText);
-      return r.json();
-    }
-  };
-
-  // === ④ 初期ロードでサーバの累積取得 ===
-  window.addEventListener("DOMContentLoaded", async () => {
-    if (!QID) return;
-    try{
-      const s = await CSCS_SYNC.fetchServer();
-      updateSyncTotalsDisplay(
-        (s.correct && s.correct[QID])||0,
-        (s.incorrect && s.incorrect[QID])||0
-      );
-    }catch(e){ console.warn("[SYNC] fetch failed", e); }
-  });
-
-  // === ⑤ テストUI（必要に応じて後で消してOK） ===
   (function(){
-    if (!QID) return;
-    const box = document.createElement("div");
-    box.style.cssText="position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.2 system-ui";
-    box.innerHTML = `
-      <div style="margin-bottom:4px;opacity:.8;">SYNC test: <b>${QID}</b></div>
-      <div id="cscs_sync_totals" style="margin-bottom:6px;font-size:11px;opacity:.8;">correct:0 / incorrect:0</div>
-      <button id="cscs_sync_ok" style="margin-right:6px">+correct</button>
-      <button id="cscs_sync_ng" style="margin-right:6px">+incorrect</button>
-      <button id="cscs_sync_reset">reset(server)</button>
-    `;
-    document.body.appendChild(box);
-    box.querySelector("#cscs_sync_ok").onclick = ()=>CSCS_SYNC.recordCorrect();
-    box.querySelector("#cscs_sync_ng").onclick = ()=>CSCS_SYNC.recordIncorrect();
-    box.querySelector("#cscs_sync_reset").onclick = async ()=>{
-      try{
-        const r = await fetch("/api/sync/reset",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
-        const latest = await r.json();
-        updateSyncTotalsDisplay(
-          (latest.correct && latest.correct[QID])||0,
-          (latest.incorrect && latest.incorrect[QID])||0
-        );
-      }catch(e){ console.warn("[SYNC] reset failed", e); }
-    };
-  })();
+    // === ① QID検出（Aパート） ===
+    function detectQidFromLocationA() {
+      const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+      if (!m) return null;
+      const day  = m[1];   // 例: "20250926"
+      const num3 = m[2];   // 例: "001"
+      // qid 形式を「YYYYMMDD-NNN」に統一
+      return day + "-" + num3;
+    }
+    const QID = detectQidFromLocationA();
 
-  window.addEventListener("online", sendDelta);
+    // === ② 差分キュー（Aパート専用） ===
+    const queue = { correctDelta: {}, incorrectDelta: {} };
+    let sendTimer = null;
+
+    // SYNCモニタ用ステータス
+    let lastSyncStatus = "idle";   // "idle" | "sending" | "ok" | "error" | "offline"
+    let lastSyncTime   = null;     // "HH:MM:SS"
+    let lastSyncError  = "";
+
+    function readLocalTotalsForQid(qid){
+      try{
+        const kC = "cscs_q_correct_total:" + qid;
+        const kW = "cscs_q_wrong_total:"   + qid;
+        const c  = parseInt(localStorage.getItem(kC) || "0", 10) || 0;
+        const w  = parseInt(localStorage.getItem(kW) || "0", 10) || 0;
+        return { c, w };
+      }catch(_){
+        return { c:0, w:0 };
+      }
+    }
+
+    function setServerTotalsForQid(c, i){
+      const el = document.getElementById("cscs_sync_totals");
+      if (el) {
+        el.dataset.serverC = String(c);
+        el.dataset.serverI = String(i);
+      }
+    }
+
+    function updateMonitor(){
+      try{
+        if (!QID) return;
+        const box = document.getElementById("cscs_sync_monitor_a");
+        const totalsEl = document.getElementById("cscs_sync_totals");
+
+        const dC = queue.correctDelta[QID]   || 0;
+        const dI = queue.incorrectDelta[QID] || 0;
+
+        const local = readLocalTotalsForQid(QID);
+        const lc = local.c;
+        const li = local.w;
+
+        let sc = 0, si = 0;
+        if (totalsEl) {
+          sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+          si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+          totalsEl.textContent = "server " + sc + " / " + si;
+        }
+
+        if (box) {
+          box.querySelector(".sync-qid").textContent    = QID;
+          box.querySelector(".sync-local").textContent  = "local  " + lc + " / " + li;
+          box.querySelector(".sync-queue").textContent  = "+Δ    " + dC + " / " + dI;
+          const time = lastSyncTime ? lastSyncTime : "-";
+          const err  = lastSyncError ? (" err:" + lastSyncError) : "";
+          box.querySelector(".sync-status").textContent = lastSyncStatus + " (" + time + ")" + err;
+        }
+      }catch(_){
+        // UI更新失敗は握りつぶし
+      }
+    }
+
+    function scheduleSend(){
+      if (!navigator.onLine) {
+        lastSyncStatus = "offline";
+        updateMonitor();
+        return;
+      }
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(sendDelta, 1000);
+      updateMonitor();
+    }
+
+    async function sendDelta(){
+      const hasC = Object.keys(queue.correctDelta).length>0;
+      const hasI = Object.keys(queue.incorrectDelta).length>0;
+      if (!hasC && !hasI) return;
+
+      const payload = { correctDelta: queue.correctDelta, incorrectDelta: queue.incorrectDelta };
+      lastSyncStatus = "sending";
+      lastSyncError  = "";
+      updateMonitor();
+
+      try{
+        const res = await fetch("/api/sync/merge", {
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        queue.correctDelta   = {};
+        queue.incorrectDelta = {};
+        const latest = await res.json();
+        if (QID){
+          const c = (latest.correct   && latest.correct[QID])   || 0;
+          const i = (latest.incorrect && latest.incorrect[QID]) || 0;
+          setServerTotalsForQid(c, i);
+        }
+        lastSyncStatus = "ok";
+        lastSyncTime   = new Date().toLocaleTimeString();
+        lastSyncError  = "";
+      }catch(e){
+        lastSyncStatus = "error";
+        lastSyncError  = String(e && e.message || e);
+      }finally{
+        updateMonitor();
+      }
+    }
+
+    window.CSCS_SYNC = {
+      recordCorrect(){
+        if (!QID) return;
+        queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      recordIncorrect(){
+        if (!QID) return;
+        queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      async fetchServer(){
+        const r = await fetch("/api/sync/state");
+        if(!r.ok) throw new Error(r.statusText);
+        return r.json();
+      }
+    };
+
+    // 初期ロードでサーバ側の累積を取得
+    async function initialFetch(){
+      if (!QID) return;
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        const c = (s.correct   && s.correct[QID])   || 0;
+        const i = (s.incorrect && s.incorrect[QID]) || 0;
+        setServerTotalsForQid(c, i);
+      }catch(e){
+        lastSyncStatus = "error";
+        lastSyncError  = String(e && e.message || e);
+      }finally{
+        updateMonitor();
+      }
+    }
+
+    // 右下モニタ生成＋テストボタン（+ok/+ng/send/pull）
+    window.addEventListener("DOMContentLoaded", function(){
+      if (!QID) return;
+      try{
+        const box = document.createElement("div");
+        box.id = "cscs_sync_monitor_a";
+        box.style.cssText = "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:11px/1.4 system-ui;max-width:46vw;";
+        box.innerHTML = `
+          <div style="margin-bottom:4px;opacity:.8;">SYNC(A): <span class="sync-qid"></span></div>
+          <div id="cscs_sync_totals" data-server-c="0" data-server-i="0" style="margin-bottom:2px;font-size:11px;opacity:.85;">server 0 / 0</div>
+          <div class="sync-local"  style="margin-bottom:2px;font-size:11px;opacity:.85;">local  0 / 0</div>
+          <div class="sync-queue"  style="margin-bottom:4px;font-size:11px;opacity:.85;">+Δ    0 / 0</div>
+          <div style="margin-bottom:4px;font-size:11px;opacity:.85;">status: <span class="sync-status">idle (-)</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button id="cscs_sync_test_ok"    type="button" style="font-size:10px;">+ok</button>
+            <button id="cscs_sync_test_ng"    type="button" style="font-size:10px;">+ng</button>
+            <button id="cscs_sync_test_send"  type="button" style="font-size:10px;">send</button>
+            <button id="cscs_sync_test_pull"  type="button" style="font-size:10px;">pull</button>
+          </div>
+        `;
+        document.body.appendChild(box);
+
+        const btnOk   = document.getElementById("cscs_sync_test_ok");
+        const btnNg   = document.getElementById("cscs_sync_test_ng");
+        const btnSend = document.getElementById("cscs_sync_test_send");
+        const btnPull = document.getElementById("cscs_sync_test_pull");
+
+        if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
+        if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
+        if (btnSend) btnSend.addEventListener("click", () => sendDelta());
+        if (btnPull) btnPull.addEventListener("click", () => initialFetch());
+      }catch(_){}
+      initialFetch();
+    });
+
+    window.addEventListener("online", function(){
+      lastSyncStatus = "idle";
+      sendDelta();
+    });
+    window.addEventListener("offline", function(){
+      lastSyncStatus = "offline";
+      updateMonitor();
+    });
+  })();
 </script>
 
 
