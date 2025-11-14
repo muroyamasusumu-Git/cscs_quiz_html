@@ -209,6 +209,63 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
+      <script>
+      (function(){
+        if (window.__cscsBTokenDiagInstalled) return;
+        window.__cscsBTokenDiagInstalled = true;
+
+        var path = window.location.pathname || "";
+        var mDay  = path.match(/_build_cscs_(\d{8})/);
+        var mStem = path.match(/(?:^|\/)(q\d{3})_b(?:\.html)?(?:\/)?$/i);
+        if (!mDay || !mStem) return;
+
+        var day  = mDay[1];                 // 例: "20250926"
+        var num3 = mStem[1].slice(1);       // "q001" → "001"
+        var qid  = day + "-" + num3;       // "YYYYMMDD-NNN"
+
+        var Kt = "cscs_from_a_token:" + qid;
+        var Kc = "cscs_from_a:" + qid;
+
+        var lt = "", lc = "";
+        var sq = "", st = "", sc = "";
+        try{
+          lt = localStorage.getItem(Kt) || "";
+          lc = localStorage.getItem(Kc) || "";
+        }catch(_){}
+        try{
+          sq = sessionStorage.getItem("cscs_last_token_qid")   || "";
+          st = sessionStorage.getItem("cscs_last_token_value") || "";
+          sc = sessionStorage.getItem("cscs_last_choice")      || "";
+        }catch(_){}
+
+        var box = document.createElement("div");
+        box.id = "cscs_b_token_diag";
+        box.style.cssText =
+          "position:fixed;left:8px;top:8px;z-index:99998;"
+          + "max-width:48vw;background:rgba(0,0,0,.78);color:#fff;"
+          + "font:11px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;"
+          + "padding:6px 8px;border-radius:6px;white-space:pre-wrap;"
+          + "word-break:break-word;pointer-events:none;";
+
+        box.textContent =
+          "[B token] qid:" + qid
+          + " | Kt:" + (lt ? "set" : "null")
+          + " | Kc:" + (lc || "null")
+          + " | sessQid:" + (sq || "null")
+          + " | sessTok:" + (st ? "set" : "null")
+          + " | sessChoice:" + (sc || "null");
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", function(){
+            document.body.appendChild(box);
+          });
+        } else {
+          document.body.appendChild(box);
+        }
+      })();
+      </script>
+    
+
 <script src="../../assets/b_judge.js" data-stem="q026" data-audio-base="/_build_cscs_20250927/audio" data-ext=".m4a"></script>
 
 
