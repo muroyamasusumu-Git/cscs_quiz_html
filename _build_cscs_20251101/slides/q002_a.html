@@ -975,6 +975,11 @@ h1 { font-size: var(--h1-fs, inherit); }
             <button id="cscs_sync_test_ng"    type="button" style="font-size:10px;">+ng</button>
             <button id="cscs_sync_test_send"  type="button" style="font-size:10px;">send</button>
             <button id="cscs_sync_test_pull"  type="button" style="font-size:10px;">pull</button>
+
+            <!-- ★★★ 新しく追加する3ボタン ★★★ -->
+            <button id="cscs_sync_test_pushdiff" type="button" style="font-size:10px;">push diff</button>
+            <button id="cscs_sync_test_overwrite" type="button" style="font-size:10px;">overwrite local</button>
+            <button id="cscs_sync_test_reset" type="button" style="font-size:10px;">reset server</button>
           </div>
         `;
         document.body.appendChild(box);
@@ -983,6 +988,44 @@ h1 { font-size: var(--h1-fs, inherit); }
         const btnNg   = document.getElementById("cscs_sync_test_ng");
         const btnSend = document.getElementById("cscs_sync_test_send");
         const btnPull = document.getElementById("cscs_sync_test_pull");
+        const btnPush   = document.getElementById("cscs_sync_test_pushdiff");
+        const btnOver   = document.getElementById("cscs_sync_test_overwrite");
+        const btnReset  = document.getElementById("cscs_sync_test_reset");
+
+        // ① diff を /api/sync/merge へ送る
+        if (btnPush) btnPush.addEventListener("click", () => {
+          sendDelta();   // 既存のsendDeltaをそのまま利用
+        });
+
+        // ② サーバー値でローカルを上書き
+        if (btnOver) btnOver.addEventListener("click", async () => {
+          try{
+            const s = await CSCS_SYNC.fetchServer();
+            const c = (s.correct   && s.correct[QID])   || 0;
+            const w = (s.incorrect && s.incorrect[QID]) || 0;
+            localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
+            localStorage.setItem("cscs_q_wrong_total:"   + QID, String(w));
+            alert("ローカルをサーバの値で上書きしました。");
+            updateMonitor();
+          }catch(e){
+            alert("取得に失敗: " + e);
+          }
+        });
+
+        // ③ サーバー側カウンタを消去
+        if (btnReset) btnReset.addEventListener("click", async () => {
+          try{
+            await fetch("/api/sync/reset", {
+              method:"POST",
+              headers:{ "content-type":"application/json" },
+              body: JSON.stringify({ qid: QID })
+            });
+            alert("サーバー側カウンタをリセットしました。");
+            await initialFetch();
+          }catch(e){
+            alert("reset 失敗: " + e);
+          }
+        });
 
         if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
         if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
