@@ -630,5 +630,119 @@ ol.opts li.is-correct a.opt-link {
   })();
 </script>
 
+
+  <script>
+(function () {
+  "use strict";
+
+  const SYNC_ENDPOINT = "/api/sync/merge";
+
+  function getQidFromDataset() {
+    var docEl = document.documentElement;
+    if (docEl && docEl.dataset && docEl.dataset.qid) {
+      return docEl.dataset.qid;
+    }
+    var bodyEl = document.body;
+    if (bodyEl && bodyEl.dataset && bodyEl.dataset.qid) {
+      return bodyEl.dataset.qid;
+    }
+    console.warn("[SYNC-B] qid not found in data-qid on <html> or <body>.");
+    return null;
+  }
+
+  function readIntFromLocalStorage(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined) {
+        return 0;
+      }
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n < 0) {
+        return 0;
+      }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B] failed to read int from localStorage:", key, e);
+      return 0;
+    }
+  }
+
+  async function sendDiffToServer(qid, localCorrect, localWrong, sentCorrect, sentWrong) {
+    var diffCorrect = localCorrect - sentCorrect;
+    var diffWrong = localWrong - sentWrong;
+
+    if (diffCorrect <= 0 && diffWrong <= 0) {
+      console.log("[SYNC-B] no diff to send.", {
+        qid: qid,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        sentCorrect: sentCorrect,
+        sentWrong: sentWrong
+      });
+      return;
+    }
+
+    var payload = {
+      qid: qid,
+      add_correct: diffCorrect,
+      add_wrong: diffWrong,
+      local_correct_total: localCorrect,
+      local_wrong_total: localWrong
+    };
+
+    console.log("[SYNC-B] sending diff payload:", payload);
+
+    try {
+      var response = await fetch(SYNC_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+
+      if (!response.ok) {
+        console.error("[SYNC-B] server returned non-ok status:", response.status);
+        return;
+      }
+
+      var data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = null;
+      }
+
+      console.log("[SYNC-B] sync success:", data);
+
+      var newSentCorrect = localCorrect;
+      var newSentWrong = localWrong;
+      window.localStorage.setItem("cscs_sync_sent_correct_total:" + qid, String(newSentCorrect));
+      window.localStorage.setItem("cscs_sync_sent_wrong_total:" + qid, String(newSentWrong));
+    } catch (e) {
+      console.error("[SYNC-B] fetch failed:", e);
+    }
+  }
+
+  window.addEventListener("load", function () {
+    try {
+      var qid = getQidFromDataset();
+      if (!qid) {
+        return;
+      }
+
+      var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + qid);
+      var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + qid);
+      var sentCorrect = readIntFromLocalStorage("cscs_sync_sent_correct_total:" + qid);
+      var sentWrong = readIntFromLocalStorage("cscs_sync_sent_wrong_total:" + qid);
+
+      sendDiffToServer(qid, localCorrect, localWrong, sentCorrect, sentWrong);
+    } catch (e) {
+      console.error("[SYNC-B] unexpected error in load handler:", e);
+    }
+  });
+})();
+  </script>
 </body>
 </html>
