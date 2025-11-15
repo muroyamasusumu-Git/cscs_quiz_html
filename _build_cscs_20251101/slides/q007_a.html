@@ -960,36 +960,12 @@ h1 { font-size: var(--h1-fs, inherit); }
 
         const btnOk   = document.getElementById("cscs_sync_test_ok");
         const btnNg   = document.getElementById("cscs_sync_test_ng");
-        const btnSend = document.getElementById("cscs_sync_test_send");
-        const btnPull = document.getElementById("cscs_sync_test_pull");
-        const btnPush   = document.getElementById("cscs_sync_test_pushdiff");
-        const btnOver   = document.getElementById("cscs_sync_test_overwrite");
         const btnReset  = document.getElementById("cscs_sync_test_reset");
 
         const btnLocalIncOk = document.getElementById("cscs_sync_local_inc_ok");
         const btnLocalDecOk = document.getElementById("cscs_sync_local_dec_ok");
         const btnLocalIncNg = document.getElementById("cscs_sync_local_inc_ng");
         const btnLocalDecNg = document.getElementById("cscs_sync_local_dec_ng");
-
-        // ① diff を /api/sync/merge へ送る
-        if (btnPush) btnPush.addEventListener("click", () => {
-          sendDelta();
-        });
-
-        // ② サーバー値でローカルを上書き
-        if (btnOver) btnOver.addEventListener("click", async () => {
-          try{
-            const s = await CSCS_SYNC.fetchServer();
-            const c = (s.correct   && s.correct[QID])   || 0;
-            const w = (s.incorrect && s.incorrect[QID]) || 0;
-            localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
-            localStorage.setItem("cscs_q_wrong_total:"   + QID, String(w));
-            alert("ローカルをサーバの値で上書きしました。");
-            updateMonitor();
-          }catch(e){
-            alert("取得に失敗: " + e);
-          }
-        });
 
         // ③ サーバー側カウンタを消去
         if (btnReset) btnReset.addEventListener("click", async () => {
@@ -1009,8 +985,6 @@ h1 { font-size: var(--h1-fs, inherit); }
         // 既存の差分テストボタン
         if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
         if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
-        if (btnSend) btnSend.addEventListener("click", () => sendDelta());
-        if (btnPull) btnPull.addEventListener("click", () => initialFetch());
 
         // ローカルの値だけを増減するテストボタン
         if (btnLocalIncOk) btnLocalIncOk.addEventListener("click", () => {
