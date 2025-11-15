@@ -634,6 +634,36 @@ ol.opts li.is-correct a.opt-link {
     }
   }
 
+  // cscs_sync_view_b_body にテキストをセットするヘルパー
+  // "server 0 / 0\nlocal 17 / 2\ndiff 0 / 0\nstatus: error ..."
+  // みたいな文字列を行ごとに <div> に分割して縦に並べる
+  function updateSyncBody(text) {
+    var body = document.getElementById("cscs_sync_view_b_body");
+    if (!body) {
+      return;
+    }
+
+    // 既存の子要素を全部消す
+    while (body.firstChild) {
+      body.removeChild(body.firstChild);
+    }
+
+    // text を行ごとに分解して <div> に入れる
+    var lines = String(text).split(/\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      // 空行はスキップ（必要なら削除してOK）
+      if (!line.trim()) {
+        continue;
+      }
+
+      var lineDiv = document.createElement("div");
+      lineDiv.textContent = line;
+      body.appendChild(lineDiv);
+    }
+  }
+
   function fetchState() {
     return fetch(SYNC_STATE_ENDPOINT, { method: "GET" }).then(function (res) {
       if (!res.ok) {
@@ -647,28 +677,33 @@ ol.opts li.is-correct a.opt-link {
     var box = document.createElement("div");
     box.id = "cscs_sync_view_b";
     box.style.position = "fixed";
-    box.style.left = "12px";
-    box.style.bottom = "72px";
+    box.style.right = "12px";  // 右寄せ
+    box.style.bottom = "62px";
     box.style.zIndex = "9999";
-    box.style.background = "rgba(16,16,16,0.9)";
+    box.style.background = "#222";
     box.style.color = "#eee";
     box.style.border = "1px solid #444";
     box.style.borderRadius = "8px";
-    box.style.padding = "6px 10px";
-    box.style.font = "11px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif";
+    box.style.padding = "8px 10px";
+    box.style.font = "11px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
     box.style.maxWidth = "46vw";
-    box.style.whiteSpace = "pre-wrap";
-    box.style.wordBreak = "break-word";
     box.style.pointerEvents = "auto";
 
     var title = document.createElement("div");
     title.textContent = "SYNC(B): " + info.qid;
-    title.style.marginBottom = "2px";
+    title.style.marginBottom = "4px";
+    title.style.opacity = "0.8";
 
     var body = document.createElement("div");
     body.id = "cscs_sync_view_b_body";
-    body.style.whiteSpace = "pre-wrap";
-    body.style.wordBreak = "break-word";
+    body.style.marginBottom = "4px";
+    body.style.fontSize = "11px";
+    body.style.opacity = "0.85";
+    body.style.display = "flex";          // 縦並び用
+    body.style.flexDirection = "column";  // 縦方向
+    body.style.gap = "2px";               // 行間
+
+    // 初期表示は1行だけなので textContent でOK
     body.textContent = "読み込み中…";
 
     var btn = document.createElement("button");
@@ -682,9 +717,9 @@ ol.opts li.is-correct a.opt-link {
     box.appendChild(title);
     box.appendChild(body);
     box.appendChild(btn);
-
     return box;
   }
+
 
   function renderPanel(box, payload) {
     try {
@@ -697,21 +732,19 @@ ol.opts li.is-correct a.opt-link {
       var statusText = payload.statusText || "";
 
       var text = "";
-      text += "server " + serverCorrect + " / " + serverWrong + "\\n";
-      text += "local  " + localCorrect + " / " + localWrong + "\\n";
+      text += "server " + serverCorrect + " / " + serverWrong + "\n";
+      text += "local  " + localCorrect + " / " + localWrong + "\n";
       text += "diff   " + diffCorrect + " / " + diffWrong;
       if (statusText) {
         text += "  status: " + statusText;
       }
 
-      var body = box.querySelector("#cscs_sync_view_b_body");
-      if (!body) {
-        body = box;
-      }
-      body.textContent = text;
+      // 一括テキストを <div> 行に分解して縦に並べる
+      updateSyncBody(text);
     } catch (e) {
-      var bodyFallback = box.querySelector("#cscs_sync_view_b_body") || box;
-      bodyFallback.textContent = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
+      // エラー時も同じくヘルパーで表示
+      var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
+      updateSyncBody(errorText);
     }
   }
 
@@ -839,8 +872,9 @@ ol.opts li.is-correct a.opt-link {
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
 
-        var diffCorrect = localCorrect - serverCorrect;
-        var diffWrong = localWrong - serverWrong;
+        // diff は「まだサーバーに反映されていない増分」として扱うので 0 未満にはしない
+        var diffCorrect = Math.max(0, localCorrect - serverCorrect);
+        var diffWrong = Math.max(0, localWrong - serverWrong);
 
         renderPanel(box, {
           serverCorrect: serverCorrect,
@@ -901,9 +935,10 @@ ol.opts li.is-correct a.opt-link {
   }
 
   window.addEventListener("online", function () {
+    // 既存パネルがあるときだけ、そのパネルで再読み込み＋再送信を試みる
     var box = document.getElementById("cscs_sync_view_b");
     if (!box) return;
-    init();
+    refreshAndSend(box);
   });
 
   init();
