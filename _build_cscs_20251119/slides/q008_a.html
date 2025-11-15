@@ -800,5 +800,364 @@ h1 { font-size: var(--h1-fs, inherit); }
 <!-- Aパート：類似問題（全2700問横断） -->
 <div id="similar-list" data-src="../../assets/cscs_meta_all.json" data-mode="similar" data-qtext="筋肥大目的のテンポ設定で適切なのはどれか？"></div>
 <script src="../../assets/similar_list.js" data-src="../../assets/cscs_meta_all.json" data-mode="similar"></script>
+
+<script>
+  (function(){
+    // === ① QID検出（Aパート） ===
+    function detectQidFromLocationA() {
+      const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+      if (!m) return null;
+      const day  = m[1];   // 例: "20250926"
+      const num3 = m[2];   // 例: "001"
+      // qid 形式を「YYYYMMDD-NNN」に統一
+      return day + "-" + num3;
+    }
+    const QID = detectQidFromLocationA();
+
+    // === ② 差分キュー（Aパート専用） ===
+    const queue = { correctDelta: {}, incorrectDelta: {} };
+    let sendTimer = null;
+
+    // SYNCモニタ用ステータス
+    let lastSyncStatus = "idle";   // "idle" | "sending" | "ok" | "error" | "offline"
+    let lastSyncTime   = null;     // "HH:MM:SS"
+    let lastSyncError  = "";
+
+    function readLocalTotalsForQid(qid){
+      try{
+        const kC = "cscs_q_correct_total:" + qid;
+        const kW = "cscs_q_wrong_total:"   + qid;
+        const c  = parseInt(localStorage.getItem(kC) || "0", 10) || 0;
+        const w  = parseInt(localStorage.getItem(kW) || "0", 10) || 0;
+        return { c, w };
+      }catch(_){
+        return { c:0, w:0 };
+      }
+    }
+
+    function setServerTotalsForQid(c, i){
+      const el = document.getElementById("cscs_sync_totals");
+      if (el) {
+        el.dataset.serverC = String(c);
+        el.dataset.serverI = String(i);
+      }
+    }
+
+    function updateMonitor(){
+      try{
+        if (!QID) return;
+        const box = document.getElementById("cscs_sync_monitor_a");
+        const totalsEl = document.getElementById("cscs_sync_totals");
+
+        const dC = queue.correctDelta[QID]   || 0;
+        const dI = queue.incorrectDelta[QID] || 0;
+
+        const local = readLocalTotalsForQid(QID);
+        const lc = local.c;
+        const li = local.w;
+
+        let sc = 0, si = 0;
+        if (totalsEl) {
+          sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+          si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+          totalsEl.textContent = "server " + sc + " / " + si;
+        }
+
+        if (box) {
+          box.querySelector(".sync-qid").textContent    = QID;
+          box.querySelector(".sync-local").textContent  = "local  " + lc + " / " + li;
+          box.querySelector(".sync-queue").textContent  = "+Δ    " + dC + " / " + dI;
+          const time = lastSyncTime ? lastSyncTime : "-";
+          const err  = lastSyncError ? (" err:" + lastSyncError) : "";
+          box.querySelector(".sync-status").textContent = lastSyncStatus + " (" + time + ")" + err;
+        }
+      }catch(_){
+        // UI更新失敗は握りつぶし
+      }
+    }
+
+    function scheduleSend(){
+      if (!navigator.onLine) {
+        lastSyncStatus = "offline";
+        updateMonitor();
+        return;
+      }
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(sendDelta, 1000);
+      updateMonitor();
+    }
+
+    async function sendDelta(){
+      const hasC = Object.keys(queue.correctDelta).length>0;
+      const hasI = Object.keys(queue.incorrectDelta).length>0;
+      if (!hasC && !hasI) return;
+
+      // ★ 差分送信用のペイロード（qid とタイムスタンプ付き）
+      const payload = {
+        qid: QID || null,
+        correctDelta: queue.correctDelta,
+        incorrectDelta: queue.incorrectDelta,
+        updatedAt: Date.now()
+      };
+
+      lastSyncStatus = "sending";
+      lastSyncError  = "";
+      updateMonitor();
+
+      try{
+        const res = await fetch("/api/sync/merge", {
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(String(res.status));
+
+        // 送信が成功したら差分キューをクリア
+        queue.correctDelta   = {};
+        queue.incorrectDelta = {};
+
+        const latest = await res.json();
+        if (QID){
+          const c = (latest.correct   && latest.correct[QID])   || 0;
+          const i = (latest.incorrect && latest.incorrect[QID]) || 0;
+          setServerTotalsForQid(c, i);
+        }
+        lastSyncStatus = "ok";
+        lastSyncTime   = new Date().toLocaleTimeString();
+        lastSyncError  = "";
+      }catch(e){
+        lastSyncStatus = "error";
+        lastSyncError  = String(e && e.message || e);
+      }finally{
+        updateMonitor();
+      }
+    }
+
+    window.CSCS_SYNC = {
+      recordCorrect(){
+        if (!QID) return;
+        queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      recordIncorrect(){
+        if (!QID) return;
+        queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      async fetchServer(){
+        const r = await fetch("/api/sync/state");
+        if(!r.ok) throw new Error(r.statusText);
+        return r.json();
+      }
+    };
+
+    // 初期ロードでサーバ側の累積を取得
+    async function initialFetch(){
+      if (!QID) return;
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        const c = (s.correct   && s.correct[QID])   || 0;
+        const i = (s.incorrect && s.incorrect[QID]) || 0;
+        setServerTotalsForQid(c, i);
+      }catch(e){
+        lastSyncStatus = "error";
+        lastSyncError  = String(e && e.message || e);
+      }finally{
+        updateMonitor();
+      }
+    }
+
+    // 右下モニタ生成＋テストボタン（+ok/+ng/send/pull）
+    window.addEventListener("DOMContentLoaded", function(){
+      if (!QID) return;
+      try{
+        const box = document.createElement("div");
+        box.id = "cscs_sync_monitor_a";
+        box.style.cssText = "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:11px/1.4 system-ui;max-width:46vw;";
+        box.innerHTML = `
+          <div style="margin-bottom:4px;opacity:.8;">SYNC(A): <span class="sync-qid"></span></div>
+          <div id="cscs_sync_totals" data-server-c="0" data-server-i="0" style="margin-bottom:2px;font-size:11px;opacity:.85;">server 0 / 0</div>
+          <div class="sync-local"  style="margin-bottom:2px;font-size:11px;opacity:.85;">local  0 / 0</div>
+          <div class="sync-queue"  style="margin-bottom:4px;font-size:11px;opacity:.85;">+Δ    0 / 0</div>
+          <div style="margin-bottom:4px;font-size:11px;opacity:.85;">status: <span class="sync-status">idle (-)</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button id="cscs_sync_test_ok"    type="button" style="font-size:10px;">+ok</button>
+            <button id="cscs_sync_test_ng"    type="button" style="font-size:10px;">+ng</button>
+            <button id="cscs_sync_test_send"  type="button" style="font-size:10px;">send</button>
+            <button id="cscs_sync_test_pull"  type="button" style="font-size:10px;">pull</button>
+
+            <!-- ★★★ 新しく追加する3ボタン ★★★ -->
+            <button id="cscs_sync_test_pushdiff" type="button" style="font-size:10px;">push diff</button>
+            <button id="cscs_sync_test_overwrite" type="button" style="font-size:10px;">overwrite local</button>
+            <button id="cscs_sync_test_reset" type="button" style="font-size:10px;">reset server</button>
+          </div>
+        `;
+        document.body.appendChild(box);
+
+        const btnOk   = document.getElementById("cscs_sync_test_ok");
+        const btnNg   = document.getElementById("cscs_sync_test_ng");
+        const btnSend = document.getElementById("cscs_sync_test_send");
+        const btnPull = document.getElementById("cscs_sync_test_pull");
+        const btnPush   = document.getElementById("cscs_sync_test_pushdiff");
+        const btnOver   = document.getElementById("cscs_sync_test_overwrite");
+        const btnReset  = document.getElementById("cscs_sync_test_reset");
+
+        // ① diff を /api/sync/merge へ送る
+        if (btnPush) btnPush.addEventListener("click", () => {
+          sendDelta();   // 既存のsendDeltaをそのまま利用
+        });
+
+        // ② サーバー値でローカルを上書き
+        if (btnOver) btnOver.addEventListener("click", async () => {
+          try{
+            const s = await CSCS_SYNC.fetchServer();
+            const c = (s.correct   && s.correct[QID])   || 0;
+            const w = (s.incorrect && s.incorrect[QID]) || 0;
+            localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
+            localStorage.setItem("cscs_q_wrong_total:"   + QID, String(w));
+            alert("ローカルをサーバの値で上書きしました。");
+            updateMonitor();
+          }catch(e){
+            alert("取得に失敗: " + e);
+          }
+        });
+
+        // ③ サーバー側カウンタを消去
+        if (btnReset) btnReset.addEventListener("click", async () => {
+          try{
+            await fetch("/api/sync/reset", {
+              method:"POST",
+              headers:{ "content-type":"application/json" },
+              body: JSON.stringify({ qid: QID })
+            });
+            alert("サーバー側カウンタをリセットしました。");
+            await initialFetch();
+          }catch(e){
+            alert("reset 失敗: " + e);
+          }
+        });
+
+        if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
+        if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
+        if (btnSend) btnSend.addEventListener("click", () => sendDelta());
+        if (btnPull) btnPull.addEventListener("click", () => initialFetch());
+      }catch(_){}
+      initialFetch();
+    });
+
+    window.addEventListener("online", function(){
+      lastSyncStatus = "idle";
+      sendDelta();
+    });
+    window.addEventListener("offline", function(){
+      lastSyncStatus = "offline";
+      updateMonitor();
+    });
+  })();
+</script>
+
+
+<script>
+  (function(){
+    const LOG_KEY = "cscs_attempt_log";
+
+    function getDayFromPath(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m ? m[1] : "unknown";
+    }
+    function detectQidFromLocationA(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+      if (!m) return null;
+      return m[1] + "-" + m[2];  // "YYYYMMDD-NNN"
+    }
+
+    function loadLog(){
+      let raw, obj;
+      try{
+        raw = localStorage.getItem(LOG_KEY) || "{}";
+      }catch(_){
+        raw = "{}";
+      }
+      try{
+        obj = JSON.parse(raw);
+      }catch(_){
+        obj = {};
+      }
+      if (!obj || typeof obj !== "object") obj = {};
+      return obj;
+    }
+
+    function getEntryByQid(qid){
+      const log = loadLog();
+      const e = log[qid];
+      if (!e || typeof e !== "object") return { correct: 0, incorrect: 0 };
+      return {
+        correct: Number.isFinite(e.correct|0) ? (e.correct|0) : 0,
+        incorrect: Number.isFinite(e.incorrect|0) ? (e.incorrect|0) : 0
+      };
+    }
+
+    function resetLocalStageForDay(day){
+      if (!day) return;
+      // b_judge_record.js が使っている日次キーだけを削除
+      try{
+        // 1) 回答履歴（指定日のものだけ残さない）
+        const KEY = "cscs_results";
+        let arr = [];
+        try{
+          arr = JSON.parse(localStorage.getItem(KEY) || "[]");
+        }catch(_){
+          arr = [];
+        }
+        if (Array.isArray(arr) && arr.length){
+          arr = arr.filter(r => !(r && r.day === day));
+          localStorage.setItem(KEY, JSON.stringify(arr));
+        }
+
+        // 2) 日次カウンタ群
+        localStorage.removeItem(`cscs_current_runId_${day}`);
+        localStorage.removeItem(`cscs_daily_unique_done:${day}`);
+        localStorage.removeItem(`cscs_correct_attempts_${day}`);
+        localStorage.removeItem(`cscs_wrong_attempts_${day}`);
+        localStorage.removeItem(`cscs_streak3_today_${day}`);
+        // ★ グローバルな 3連正解累計や attempt_log / wrong_log は「消えないセーブデータ」として触らない
+      }catch(_){}
+
+      // 3) 直後の backfill を一時的に抑止するための TTL（b_judge_record.js には手を入れず、外側シムで使う）
+      try{
+        localStorage.setItem("cscs_reset_epoch", String(Date.now()));
+        // 5分間だけ backfill を無効化
+        localStorage.setItem("cscs_reset_ttl_ms", String(5 * 60 * 1000));
+      }catch(_){}
+    }
+
+    // グローバル API として公開（UI側から自由に使えるようにする）
+    window.CSCS_ATTEMPT_LOG = {
+      // qid 形式 "YYYYMMDD-NNN" で取得
+      getByQid(qid){ return getEntryByQid(qid); },
+      // day と "NNN" から取得
+      getByDayAndNum(day, num3){
+        if (!day || !num3) return { correct:0, incorrect:0 };
+        const qid = day + "-" + num3;
+        return getEntryByQid(qid);
+      },
+      // 今開いている Aページの qid を元に取得
+      current(){
+        const qid = detectQidFromLocationA();
+        return qid ? getEntryByQid(qid) : { correct:0, incorrect:0 };
+      },
+      // 「その日のローカルステージだけ」リセット（attempt_log や SYNC サーバーは触らない）
+      resetDayLocal(day){
+        resetLocalStageForDay(day);
+      },
+      // 今開いている日付のローカルステージをリセット
+      resetCurrentDay(){
+        const day = getDayFromPath();
+        resetLocalStageForDay(day);
+      }
+    };
+  })();
+</script>
+
 </body>
 </html>
