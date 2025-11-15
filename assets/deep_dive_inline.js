@@ -361,25 +361,27 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
   }
 
   async function callGemini(prompt){
-    // deep_dive.js と同様に、フロントは /generate にプロンプトだけ送る。
+    // deep_dive.js と同様に、フロントは /api/deep-dive にプロンプトだけ送る。
     // API キーは Cloudflare Functions / Workers 側の環境変数で保持。
     const payload = {
-      model: "models/gemini-2.5-flash",
-      prompt
+      prompt: prompt,
+      // model はサーバー側でデフォルトを持っているなら省略可。
+      // 必要ならコメントアウト解除して送る：
+      // model: "models/gemini-2.5-flash"
     };
 
     let text = "";
     let lastErr = null;
 
     try {
-      const resp = await fetch("/generate", {
+      const resp = await fetch("/api/deep-dive", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
       });
 
       if (!resp || !resp.ok) {
-        lastErr = new Error(`generate endpoint error: ${resp && resp.status}`);
+        lastErr = new Error(`deep-dive endpoint error: ${resp && resp.status}`);
       } else {
         const data = await resp.json().catch(() => ({}));
         // deep_dive.js 側とインターフェースを揃え、「{ output: string }」形式を期待
@@ -391,7 +393,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
     if (!text) {
       if (lastErr) throw lastErr;
-      throw new Error("Gemini call failed via /generate");
+      throw new Error("Gemini call failed via /api/deep-dive");
     }
 
     // 念のため ``` ～ ``` のコードフェンスは除去
