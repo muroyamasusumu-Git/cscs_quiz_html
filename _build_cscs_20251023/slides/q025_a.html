@@ -908,6 +908,15 @@ h1 { font-size: var(--h1-fs, inherit); }
         const c = (s.correct   && s.correct[QID])   || 0;
         const i = (s.incorrect && s.incorrect[QID]) || 0;
         setServerTotalsForQid(c, i);
+
+        try{
+          localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
+          localStorage.setItem("cscs_q_wrong_total:"   + QID, String(i));
+        }catch(_){}
+
+        lastSyncStatus = "pulled";
+        lastSyncTime   = new Date().toLocaleTimeString();
+        lastSyncError  = "";
       }catch(e){
         lastSyncStatus = "error";
         lastSyncError  = String(e && e.message || e);
