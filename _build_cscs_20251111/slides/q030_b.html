@@ -687,6 +687,7 @@ ol.opts li.is-correct a.opt-link {
     var localCorrect = params.localCorrect;
     var localWrong = params.localWrong;
 
+    // 差分がなければ何もしない（表示だけ更新）
     if (diffCorrect <= 0 && diffWrong <= 0) {
       renderPanel(box, {
         serverCorrect: params.serverCorrect,
@@ -700,6 +701,7 @@ ol.opts li.is-correct a.opt-link {
       return;
     }
 
+    // オフラインなら送信しない
     if (!navigator.onLine) {
       renderPanel(box, {
         serverCorrect: params.serverCorrect,
@@ -713,12 +715,20 @@ ol.opts li.is-correct a.opt-link {
       return;
     }
 
+    // Aパートと同じ Delta 形式で /api/sync/merge に送る
+    var correctDeltaObj = {};
+    var incorrectDeltaObj = {};
+    if (diffCorrect > 0) {
+      correctDeltaObj[qid] = diffCorrect;
+    }
+    if (diffWrong > 0) {
+      incorrectDeltaObj[qid] = diffWrong;
+    }
+
     var payload = {
-      qid: qid,
-      add_correct: diffCorrect,
-      add_wrong: diffWrong,
-      local_correct_total: localCorrect,
-      local_wrong_total: localWrong
+      correctDelta: correctDeltaObj,
+      incorrectDelta: incorrectDeltaObj,
+      updatedAt: Date.now()
     };
 
     console.log("[SYNC-B] sending diff payload:", payload);
@@ -756,11 +766,26 @@ ol.opts li.is-correct a.opt-link {
 
       console.log("[SYNC-B] sync success:", data);
 
+      // merge のレスポンスは { correct: {qid: total, ...}, incorrect: {...}, ... } 形式を想定
       var newServerCorrect = params.serverCorrect;
       var newServerWrong = params.serverWrong;
-      if (data && typeof data.correct === "number" && typeof data.incorrect === "number") {
-        newServerCorrect = data.correct;
-        newServerWrong = data.incorrect;
+
+      if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
+        if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
+          var cVal = data.correct[qid];
+          if (typeof cVal === "number" && Number.isFinite(cVal) && cVal >= 0) {
+            newServerCorrect = cVal;
+          }
+        }
+      }
+
+      if (data && data.incorrect && typeof data.incorrect === "object" && data.incorrect !== null) {
+        if (Object.prototype.hasOwnProperty.call(data.incorrect, qid)) {
+          var wVal = data.incorrect[qid];
+          if (typeof wVal === "number" && Number.isFinite(wVal) && wVal >= 0) {
+            newServerWrong = wVal;
+          }
+        }
       }
 
       var newDiffCorrect = localCorrect - newServerCorrect;
