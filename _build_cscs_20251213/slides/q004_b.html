@@ -596,106 +596,318 @@ ol.opts li.is-correct a.opt-link {
 
 
 <script>
-  (function(){
-    // Bパート専用 QID 検出（qNNN_b.html → "YYYYMMDD-NNN"）
-    function detectQidFromLocationB(){
-      const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
-      if (!m) return null;
-      const day  = m[1];  // 例: "20250926"
-      const num3 = m[2];  // 例: "001"
-      return day + "-" + num3;
-    }
-    const QID = detectQidFromLocationB();
-    if (!QID) return;
+(function () {
+  "use strict";
 
-    // b_judge_record.js が使う問題別トータルキー
-    const KEY_COR = "cscs_q_correct_total:" + QID;
-    const KEY_WRG = "cscs_q_wrong_total:"   + QID;
+  var SYNC_STATE_ENDPOINT = "/api/sync/state";
+  var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
 
-    let serverC    = 0;
-    let serverI    = 0;
-    let lastStatus = "idle";   // "idle" | "loading" | "ok" | "error"
-    let lastTime   = null;
-    let lastError  = "";
+  function detectInfo() {
+    var path = window.location.pathname || "";
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+    if (!m) return null;
+    var day = m[1];
+    var num3 = m[2];
+    var qid = day + "-" + num3;
+    return { day: day, num3: num3, qid: qid };
+  }
 
-    function readInt(key){
-      try{
-        const v = localStorage.getItem(key);
-        return v ? (parseInt(v,10) || 0) : 0;
-      }catch(_){
+  var info = detectInfo();
+  if (!info) {
+    return;
+  }
+
+  function readIntFromLocalStorage(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined) {
         return 0;
       }
-    }
-
-    function updateMonitorB(){
-      try{
-        const box = document.getElementById("cscs_sync_monitor_b");
-        if (!box) return;
-
-        const lc = readInt(KEY_COR);
-        const li = readInt(KEY_WRG);
-        const dc = lc - serverC;
-        const di = li - serverI;
-
-        box.querySelector(".sync-server").textContent = "server " + serverC + " / " + serverI;
-        box.querySelector(".sync-local").textContent  = "local  " + lc + " / " + li;
-        box.querySelector(".sync-diff").textContent   = "diff   " + dc + " / " + di;
-
-        const time = lastTime ? lastTime : "-";
-        const err  = lastError ? (" err:" + lastError) : "";
-        box.querySelector(".sync-status").textContent = lastStatus + " (" + time + ")" + err;
-      }catch(_){
-        // 監視UI更新失敗は握りつぶす
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n < 0) {
+        return 0;
       }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to read int from localStorage:", key, e);
+      return 0;
     }
+  }
 
-    async function fetchServerForB(){
-      lastStatus = "loading";
-      lastError  = "";
-      updateMonitorB();
-      try{
-        const r = await fetch("/api/sync/state");
-        if (!r.ok) throw new Error(r.statusText);
-        const s = await r.json();
-        serverC = (s.correct   && s.correct[QID])   || 0;
-        serverI = (s.incorrect && s.incorrect[QID]) || 0;
-        lastStatus = "ok";
-        lastTime   = new Date().toLocaleTimeString();
-      }catch(e){
-        lastStatus = "error";
-        lastError  = String(e && e.message || e);
-      }finally{
-        updateMonitorB();
+  function fetchState() {
+    return fetch(SYNC_STATE_ENDPOINT, { method: "GET" }).then(function (res) {
+      if (!res.ok) {
+        throw new Error(String(res.status));
       }
-    }
-
-    // Bパートは「閲覧専用」：ここから /api/sync/merge などの加算系は一切呼ばない
-    window.addEventListener("DOMContentLoaded", function(){
-      try{
-        const box = document.createElement("div");
-        box.id = "cscs_sync_monitor_b";
-        box.style.cssText = "position:fixed;right:12px;bottom:66px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:6px 10px;font:11px/1.4 system-ui;max-width:46vw;";
-        box.innerHTML = `
-          <div style="margin-bottom:4px;opacity:.8;">SYNC(B): <b>${QID}</b></div>
-          <div class="sync-server" style="margin-bottom:2px;font-size:11px;opacity:.85;">server 0 / 0</div>
-          <div class="sync-local"  style="margin-bottom:2px;font-size:11px;opacity:.85;">local  0 / 0</div>
-          <div class="sync-diff"   style="margin-bottom:4px;font-size:11px;opacity:.85;">diff   0 / 0</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span>status:</span>
-            <span class="sync-status" style="font-size:11px;opacity:.85;">idle (-)</span>
-            <button id="cscs_sync_refresh_b" type="button" style="margin-left:auto;font-size:10px;">↻</button>
-          </div>
-        `;
-        document.body.appendChild(box);
-        const btn = document.getElementById("cscs_sync_refresh_b");
-        if (btn) btn.addEventListener("click", fetchServerForB);
-      }catch(_){}
-      fetchServerForB();
+      return res.json();
     });
+  }
 
-    // オンライン復帰時だけ再取得（こちらも読み取り専用）
-    window.addEventListener("online", fetchServerForB);
-  })();
+  function createPanel() {
+    var box = document.createElement("div");
+    box.id = "cscs_sync_view_b";
+    box.style.position = "fixed";
+    box.style.left = "12px";
+    box.style.bottom = "72px";
+    box.style.zIndex = "9999";
+    box.style.background = "rgba(16,16,16,0.9)";
+    box.style.color = "#eee";
+    box.style.border = "1px solid #444";
+    box.style.borderRadius = "8px";
+    box.style.padding = "6px 10px";
+    box.style.font = "11px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif";
+    box.style.maxWidth = "46vw";
+    box.style.whiteSpace = "pre-wrap";
+    box.style.wordBreak = "break-word";
+    box.style.pointerEvents = "auto";
+
+    var title = document.createElement("div");
+    title.textContent = "SYNC(B): " + info.qid;
+    title.style.marginBottom = "2px";
+
+    var body = document.createElement("div");
+    body.id = "cscs_sync_view_b_body";
+    body.style.whiteSpace = "pre-wrap";
+    body.style.wordBreak = "break-word";
+    body.textContent = "読み込み中…";
+
+    var btn = document.createElement("button");
+    btn.id = "cscs_sync_view_b_send_btn";
+    btn.type = "button";
+    btn.textContent = "SYNC送信";
+    btn.style.marginTop = "4px";
+    btn.style.fontSize = "10px";
+    btn.style.padding = "2px 6px";
+
+    box.appendChild(title);
+    box.appendChild(body);
+    box.appendChild(btn);
+
+    return box;
+  }
+
+  function renderPanel(box, payload) {
+    try {
+      var serverCorrect = payload.serverCorrect || 0;
+      var serverWrong = payload.serverWrong || 0;
+      var localCorrect = payload.localCorrect || 0;
+      var localWrong = payload.localWrong || 0;
+      var diffCorrect = payload.diffCorrect || 0;
+      var diffWrong = payload.diffWrong || 0;
+      var statusText = payload.statusText || "";
+
+      var text = "";
+      text += "server " + serverCorrect + " / " + serverWrong + "\\n";
+      text += "local  " + localCorrect + " / " + localWrong + "\\n";
+      text += "diff   " + diffCorrect + " / " + diffWrong;
+      if (statusText) {
+        text += "  status: " + statusText;
+      }
+
+      var body = box.querySelector("#cscs_sync_view_b_body");
+      if (!body) {
+        body = box;
+      }
+      body.textContent = text;
+    } catch (e) {
+      var bodyFallback = box.querySelector("#cscs_sync_view_b_body") || box;
+      bodyFallback.textContent = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
+    }
+  }
+
+  async function sendDiffToServer(box, params) {
+    var qid = info.qid;
+    var diffCorrect = params.diffCorrect;
+    var diffWrong = params.diffWrong;
+    var localCorrect = params.localCorrect;
+    var localWrong = params.localWrong;
+
+    if (diffCorrect <= 0 && diffWrong <= 0) {
+      renderPanel(box, {
+        serverCorrect: params.serverCorrect,
+        serverWrong: params.serverWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
+        statusText: "no diff"
+      });
+      return;
+    }
+
+    if (!navigator.onLine) {
+      renderPanel(box, {
+        serverCorrect: params.serverCorrect,
+        serverWrong: params.serverWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
+        statusText: "offline"
+      });
+      return;
+    }
+
+    var payload = {
+      qid: qid,
+      add_correct: diffCorrect,
+      add_wrong: diffWrong,
+      local_correct_total: localCorrect,
+      local_wrong_total: localWrong
+    };
+
+    console.log("[SYNC-B] sending diff payload:", payload);
+
+    try {
+      var response = await fetch(SYNC_MERGE_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+
+      if (!response.ok) {
+        console.error("[SYNC-B] server returned non-ok status:", response.status);
+        renderPanel(box, {
+          serverCorrect: params.serverCorrect,
+          serverWrong: params.serverWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: diffCorrect,
+          diffWrong: diffWrong,
+          statusText: "merge " + String(response.status)
+        });
+        return;
+      }
+
+      var data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = null;
+      }
+
+      console.log("[SYNC-B] sync success:", data);
+
+      var newServerCorrect = params.serverCorrect;
+      var newServerWrong = params.serverWrong;
+      if (data && typeof data.correct === "number" && typeof data.incorrect === "number") {
+        newServerCorrect = data.correct;
+        newServerWrong = data.incorrect;
+      }
+
+      var newDiffCorrect = localCorrect - newServerCorrect;
+      var newDiffWrong = localWrong - newServerWrong;
+
+      renderPanel(box, {
+        serverCorrect: newServerCorrect,
+        serverWrong: newServerWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: newDiffCorrect,
+        diffWrong: newDiffWrong,
+        statusText: "ok"
+      });
+    } catch (e) {
+      console.error("[SYNC-B] fetch failed:", e);
+      renderPanel(box, {
+        serverCorrect: params.serverCorrect,
+        serverWrong: params.serverWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
+        statusText: "error"
+      });
+    }
+  }
+
+  function refreshAndSend(box) {
+    fetchState()
+      .then(function (state) {
+        var serverCorrect = 0;
+        var serverWrong = 0;
+        if (state && state.correct && state.correct[info.qid] != null) {
+          serverCorrect = state.correct[info.qid];
+        }
+        if (state && state.incorrect && state.incorrect[info.qid] != null) {
+          serverWrong = state.incorrect[info.qid];
+        }
+
+        var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
+        var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
+
+        var diffCorrect = localCorrect - serverCorrect;
+        var diffWrong = localWrong - serverWrong;
+
+        renderPanel(box, {
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: diffCorrect,
+          diffWrong: diffWrong,
+          statusText: "state ok"
+        });
+
+        return sendDiffToServer(box, {
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: diffCorrect,
+          diffWrong: diffWrong
+        });
+      })
+      .catch(function (e) {
+        console.error("[SYNC-B] state fetch error:", e);
+        renderPanel(box, {
+          serverCorrect: 0,
+          serverWrong: 0,
+          localCorrect: readIntFromLocalStorage("cscs_q_correct_total:" + info.qid),
+          localWrong: readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid),
+          diffCorrect: 0,
+          diffWrong: 0,
+          statusText: "state error"
+        });
+      });
+  }
+
+  function init() {
+    var box = createPanel();
+
+    function append() {
+      if (!document.body.contains(box)) {
+        document.body.appendChild(box);
+      }
+      var btn = document.getElementById("cscs_sync_view_b_send_btn");
+      if (btn) {
+        btn.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          refreshAndSend(box);
+        });
+      }
+      refreshAndSend(box);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", append);
+    } else {
+      append();
+    }
+  }
+
+  window.addEventListener("online", function () {
+    var box = document.getElementById("cscs_sync_view_b");
+    if (!box) return;
+    init();
+  });
+
+  init();
+})();
 </script>
 
 </body>
