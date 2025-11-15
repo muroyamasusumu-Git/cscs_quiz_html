@@ -61,6 +61,11 @@ font-size: 20px;
 margin: 10px 0 0;
 }
 
+.explain-text {
+  line-height: 1.25;
+}
+
+
 .wrong-inline{
 margin-left: 0;
 color: #fff;
@@ -78,6 +83,7 @@ white-space: nowrap;
 padding-top: 0;
 margin-left: 10px;
 }
+
 
 
 /* ===== 不正解行の色を揃える（推奨：#judgeに状態クラス .is-wrong を付与） ===== */
