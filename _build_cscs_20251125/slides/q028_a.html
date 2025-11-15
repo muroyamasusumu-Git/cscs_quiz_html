@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta charset="utf-8">
+  <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #111;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+}
+
+.wrap {
+  margin: 40px auto;
+  font-family: -apple-system, BlinkMacSystemFont,
+               "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  line-height: 1.5;
+  font-size: 32px;
+}
+
+
+.top-title  { opacity:.95; color:#fff; }
+.top-date   { color:#a8b0b8; opacity:.95; }
+.top-number { color:#c9c9c9; }
+.top-level  { color:#a8a8a8; }
+.crumb-field{font-size:26px;font-weight:400}
+.crumb-sep{opacity:.6}
+.crumb-theme{font-size:22px;opacity:.85}
+
+/* ヘッダー部（左右ブロック＋右端日付） */
+.topmeta {
+  display: flex;
+  justify-content: space-between;  /* 左右を分ける */
+  align-items: center;
+  gap: 16px;
+  font-size: 24px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 0.85;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+/* 左ブロック（タイトル／番号／レベル） */
+.topmeta-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+/* 右ブロック（日付だけ右端に寄せる） */
+.topmeta-right {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.qno {
+  font-size: 20px;
+  opacity: .9;
+  margin: 6px 0 2px;
+}
+
+/* 問題文 */
+h1 {
+  font-size: 44px;
+  margin: 10px 0 10px;
+  color: #66d9ff;     /* 明るい水色 */
+  line-height: 1.10;  /* タイトに */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 選択肢 */
+.opts {
+  padding-left: 1.1em;
+  margin-left: 15px;
+  margin-top: 0;
+}
+
+ol.opts {
+    margin-bottom: 20px;
+}
+
+.opts li {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* 区切り線 */
+.hr {
+  height: 1px;
+  background: #444;
+  margin: 0 0 8px;
+}
+
+/* 正解 */
+.answer { margin-top: 12px; font-weight: 600; }
+.answer { word-break: break-word; }
+.answer {
+  font-size: 40px;
+  margin-top: 0;
+  margin-left: 0;
+  color: #fff34d;  /* 明るい黄色 */
+}
+
+/* Bパートの「正解: A　本　文」の“本文”だけ少し小さく */
+.answer .opt-small {
+  font-size: 0.85em;   /* ← ほんの少し小さく（0.85〜0.95で調整） */
+  line-height: 1.25;  /* 任意：行間を少し詰める */
+  opacity: 0.95;      /* 任意：わずかに落として主役のAを強調 */
+  margin-left: 10px;
+}
+
+/* 解説 */
+.explain {
+  font-size: 16px;
+  margin-top: 4px;
+  margin-left: 0;
+  opacity: .92;
+  white-space: pre-wrap;
+}
+
+/* ヒント（B未表示段階） */
+.hint {
+  font-size: 22px;
+  opacity: .6;
+  margin-top: 0;
+  margin-left: 0;
+}
+  
+/* 選択肢リンク：本文色を継承。iOSの強制色・visitedも抑止 */
+.opt-link,
+.opt-link:link,
+.opt-link:visited,
+.opt-link:active {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  text-decoration: none;
+}
+.opt-link:hover, .opt-link:focus { text-decoration: underline; }
+
+
+/* 左下 [TOPへ戻る] ボタン */
+.back-to-top {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.08);
+  color: #66d9ff;
+  font-size: 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  z-index: 10050; /* オーバーレイ(9999)や他要素より前面にしてクリック可能に */
+  transition: background 0.2s, opacity 0.2s;
+}
+.back-to-top:hover {
+  background: rgba(255,255,255,0.15);
+  opacity: 1.0;
+}
+
+
+/* 選択肢リンクの色を常に本文色に（iOSのvisited/activeの青/紫も潰す） */
+ol.opts a.opt-link,
+ol.opts a.opt-link:link,
+ol.opts a.opt-link:visited,
+ol.opts a.opt-link:active,
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important; /* iOS Safari */
+  text-decoration: none;
+}
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus { text-decoration: underline; }
+
+/* iOSのタップ時ハイライトを控えめに */
+a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
+
+</style>
+
+      <script>
+      (function(){
+        if (window.__cscsAListenerInstalled2) return;
+        window.__cscsAListenerInstalled2 = true;
+
+        // qid = YYYYMMDD-NNN（Aページ限定）
+        const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
+        const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_a(?:\.html)?(?:\/)?$/i);
+        if (!mDay || !mStem) return;
+        const day  = mDay[1];
+        const num3 = mStem[1].slice(1);
+        const qid  = `${day}-${num3}`;
+
+        // デバッグパネルは非表示（コンソール出力のみ）
+        function dlog(...args){
+          try{
+            console.log('[A:nav-guard]', ...args);
+          }catch(_){}
+        }
+
+        // 保存状態
+        const SAVE = { tried:false, ok:false, lastHref:null, lastChoice:null };
+
+        function makeToken(){
+          try{
+            const a = new Uint32Array(2);
+            crypto.getRandomValues(a);
+            return `${qid}:${a[0].toString(36)}${a[1].toString(36)}`;
+          }catch(_){
+            return `${qid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+          }
+        }
+
+        function pickChoice(a){
+          try{
+            const raw = a.getAttribute('href') || '';
+            let c = '';
+            try{
+              const url = new URL(raw, location.href);
+              c = (url.searchParams.get('choice') || '').trim().toUpperCase();
+              if (/^[A-E]$/.test(c)) return c;
+            }catch(_){}
+            const t = (a.textContent || '').trim();
+            const head = t.charAt(0).toUpperCase();
+            if (/^[A-E]$/.test(head)) return head;
+            const li = a.closest && a.closest('li');
+            const dataC = li && (li.getAttribute('data-choice') || '').toUpperCase();
+            if (/^[A-E]$/.test(dataC)) return dataC;
+            return '';
+          }catch(_){ return ''; }
+        }
+
+        // ターゲット判定（qNNN_b[.html]）
+        function isTargetAnchor(el){
+          if (!el || !el.getAttribute) return false;
+          const raw = el.getAttribute('href') || '';
+          try{
+            const u = new URL(raw, location.href);
+            return /(?:^|\/)q\d{3}_b(?:\.html)?(?:\/)?$/i.test(u.pathname);
+          }catch(_){
+            return /(?:^|\/)?q\d{3}_b(?:\.html)?(?:\/)?$/i.test(raw);
+          }
+        }
+
+        // localStorage 自己診断
+        function storageSelfTest(){
+          try{
+            const k = '__cscs_selftest__';
+            const v = String(Math.random());
+            localStorage.setItem(k, v);
+            const r = localStorage.getItem(k);
+            localStorage.removeItem(k);
+            return r === v;
+          }catch(err){
+            dlog('selftest NG:', String(err));
+            return false;
+          }
+        }
+
+        // 保存（round-trip 検証つき、軽いリトライ）
+        async function saveTokenFor(a){
+          if (SAVE.ok) return true;
+          SAVE.tried = true;
+
+          const choice = pickChoice(a);
+          const token  = makeToken();
+          const Kt = `cscs_from_a_token:${qid}`;
+          const Kc = `cscs_from_a:${qid}`;
+
+          const selfOK = storageSelfTest();
+          if (!selfOK){
+            dlog('localStorage not writable (selftest NG)');
+          }
+
+          try{
+            let ok = false, rt = null;
+            for (let i=0;i<3;i++){
+              localStorage.setItem(Kt, token);
+              if (choice) localStorage.setItem(Kc, choice);
+              rt = localStorage.getItem(Kt);
+              if (rt === token) { ok = true; break; }
+              await Promise.resolve(); // microtask 相当
+            }
+
+            try{
+              sessionStorage.setItem('cscs_last_token_qid', qid);
+              sessionStorage.setItem('cscs_last_token_value', token);
+              if (choice) sessionStorage.setItem('cscs_last_choice', choice);
+            }catch(_){}
+
+            SAVE.ok = !!ok;
+            SAVE.lastHref = a.getAttribute('href') || '';
+            SAVE.lastChoice = choice || null;
+
+            dlog('save:', { ok: SAVE.ok, choice: SAVE.lastChoice, wrote: !!rt });
+            return SAVE.ok;
+          }catch(err){
+            dlog('save exception:', String(err));
+            SAVE.ok = false;
+            return false;
+          }
+        }
+
+        function hardBlock(ev){
+          ev.preventDefault();
+          ev.stopPropagation();
+          ev.stopImmediatePropagation();
+        }
+
+        function navigateIfSaved(a){
+          if (!SAVE.ok){
+            dlog('nav blocked: token missing');
+            return;
+          }
+          const url = new URL(SAVE.lastHref || a.getAttribute('href') || '', location.href);
+          requestAnimationFrame(() => location.assign(url.toString()));
+        }
+
+        // pointer 系：常にデフォルト遷移は止めて保存だけ実行（失敗なら STOP 継続）
+        document.addEventListener('pointerdown', async (ev) => {
+          const a = ev.target && ev.target.closest && ev.target.closest('a');
+          if (!isTargetAnchor(a)) return;
+          hardBlock(ev);
+          const ok = await saveTokenFor(a);
+          if (!ok) dlog('pointerdown save NG');
+        }, { capture:true });
+
+        document.addEventListener('mousedown', async (ev) => {
+          const a = ev.target && ev.target.closest && ev.target.closest('a');
+          if (!isTargetAnchor(a)) return;
+          hardBlock(ev);
+          if (!SAVE.ok) {
+            const ok = await saveTokenFor(a);
+            if (!ok) dlog('mousedown save NG');
+          }
+        }, { capture:true });
+
+        document.addEventListener('mouseup', async (ev) => {
+          const a = ev.target && ev.target.closest && ev.target.closest('a');
+          if (!isTargetAnchor(a)) return;
+          hardBlock(ev);
+          if (!SAVE.ok) {
+            const ok = await saveTokenFor(a);
+            if (!ok) dlog('mouseup save NG');
+          }
+        }, { capture:true });
+
+        // click：★最終ゲート（localStorage 実体確認）を通過したらだけ遷移
+        document.addEventListener('click', async (ev) => {
+          const a = ev.target && ev.target.closest && ev.target.closest('a');
+          if (!isTargetAnchor(a)) return;
+          hardBlock(ev);
+
+          if (!SAVE.ok) await saveTokenFor(a);
+
+          try {
+            const Kt = `cscs_from_a_token:${qid}`;
+            await Promise.resolve();
+            const rt = localStorage.getItem(Kt);
+            if (!rt) {
+              dlog('click STOP (no token in localStorage)');
+              return;
+            }
+          } catch (e) {
+            dlog('click STOP (exception on localStorage check):', String(e));
+            return;
+          }
+
+          navigateIfSaved(a);
+        }, { capture:true });
+
+        // キーボード（Enter/Space）も同等のガード
+        document.addEventListener('keydown', async (ev) => {
+          if (ev.key !== 'Enter' && ev.key !== ' ') return;
+          const a = document.activeElement;
+          if (!isTargetAnchor(a)) return;
+          hardBlock(ev);
+
+          if (!SAVE.ok) await saveTokenFor(a);
+
+          try {
+            const Kt = `cscs_from_a_token:${qid}`;
+            await Promise.resolve();
+            const rt = localStorage.getItem(Kt);
+            if (!rt) {
+              dlog('kbd STOP (no token in localStorage)');
+              return;
+            }
+          } catch (e) {
+            dlog('kbd STOP (exception on localStorage check):', String(e));
+            return;
+          }
+
+          navigateIfSaved(a);
+        }, { capture:true });
+
+      })();
+      </script>
+    
+
+      <script>
+      (function(){
+        if (window.__cscsBPreflightInstalled) return;
+        window.__cscsBPreflightInstalled = true;
+
+        // === consumedタブなら最優先で Kt を削除（b_judge_record.js 起動前に潰す） ===
+        try {
+          const mDay = (location.pathname.match(/_build_cscs_(\d{8})/)||[])[1];
+          const n3   = (location.pathname.match(/q(\d{3})_b/i)||[])[1];
+          if (mDay && n3) {
+            const qid   = `${mDay}-${n3}`;
+            const gk    = `cscs_ab_consumed:${qid}`;
+            const ktKey = `cscs_from_a_token:${qid}`;
+            if (sessionStorage.getItem(gk) === '1') {
+              try { localStorage.removeItem(ktKey); } catch(_){}
+              console.debug('[B:preflight] removed Kt before record.js', {qid});
+            }
+          }
+        } catch(_){}
+
+        // qid = YYYYMMDD-NNN（Bページ限定）
+        const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
+        const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_b(?:\.html)?(?:\/)?$/i);
+        if (!mDay || !mStem) return;
+        const day  = mDay[1];
+        const num3 = mStem[1].slice(1);
+        const qid  = `${day}-${num3}`;
+
+        const Kt  = `cscs_from_a_token:${qid}`;
+        const Kc  = `cscs_from_a:${qid}`;
+        const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorage）
+        const KsC = `cscs_ab_shadow_choice:${qid}`;  // 影choice（sessionStorage）
+
+        // ★ 初回到着フレームで Kt/Kc を「影」に退避 → localStorage からは見えなくする
+        try{
+          const hasShadow = sessionStorage.getItem(KsT);
+          const lt = localStorage.getItem(Kt);
+          const lc = localStorage.getItem(Kc);
+          if (!hasShadow && (lt || lc)) {
+            if (lt) { try{ sessionStorage.setItem(KsT, lt); }catch(_){} }
+            if (lc) { try{ sessionStorage.setItem(KsC, lc); }catch(_){} }
+            try{ localStorage.removeItem(Kt); }catch(_){}
+            // Kc は UI 復元に使うので local 側も残す（※消さない）
+            console.debug('[B:preflight] moved Kt/Kc to session shadow', { qid });
+          }
+        }catch(_){}
+
+        // 画面左上に診断用パネル（B）
+        const diag = document.createElement('div');
+        diag.id = 'cscs_token_diag_b';
+        diag.style.cssText =
+          'position:fixed;z-index:99999;left:8px;top:8px;max-width:46vw;font:12px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;background:rgba(22,22,22,.8);color:#fff;padding:8px 10px;border-radius:6px;white-space:pre-wrap;word-break:break-word;pointer-events:none;';
+        diag.textContent = '[B:preflight] init…';
+        document.addEventListener('DOMContentLoaded', () => document.body.appendChild(diag));
+
+        const blog = (...a) => { try { console.debug('[B:preflight]', ...a); } catch(_){} };
+        const setPanel = (o) => { try{
+          diag.textContent = '[B:preflight] ' + Object.entries(o).map(([k,v]) => `${k}: ${v}`).join(' | ');
+        }catch(_){ } };
+
+        // 到着直後：不足なら sessionStorage から即時バックフィル（★リロード時は実行しない＆一度使ったら即消す）
+        let initLocalToken = null, initLocalChoice = null;
+        try {
+          // 1) 既存 localStorage を確認
+          initLocalToken  = localStorage.getItem(Kt);
+          initLocalChoice = localStorage.getItem(Kc);
+
+          // 2) ブラウザのナビゲーション種別を判定（reload の場合はバックフィル禁止）
+          let isReload = false;
+          try {
+            const nav = (performance && performance.getEntriesByType)
+              ? (performance.getEntriesByType('navigation')[0] || null)
+              : null;
+            isReload = !!(nav && nav.type === 'reload');
+          } catch(_){ /* noop */ }
+
+          // 3) token が無く、かつリロードではない場合のみ sessionStorage から一度だけ補填
+          if (!initLocalToken && !isReload) {
+            const sq = sessionStorage.getItem('cscs_last_token_qid');
+            const sv = sessionStorage.getItem('cscs_last_token_value');
+            const sc = sessionStorage.getItem('cscs_last_choice');
+
+            if (sq === qid && sv) {
+              // backfill → 直後に sessionStorage を必ず消去（※リロード時の再バックフィル防止）
+              try { localStorage.setItem(Kt, sv); } catch(_){}
+              if (sc) { try { localStorage.setItem(Kc, sc); } catch(_){ } }
+
+              try {
+                sessionStorage.removeItem('cscs_last_token_qid');
+                sessionStorage.removeItem('cscs_last_token_value');
+                sessionStorage.removeItem('cscs_last_choice');
+              } catch(_){}
+
+              initLocalToken  = localStorage.getItem(Kt);
+              initLocalChoice = localStorage.getItem(Kc);
+              blog('backfilled from sessionStorage (once, then cleared):', { qid, Kt, Kc });
+            }
+          } else if (isReload) {
+            blog('skip backfill on reload');
+          }
+        } catch (e) {
+          blog('localStorage get exception:', String(e));
+        }
+
+        // A側がデバッグ用に残したセッションミラーも取得（比較用）
+        let sessQid = null, sessToken = null, sessChoice = null;
+        try {
+          sessQid    = sessionStorage.getItem('cscs_last_token_qid');
+          sessToken  = sessionStorage.getItem('cscs_last_token_value');
+          sessChoice = sessionStorage.getItem('cscs_last_choice');
+        } catch (e) {
+          blog('sessionStorage get exception:', String(e));
+        }
+
+        const shadowToken  = (function(){ try{ return sessionStorage.getItem(KsT); }catch(_){ return null; } })();
+        const shadowChoice = (function(){ try{ return sessionStorage.getItem(KsC); }catch(_){ return null; } })();
+        blog('arrived', {
+          qid, Kt, Kc,
+          initLocalToken, initLocalChoice,
+          shadowToken: !!shadowToken,
+          shadowChoice: shadowChoice || null,
+          sessQid, sessToken: !!sessToken, sessChoice
+        });
+
+        // --- ロールアップ（集計）ユーティリティ ---
+        function ensureDayIndex(dayStr){
+          const dk = `cscs_rollup:${dayStr}`;
+          let arr = [];
+          try {
+            const raw = localStorage.getItem(dk);
+            if (raw) arr = JSON.parse(raw);
+          } catch(_){}
+          if (!Array.isArray(arr)) arr = [];
+          if (arr.length < 30) {
+            const need = 30 - arr.length;
+            for (let i = 0; i < need; i++) arr.push(null);
+          }
+          return { key: dk, arr };
+        }
+
+        function qIndexFromQid(qidStr){
+          // qidStr = "YYYYMMDD-NNN"
+          const m = qidStr && qidStr.match(/-(\d{3})$/);
+          if (!m) return -1;
+          const n = parseInt(m[1], 10);
+          return (n >= 1 && n <= 30) ? (n - 1) : -1;
+        }
+
+        function recordArrival(qidStr, tokenVal, choiceVal){
+          const dayStr = qidStr.slice(0, 8);
+          const { key, arr } = ensureDayIndex(dayStr);
+          const idx = qIndexFromQid(qidStr);
+          if (idx < 0) return false;
+
+          const now = Date.now();
+          const entry = {
+            qid: qidStr,
+            token: tokenVal || null,
+            choice: choiceVal || null,
+            ts: now
+          };
+          arr[idx] = entry;
+
+          try {
+            localStorage.setItem(key, JSON.stringify(arr));
+            localStorage.setItem('cscs_last_seen_day', dayStr);
+            blog('rollup saved', { key, idx, qid: qidStr });
+            return true;
+          } catch (e) {
+            blog('rollup save exception:', String(e));
+            return false;
+          }
+        }
+
+        // ◆ロールアップへ即時反映（token/choice のどちらかがあれば記録）
+        try{
+          // consumed タブ、または直後A→B初回（未消費）では rollup を保留
+          const gk = `cscs_ab_consumed:${qid}`;
+          const alreadyConsumed = sessionStorage.getItem(gk) === '1';
+          if (alreadyConsumed) {
+            blog('rollup skip: already consumed tab', { qid });
+          } else if (!alreadyConsumed) {
+            // 初回タブでも、まだ b_judge.js が tally 前の Kt を持つ状態。
+            // ここでは rollup を保留し、b_judge.js 側に任せる。
+            blog('rollup deferred: let b_judge.js handle tally', { qid });
+          }
+        }catch(e){
+          blog('rollup exception:', String(e));
+        }
+
+        setPanel({
+          qid,
+          localToken:   initLocalToken ? 'set' : 'null',
+          localChoice:  initLocalChoice || 'null',
+          shadowToken:  (function(){ try{ return sessionStorage.getItem(KsT) ? 'set' : 'null'; }catch(_){ return 'err'; } })(),
+          shadowChoice: (function(){ try{ return sessionStorage.getItem(KsC) || 'null'; }catch(_){ return 'err'; } })(),
+          sessQid:      sessQid || 'null',
+          sessToken:    sessToken ? 'set' : 'null',
+          sessChoice:   sessChoice || 'null'
+        });
+
+        // 以降、誰が localStorage を書き換えるか監視（stack 付き）
+        try{
+          const LS = localStorage;
+          const _set    = LS.setItem.bind(LS);
+          const _remove = LS.removeItem.bind(LS);
+          const _clear  = LS.clear.bind(LS);
+
+          LS.setItem = function(k, v){
+            blog('setItem', {k, v}, 'stack:', new Error().stack);
+            return _set(k, v);
+          };
+          LS.removeItem = function(k){
+            blog('removeItem', {k}, 'stack:', new Error().stack);
+            return _remove(k);
+          };
+          LS.clear = function(){
+            blog('clear()', 'stack:', new Error().stack);
+            return _clear();
+          };
+        }catch(e){
+          blog('hook localStorage methods failed:', String(e));
+        }
+
+        window.addEventListener('beforeunload', (e)=>{ blog('beforeunload (B)', {trusted:e.isTrusted}); }, {capture:true});
+        window.addEventListener('unload',       (e)=>{ blog('unload (B)'      , {trusted:e.isTrusted}); }, {capture:true});
+      })();
+      </script>
+    
+
+  <script>
+    function autoPlayAudio(src) {
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.playsInline = true;
+      const p = audio.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          const btn = document.createElement("button");
+          btn.textContent = "🔊 音声を再生";
+          btn.className = "audio-fallback-btn";
+          btn.addEventListener("click", () => {
+            audio.play().then(() => btn.remove()).catch(() => {
+              btn.textContent = "再生できません（ブラウザ設定を確認）";
+            });
+          });
+          document.body.appendChild(btn);
+        });
+      }
+    }
+    window.addEventListener("DOMContentLoaded", () => {
+      autoPlayAudio("/_build_cscs_20251125/audio/q028_a.m4a");
+    });
+  </script>
+  <style>
+
+/* 失敗時にだけ出る小さな再生ボタン */
+.audio-fallback-btn{
+  position: fixed;
+  right: 16px;
+  bottom: 16px; /* 右下配置（現状維持） */
+  padding: 8px 12px;
+  font-size: 16px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: .9;
+  z-index: 10000; /* Bのオーバーレイより前面 */
+}
+.audio-fallback-btn:hover{ opacity: 1; }
+
+  </style>
+
+
+  <script>
+    // 今日の日付（_build_cscs_YYYYMMDD から）
+    function getDayFromPath(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m ? m[1] : "unknown";
+    }
+    // その日の「現在の runId」を保存/取得するキー
+    function runKey(day){ return `cscs_current_runId_${day}`; }
+
+    // 既存データから、その日の最大 runId を得る
+    function getMaxRunIdForDay(day, all){
+      const runs = all.filter(r => r && r.day === day && Number.isInteger(r.runId)).map(r => r.runId);
+      return runs.length ? Math.max.apply(null, runs) : 0;
+    }
+
+    // その日の現在の runId を取得（なければ新規で採番して保存）
+    function ensureCurrentRunId(day){
+      const KEY = "cscs_results";
+      let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+
+      const k = runKey(day);
+      const exists = localStorage.getItem(k);
+      if (exists) return parseInt(exists, 10);
+
+      const next = getMaxRunIdForDay(day, arr) + 1;
+      localStorage.setItem(k, String(next));
+      return next;
+    }
+
+    // 「新しい履歴で開始」指定があれば runId を進める
+    function maybeStartNewRunIfRequested(){
+      const day = getDayFromPath();
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("newrun") === "1"){
+        const KEY = "cscs_results";
+        let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+        const next = getMaxRunIdForDay(day, arr) + 1;
+        localStorage.setItem(runKey(day), String(next));
+      }
+    }
+
+    // その日の最新 runId を取得（なければ 1）
+    function getLatestRunId(day){
+      const KEY = "cscs_results";
+      let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(_){ arr = []; }
+      const m = getMaxRunIdForDay(day, arr);
+      return m || 1;
+    }
+  </script>
+
+
+      <script> try{ maybeStartNewRunIfRequested(); }catch(_){} </script>
+    
+
+<style>
+/* 全ページ強制：html/body の高さ指定を解除 */
+html, body { height: auto !important; min-height: 0 !important; }
+</style>
+
+
+<link rel="stylesheet" href="../../assets/wrong_badge.css">
+<script src="../../assets/wrong_badge.js" defer></script>
+
+
+<link rel="stylesheet" href="../../assets/fav_modal.css">
+<script src="../../assets/fav_modal.js" defer></script>
+
+
+<link rel="stylesheet" href="../../assets/main.css">
+
+
+<style>
+.top-date {
+    color: #a8b0b8;
+    opacity: .95;
+    font-size: 22px;
+    width: auto;
+    margin: 0 10px 0 0;
+}
+.crumb-field {
+    font-size: 22px;
+    font-weight: 400;
+}
+</style>
+
+
+<style>
+/* 後から --h1-lh で自由に変更可（既定は normal） */
+h1 { line-height: var(--h1-lh, normal); }
+</style>
+
+
+<style>
+/* 後から --h1-fs で自由に変更可（既定は inherit。UA既定や main.css が決める） */
+h1 { font-size: var(--h1-fs, inherit); }
+</style>
+
+</head>
+<body>
+  <div class="wrap">
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (61/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>28/30</span></div><div class='top-level'>Level 5</div></div><div class='topmeta-right'></div></div>
+    <div class='qno'><span class="top-date">2025年11月25日</span><span class='crumb-field'>リハビリテーションと再調整</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>段階的復帰設計</span></div>
+    <h1 style="">チーム競技での段階的復帰順序として妥当なのはどれか？</h1>
+    <ol class='opts' type='A'><li><a class="opt-link" href="q028_b.html?choice=A">個別→制限練習→全面→出場</a></li><li><a class="opt-link" href="q028_b.html?choice=B">出場→個別→全面</a></li><li><a class="opt-link" href="q028_b.html?choice=C">全面→制限→出場</a></li><li><a class="opt-link" href="q028_b.html?choice=D">制限→出場→個別</a></li></ol>
+    <div class='hint'>（この後、正解と解説が表示されます）</div>
+    <!-- <div class="footer">（このスライドは自動生成です）</div> -->
+  </div>
+<script type="application/json" id="cscs-meta">{"qid": "2025年11月25日-028", "field": "リハビリテーションと再調整", "theme": "段階的復帰設計", "level": "Level 5", "date": "2025年11月25日", "number": "28", "quiztype": "単一分野", "tags": {"cause": "個別練習開始", "process": "負荷反応評価|練習段階進行", "outcome": "安全出場|競技復帰"}}</script>
+
+  <!-- 左下の [TOPへ戻る] ボタン -->
+  <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
+
+
+  <!-- A専用：問題一覧（2カラム） -->
+  <link rel="stylesheet" href="../../assets/nav_list.css">
+  <script src="../../assets/nav_list.js" data-a-nav="1"></script>
+
+<!-- Aパート：類似問題（全2700問横断） -->
+<div id="similar-list" data-src="../../assets/cscs_meta_all.json" data-mode="similar" data-qtext="チーム競技での段階的復帰順序として妥当なのはどれか？"></div>
+<script src="../../assets/similar_list.js" data-src="../../assets/cscs_meta_all.json" data-mode="similar"></script>
+
+<script>
+  (function(){
+    // === ① QID検出（Aパート） ===
+    function detectQidFromLocationA() {
+      const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+      if (!m) return null;
+      const day  = m[1];   // 例: "20250926"
+      const num3 = m[2];   // 例: "001"
+      // qid 形式を「YYYYMMDD-NNN」に統一
+      return day + "-" + num3;
+    }
+    const QID = detectQidFromLocationA();
+
+    // === ② 差分キュー（Aパート専用） ===
+    const queue = { correctDelta: {}, incorrectDelta: {} };
+    let sendTimer = null;
+
+    // SYNCモニタ用ステータス
+    let lastSyncStatus = "idle";   // "idle" | "sending" | "ok" | "error" | "offline"
+    let lastSyncTime   = null;     // "HH:MM:SS"
+    let lastSyncError  = "";
+
+    function readLocalTotalsForQid(qid){
+      try{
+        const kC = "cscs_q_correct_total:" + qid;
+        const kW = "cscs_q_wrong_total:"   + qid;
+        const c  = parseInt(localStorage.getItem(kC) || "0", 10) || 0;
+        const w  = parseInt(localStorage.getItem(kW) || "0", 10) || 0;
+        return { c, w };
+      }catch(_){
+        return { c:0, w:0 };
+      }
+    }
+
+    function setServerTotalsForQid(c, i){
+      const el = document.getElementById("cscs_sync_totals");
+      if (el) {
+        el.dataset.serverC = String(c);
+        el.dataset.serverI = String(i);
+      }
+    }
+
+    function updateMonitor(){
+      try{
+        if (!QID) return;
+        const box = document.getElementById("cscs_sync_monitor_a");
+        const totalsEl = document.getElementById("cscs_sync_totals");
+
+        const dC = queue.correctDelta[QID]   || 0;
+        const dI = queue.incorrectDelta[QID] || 0;
+
+        const local = readLocalTotalsForQid(QID);
+        const lc = local.c;
+        const li = local.w;
+
+        let sc = 0, si = 0;
+        if (totalsEl) {
+          sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+          si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+          totalsEl.textContent = "server " + sc + " / " + si;
+        }
+
+        if (box) {
+          box.querySelector(".sync-qid").textContent    = QID;
+          box.querySelector(".sync-local").textContent  = "local  " + lc + " / " + li;
+          box.querySelector(".sync-queue").textContent  = "+Δ    " + dC + " / " + dI;
+          const time = lastSyncTime ? lastSyncTime : "-";
+          const err  = lastSyncError ? (" err:" + lastSyncError) : "";
+          box.querySelector(".sync-status").textContent = lastSyncStatus + " (" + time + ")" + err;
+        }
+      }catch(_){
+        // UI更新失敗は握りつぶし
+      }
+    }
+
+    function scheduleSend(){
+      if (!navigator.onLine) {
+        lastSyncStatus = "offline";
+        updateMonitor();
+        return;
+      }
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(sendDelta, 1000);
+      updateMonitor();
+    }
+
+    async function sendDelta(){
+      const hasC = Object.keys(queue.correctDelta).length>0;
+      const hasI = Object.keys(queue.incorrectDelta).length>0;
+      if (!hasC && !hasI) return;
+
+      // ★ 差分送信用のペイロード（qid とタイムスタンプ付き）
+      const payload = {
+        qid: QID || null,
+        correctDelta: queue.correctDelta,
+        incorrectDelta: queue.incorrectDelta,
+        updatedAt: Date.now()
+      };
+
+      lastSyncStatus = "sending";
+      lastSyncError  = "";
+      updateMonitor();
+
+      try{
+        const res = await fetch("/api/sync/merge", {
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(String(res.status));
+
+        // 送信が成功したら差分キューをクリア
+        queue.correctDelta   = {};
+        queue.incorrectDelta = {};
+
+        const latest = await res.json();
+        if (QID){
+          const c = (latest.correct   && latest.correct[QID])   || 0;
+          const i = (latest.incorrect && latest.incorrect[QID]) || 0;
+          setServerTotalsForQid(c, i);
+        }
+        lastSyncStatus = "ok";
+        lastSyncTime   = new Date().toLocaleTimeString();
+        lastSyncError  = "";
+      }catch(e){
+        lastSyncStatus = "error";
+        lastSyncError  = String(e && e.message || e);
+      }finally{
+        updateMonitor();
+      }
+    }
+
+    window.CSCS_SYNC = {
+      recordCorrect(){
+        if (!QID) return;
+        queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      recordIncorrect(){
+        if (!QID) return;
+        queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      async fetchServer(){
+        const r = await fetch("/api/sync/state");
+        if(!r.ok) throw new Error(r.statusText);
+        return r.json();
+      }
+    };
+
+    // 初期ロードでサーバ側の累積を取得
+    async function initialFetch(){
+      if (!QID) return;
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        const c = (s.correct   && s.correct[QID])   || 0;
+        const i = (s.incorrect && s.incorrect[QID]) || 0;
+        setServerTotalsForQid(c, i);
+      }catch(e){
+        lastSyncStatus = "error";
+        lastSyncError  = String(e && e.message || e);
+      }finally{
+        updateMonitor();
+      }
+    }
+
+    // 右下モニタ生成＋テストボタン（+ok/+ng/send/pull）
+    window.addEventListener("DOMContentLoaded", function(){
+      if (!QID) return;
+      try{
+        const box = document.createElement("div");
+        box.id = "cscs_sync_monitor_a";
+        box.style.cssText = "position:fixed;right:12px;bottom:62px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:11px/1.4 system-ui;max-width:46vw;";
+        box.innerHTML = `
+          <div style="margin-bottom:4px;opacity:.8;">SYNC(A): <span class="sync-qid"></span></div>
+          <div id="cscs_sync_totals" data-server-c="0" data-server-i="0" style="margin-bottom:2px;font-size:11px;opacity:.85;">server 0 / 0</div>
+          <div class="sync-local"  style="margin-bottom:2px;font-size:11px;opacity:.85;">local  0 / 0</div>
+          <div class="sync-queue"  style="margin-bottom:4px;font-size:11px;opacity:.85;">+Δ    0 / 0</div>
+          <div style="margin-bottom:4px;font-size:11px;opacity:.85;">status: <span class="sync-status">idle (-)</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button id="cscs_sync_test_ok"    type="button" style="font-size:10px;">+ok</button>
+            <button id="cscs_sync_test_ng"    type="button" style="font-size:10px;">+ng</button>
+            <button id="cscs_sync_test_send"  type="button" style="font-size:10px;">send</button>
+            <button id="cscs_sync_test_pull"  type="button" style="font-size:10px;">pull</button>
+
+            <!-- ★★★ 新しく追加する3ボタン ★★★ -->
+            <button id="cscs_sync_test_pushdiff" type="button" style="font-size:10px;">push diff</button>
+            <button id="cscs_sync_test_overwrite" type="button" style="font-size:10px;">overwrite local</button>
+            <button id="cscs_sync_test_reset" type="button" style="font-size:10px;">reset server</button>
+          </div>
+        `;
+        document.body.appendChild(box);
+
+        const btnOk   = document.getElementById("cscs_sync_test_ok");
+        const btnNg   = document.getElementById("cscs_sync_test_ng");
+        const btnSend = document.getElementById("cscs_sync_test_send");
+        const btnPull = document.getElementById("cscs_sync_test_pull");
+        const btnPush   = document.getElementById("cscs_sync_test_pushdiff");
+        const btnOver   = document.getElementById("cscs_sync_test_overwrite");
+        const btnReset  = document.getElementById("cscs_sync_test_reset");
+
+        // ① diff を /api/sync/merge へ送る
+        if (btnPush) btnPush.addEventListener("click", () => {
+          sendDelta();   // 既存のsendDeltaをそのまま利用
+        });
+
+        // ② サーバー値でローカルを上書き
+        if (btnOver) btnOver.addEventListener("click", async () => {
+          try{
+            const s = await CSCS_SYNC.fetchServer();
+            const c = (s.correct   && s.correct[QID])   || 0;
+            const w = (s.incorrect && s.incorrect[QID]) || 0;
+            localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
+            localStorage.setItem("cscs_q_wrong_total:"   + QID, String(w));
+            alert("ローカルをサーバの値で上書きしました。");
+            updateMonitor();
+          }catch(e){
+            alert("取得に失敗: " + e);
+          }
+        });
+
+        // ③ サーバー側カウンタを消去
+        if (btnReset) btnReset.addEventListener("click", async () => {
+          try{
+            await fetch("/api/sync/reset", {
+              method:"POST",
+              headers:{ "content-type":"application/json" },
+              body: JSON.stringify({ qid: QID })
+            });
+            alert("サーバー側カウンタをリセットしました。");
+            await initialFetch();
+          }catch(e){
+            alert("reset 失敗: " + e);
+          }
+        });
+
+        if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
+        if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
+        if (btnSend) btnSend.addEventListener("click", () => sendDelta());
+        if (btnPull) btnPull.addEventListener("click", () => initialFetch());
+      }catch(_){}
+      initialFetch();
+    });
+
+    window.addEventListener("online", function(){
+      lastSyncStatus = "idle";
+      sendDelta();
+    });
+    window.addEventListener("offline", function(){
+      lastSyncStatus = "offline";
+      updateMonitor();
+    });
+  })();
+</script>
+
+
+<script>
+  (function(){
+    const LOG_KEY = "cscs_attempt_log";
+
+    function getDayFromPath(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})/);
+      return m ? m[1] : "unknown";
+    }
+    function detectQidFromLocationA(){
+      const m = (window.location.pathname||"").match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+      if (!m) return null;
+      return m[1] + "-" + m[2];  // "YYYYMMDD-NNN"
+    }
+
+    function loadLog(){
+      let raw, obj;
+      try{
+        raw = localStorage.getItem(LOG_KEY) || "{}";
+      }catch(_){
+        raw = "{}";
+      }
+      try{
+        obj = JSON.parse(raw);
+      }catch(_){
+        obj = {};
+      }
+      if (!obj || typeof obj !== "object") obj = {};
+      return obj;
+    }
+
+    function getEntryByQid(qid){
+      const log = loadLog();
+      const e = log[qid];
+      if (!e || typeof e !== "object") return { correct: 0, incorrect: 0 };
+      return {
+        correct: Number.isFinite(e.correct|0) ? (e.correct|0) : 0,
+        incorrect: Number.isFinite(e.incorrect|0) ? (e.incorrect|0) : 0
+      };
+    }
+
+    function resetLocalStageForDay(day){
+      if (!day) return;
+      // b_judge_record.js が使っている日次キーだけを削除
+      try{
+        // 1) 回答履歴（指定日のものだけ残さない）
+        const KEY = "cscs_results";
+        let arr = [];
+        try{
+          arr = JSON.parse(localStorage.getItem(KEY) || "[]");
+        }catch(_){
+          arr = [];
+        }
+        if (Array.isArray(arr) && arr.length){
+          arr = arr.filter(r => !(r && r.day === day));
+          localStorage.setItem(KEY, JSON.stringify(arr));
+        }
+
+        // 2) 日次カウンタ群
+        localStorage.removeItem(`cscs_current_runId_${day}`);
+        localStorage.removeItem(`cscs_daily_unique_done:${day}`);
+        localStorage.removeItem(`cscs_correct_attempts_${day}`);
+        localStorage.removeItem(`cscs_wrong_attempts_${day}`);
+        localStorage.removeItem(`cscs_streak3_today_${day}`);
+        // ★ グローバルな 3連正解累計や attempt_log / wrong_log は「消えないセーブデータ」として触らない
+      }catch(_){}
+
+      // 3) 直後の backfill を一時的に抑止するための TTL（b_judge_record.js には手を入れず、外側シムで使う）
+      try{
+        localStorage.setItem("cscs_reset_epoch", String(Date.now()));
+        // 5分間だけ backfill を無効化
+        localStorage.setItem("cscs_reset_ttl_ms", String(5 * 60 * 1000));
+      }catch(_){}
+    }
+
+    // グローバル API として公開（UI側から自由に使えるようにする）
+    window.CSCS_ATTEMPT_LOG = {
+      // qid 形式 "YYYYMMDD-NNN" で取得
+      getByQid(qid){ return getEntryByQid(qid); },
+      // day と "NNN" から取得
+      getByDayAndNum(day, num3){
+        if (!day || !num3) return { correct:0, incorrect:0 };
+        const qid = day + "-" + num3;
+        return getEntryByQid(qid);
+      },
+      // 今開いている Aページの qid を元に取得
+      current(){
+        const qid = detectQidFromLocationA();
+        return qid ? getEntryByQid(qid) : { correct:0, incorrect:0 };
+      },
+      // 「その日のローカルステージだけ」リセット（attempt_log や SYNC サーバーは触らない）
+      resetDayLocal(day){
+        resetLocalStageForDay(day);
+      },
+      // 今開いている日付のローカルステージをリセット
+      resetCurrentDay(){
+        const day = getDayFromPath();
+        resetLocalStageForDay(day);
+      }
+    };
+  })();
+</script>
+
+</body>
+</html>

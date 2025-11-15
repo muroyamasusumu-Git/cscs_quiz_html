@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta charset="utf-8">
+  <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #111;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+}
+
+.wrap {
+  margin: 40px auto;
+  font-family: -apple-system, BlinkMacSystemFont,
+               "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  line-height: 1.5;
+  font-size: 32px;
+}
+
+
+.top-title  { opacity:.95; color:#fff; }
+.top-date   { color:#a8b0b8; opacity:.95; }
+.top-number { color:#c9c9c9; }
+.top-level  { color:#a8a8a8; }
+.crumb-field{font-size:26px;font-weight:400}
+.crumb-sep{opacity:.6}
+.crumb-theme{font-size:22px;opacity:.85}
+
+/* ヘッダー部（左右ブロック＋右端日付） */
+.topmeta {
+  display: flex;
+  justify-content: space-between;  /* 左右を分ける */
+  align-items: center;
+  gap: 16px;
+  font-size: 24px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 0.85;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+/* 左ブロック（タイトル／番号／レベル） */
+.topmeta-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+/* 右ブロック（日付だけ右端に寄せる） */
+.topmeta-right {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.qno {
+  font-size: 20px;
+  opacity: .9;
+  margin: 6px 0 2px;
+}
+
+/* 問題文 */
+h1 {
+  font-size: 44px;
+  margin: 10px 0 10px;
+  color: #66d9ff;     /* 明るい水色 */
+  line-height: 1.10;  /* タイトに */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 選択肢 */
+.opts {
+  padding-left: 1.1em;
+  margin-left: 15px;
+  margin-top: 0;
+}
+
+ol.opts {
+    margin-bottom: 20px;
+}
+
+.opts li {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* 区切り線 */
+.hr {
+  height: 1px;
+  background: #444;
+  margin: 0 0 8px;
+}
+
+/* 正解 */
+.answer { margin-top: 12px; font-weight: 600; }
+.answer { word-break: break-word; }
+.answer {
+  font-size: 40px;
+  margin-top: 0;
+  margin-left: 0;
+  color: #fff34d;  /* 明るい黄色 */
+}
+
+/* Bパートの「正解: A　本　文」の“本文”だけ少し小さく */
+.answer .opt-small {
+  font-size: 0.85em;   /* ← ほんの少し小さく（0.85〜0.95で調整） */
+  line-height: 1.25;  /* 任意：行間を少し詰める */
+  opacity: 0.95;      /* 任意：わずかに落として主役のAを強調 */
+  margin-left: 10px;
+}
+
+/* 解説 */
+.explain {
+  font-size: 16px;
+  margin-top: 4px;
+  margin-left: 0;
+  opacity: .92;
+  white-space: pre-wrap;
+}
+
+/* ヒント（B未表示段階） */
+.hint {
+  font-size: 22px;
+  opacity: .6;
+  margin-top: 0;
+  margin-left: 0;
+}
+  
+/* 画面全体クリック用の透明オーバーレイ */
+.next-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: transparent;
+  cursor: pointer;
+  display: block;
+}
+
+
+/* 判定用メッセージだけ少し控えめに */
+#judge {
+  font-size: 28px;
+  margin-top: 12px;
+  opacity: 0.9;
+}
+
+
+/* 失敗時にだけ出る小さな再生ボタン */
+.audio-fallback-btn{
+  position: fixed;
+  right: 16px;
+  bottom: 16px; /* 右下配置（現状維持） */
+  padding: 8px 12px;
+  font-size: 16px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: .9;
+  z-index: 10000; /* Bのオーバーレイより前面 */
+}
+.audio-fallback-btn:hover{ opacity: 1; }
+
+
+/* 左下 [TOPへ戻る] ボタン */
+.back-to-top {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.08);
+  color: #66d9ff;
+  font-size: 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  z-index: 10050; /* オーバーレイ(9999)や他要素より前面にしてクリック可能に */
+  transition: background 0.2s, opacity 0.2s;
+}
+.back-to-top:hover {
+  background: rgba(255,255,255,0.15);
+  opacity: 1.0;
+}
+
+
+/* 選択肢リンクの色を常に本文色に（iOSのvisited/activeの青/紫も潰す） */
+ol.opts a.opt-link,
+ol.opts a.opt-link:link,
+ol.opts a.opt-link:visited,
+ol.opts a.opt-link:active,
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important; /* iOS Safari */
+  text-decoration: none;
+}
+ol.opts a.opt-link:hover,
+ol.opts a.opt-link:focus { text-decoration: underline; }
+
+/* iOSのタップ時ハイライトを控えめに */
+a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
+
+</style>
+
+      <script>
+      (function(){
+        if (window.__cscsBTokenDiagInstalled) return;
+        window.__cscsBTokenDiagInstalled = true;
+
+        var path = window.location.pathname || "";
+        var mDay  = path.match(/_build_cscs_(\d{8})/);
+        var mStem = path.match(/(?:^|\/)(q\d{3})_b(?:\.html)?(?:\/)?$/i);
+        if (!mDay || !mStem) return;
+
+        var day  = mDay[1];                 // 例: "20250926"
+        var num3 = mStem[1].slice(1);       // "q001" → "001"
+        var qid  = day + "-" + num3;       // "YYYYMMDD-NNN"
+
+        var Kt = "cscs_from_a_token:" + qid;
+        var Kc = "cscs_from_a:" + qid;
+
+        var lt = "", lc = "";
+        var sq = "", st = "", sc = "";
+        try{
+          lt = localStorage.getItem(Kt) || "";
+          lc = localStorage.getItem(Kc) || "";
+        }catch(_){}
+        try{
+          sq = sessionStorage.getItem("cscs_last_token_qid")   || "";
+          st = sessionStorage.getItem("cscs_last_token_value") || "";
+          sc = sessionStorage.getItem("cscs_last_choice")      || "";
+        }catch(_){}
+
+        var box = document.createElement("div");
+        box.id = "cscs_b_token_diag";
+        box.style.cssText =
+          "position:fixed;left:8px;top:8px;z-index:99998;"
+          + "max-width:48vw;background:rgba(0,0,0,.78);color:#fff;"
+          + "font:11px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;"
+          + "padding:6px 8px;border-radius:6px;white-space:pre-wrap;"
+          + "word-break:break-word;pointer-events:none;";
+
+        box.textContent =
+          "[B token] qid:" + qid
+          + " | Kt:" + (lt ? "set" : "null")
+          + " | Kc:" + (lc || "null")
+          + " | sessQid:" + (sq || "null")
+          + " | sessTok:" + (st ? "set" : "null")
+          + " | sessChoice:" + (sc || "null");
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", function(){
+            document.body.appendChild(box);
+          });
+        } else {
+          document.body.appendChild(box);
+        }
+      })();
+      </script>
+    
+
+<script src="../../assets/b_judge.js" data-stem="q012" data-audio-base="/_build_cscs_20251015/audio" data-ext=".m4a"></script>
+
+
+<script>
+// CSCS backfill 抑止シム（TTL内のみ backfill を無効化。リアルタイム記録は稼働）
+(() => {
+  const epoch = Number(localStorage.getItem('cscs_reset_epoch') || 0);
+  const ttl   = Number(localStorage.getItem('cscs_reset_ttl_ms') || 0);
+  const suppressed = (Date.now() - epoch) < ttl;
+  window.__CSCS_BACKFILL_SUPPRESSED__ = suppressed;
+
+  // b_judge_record.js が定義する backfill 関数を NOOP に差し替え
+  function patch(){
+    if (!suppressed) return;                  // 抑止期間外なら何もしない
+    const f1 = window.cscsBackfillIfNeeded;
+    const f2 = window.cscs_backfill_if_needed;
+    if (!f1 && !f2) { setTimeout(patch, 0); return; }  // 本体未読込なら次のtickで再試行
+    const noop = () => console.info('🚫 backfill suppressed (TTL)');
+    if (typeof f1 === 'function') window.cscsBackfillIfNeeded    = noop;
+    if (typeof f2 === 'function') window.cscs_backfill_if_needed = noop;
+  }
+  setTimeout(patch, 0);
+})();
+</script>
+
+<script src="../../assets/b_judge_record.js" defer></script>
+
+
+<script>
+(function(){
+  // Bページの URL から qid = "YYYYMMDD-NNN" を取得
+  function detectInfo(){
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b/);
+    if (!m) return null;
+    const day = m[1];       // 例: "20250926"
+    const n3  = m[2];       // 例: "001"
+    const qid = `${day}-${n3}`;
+    return { day, n3, qid };
+  }
+
+  const info = detectInfo();
+  if (!info) return;
+
+  // b_judge_record.js が管理している「本物の累積キー」
+  const KEY_COR      = `cscs_q_correct_total:${info.qid}`;
+  const KEY_WRG      = `cscs_q_wrong_total:${info.qid}`;
+
+  // B側だけで使う「最後に SYNC 済みだったときの累積値」
+  const KEY_LAST_COR = `cscs_sync_last_c:${info.qid}`;
+  const KEY_LAST_WRG = `cscs_sync_last_w:${info.qid}`;
+
+  function loadInt(key){
+    const v = localStorage.getItem(key);
+    if (v == null) return 0;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function saveInt(key, value){
+    localStorage.setItem(key, String(value));
+  }
+
+  async function syncFromTotals(){
+    // 1) 現在の累積（b_judge_record.js が書いた値）
+    const cNow = loadInt(KEY_COR);
+    const wNow = loadInt(KEY_WRG);
+
+    // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
+    const cLast = loadInt(KEY_LAST_COR);
+    const wLast = loadInt(KEY_LAST_WRG);
+
+    // 3) 差分（マイナスは送らない）
+    const dc = Math.max(0, cNow - cLast);
+    const dw = Math.max(0, wNow - wLast);
+
+    // 送るべき差分が無ければ何もしない
+    if (!dc && !dw) return;
+
+    // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
+    const payload = {
+      correctDelta:   dc > 0 ? { [info.qid]: dc } : {},
+      incorrectDelta: dw > 0 ? { [info.qid]: dw } : {},
+      updatedAt: Date.now()
+    };
+
+    // ★★★ 追加：送信直前ログ ★★★
+    console.log("[SYNC/B] trying to send", {
+      qid: info.qid,
+      payload
+    });
+
+    try{
+      const res = await fetch("/api/sync/merge", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(res.status);
+
+      // 5) 成功したら「今回送信後の累積値」を保存して次回差分の基準にする
+      if (dc) saveInt(KEY_LAST_COR, cNow);
+      if (dw) saveInt(KEY_LAST_WRG, wNow);
+    }catch(e){
+      console.warn("[SYNC/B] merge failed", e);
+    }
+  }
+
+  // b_judge_record.js の集計が終わったタイミングに近づけるため、
+  // DOM 完成後に 1 tick 遅らせて実行
+  function schedule(){
+    if (document.readyState === "loading") {
+      window.addEventListener("DOMContentLoaded", function(){
+        setTimeout(syncFromTotals, 0);
+      });
+    } else {
+      setTimeout(syncFromTotals, 0);
+    }
+  }
+
+  schedule();
+})();
+</script>
+
+
+    <script>
+    (function(){
+      if (window.__b_audio_btn_installed) return;
+      window.__b_audio_btn_installed = true;
+      const src = "/_build_cscs_20251015/audio/q012_b.m4a";
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.playsInline = true;
+
+      function ensureBtn(){
+        var btn = document.querySelector(".audio-fallback-btn");
+        if (btn) return btn;
+        btn = document.createElement("button");
+        btn.textContent = "🔊 音声を再生";
+        btn.className = "audio-fallback-btn";
+        btn.addEventListener("click", function(){
+          try{
+            audio.currentTime = 0;
+            audio.play().catch(function(){
+              btn.textContent = "再生できません（ブラウザ設定を確認）";
+            });
+          }catch(e){
+            btn.textContent = "再生できません（ブラウザ設定を確認）";
+          }
+        });
+        document.addEventListener("DOMContentLoaded", function(){
+          document.body.appendChild(btn);
+        });
+        return btn;
+      }
+
+      // 常時ボタンを出しておく（自動再生はしない）
+      ensureBtn();
+    })();
+    </script>
+        
+
+<link rel="stylesheet" href="../../assets/wrong_badge.css">
+<script src="../../assets/wrong_badge.js" defer></script>
+
+
+<link rel="stylesheet" href="../../assets/fav_modal.css">
+<script src="../../assets/fav_modal.js" defer></script>
+
+
+<link rel="stylesheet" href="../../assets/deep_dive.css">
+<script src="../../assets/deep_dive.js" data-mode="dynamic" data-autoload="1" defer></script>
+<script>window.DeepDive&&typeof window.DeepDive.init==="function"&&window.DeepDive.init({mode:"dynamic"});</script>
+<script src="../../assets/deep_dive_inline.js" defer></script>
+
+
+  <script>
+    (function(){
+      function isDeepDiveOpen(){
+        try{
+          const p = document.getElementById('dd-panel');
+          return p && p.style && p.style.display !== 'none';
+        }catch(_){ return false; }
+      }
+      function clickIsInsideDeepDive(target){
+        return !!(target && (target.closest && (
+          target.closest('#dd-panel') ||         // パネル内
+          target.closest('.deep-dive-btn') ||    // トグルボタン
+          target.closest('.dd-btn')              // 生成/再生成/コピー/閉じる 等
+        )));
+      }
+
+      // ▼ 追加：お気に入りモーダル開閉検知＆内側クリック検出
+      function isFavOpen(){
+        try{
+          const bd = document.getElementById('fav-backdrop');
+          if (!bd) return false;
+          // display:flex 中は開いている扱い
+          const st = window.getComputedStyle ? getComputedStyle(bd) : bd.style;
+          return (bd.style.display === 'flex') || (st && st.display === 'flex');
+        }catch(_){ return false; }
+      }
+      function clickIsInsideFav(target){
+        return !!(target && (target.closest && (
+          target.closest('#fav-backdrop .fav-modal') || // モーダル内
+          target.closest('#fav-backdrop')               // バックドロップ
+        )));
+      }
+
+      const nextHref = "q013_a.html";
+      function goNext(){ window.location.href = nextHref; }
+
+      document.addEventListener("click", (e) => {
+        // Deep Dive または お気に入りモーダル操作中は遷移しない
+        if (isDeepDiveOpen() || clickIsInsideDeepDive(e.target)) return;
+        if (isFavOpen() || clickIsInsideFav(e.target)) return;
+
+        // 既存の除外：音声ボタン / aタグ
+        if (e.target.closest(".audio-fallback-btn")) return;
+        if (e.target.closest("a")) return;
+
+        // その他のクリックで次へ
+        goNext();
+      });
+
+      document.addEventListener("keydown", (e) => {
+        // Deep Dive or Fav モーダル開時はキーボード遷移も抑止
+        if (isDeepDiveOpen() || isFavOpen()) return;
+
+        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
+          e.preventDefault();
+          goNext();
+        }
+      });
+
+      // 念のためオーバーレイの前面化
+      const ov = document.querySelector(".next-overlay");
+      if (ov) {
+        ov.style.zIndex = 9999;
+        ov.setAttribute("aria-label","次の問題へ");
+        ov.setAttribute("role","link");
+        ov.setAttribute("tabindex","0");
+      }
+    })();
+  </script>
+
+
+<style>
+/* 全ページ強制：html/body の高さ指定を解除 */
+html, body { height: auto !important; min-height: 0 !important; }
+</style>
+
+
+<link rel="stylesheet" href="../../assets/main.css">
+
+
+<style>
+.top-date {
+    color: #a8b0b8;
+    opacity: .95;
+    font-size: 22px;
+    width: auto;
+    margin: 0 10px 0 0;
+}
+.crumb-field {
+    font-size: 22px;
+    font-weight: 400;
+}
+</style>
+
+
+<style>
+/* 後から --h1-lh で自由に変更可（既定は normal） */
+h1 { line-height: var(--h1-lh, normal); }
+</style>
+
+
+<style>
+/* 後から --h1-fs で自由に変更可（既定は inherit。UA既定や main.css が決める） */
+h1 { font-size: var(--h1-fs, inherit); }
+</style>
+
+
+<style>
+/* 不正解表示一帯のインラインstyleを後勝ちで無力化。値はCSS変数を参照し、main.cssで定義する */
+#judge span[style*="font-size"] { font-size: var(--judge-choice-fs, 0.95em) !important; }
+#judge span[style*="color"] { color: var(--judge-dim-color, #c9c9c9) !important; }
+/* ここでは --judge-choice-fs / --judge-dim-color を再定義しない（main.cssで指定する） */
+</style>
+
+<!-- JUDGE_OVERRIDE_CSS_APPLIED -->
+
+<style>
+/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
+ol.opts li.is-correct {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* 将来Aタグ化された場合にも効くように併記 */
+ol.opts li.is-correct > a.opt-link,
+ol.opts li.is-correct a.opt-link {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+/* Fallback：太さ未対応ブラウザ */
+@supports not (text-decoration-thickness: 2px) {
+  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+}
+</style>
+
+<!-- B_CORRECT_UNDERLINE_APPLIED -->
+</head>
+<body>
+  <div class="wrap">
+    <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 試験対策問題集 (20/90)</div><div class='top-number'>問題番号: <span class='top-number-val'>12/30</span></div><div class='top-level'>Level 2</div></div><div class='topmeta-right'></div></div>
+    <div class='qno'><span class="top-date">2025年10月15日</span><span class='crumb-field'>栄養学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>マクロ栄養素バランス</span></div>
+    <h1 style="">長時間運動時に利用される主なエネルギー源はどれか？</h1>
+    <ol class='opts' type='A'><li>タンパク質</li><li class="is-correct">脂質</li><li>炭水化物</li><li>ケトン体</li></ol>
+    <div id="judge" class="answer" aria-live="polite"></div>
+    <div class='hr'></div><div class='answer'>正解: B<span class='opt-small'>脂質</span></div><div class='explain'>持久的運動時には脂質が主なエネルギー源であり、一定の糖質補給もパフォーマンス維持に必要である。</div>
+    <!-- <div class="footer">（このスライドは自動生成です）</div> -->
+  </div>
+<script type="application/json" id="cscs-meta">{"qid": "2025年10月15日-012", "field": "栄養学", "theme": "マクロ栄養素バランス", "level": "Level 2", "date": "2025年10月15日", "number": "12", "quiztype": "単一分野", "tags": {"cause": "長時間運動", "process": "脂質酸化促進|糖質補給維持", "outcome": "エネルギー持続供給"}}</script>
+
+  <!-- 左下の [TOPへ戻る] ボタン -->
+  <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
+
+
+<script>
+  (function(){
+    // Bパート専用 QID 検出（qNNN_b.html → "YYYYMMDD-NNN"）
+    function detectQidFromLocationB(){
+      const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+      if (!m) return null;
+      const day  = m[1];  // 例: "20250926"
+      const num3 = m[2];  // 例: "001"
+      return day + "-" + num3;
+    }
+    const QID = detectQidFromLocationB();
+    if (!QID) return;
+
+    // b_judge_record.js が使う問題別トータルキー
+    const KEY_COR = "cscs_q_correct_total:" + QID;
+    const KEY_WRG = "cscs_q_wrong_total:"   + QID;
+
+    let serverC    = 0;
+    let serverI    = 0;
+    let lastStatus = "idle";   // "idle" | "loading" | "ok" | "error"
+    let lastTime   = null;
+    let lastError  = "";
+
+    function readInt(key){
+      try{
+        const v = localStorage.getItem(key);
+        return v ? (parseInt(v,10) || 0) : 0;
+      }catch(_){
+        return 0;
+      }
+    }
+
+    function updateMonitorB(){
+      try{
+        const box = document.getElementById("cscs_sync_monitor_b");
+        if (!box) return;
+
+        const lc = readInt(KEY_COR);
+        const li = readInt(KEY_WRG);
+        const dc = lc - serverC;
+        const di = li - serverI;
+
+        box.querySelector(".sync-server").textContent = "server " + serverC + " / " + serverI;
+        box.querySelector(".sync-local").textContent  = "local  " + lc + " / " + li;
+        box.querySelector(".sync-diff").textContent   = "diff   " + dc + " / " + di;
+
+        const time = lastTime ? lastTime : "-";
+        const err  = lastError ? (" err:" + lastError) : "";
+        box.querySelector(".sync-status").textContent = lastStatus + " (" + time + ")" + err;
+      }catch(_){
+        // 監視UI更新失敗は握りつぶす
+      }
+    }
+
+    async function fetchServerForB(){
+      lastStatus = "loading";
+      lastError  = "";
+      updateMonitorB();
+      try{
+        const r = await fetch("/api/sync/state");
+        if (!r.ok) throw new Error(r.statusText);
+        const s = await r.json();
+        serverC = (s.correct   && s.correct[QID])   || 0;
+        serverI = (s.incorrect && s.incorrect[QID]) || 0;
+        lastStatus = "ok";
+        lastTime   = new Date().toLocaleTimeString();
+      }catch(e){
+        lastStatus = "error";
+        lastError  = String(e && e.message || e);
+      }finally{
+        updateMonitorB();
+      }
+    }
+
+    // Bパートは「閲覧専用」：ここから /api/sync/merge などの加算系は一切呼ばない
+    window.addEventListener("DOMContentLoaded", function(){
+      try{
+        const box = document.createElement("div");
+        box.id = "cscs_sync_monitor_b";
+        box.style.cssText = "position:fixed;right:12px;bottom:66px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:6px 10px;font:11px/1.4 system-ui;max-width:46vw;";
+        box.innerHTML = `
+          <div style="margin-bottom:4px;opacity:.8;">SYNC(B): <b>${QID}</b></div>
+          <div class="sync-server" style="margin-bottom:2px;font-size:11px;opacity:.85;">server 0 / 0</div>
+          <div class="sync-local"  style="margin-bottom:2px;font-size:11px;opacity:.85;">local  0 / 0</div>
+          <div class="sync-diff"   style="margin-bottom:4px;font-size:11px;opacity:.85;">diff   0 / 0</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span>status:</span>
+            <span class="sync-status" style="font-size:11px;opacity:.85;">idle (-)</span>
+            <button id="cscs_sync_refresh_b" type="button" style="margin-left:auto;font-size:10px;">↻</button>
+          </div>
+        `;
+        document.body.appendChild(box);
+        const btn = document.getElementById("cscs_sync_refresh_b");
+        if (btn) btn.addEventListener("click", fetchServerForB);
+      }catch(_){}
+      fetchServerForB();
+    });
+
+    // オンライン復帰時だけ再取得（こちらも読み取り専用）
+    window.addEventListener("online", fetchServerForB);
+  })();
+</script>
+
+</body>
+</html>
