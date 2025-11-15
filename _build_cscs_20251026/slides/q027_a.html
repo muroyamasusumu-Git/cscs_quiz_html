@@ -939,6 +939,12 @@ h1 { font-size: var(--h1-fs, inherit); }
             <button id="cscs_sync_test_pushdiff" type="button" style="font-size:10px;">push diff</button>
             <button id="cscs_sync_test_overwrite" type="button" style="font-size:10px;">overwrite local</button>
             <button id="cscs_sync_test_reset" type="button" style="font-size:10px;">reset server</button>
+
+            <!-- ローカル値だけを増減するテストボタン -->
+            <button id="cscs_sync_local_inc_ok" type="button" style="font-size:10px;">local+ok</button>
+            <button id="cscs_sync_local_dec_ok" type="button" style="font-size:10px;">local-ok</button>
+            <button id="cscs_sync_local_inc_ng" type="button" style="font-size:10px;">local+ng</button>
+            <button id="cscs_sync_local_dec_ng" type="button" style="font-size:10px;">local-ng</button>
           </div>
         `;
         document.body.appendChild(box);
@@ -951,9 +957,14 @@ h1 { font-size: var(--h1-fs, inherit); }
         const btnOver   = document.getElementById("cscs_sync_test_overwrite");
         const btnReset  = document.getElementById("cscs_sync_test_reset");
 
+        const btnLocalIncOk = document.getElementById("cscs_sync_local_inc_ok");
+        const btnLocalDecOk = document.getElementById("cscs_sync_local_dec_ok");
+        const btnLocalIncNg = document.getElementById("cscs_sync_local_inc_ng");
+        const btnLocalDecNg = document.getElementById("cscs_sync_local_dec_ng");
+
         // ① diff を /api/sync/merge へ送る
         if (btnPush) btnPush.addEventListener("click", () => {
-          sendDelta();   // 既存のsendDeltaをそのまま利用
+          sendDelta();
         });
 
         // ② サーバー値でローカルを上書き
@@ -986,10 +997,44 @@ h1 { font-size: var(--h1-fs, inherit); }
           }
         });
 
+        // 既存の差分テストボタン
         if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
         if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
         if (btnSend) btnSend.addEventListener("click", () => sendDelta());
         if (btnPull) btnPull.addEventListener("click", () => initialFetch());
+
+        // ローカルの値だけを増減するテストボタン
+        if (btnLocalIncOk) btnLocalIncOk.addEventListener("click", () => {
+          if (!QID) return;
+          const cur = readLocalTotalsForQid(QID);
+          const next = cur.c + 1;
+          localStorage.setItem("cscs_q_correct_total:" + QID, String(next));
+          updateMonitor();
+        });
+
+        if (btnLocalDecOk) btnLocalDecOk.addEventListener("click", () => {
+          if (!QID) return;
+          const cur = readLocalTotalsForQid(QID);
+          const next = cur.c - 1 < 0 ? 0 : cur.c - 1;
+          localStorage.setItem("cscs_q_correct_total:" + QID, String(next));
+          updateMonitor();
+        });
+
+        if (btnLocalIncNg) btnLocalIncNg.addEventListener("click", () => {
+          if (!QID) return;
+          const cur = readLocalTotalsForQid(QID);
+          const next = cur.w + 1;
+          localStorage.setItem("cscs_q_wrong_total:" + QID, String(next));
+          updateMonitor();
+        });
+
+        if (btnLocalDecNg) btnLocalDecNg.addEventListener("click", () => {
+          if (!QID) return;
+          const cur = readLocalTotalsForQid(QID);
+          const next = cur.w - 1 < 0 ? 0 : cur.w - 1;
+          localStorage.setItem("cscs_q_wrong_total:" + QID, String(next));
+          updateMonitor();
+        });
       }catch(_){}
       initialFetch();
     });
