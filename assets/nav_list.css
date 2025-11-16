@@ -33,11 +33,11 @@
 /* オーバーレイ本体 */
 #nl-panel {
   position: fixed;
-  left: 16px;
-  right: 16px;
   top: 12px;
+  margin-left: 63.3%;
+  font-size: 80%;
   bottom: 66px !important;
-  width: auto;
+  width: 30%;
   height: auto !importa
   overflow: auto;
   background: var(--nl-bg);
