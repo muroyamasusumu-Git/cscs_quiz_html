@@ -12,17 +12,6 @@
   function pad2(n){ return String(n).padStart(2, "0"); }
   function pad3(n){ return String(n).padStart(3, "0"); }
 
-  // 現在開いている Aパートの問題番号（q013_a.html → "013"）を取得
-  function getCurrentQuestionNumber3(){
-    try{
-      var path = window.location.pathname || "";
-      var m = path.match(/(?:^|\/)q(\d{3})_a(?:\.html)?$/);
-      return m ? m[1] : null;
-    }catch(_){
-      return null;
-    }
-  }
-
   /* 背景スクロールロック */
   function lockBodyScroll(){
     try{
@@ -187,7 +176,6 @@
   /* メイン描画：nav_manifest.json から構築 */
   async function renderListInto(panel){
     const day = getDayFromPath();
-    const currentN3 = getCurrentQuestionNumber3();
     let manifest = null;
     try {
       const res = await fetch("nav_manifest.json", {cache:"no-store"});
@@ -233,8 +221,7 @@
       const line2Text  = pad2(i) + " ／ " + levelText + " ／ " + rateText + " ／ " + wrongText + " ／ " + mark;
 
       const item = document.createElement("div");
-      const isCurrent = (currentN3 && n3 === currentN3);
-      item.className = "quiz-item" + (isCurrent ? " is-current" : "");
+      item.className = "quiz-item";
 
       const l1 = document.createElement("div");
       l1.className = "line1";
