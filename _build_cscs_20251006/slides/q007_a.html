@@ -934,21 +934,17 @@ h1 { font-size: var(--h1-fs, inherit); }
         box.style.cssText = "position:fixed;right:15px;bottom:65px;z-index:9999;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px 10px;font:11px/1.4 system-ui;max-width:46vw;width:140px;";
         box.innerHTML = `
           <div style="margin-bottom:4px;opacity:.8;">SYNC(A): <span class="sync-qid"></span></div>
-          <div id="cscs_sync_totals" data-server-c="0" data-server-i="0" style="margin-bottom:2px;font-size:11px;opacity:.85;">server 0 / 0</div>
-          <div class="sync-local"  style="margin-bottom:2px;font-size:11px;opacity:.85;">local  0 / 0</div>
-          <div class="sync-queue"  style="margin-bottom:4px;font-size:11px;opacity:.85;">+Δ    0 / 0</div>
-          <div style="margin-bottom:4px;font-size:11px;opacity:.85;">status: <span class="sync-status">idle (-)</span></div>
+          <div id="cscs_sync_totals" data-server-c="0" data-server-i="0" style="margin-bottom:0;font-size:11px;opacity:.85;">server 0 / 0</div>
+          <div class="sync-local"  style="margin-bottom:0;font-size:11px;opacity:.85;">local  0 / 0</div>
+          <div class="sync-queue"  style="margin-bottom:0;font-size:11px;opacity:.85;">+Δ    0 / 0</div>
+          <div style="margin-bottom:6px ;font-size:11px;opacity:.85;line-height:1.2;">status: <span class="sync-status">idle (-)</span></div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">
             <button id="cscs_sync_test_ok"    type="button" style="font-size:10px;">+ok</button>
             <button id="cscs_sync_test_ng"    type="button" style="font-size:10px;">+ng</button>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">            
             <button id="cscs_sync_local_inc_ok" type="button" style="font-size:10px;">local+ok</button>
-            <button id="cscs_sync_local_dec_ok" type="button" style="font-size:10px;">local-ok</button>
-          </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">  
-            <button id="cscs_sync_local_inc_ng" type="button" style="font-size:10px;">local+ng</button>
-            <button id="cscs_sync_local_dec_ng" type="button" style="font-size:10px;">local-ng</button>
+            <button id="cscs_sync_local_inc_ng" type="button" style="font-size:10px;">local+ng</button>            
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;">            
             <button id="cscs_sync_test_reset" type="button" style="font-size:10px;">reset server</button>
@@ -959,12 +955,8 @@ h1 { font-size: var(--h1-fs, inherit); }
         const btnOk   = document.getElementById("cscs_sync_test_ok");
         const btnNg   = document.getElementById("cscs_sync_test_ng");
         const btnReset  = document.getElementById("cscs_sync_test_reset");
-
         const btnLocalIncOk = document.getElementById("cscs_sync_local_inc_ok");
-        const btnLocalDecOk = document.getElementById("cscs_sync_local_dec_ok");
         const btnLocalIncNg = document.getElementById("cscs_sync_local_inc_ng");
-        const btnLocalDecNg = document.getElementById("cscs_sync_local_dec_ng");
-
         // ③ サーバー側カウンタを消去
         if (btnReset) btnReset.addEventListener("click", async () => {
           try{
