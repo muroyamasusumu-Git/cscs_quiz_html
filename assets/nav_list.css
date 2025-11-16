@@ -34,6 +34,7 @@
 #nl-panel {
   position: fixed;
   top: 12px;
+  margin-top: 12%;
   margin-left: 65%;
   font-size: 80%;
   bottom: 66px !important;
@@ -70,13 +71,13 @@
 #nl-panel .quiz-list-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 12px 24px;
+  gap: 10px 24px 12px;
   padding: 8px 4px 12px;
 }
 #nl-panel .quiz-item {
   border-bottom: 1px solid #2a2a2a;
   padding-bottom: 6px;
-  line-height: 20px;
+  line-height: 1.5;
 }
 #nl-panel .quiz-item .line1 {
   font-weight: 600;
