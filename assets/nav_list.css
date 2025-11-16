@@ -34,7 +34,6 @@
 #nl-panel {
   position: fixed;
   inset:5px 16px 66px !important;
-  top: 12px;
   margin-left: 68%;
   font-size: 0.9rem;
   bottom: 66px !important;
@@ -58,14 +57,15 @@
 
 /* ヘッダ */
 #nl-panel .nl-head {
-  display: flex;
+  display: block !important;
   justify-content: space-between;
   width: auto !important;
   gap: 8px;
   align-items: center;
-  margin: 0 0 10px 0;
+  margin: 0 0 0 0 !important;
+  padding: 0 15px 0 !important;
 }
-#nl-panel .nl-title { font-weight: 700; color: #fff; font-size: 18px; }
+#nl-panel .nl-title { font-weight: 430; color: #fff; font-size: 18px; }
 #nl-panel .nl-crumbs { color: var(--nl-muted); opacity: .95; font-size: .95em; }
 
 #nl-panel .quiz-list-grid {
@@ -138,6 +138,6 @@ html[data-nl-open="1"] { overscroll-behavior: contain; }
 #nl-panel .nl-note {
   font-size: 12px;
   opacity: .75;
-  margin-top: 8px;
+  margin-top: 0;
   color: var(--nl-muted);
 }

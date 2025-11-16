@@ -192,10 +192,8 @@
 
     const headerHtml =
       '<div class="nl-head">' +
-        '<div>' +
-          '<div class="nl-title">' + title + '</div>' +
-          '<div class="nl-crumbs">' + day + ' ／ ' + field + ' ／ ' + theme + '</div>' +
-        '</div>' +
+        '<div class="nl-title">' + title + '</div>' +
+        '<div class="nl-crumbs">' + day + ' ／ ' + field + ' ／ ' + theme + '</div>' +
         '<div class="nl-note">★＝3連続正解（2連続不正解で取消）</div>' +
       '</div>';
 
