@@ -38,8 +38,8 @@
   margin-left: 69.5%;
   font-size: 80%;
   bottom: 66px !important;
-  width: 25%;
-  height: auto !importa
+  width: 25% !important;
+  height: auto !important;
   overflow: auto;
   background: var(--nl-bg);
   border: 1px solid var(--nl-border);
