@@ -33,6 +33,7 @@
 /* オーバーレイ本体 */
 #nl-panel {
   position: fixed;
+  inset:5px 16px 66px !important;
   top: 12px;
   margin-left: 69.5%;
   font-size: 80%;
@@ -72,13 +73,12 @@
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 10px 24px 12px;
   padding: 8px 4px 12px;
-  width: 100%;
 }
 #nl-panel .quiz-item {
   border-bottom: 1px solid #2a2a2a;
   padding-bottom: 6px;
   line-height: 1.5;
-  width: 90%;
+  width: 85%;
 }
 #nl-panel .quiz-item .line1 {
   font-weight: 600;
