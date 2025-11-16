@@ -70,7 +70,7 @@
 
 #nl-panel .quiz-list-grid {
   width: auto !important;
-  display: grid;
+  display: block !important;
 }
 
 #nl-panel .quiz-item {
@@ -78,7 +78,7 @@
   margin: 5px 15px 5px !important;
   padding: 0 0 5px !important;
   line-height: 1.3;
-  width: 62% !important;
+  width: auto !important;
 }
 
 
