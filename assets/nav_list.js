@@ -255,6 +255,13 @@
     await renderListInto(panel);
     panel.style.display = "block";
     lockBodyScroll();
+
+    var toggle = document.getElementById("nl-toggle");
+    if (toggle){
+      var opened = panel && panel.style.display === "block";
+      toggle.textContent = opened ? "✖️ 閉じる　" : "📋 問題一覧表示";
+      toggle.setAttribute("aria-pressed", opened ? "true" : "false");
+    }
   }
 
   window.addEventListener("DOMContentLoaded", function(){
@@ -266,5 +273,6 @@
       if (!isEnabled) return;
     } catch(_){}
     ensureToggle();
+    mountAndOpenPanel();
   });
 })();
