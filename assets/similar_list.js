@@ -355,7 +355,7 @@
   align-items:center;
   justify-content:center;
   min-width:58px;
-  padding:2px 6px;
+  padding:2px 2px;
   margin-right:8px;
   border:1px solid #444;
   border-radius:6px;
