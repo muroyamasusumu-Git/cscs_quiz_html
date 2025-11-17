@@ -25,13 +25,13 @@
     obj[qid]=val;
     localStorage.setItem(KEY, JSON.stringify(obj));
 
-    // 互換：数値形式（cscs_fav_map）も更新しておく（1:理解済, 2:要復習, 3:重要, 0/未定義:未設定）
+    // 互換：数値形式（cscs_fav_map）も更新しておく（1:理解済, 2:要復習, 3:重要高, 0/未定義:未設定）
     const MAP_KEY="cscs_fav_map";
     const toNum = (s)=>{
       switch(s){
         case "understood": return 1;
         case "unanswered": return 2; // 要復習
-        case "none":       return 3; // 重要
+        case "none":       return 3; // 重要高
         default:           return 0; // 未設定
       }
     };
@@ -62,7 +62,7 @@
           '<button class="fav-btn" data-val="unset" aria-pressed="false">未設定</button>',
           '<button class="fav-btn" data-val="understood" aria-pressed="false">理解済</button>',
           '<button class="fav-btn" data-val="unanswered" aria-pressed="false">要復習</button>',
-          '<button class="fav-btn" data-val="none" aria-pressed="false">重要</button>',
+          '<button class="fav-btn" data-val="none" aria-pressed="false">重要高</button>',
         '</div>',
         '<a href="#" class="fav-cancel" id="fav-cancel">閉じる</a>',
       '</div>'

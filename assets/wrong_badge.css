@@ -51,12 +51,6 @@ h1 + .inline-metas {
   color: #ffd3a6; /* 無種別 */
 }
 
-@media (max-width: 480px) {
-  h1 + .inline-metas {
-    white-space: normal;
-    line-height: 1.3;
-  }
-}
 
 
 /* ===== 右下固定表示スタイル ===== */
@@ -64,18 +58,13 @@ h1 + .inline-metas {
     font-size: 1.3rem;
 }
 
-/* ラベルごとの色分け */
-#cscs-fixed-status .fav-status {
-  position: fixed;
-  right: 13px;
-  top: 38px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
-  display: block;
-  font-weight: 500;
+.fav-status {
+    display: block;
+    font-weight: 500;
+    margin: 0 -15px;
 }
-#cscs-fixed-status .wrong-status {
-  position: fixed;
-  right: 22px;
-  top: 10px; /* ←「音声を再生」ボタンと重ならない高さに調整 */
+
+.wrong-status {
   display: block;
   font-weight: 400;
   color: #a8b0b8;
@@ -86,13 +75,3 @@ h1 + .inline-metas {
 .fav-unanswered { color: #ff9a9a; }  /* 淡い赤 */
 .fav-none       { color: #8fdcff; }  /* 水色 */
 .fav-unset      { color: #a8b0b8; }  /* デフォルト灰 */
-
-/* モバイル調整 */
-@media (max-width: 600px) {
-  #cscs-fixed-status {
-    right: 8px;
-    bottom: 72px;
-    font-size: 0.8rem;
-    padding: 6px 8px;
-  }
-}

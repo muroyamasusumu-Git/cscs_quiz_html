@@ -19,7 +19,7 @@
     switch (String(s || "unset")) {
       case "understood": return "理解済";
       case "unanswered": return "要復習";
-      case "none":       return "重要";
+      case "none":       return "重要高";
       default:           return "未設定";
     }
   }
@@ -27,7 +27,7 @@
     switch ((n | 0)) {
       case 1: return "理解済";
       case 2: return "要復習";
-      case 3: return "重要";
+      case 3: return "重要高";
       default: return "未設定";
     }
   }
@@ -60,19 +60,46 @@
     return { label: "未設定", type: "unset" };
   }
 
-  // ===== 固定ボックス（正/不を <a> に変更） =====
+  // ===== topmeta-left 内にステータスを差し込む =====
   function ensureFixedBox() {
-    const boxId = "cscs-fixed-status";
-    let box = document.getElementById(boxId);
-    if (box) return box;
+    // HTML 側に用意された <div class="topmeta-left"></div> を使う
+    let box = document.querySelector(".topmeta-left");
 
-    box = document.createElement("div");
-    box.id = boxId;
-    box.innerHTML = `
-      <span class="fav-status">［--］</span>
-      <a href="#" class="wrong-status" role="button" aria-label="成績の統計を表示" title="">（正解:--回 / 不正解:--回）</a>
-    `;
-    document.body.appendChild(box);
+    // 無い場合はフォールバックとして生成（念のため）
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "topmeta-left";
+
+      // 可能なら .topmeta の中に入れる / 無ければ body 末尾に追加
+      const topmeta = document.querySelector(".topmeta");
+      if (topmeta) {
+        topmeta.appendChild(box);
+      } else {
+        document.body.appendChild(box);
+      }
+    }
+
+    // 初期構造がまだ無ければ、ここで一度だけ追加（既存要素は消さない）
+    const hasFav = !!box.querySelector(".fav-status");
+    const hasWrong = !!box.querySelector(".wrong-status");
+
+    if (!hasWrong) {
+      const wrongEl = document.createElement("a");
+      wrongEl.href = "#";
+      wrongEl.className = "wrong-status";
+      wrongEl.setAttribute("role", "button");
+      wrongEl.setAttribute("aria-label", "成績の統計を表示");
+      wrongEl.textContent = "（正解:--回 / 不正解:--回）";
+      box.appendChild(wrongEl);
+    }
+
+    if (!hasFav) {
+      const favEl = document.createElement("span");
+      favEl.className = "fav-status";
+      favEl.textContent = "［--］";
+      box.appendChild(favEl);
+    }
+
     return box;
   }
 
@@ -259,8 +286,8 @@
       favSpan.className = `fav-status fav-${type}`;
     }
     if (wrongLink) {
-      // 表示（リンク）
-      wrongLink.textContent = `(正解:${correct}回 / 不正解:${wrong}回)`;
+      // 表示（リンク） ※「回」を削除
+      wrongLink.textContent = `(正解:${correct} / 不正解:${wrong})`;
       wrongLink.setAttribute("title", qid ? `qid: ${qid} の累計（延べ）` : `qid未特定（パス判定不可）`);
       wrongLink.setAttribute("href", "#");
 
