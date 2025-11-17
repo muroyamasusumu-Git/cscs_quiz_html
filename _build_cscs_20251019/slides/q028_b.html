@@ -623,35 +623,13 @@ ol.opts li.is-correct a.opt-link {
   function createPanel() {
     var box = document.createElement("div");
     box.id = "cscs_sync_view_b";
-    box.style.position = "fixed";
-    box.style.right = "0px";  // 右寄せ
-    box.style.top = "5px";
-    box.style.opacity = "0.55";     // ← 透明度を追加
-    box.style.zIndex = "9999";
-    box.style.background = "";
-    box.style.color = "#eee";
-    box.style.border = "0 solid #444";
-    box.style.borderRadius = "8px";
-    box.style.padding = "8px 10px";
-    box.style.font = "11px system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
-    box.style.lineHeight = "1.2";    
-    box.style.maxWidth = "46vw";
-    box.style.Width = "140px";
-    box.style.pointerEvents = "auto";
 
     var title = document.createElement("div");
+    title.id = "cscs_sync_view_b_title";
     title.textContent = "SYNC(B): " + info.qid;
-    title.style.marginBottom = "4px";
-    title.style.opacity = "0.8";
 
     var body = document.createElement("div");
     body.id = "cscs_sync_view_b_body";
-    body.style.marginBottom = "0";
-    body.style.fontSize = "11px";
-    body.style.opacity = "0.85";
-    body.style.display = "flex";          // 縦並び用
-    body.style.flexDirection = "column";  // 縦方向
-    body.style.gap = "2px";               // 行間
 
     // 初期表示は1行だけなので textContent でOK
     body.textContent = "読み込み中…";
@@ -659,18 +637,11 @@ ol.opts li.is-correct a.opt-link {
     // statusText を個別に表示する領域
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
-    statusDiv.style.marginBottom = "8px";
-    statusDiv.style.fontSize = "10px";
-    statusDiv.style.opacity = "0.9";
 
     var btn = document.createElement("button");
     btn.id = "cscs_sync_view_b_send_btn";
     btn.type = "button";
     btn.textContent = "SYNC送信";
-    btn.style.marginTop = "0";
-    btn.style.fontSize = "10px";
-    btn.style.opacity = "0.7";
-    btn.style.padding = "2px 6px";
 
     box.appendChild(title);
     box.appendChild(body);
