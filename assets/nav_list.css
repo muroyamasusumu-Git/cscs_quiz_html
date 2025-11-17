@@ -34,7 +34,7 @@
 #nl-panel {
   position: fixed;
   inset:5px 16px 66px !important;
-  margin-left: 67%;
+  margin-left: 66%;
   font-size: 0.9rem;
   bottom: 66px !important;
   width: auto !important;
@@ -74,11 +74,11 @@
 
 /* 右カラム：日別リスト */
 #nl-right-col {
-  width: 80px;
+  width: 74px;
   overflow-y: auto;
   height: 100%;
   border-left: 1px solid #2a2a2a;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.4;
   margin-left: -1px !important;
 }
