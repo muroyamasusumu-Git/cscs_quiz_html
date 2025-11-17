@@ -63,7 +63,8 @@
   gap: 8px;
   align-items: center;
   margin: 0 0 0 0 !important;
-  padding: 0 15px 0 !important;
+  padding: 0 15px 5px !important;
+  border-bottom: 1px solid #2a2a2a;
 }
 #nl-panel .nl-title { font-weight: 430; color: #fff; font-size: 18px; }
 #nl-panel .nl-crumbs { color: var(--nl-muted); opacity: .95; font-size: .95em; }
@@ -105,23 +106,13 @@
 
 /* nav_list — 現在表示中の問題行の強調 */
 #nl-panel .quiz-item.is-current {
-border-left: 16px solid #4b4b4b !important;
-border-right: 15px solid #4b4b4b !important;
+border-left: 16px solid #2a2a2a;
+border-right: 15px solid #2a2a2a;
 margin: -6px 0 0 -1.5px !important;
-background: #4b4b4b !important;
+background: #2a2a2a;
 padding: 8px 0 4px 0 !important;
-}
 
-#nl-panel .quiz-item.is-current .line1 a {
-  color: auto !important;
-  text-decoration: none;
 }
-
-#nl-panel .quiz-item.is-current .line1 a {
-  color: auto !important;
-  text-decoration: none;
-}
-
 
 
 /* 下部ツールバー */
