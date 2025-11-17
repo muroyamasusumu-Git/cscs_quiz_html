@@ -258,13 +258,30 @@
 
     const bodyHost = panel.querySelector("#nl-body");
     if (bodyHost) bodyHost.appendChild(gridHost);
+
+    // ▼ 現在の問題（.quiz-item.is-current）が必ず見えるように自動スクロール
+    try{
+      const currentItem = panel.querySelector(".quiz-item.is-current");
+      if (currentItem){
+        const container = panel;
+        const itemRect  = currentItem.getBoundingClientRect();
+        const contRect  = container.getBoundingClientRect();
+        const offset    = itemRect.top - contRect.top - (contRect.height / 2) + (itemRect.height / 2);
+        container.scrollTop += offset;
+      } else {
+        panel.scrollTop = 0;
+      }
+    }catch(_){}
   }
 
   async function mountAndOpenPanel(){
     ensurePanel();
     const panel = document.getElementById("nl-panel");
-    await renderListInto(panel);
+
+    // ▼ 先に表示状態にしてからレイアウト計測＆スクロール
     panel.style.display = "block";
+
+    await renderListInto(panel);
     lockBodyScroll();
 
     var toggle = document.getElementById("nl-toggle");
