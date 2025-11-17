@@ -228,9 +228,13 @@
       const wrongText = "×" + String(stats.wrong).padStart(1, "0") + "（累計 " + String(stats.wrongLog).padStart(1, "0") + "）";
       const rateText  = (rate != null) ? ("正解率 " + String(rate).padStart(2, " ") + "%") : "正解率 —";
 
-      // ▼ 下段は「番号／Level／正解率／×数／Clear」を1行で表示
-      const levelText  = " " + (q.Level || "—");
-      const line2Text  = pad2(i) + " ／ " + levelText + " ／ " + rateText + " ／ " + wrongText + " ／ " + mark;
+      // ▼ Level の表記を「Level 1」→「1」へ正規化
+      let rawLevel = q.Level || "—";
+      rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
+
+      // ▼ 下段を「番号／Lvl N／正解率／×数／Clear」に統一（スペースなし）
+      const levelText  = "Lvl " + rawLevel;
+      const line2Text  = pad2(i) + "／" + levelText + "／" + rateText + "／" + wrongText + "／" + mark;
 
       const item = document.createElement("div");
       const isCurrent = (currentN3 && n3 === currentN3);
