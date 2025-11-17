@@ -61,7 +61,7 @@
     try {
       const el = document.createElement("div");
       el.textContent = msg;
-      el.style.cssText = "position:fixed;left:50%;top:20px;transform:translateX(-50%);background:#333;color:#fff;padding:8px 12px;border-radius:8px;z-index:99999;opacity:.95";
+      el.style.cssText = "position:fixed;right:50%;top:20px;transform:translateX(-50%);background:#333;color:#fff;padding:8px 12px;border-radius:8px;z-index:99999;opacity:.95";
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 1800);
     } catch {}

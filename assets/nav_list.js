@@ -1,9 +1,9 @@
-/* nav_list.js — Aパート専用：問題一覧（nav_manifest.json版 / 2カラム表示） */
+/* nav_list.js —：問題一覧（nav_manifest.json版 / 2カラム表示） */
 (function(){
   "use strict";
 
   function isAPart(){
-    return /_a(?:\.html)?(?:\?.*)?(?:#.*)?$/i.test(String(location.href || ""));
+    return /_(a|b)(?:\.html)?(?:\?.*)?(?:#.*)?$/i.test(String(location.href || ""));
   }
   function getDayFromPath(){
     var m = (window.location.pathname || "").match(/_build_cscs_(\d{8})/);
@@ -12,11 +12,11 @@
   function pad2(n){ return String(n).padStart(2, "0"); }
   function pad3(n){ return String(n).padStart(3, "0"); }
 
-  // 現在開いている Aパートの問題番号（q013_a.html → "013"）を取得
+  // 現在開いている A/Bパートの問題番号（q013_a.html / q013_b.html → "013"）を取得
   function getCurrentQuestionNumber3(){
     try{
       var path = window.location.pathname || "";
-      var m = path.match(/(?:^|\/)q(\d{3})_a(?:\.html)?$/);
+      var m = path.match(/(?:^|\/)q(\d{3})_[ab](?:\.html)?$/);
       return m ? m[1] : null;
     }catch(_){
       return null;

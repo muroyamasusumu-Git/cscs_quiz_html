@@ -538,6 +538,10 @@ ol.opts li.is-correct a.opt-link {
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
 
 
+  <!-- A専用：問題一覧（2カラム） -->
+  <link rel="stylesheet" href="../../assets/nav_list.css">
+  <script src="../../assets/nav_list.js" data-a-nav="1"></script>
+
 <script>
 (function () {
   "use strict";
@@ -620,8 +624,8 @@ ol.opts li.is-correct a.opt-link {
     var box = document.createElement("div");
     box.id = "cscs_sync_view_b";
     box.style.position = "fixed";
-    box.style.right = "10px";  // 右寄せ
-    box.style.top = "60px";
+    box.style.right = "0px";  // 右寄せ
+    box.style.top = "5px";
     box.style.opacity = "0.55";     // ← 透明度を追加
     box.style.zIndex = "9999";
     box.style.background = "";
