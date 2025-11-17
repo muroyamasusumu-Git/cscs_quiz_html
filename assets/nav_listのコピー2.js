@@ -344,17 +344,32 @@
 
     if (bodyHost){
       try{
+        Object.assign(bodyHost.style, {
+          display: "flex",
+          gap: "16px"
+        });
       }catch(_){}
     }
 
     if (leftCol){
       try{
+        Object.assign(leftCol.style, {
+          flex: "1",
+          overflowY: "auto"
+        });
       }catch(_){}
       leftCol.appendChild(gridHost);
     }
 
     if (rightCol){
       try{
+        Object.assign(rightCol.style, {
+          width: "80px",
+          overflowY: "auto",
+          borderLeft: "1px solid rgb(51, 51, 51)",
+          fontSize: "13px",
+          lineHeight: "1.4"
+        });
       }catch(_){}
       renderDayList(rightCol, day);
     }

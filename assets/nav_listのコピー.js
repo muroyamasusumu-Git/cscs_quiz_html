@@ -113,78 +113,6 @@
     return { correct: correct, wrong: wrong, sc: sc, sw: sw, cleared: cleared, wrongLog: wrongLogCount };
   }
 
-  // 日別リスト（DAY-01〜）を右カラムに描画
-  function renderDayList(rightCol, currentDay){
-    if (!rightCol) {
-      return;
-    }
-
-    function buildDayArray(startStr, endStr){
-      var list = [];
-
-      var sy = Number(startStr.slice(0, 4));
-      var sm = Number(startStr.slice(4, 6)) - 1;
-      var sd = Number(startStr.slice(6, 8));
-
-      var ey = Number(endStr.slice(0, 4));
-      var em = Number(endStr.slice(4, 6)) - 1;
-      var ed = Number(endStr.slice(6, 8));
-
-      var cur = new Date(sy, sm, sd);
-      var end = new Date(ey, em, ed);
-
-      while (cur.getTime() <= end.getTime()){
-        var y = cur.getFullYear();
-        var m = pad2(cur.getMonth() + 1);
-        var d = pad2(cur.getDate());
-        var s = String(y) + m + d;
-        list.push(s);
-        cur.setDate(cur.getDate() + 1);
-      }
-
-      return list;
-    }
-
-    // TODO: セット数や日付レンジを変更したくなったらここを書き換える
-    var days = buildDayArray("20250926", "20251224");
-
-    // いったん達成率は未定のためダミー表示
-    days.forEach(function(dayStr, idx){
-      var isCurrent = (dayStr === currentDay);
-
-      var item = document.createElement("div");
-      item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
-
-      var link = document.createElement("a");
-      link.href = "/_build_cscs_" + dayStr + "/slides/q001_a.html?nav=manual";
-      link.setAttribute("data-nl-allow", "1");
-      link.style.display = "block";
-      link.style.textDecoration = "none";
-
-      var titleRow = document.createElement("div");
-      titleRow.className = "nl-day-title";
-      titleRow.textContent = "DAY-" + pad2(idx + 1);
-
-      var fieldRow = document.createElement("div");
-      // 分野名は未定のため一旦プレースホルダ
-      fieldRow.textContent = "（分野名）";
-
-      var dateRow = document.createElement("div");
-      dateRow.textContent = dayStr;
-
-      var rateRow = document.createElement("div");
-      rateRow.textContent = "達成率：—%";
-
-      link.appendChild(titleRow);
-      link.appendChild(fieldRow);
-      link.appendChild(dateRow);
-      link.appendChild(rateRow);
-
-      item.appendChild(link);
-      rightCol.appendChild(item);
-    });
-  }
-
   /* Aパート下部中央のトグルボタンを挿入（開いている間は✖️ 閉じる　に変化） */
   function ensureToggle(){
     if (!isAPart()) return;
@@ -330,61 +258,22 @@
     });
 
     // nl-toolbar（閉じるボタン）は廃止。トグルボタンで開閉する。
-    panel.innerHTML =
-      '<div id="nl-body" class="nl-body-grid">' +
-        '<div class="nl-left-col" id="nl-left-col">' +
-          headerHtml +
-        '</div>' +
-        '<div class="nl-right-col" id="nl-right-col"></div>' +
-      '</div>';
+    panel.innerHTML = headerHtml + '<div id="nl-body"></div>';
 
     const bodyHost = panel.querySelector("#nl-body");
-    const leftCol  = panel.querySelector("#nl-left-col");
-    const rightCol = panel.querySelector("#nl-right-col");
+    if (bodyHost) bodyHost.appendChild(gridHost);
 
-    if (bodyHost){
-      try{
-      }catch(_){}
-    }
-
-    if (leftCol){
-      try{
-      }catch(_){}
-      leftCol.appendChild(gridHost);
-    }
-
-    if (rightCol){
-      try{
-      }catch(_){}
-      renderDayList(rightCol, day);
-    }
-
-    // ▼ 現在の問題（.quiz-item.is-current）と現在の日（.nl-day-item.is-current）が見えるように自動スクロール
+    // ▼ 現在の問題（.quiz-item.is-current）が必ず見えるように自動スクロール
     try{
-      var quizContainer = panel.querySelector("#nl-left-col");
-      var currentItem = quizContainer ? quizContainer.querySelector(".quiz-item.is-current") : null;
-      if (quizContainer){
-        if (currentItem){
-          var itemRect  = currentItem.getBoundingClientRect();
-          var contRect  = quizContainer.getBoundingClientRect();
-          var offset    = itemRect.top - contRect.top - (contRect.height / 2) + (itemRect.height / 2);
-          quizContainer.scrollTop += offset;
-        } else {
-          quizContainer.scrollTop = 0;
-        }
-      }
-
-      var dayContainer = panel.querySelector("#nl-right-col");
-      var currentDayItem = dayContainer ? dayContainer.querySelector(".nl-day-item.is-current") : null;
-      if (dayContainer){
-        if (currentDayItem){
-          var dItemRect  = currentDayItem.getBoundingClientRect();
-          var dContRect  = dayContainer.getBoundingClientRect();
-          var dOffset    = dItemRect.top - dContRect.top - (dContRect.height / 2) + (dItemRect.height / 2);
-          dayContainer.scrollTop += dOffset;
-        } else {
-          dayContainer.scrollTop = 0;
-        }
+      const currentItem = panel.querySelector(".quiz-item.is-current");
+      if (currentItem){
+        const container = panel;
+        const itemRect  = currentItem.getBoundingClientRect();
+        const contRect  = container.getBoundingClientRect();
+        const offset    = itemRect.top - contRect.top - (contRect.height / 2) + (itemRect.height / 2);
+        container.scrollTop += offset;
+      } else {
+        panel.scrollTop = 0;
       }
     }catch(_){}
   }
