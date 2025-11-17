@@ -33,7 +33,16 @@ line-height: 1;
 }
 
 .topmeta {
-margin-bottom: 10px;
+margin-bottom: 0 !important;
+gap: 0 !important;
+margin-right: 33% !important;
+}
+
+.topmeta-left {
+    display: flex ;
+    flex-wrap: wrap;
+    gap: 10px !important;
+    align-items: center;
 }
 
 .opts li {
@@ -69,7 +78,7 @@ margin: 12px 0 0;
 .explain {
 font-size: 20px;
 margin: 10px 0 0;
-margin-right: 34% !important;
+margin-right: 33% !important;
 }
 
 .explain-text {
