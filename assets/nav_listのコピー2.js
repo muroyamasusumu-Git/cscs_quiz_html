@@ -280,14 +280,13 @@
     const title = manifest.questions?.[0]?.Title || "NSCA CSCS 試験対策問題集";
     const field = manifest.questions?.[0]?.Field || "—";
     const theme = manifest.questions?.[0]?.Theme || "—";
-        
-    // ヘッダーを一時的に消去。必要な場合は復活させる
+
     const headerHtml =
-      '<!-- <div class="nl-head">' +
+      '<div class="nl-head">' +
         '<div class="nl-title">' + title + '</div>' +
         '<div class="nl-crumbs">' + day + ' ／ ' + field + ' ／ ' + theme + '</div>' +
         '<div class="nl-note">★＝3連続正解（2連続不正解で取消）</div>' +
-      '</div> -->';
+      '</div>';
 
     const gridHost = document.createElement("div");
     gridHost.className = "quiz-list-grid";
