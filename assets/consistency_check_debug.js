@@ -290,18 +290,18 @@
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
     div.style.position = "fixed";
-    div.style.top = "10%";
+    div.style.top = "5%";
     div.style.left = "50%";
     div.style.transform = "translateX(-50%)";
-    div.style.maxWidth = "640px";
-    div.style.width = "90%";
-    div.style.maxHeight = "80%";
+    div.style.maxWidth = "900px";
+    div.style.width = "96%";
+    div.style.maxHeight = "88%";
     div.style.overflowY = "auto";
     div.style.backgroundColor = "rgba(0, 0, 0, 0.96)";
     div.style.border = "1px solid #555555";
     div.style.borderRadius = "8px";
-    div.style.padding = "12px 16px";
-    div.style.fontSize = "14px";
+    div.style.padding = "16px 20px";
+    div.style.fontSize = "15px";
     div.style.color = "#eeeeee";
     div.style.zIndex = "99999";
     div.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.7)";
@@ -447,9 +447,14 @@
     var panel = getConsistencyPanelContainer();
     panel.innerHTML = buildConsistencyResultHtml(meta, q, result, strict);
 
+    panel.addEventListener("click", function(e) {
+      e.stopPropagation();
+    });
+
     var closeBtn = document.getElementById("cscs-consistency-panel-close");
     if (closeBtn) {
-      closeBtn.addEventListener("click", function() {
+      closeBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
         if (panel && panel.parentNode) {
           panel.parentNode.removeChild(panel);
         }
