@@ -11,6 +11,7 @@
   const GEMINI_MODEL = "models/gemini-2.5-flash";
   const ENDPOINT_PATH = "/api/consistency-check"; // Cloudflare 側で受けるエンドポイント
   const STRICT_MODE_DEFAULT = true; // 空気を読ませない「厳しめ判定」モード
+  var lastConsistencyDebug = null;
 
   // ===== プロンプト生成 =====
 
@@ -216,6 +217,16 @@
 
     var prompt = buildConsistencyPrompt(meta, q, strict);
 
+    lastConsistencyDebug = {
+      meta: meta,
+      question: q,
+      strict: strict,
+      prompt: prompt,
+      rawResponseText: "",
+      parsedResult: null,
+      parsingError: null
+    };
+
     var body = {
       model: GEMINI_MODEL,
       prompt: prompt,
@@ -235,13 +246,24 @@
     }
 
     var text = await response.text();
+    if (lastConsistencyDebug) {
+      lastConsistencyDebug.rawResponseText = text;
+    }
 
     // 応答は「JSONだけ」が返ってくる想定だが、
     // 念のため try/catch しておく
     try {
       var json = JSON.parse(text);
+      if (lastConsistencyDebug) {
+        lastConsistencyDebug.parsedResult = json;
+        lastConsistencyDebug.parsingError = null;
+      }
       return json;
     } catch (e) {
+      if (lastConsistencyDebug) {
+        lastConsistencyDebug.parsedResult = null;
+        lastConsistencyDebug.parsingError = String(e && e.message ? e.message : e);
+      }
       console.error("整合性チェック応答 JSON パース失敗:", e, text);
       throw new Error("整合性チェック応答が JSON ではありません。");
     }
@@ -343,9 +365,14 @@
 
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
     html += '<div style="font-weight:600;font-size:15px;">整合性チェック結果</div>';
+    html += '<div>';
+    html += '<button type="button" id="cscs-consistency-copy-debug"';
+    html += ' style="margin-right:6px;border:1px solid #777777;border-radius:4px;background:#222222;color:#ffffff;';
+    html += ' padding:2px 8px;font-size:12px;cursor:pointer;">デバッグ用テキストをコピー</button>';
     html += '<button type="button" id="cscs-consistency-panel-close"';
     html += ' style="border:1px solid #777777;border-radius:4px;background:#333333;color:#ffffff;';
     html += ' padding:2px 8px;font-size:12px;cursor:pointer;">閉じる</button>';
+    html += "</div>";
     html += "</div>";
 
     html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:8px;">';
@@ -457,6 +484,76 @@
         e.stopPropagation();
         if (panel && panel.parentNode) {
           panel.parentNode.removeChild(panel);
+        }
+      });
+    }
+
+    var copyBtn = document.getElementById("cscs-consistency-copy-debug");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        var lines = [];
+        lines.push("=== CSCS Consistency Check Debug ===");
+        lines.push("");
+        lines.push("[Meta]");
+        lines.push("Day: " + String(meta && meta.day ? meta.day : ""));
+        lines.push("Field: " + String(meta && meta.field ? meta.field : ""));
+        lines.push("Theme: " + String(meta && meta.theme ? meta.theme : ""));
+        lines.push("Level: " + String(meta && meta.level ? meta.level : ""));
+        lines.push("Strict mode: " + (strict ? "true" : "false"));
+        lines.push("");
+        lines.push("[Question]");
+        lines.push(q && q.question ? q.question : "");
+        lines.push("");
+        lines.push("[Choices]");
+        if (q && Array.isArray(q.choices)) {
+          for (var i = 0; i < q.choices.length; i++) {
+            lines.push(String.fromCharCode(65 + i) + ". " + String(q.choices[i]));
+          }
+        }
+        lines.push("");
+        lines.push("[Correct index (0-based)]");
+        lines.push(String(q && typeof q.correct_index === "number" ? q.correct_index : ""));
+        lines.push("");
+        lines.push("[Explanation]");
+        lines.push(q && q.explanation ? q.explanation : "");
+        lines.push("");
+
+        if (lastConsistencyDebug) {
+          lines.push("[Prompt sent to Gemini]");
+          lines.push(lastConsistencyDebug.prompt ? lastConsistencyDebug.prompt : "");
+          lines.push("");
+          lines.push("[Raw response text from /api/consistency-check]");
+          lines.push(lastConsistencyDebug.rawResponseText ? lastConsistencyDebug.rawResponseText : "");
+          lines.push("");
+          if (lastConsistencyDebug.parsingError) {
+            lines.push("[JSON parsing error]");
+            lines.push(lastConsistencyDebug.parsingError);
+            lines.push("");
+          }
+        }
+
+        if (result) {
+          lines.push("[Parsed result JSON]");
+          try {
+            lines.push(JSON.stringify(result, null, 2));
+          } catch (jsonError) {
+            lines.push("JSON.stringify error: " + String(jsonError && jsonError.message ? jsonError.message : jsonError));
+          }
+        }
+
+        var debugText = lines.join("\n");
+
+        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(debugText).then(function() {
+            alert("デバッグ用テキストをクリップボードにコピーしました。");
+          }).catch(function() {
+            alert("クリップボードへのコピーに失敗しました。テキストを手動でコピーしてください。");
+          });
+        } else {
+          alert("この環境ではクリップボードコピーが利用できません。テキストを手動でコピーしてください。\n\n" + debugText);
         }
       });
     }
