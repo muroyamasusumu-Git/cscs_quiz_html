@@ -681,7 +681,7 @@
       statusDiv.style.fontSize = "11px";
       statusDiv.style.padding = "2px 6px";
       statusDiv.style.borderRadius = "4px";
-      statusDiv.style.border = "1px solid #555555";
+      statusDiv.style.border = "0 solid #555555";
       statusDiv.style.background = "#111111";
       statusDiv.style.color = "#dddddd";
       statusDiv.style.opacity = "0.80";
