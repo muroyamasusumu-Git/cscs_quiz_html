@@ -251,8 +251,6 @@
       lastConsistencyDebug.rawResponseText = text;
     }
 
-    // 応答は「JSONだけ」が返ってくる想定だが、
-    // 念のため try/catch しておく
     try {
       var jsonText = text;
 
@@ -299,67 +297,9 @@
       }
 
       var json = JSON.parse(jsonText);
-
-      // Cloudflare 側が「エラー JSON（ng）+ raw_text にコードフェンス付き JSON」を返してきた場合のリカバリ
-      if (json && typeof json === "object" && json.raw_text && typeof json.raw_text === "string") {
-        var innerJsonText = json.raw_text;
-        if (typeof innerJsonText === "string") {
-          var innerTrimmed = innerJsonText.trim();
-          if (innerTrimmed.startsWith("```")) {
-            var innerLines = innerTrimmed.split("\n");
-            if (innerLines.length > 0) {
-              var innerFirstLine = innerLines[0].trim();
-              if (
-                innerFirstLine === "```" ||
-                innerFirstLine === "```json" ||
-                innerFirstLine === "```JSON" ||
-                innerFirstLine.toLowerCase().startsWith("```json")
-              ) {
-                innerLines.shift();
-
-                while (innerLines.length > 0 && innerLines[0].trim() === "") {
-                  innerLines.shift();
-                }
-
-                while (innerLines.length > 0 && innerLines[innerLines.length - 1].trim() === "") {
-                  innerLines.pop();
-                }
-
-                if (innerLines.length > 0 && innerLines[innerLines.length - 1].trim() === "```") {
-                  innerLines.pop();
-                }
-
-                innerJsonText = innerLines.join("\n").trim();
-              } else {
-                innerJsonText = innerTrimmed;
-              }
-            } else {
-              innerJsonText = innerTrimmed;
-            }
-          } else {
-            innerJsonText = innerTrimmed;
-          }
-        }
-
-        try {
-          var innerObj = JSON.parse(innerJsonText);
-          json = innerObj;
-          if (lastConsistencyDebug) {
-            lastConsistencyDebug.sanitizedJsonText = typeof innerJsonText === "string" ? innerJsonText : lastConsistencyDebug.sanitizedJsonText;
-            lastConsistencyDebug.parsingError = null;
-          }
-        } catch (innerError) {
-          if (lastConsistencyDebug && !lastConsistencyDebug.parsingError) {
-            lastConsistencyDebug.parsingError = String(innerError && innerError.message ? innerError.message : innerError);
-          }
-        }
-      }
-
       if (lastConsistencyDebug) {
         lastConsistencyDebug.parsedResult = json;
-        if (!lastConsistencyDebug.parsingError) {
-          lastConsistencyDebug.parsingError = null;
-        }
+        lastConsistencyDebug.parsingError = null;
       }
       return json;
     } catch (e) {
