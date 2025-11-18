@@ -650,82 +650,6 @@
   }
 
   /**
-   * 整合性チェック結果保存時に使用する localStorage キーを生成
-   *
-   * @param {Object} meta
-   * @param {Object} q
-   * @returns {string}
-   */
-  function getConsistencyStorageKey(meta, q) {
-    var keyBase = "cscs_consistency_check:";
-    var qid = meta && meta.qid ? String(meta.qid) : "";
-    var fallbackId = String(meta && meta.day ? meta.day : "") + "|" + String(q && q.question ? q.question : "").slice(0, 50);
-    return keyBase + (qid || fallbackId);
-  }
-
-  /**
-   * 画面右上の「整合性チェックステータス」表示を更新
-   *
-   * @param {Object} meta
-   * @param {Object} q
-   */
-  function updateConsistencyCheckStatus(meta, q) {
-    var statusDiv = document.getElementById("cc-check-status");
-    if (!statusDiv) {
-      statusDiv = document.createElement("div");
-      statusDiv.id = "cc-check-status";
-      statusDiv.style.position = "fixed";
-      statusDiv.style.top = "150px";
-      statusDiv.style.right = "34%";
-      statusDiv.style.zIndex = "99999";
-      statusDiv.style.fontSize = "11px";
-      statusDiv.style.padding = "2px 6px";
-      statusDiv.style.borderRadius = "4px";
-      statusDiv.style.border = "1px solid #555555";
-      statusDiv.style.background = "#111111";
-      statusDiv.style.color = "#dddddd";
-      statusDiv.style.opacity = "0.80";
-      statusDiv.style.pointerEvents = "none";
-      document.body.appendChild(statusDiv);
-    }
-
-    var text = "整合性チェック: 未チェック";
-
-    if (typeof localStorage !== "undefined") {
-      try {
-        var storageKey = getConsistencyStorageKey(meta, q);
-        var raw = localStorage.getItem(storageKey);
-        if (raw) {
-          var data = JSON.parse(raw);
-          var result = data && data.result ? data.result : {};
-          var mark = typeof result.judgement_mark === "string" ? result.judgement_mark : "";
-          var overall = typeof result.overall === "string" ? result.overall : "";
-          var savedAt = data && data.saved_at ? String(data.saved_at) : "";
-          var savedLabel = savedAt;
-
-          if (savedAt) {
-            var d = new Date(savedAt);
-            if (!isNaN(d.getTime())) {
-              var year = d.getFullYear();
-              var month = String(d.getMonth() + 1).padStart(2, "0");
-              var day = String(d.getDate()).padStart(2, "0");
-              var hour = String(d.getHours()).padStart(2, "0");
-              var minute = String(d.getMinutes()).padStart(2, "0");
-              savedLabel = year + "-" + month + "-" + day + " " + hour + ":" + minute;
-            }
-          }
-
-          text = "整合性チェック: チェック済み（判定: " + mark + " ／ overall: " + overall + " ／ 最終チェック: " + savedLabel + "）";
-        }
-      } catch (e) {
-        console.error("整合性チェックステータスの読み込みに失敗しました:", e);
-      }
-    }
-
-    statusDiv.textContent = text;
-  }
-
-  /**
    * チェックを実行して結果パネルを表示
    *
    * @param {Object} meta
@@ -743,7 +667,10 @@
       var usedStrict = typeof strict === "boolean" ? strict : STRICT_MODE_DEFAULT;
       if (typeof localStorage !== "undefined") {
         try {
-          var storageKey = getConsistencyStorageKey(meta, q);
+          var keyBase = "cscs_consistency_check:";
+          var qid = meta && meta.qid ? String(meta.qid) : "";
+          var fallbackId = String(meta && meta.day ? meta.day : "") + "|" + String(q && q.question ? q.question : "").slice(0, 50);
+          var storageKey = keyBase + (qid || fallbackId);
           var storePayload = {
             meta: meta,
             question: q,
@@ -758,7 +685,6 @@
       }
 
       showConsistencyResultPanel(meta, q, result, usedStrict);
-      updateConsistencyCheckStatus(meta, q);
     } catch (e) {
       panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">整合性チェック中にエラーが発生しました: '
         + String(e && e.message ? e.message : e)
@@ -856,8 +782,6 @@
       correct_index: correctIndex,
       explanation: explanationText
     };
-
-    updateConsistencyCheckStatus(meta, q);
 
     var btn = document.createElement("button");
     btn.id = "cc-check-btn";
