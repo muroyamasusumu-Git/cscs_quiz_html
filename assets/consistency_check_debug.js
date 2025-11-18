@@ -488,20 +488,87 @@
 
   // Bパート用：整合性チェックボタンの自動生成
   document.addEventListener("DOMContentLoaded", function() {
-    // 既にボタンが存在する場合は重複生成しない
+    var scripts = document.querySelectorAll('script[src$="consistency_check_debug.js"]');
+    var isB = false;
+    for (var i = 0; i < scripts.length; i++) {
+      var sc = scripts[i];
+      if (sc.getAttribute("data-part") === "b") {
+        isB = true;
+        break;
+      }
+    }
+    if (!isB) {
+      return;
+    }
+
     if (document.getElementById("cc-check-btn")) {
       return;
     }
 
-    // メタ情報が無ければ何もしない
-    if (!window.cscsMeta) {
+    var metaScript = document.getElementById("cscs-meta");
+    if (!metaScript) {
       return;
     }
 
-    var meta = window.cscsMeta;
-    if (!meta.question || !Array.isArray(meta.choices) || typeof meta.correct_index !== "number" || !meta.explanation) {
+    var baseMeta;
+    try {
+      var raw = metaScript.textContent || metaScript.innerText || "";
+      baseMeta = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      baseMeta = {};
+    }
+
+    var meta = {
+      day: String(baseMeta.date || baseMeta.day || ""),
+      field: String(baseMeta.field || ""),
+      theme: String(baseMeta.theme || ""),
+      level: String(baseMeta.level || ""),
+      qid: String(baseMeta.qid || ""),
+      quiztype: String(baseMeta.quiztype || "")
+    };
+
+    var h1 = document.querySelector("h1");
+    var questionText = h1 && h1.textContent ? h1.textContent.trim() : "";
+
+    var choiceNodes = document.querySelectorAll("ol.opts li");
+    var choices = [];
+    var correctIndex = 0;
+    var foundCorrect = false;
+    for (var j = 0; j < choiceNodes.length; j++) {
+      var li = choiceNodes[j];
+      var txt = li && li.textContent ? li.textContent : "";
+      choices.push(txt.trim());
+      if (!foundCorrect && li && li.classList && li.classList.contains("is-correct")) {
+        correctIndex = j;
+        foundCorrect = true;
+      }
+    }
+
+    while (choices.length < 4) {
+      choices.push("");
+    }
+
+    var expNode = document.querySelector(".explain-text");
+    var explanationText = "";
+    if (expNode && expNode.textContent) {
+      explanationText = expNode.textContent.trim();
+    } else {
+      var expWrap = document.querySelector(".explain");
+      if (expWrap && expWrap.textContent) {
+        explanationText = expWrap.textContent.trim();
+      }
+    }
+
+    if (!questionText || choices.length === 0 || !explanationText) {
       return;
     }
+
+    var q = {
+      question: questionText,
+      choices: choices,
+      correct_index: correctIndex,
+      explanation: explanationText
+    };
 
     var btn = document.createElement("button");
     btn.id = "cc-check-btn";
@@ -519,13 +586,6 @@
     btn.style.color = "#eeeeee";
     btn.style.opacity = "0.85";
     btn.style.cursor = "pointer";
-
-    var q = {
-      question: meta.question,
-      choices: meta.choices,
-      correct_index: meta.correct_index,
-      explanation: meta.explanation
-    };
 
     btn.addEventListener("click", function() {
       window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
