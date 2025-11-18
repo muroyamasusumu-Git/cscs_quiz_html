@@ -419,37 +419,8 @@
     html += "</div>";
     html += "</div>";
 
-    html += '<div style="margin-bottom:10px;font-size:13px;">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
-    html += '<div style="font-size:12px;color:#dddddd;">モード: ' + strictLabel + "</div>";
-    html += '<div style="font-size:14px;font-weight:600;">overall: ' + overall + " ／ 判定: " + mark + "</div>";
-    html += "</div>";
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
-    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">正解の妥当性</div>';
-    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
-    html += '<div style="font-size:11px;color:#88ddff;">mode: ' + acMode + "</div>";
-    html += "</div>";
-
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
-    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">解説の品質</div>';
-    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + eqStatus + "</div>";
-    html += '<div style="font-size:11px;color:#cccccc;">explanation_quality</div>';
-    html += "</div>";
-
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
-    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">問題文の NSCA 的妥当性</div>';
-    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + psStatus + "</div>";
-    html += '<div style="font-size:11px;color:#cccccc;">problem_statement_nsac_validity</div>';
-    html += "</div>";
-
-    html += "</div>";
-    html += "</div>";
-
-    html += '<div style="margin-bottom:8px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">全体コメント</div>';
-    html += '<div style="white-space:pre-wrap;line-height:1.4;font-size:13px;">' + summary + "</div>";
+    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:8px;">';
+    html += "モード: " + strictLabel + " ／ overall: " + overall + " ／ 判定: " + mark;
     html += "</div>";
 
     html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
@@ -481,7 +452,12 @@
     html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
     html += '<div style="margin-bottom:8px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 正解の妥当性 (answer_correctness)</div>';
+    html += '<div style="font-weight:600;margin-bottom:4px;">全体コメント</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + summary + "</div>";
+    html += "</div>";
+
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">正解の妥当性 (answer_correctness)</div>';
     html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + acStatus + " ／ mode: " + acMode;
     html += "</div>";
@@ -500,7 +476,7 @@
     html += "</div>";
 
     html += '<div style="margin-bottom:8px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 解説の品質 (explanation_quality)</div>';
+    html += '<div style="font-weight:600;margin-bottom:4px;">解説の品質 (explanation_quality)</div>';
     html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + eqStatus;
     html += "</div>";
@@ -514,7 +490,7 @@
     html += "</div>";
 
     html += '<div style="margin-bottom:4px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 問題文の NSCA 的妥当性 (problem_statement_nsac_validity)</div>';
+    html += '<div style="font-weight:600;margin-bottom:4px;">問題文の NSCA 的妥当性 (problem_statement_nsac_validity)</div>';
     html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + psStatus;
     html += "</div>";
