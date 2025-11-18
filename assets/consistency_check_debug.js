@@ -488,19 +488,6 @@
 
   // Bパート用：整合性チェックボタンの自動生成
   document.addEventListener("DOMContentLoaded", function() {
-    var scripts = document.querySelectorAll('script[src$="consistency_check_debug.js"]');
-    var isB = false;
-    for (var i = 0; i < scripts.length; i++) {
-      var sc = scripts[i];
-      if (sc.getAttribute("data-part") === "b") {
-        isB = true;
-        break;
-      }
-    }
-    if (!isB) {
-      return;
-    }
-
     // 既にボタンが存在する場合は重複生成しない
     if (document.getElementById("cc-check-btn")) {
       return;
@@ -512,7 +499,7 @@
     }
 
     var meta = window.cscsMeta;
-    if (!meta.question || !meta.choices || typeof meta.correct_index === "undefined" || !meta.explanation) {
+    if (!meta.question || !Array.isArray(meta.choices) || typeof meta.correct_index !== "number" || !meta.explanation) {
       return;
     }
 
@@ -522,7 +509,7 @@
     btn.textContent = "整合性チェック";
     btn.style.position = "fixed";
     btn.style.top = "6px";
-    btn.style.right = "150px";
+    btn.style.right = "6px";
     btn.style.zIndex = "99999";
     btn.style.fontSize = "12px";
     btn.style.padding = "4px 8px";
@@ -530,7 +517,7 @@
     btn.style.border = "1px solid #666666";
     btn.style.background = "#222222";
     btn.style.color = "#eeeeee";
-    btn.style.opacity = "0.75";
+    btn.style.opacity = "0.85";
     btn.style.cursor = "pointer";
 
     var q = {
