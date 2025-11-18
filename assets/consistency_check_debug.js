@@ -223,6 +223,7 @@
       strict: strict,
       prompt: prompt,
       rawResponseText: "",
+      sanitizedJsonText: "",
       parsedResult: null,
       parsingError: null
     };
@@ -293,6 +294,10 @@
         }
       }
 
+      if (lastConsistencyDebug) {
+        lastConsistencyDebug.sanitizedJsonText = typeof jsonText === "string" ? jsonText : "";
+      }
+
       var json = JSON.parse(jsonText);
       if (lastConsistencyDebug) {
         lastConsistencyDebug.parsedResult = json;
@@ -301,6 +306,7 @@
       return json;
     } catch (e) {
       if (lastConsistencyDebug) {
+        lastConsistencyDebug.sanitizedJsonText = typeof jsonText === "string" ? jsonText : "";
         lastConsistencyDebug.parsedResult = null;
         lastConsistencyDebug.parsingError = String(e && e.message ? e.message : e);
       }
@@ -568,6 +574,11 @@
           lines.push("[Raw response text from /api/consistency-check]");
           lines.push(lastConsistencyDebug.rawResponseText ? lastConsistencyDebug.rawResponseText : "");
           lines.push("");
+          if (lastConsistencyDebug.sanitizedJsonText) {
+            lines.push("[Sanitized JSON text before parse]");
+            lines.push(lastConsistencyDebug.sanitizedJsonText);
+            lines.push("");
+          }
           if (lastConsistencyDebug.parsingError) {
             lines.push("[JSON parsing error]");
             lines.push(lastConsistencyDebug.parsingError);
