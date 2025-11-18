@@ -253,7 +253,32 @@
     // 応答は「JSONだけ」が返ってくる想定だが、
     // 念のため try/catch しておく
     try {
-      var json = JSON.parse(text);
+      var jsonText = text;
+
+      if (typeof jsonText === "string") {
+        var trimmed = jsonText.trim();
+        if (trimmed.startsWith("```")) {
+          var lines = trimmed.split("\n");
+          if (lines.length >= 2) {
+            var firstLine = lines[0].trim();
+            if (firstLine === "```" || firstLine === "```json" || firstLine === "```JSON") {
+              lines.shift();
+              if (lines.length > 0 && lines[lines.length - 1].trim() === "```") {
+                lines.pop();
+              }
+              jsonText = lines.join("\n");
+            } else {
+              jsonText = trimmed;
+            }
+          } else {
+            jsonText = trimmed;
+          }
+        } else {
+          jsonText = trimmed;
+        }
+      }
+
+      var json = JSON.parse(jsonText);
       if (lastConsistencyDebug) {
         lastConsistencyDebug.parsedResult = json;
         lastConsistencyDebug.parsingError = null;
