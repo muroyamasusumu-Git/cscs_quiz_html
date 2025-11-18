@@ -259,14 +259,29 @@
         var trimmed = jsonText.trim();
         if (trimmed.startsWith("```")) {
           var lines = trimmed.split("\n");
-          if (lines.length >= 2) {
+          if (lines.length > 0) {
             var firstLine = lines[0].trim();
-            if (firstLine === "```" || firstLine === "```json" || firstLine === "```JSON") {
+            if (
+              firstLine === "```" ||
+              firstLine === "```json" ||
+              firstLine === "```JSON" ||
+              firstLine.toLowerCase().startsWith("```json")
+            ) {
               lines.shift();
+
+              while (lines.length > 0 && lines[0].trim() === "") {
+                lines.shift();
+              }
+
+              while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
+                lines.pop();
+              }
+
               if (lines.length > 0 && lines[lines.length - 1].trim() === "```") {
                 lines.pop();
               }
-              jsonText = lines.join("\n");
+
+              jsonText = lines.join("\n").trim();
             } else {
               jsonText = trimmed;
             }
