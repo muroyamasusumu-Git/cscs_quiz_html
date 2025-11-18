@@ -407,7 +407,6 @@
 
     var html = "";
 
-    // 上部：モード・overall・判定 ＋ 3カード（正解／解説／問題文）のサマリー
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
     html += '<div style="font-weight:600;font-size:15px;">整合性チェック結果</div>';
     html += '<div>';
@@ -448,7 +447,6 @@
     html += "</div>";
     html += "</div>";
 
-    // 中段：全体コメント
     html += '<div style="margin-bottom:8px;">';
     html += '<div style="font-weight:600;margin-bottom:4px;">全体コメント</div>';
     html += '<div style="white-space:pre-wrap;line-height:1.4;font-size:13px;">' + summary + "</div>";
@@ -456,7 +454,32 @@
 
     html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
-    // 下部1：各評価軸の詳細
+    html += '<div style="margin-bottom:6px;font-size:12px;color:#aaaaaa;">';
+    html += "Day: " + meta.day + " ／ Field: " + meta.field + " ／ Theme: " + meta.theme + " ／ Level: " + meta.level;
+    html += "</div>";
+
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">問題文</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.question + "</div>";
+    html += "</div>";
+
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">選択肢</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">';
+    html += "A. " + q.choices[0] + "<br>";
+    html += "B. " + q.choices[1] + "<br>";
+    html += "C. " + q.choices[2] + "<br>";
+    html += "D. " + q.choices[3];
+    html += "</div>";
+    html += "</div>";
+
+    html += '<div style="margin-bottom:10px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">解説</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.explanation + "</div>";
+    html += "</div>";
+
+    html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
+
     html += '<div style="margin-bottom:8px;">';
     html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 正解の妥当性 (answer_correctness)</div>';
     html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
@@ -490,7 +513,7 @@
     }
     html += "</div>";
 
-    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="margin-bottom:4px;">';
     html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 問題文の NSCA 的妥当性 (problem_statement_nsac_validity)</div>';
     html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + psStatus;
@@ -502,33 +525,6 @@
       }
       html += "</ul>";
     }
-    html += "</div>";
-
-    html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
-
-    // 下部2：問題本文・選択肢・解説
-    html += '<div style="margin-bottom:6px;font-size:12px;color:#aaaaaa;">';
-    html += "Day: " + meta.day + " ／ Field: " + meta.field + " ／ Theme: " + meta.theme + " ／ Level: " + meta.level;
-    html += "</div>";
-
-    html += '<div style="margin-bottom:8px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">問題文</div>';
-    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.question + "</div>";
-    html += "</div>";
-
-    html += '<div style="margin-bottom:8px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">選択肢</div>';
-    html += '<div style="white-space:pre-wrap;line-height:1.4;">';
-    html += "A. " + q.choices[0] + "<br>";
-    html += "B. " + q.choices[1] + "<br>";
-    html += "C. " + q.choices[2] + "<br>";
-    html += "D. " + q.choices[3];
-    html += "</div>";
-    html += "</div>";
-
-    html += '<div style="margin-bottom:10px;">';
-    html += '<div style="font-weight:600;margin-bottom:4px;">解説</div>';
-    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.explanation + "</div>";
     html += "</div>";
 
     return html;
