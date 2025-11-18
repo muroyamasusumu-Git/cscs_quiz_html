@@ -2,10 +2,6 @@
 (function(){
   "use strict";
 
-  // true: A/B 両方で常時表示（開閉ボタンなし）
-  // false: これまで通り、トグルボタンで開閉
-  const NAV_ALWAYS_OPEN = true;
-
   function isAPart(){
     return /_(a|b)(?:\.html)?(?:\?.*)?(?:#.*)?$/i.test(String(location.href || ""));
   }
@@ -191,9 +187,6 @@
 
   /* Aパート下部中央のトグルボタンを挿入（開いている間は✖️ 閉じる　に変化） */
   function ensureToggle(){
-    // 常時表示モードのときはトグルボタン自体を出さない
-    if (NAV_ALWAYS_OPEN) return;
-
     if (!isAPart()) return;
     if (document.getElementById("nl-toggle")) return;
 
@@ -400,21 +393,17 @@
     ensurePanel();
     const panel = document.getElementById("nl-panel");
 
-    // ▼ 一覧パネルを表示状態にしてからレイアウト計測＆スクロール
+    // ▼ 先に表示状態にしてからレイアウト計測＆スクロール
     panel.style.display = "block";
 
     await renderListInto(panel);
+    lockBodyScroll();
 
-    // 常時表示モードでなければ、従来通りスクロールロック＋トグルラベル更新
-    if (!NAV_ALWAYS_OPEN){
-      lockBodyScroll();
-
-      var toggle = document.getElementById("nl-toggle");
-      if (toggle){
-        var opened = panel && panel.style.display === "block";
-        toggle.textContent = opened ? "✖️ 閉じる　" : "📋 問題一覧表示";
-        toggle.setAttribute("aria-pressed", opened ? "true" : "false");
-      }
+    var toggle = document.getElementById("nl-toggle");
+    if (toggle){
+      var opened = panel && panel.style.display === "block";
+      toggle.textContent = opened ? "✖️ 閉じる　" : "📋 問題一覧表示";
+      toggle.setAttribute("aria-pressed", opened ? "true" : "false");
     }
   }
 
