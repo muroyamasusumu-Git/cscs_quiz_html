@@ -95,8 +95,44 @@ async function callGeminiConsistencyCheck(env, prompt, modelName) {
   }
 
   let json;
+  let textNormalized = text;
   try {
-    json = JSON.parse(text);
+    if (typeof textNormalized === "string") {
+      let s = textNormalized.trim();
+
+      if (s.startsWith("```")) {
+        const lines = s.split("\n");
+
+        if (lines.length > 0 && lines[0].trim().startsWith("```")) {
+          lines.shift();
+        }
+
+        while (lines.length > 0 && lines[0].trim() === "") {
+          lines.shift();
+        }
+
+        while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
+          lines.pop();
+        }
+
+        if (lines.length > 0 && lines[lines.length - 1].trim() === "```") {
+          lines.pop();
+        }
+
+        s = lines.join("\n").trim();
+      }
+
+      const firstBraceIndex = s.indexOf("{");
+      const lastBraceIndex = s.lastIndexOf("}");
+
+      if (firstBraceIndex !== -1 && lastBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+        s = s.slice(firstBraceIndex, lastBraceIndex + 1);
+      }
+
+      textNormalized = s;
+    }
+
+    json = JSON.parse(textNormalized);
   } catch (e) {
     json = {
       overall: "ng",

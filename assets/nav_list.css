@@ -132,7 +132,7 @@
 #nl-panel .quiz-item.is-current {
 border-left: 16px solid #2a2a2a;
 border-right: 10px solid #2a2a2a;
-margin: -5px 0 0 -1.5px !important;
+margin: -6px 0 0 -1.5px !important;
 background: #2a2a2a;
 padding: 8px 0 4px 0 !important;
 }
