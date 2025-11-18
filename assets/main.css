@@ -1,3 +1,25 @@
+/* A：縦長（スマホ縦） */
+@media (aspect-ratio < 0.8) {
+  body {
+  }
+  .slide-content {
+  }
+}
+
+/* B：ほぼ正方形（iPad / PC小ウィンドウ） */
+@media (0.8 <= aspect-ratio <= 1.2) {
+  .slide-content {
+  }
+}
+
+/* C：横長（PC / iPad横） */
+@media (aspect-ratio > 1.2) {
+  body {
+  }
+  .slide-content {
+  }
+}
+
 html, body {
 font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Noto Sans JP", sans-serif;
   position: static !important;
@@ -20,8 +42,8 @@ margin: 10px 0;
 }
 
 h1 {
-line-height: 0.99 !important;
-margin-top: 20px;
+line-height: 1 !important;
+margin-top: 15px;
 font-size: 40px !important;
 padding-bottom: 2px;
 margin-right: 33% !important;
