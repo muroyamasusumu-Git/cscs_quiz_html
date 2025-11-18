@@ -587,8 +587,10 @@
     btn.style.opacity = "0.85";
     btn.style.cursor = "pointer";
 
-    btn.addEventListener("click", function() {
-      window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+    btn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
     });
 
     document.body.appendChild(btn);
