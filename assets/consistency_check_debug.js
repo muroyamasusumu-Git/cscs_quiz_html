@@ -672,24 +672,42 @@
   function updateConsistencyCheckStatus(meta, q) {
     var statusDiv = document.getElementById("cc-check-status");
     if (!statusDiv) {
+
+      // 親となる wrapper を先に用意（無ければ作る）
+      var wrapper = document.getElementById("cc-check-wrapper");
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.id = "cc-check-wrapper";
+        wrapper.style.position = "fixed";
+        wrapper.style.top = "136px";
+        wrapper.style.right = "32%";
+        wrapper.style.zIndex = "99999";
+        wrapper.style.display = "flex";
+        wrapper.style.flexDirection = "column";
+        wrapper.style.alignItems = "flex-start";
+        wrapper.style.width = "160px";
+        document.body.appendChild(wrapper);
+      }
+
       statusDiv = document.createElement("div");
       statusDiv.id = "cc-check-status";
-      statusDiv.style.position = "fixed";
-      statusDiv.style.top = "150px";
-      statusDiv.style.right = "34%";
-      statusDiv.style.zIndex = "99999";
       statusDiv.style.fontSize = "11px";
-      statusDiv.style.padding = "2px 6px";
+      statusDiv.style.padding = "8px 10px";
       statusDiv.style.borderRadius = "4px";
-      statusDiv.style.border = "0 solid #555555";
-      statusDiv.style.background = "#111111";
       statusDiv.style.color = "#dddddd";
-      statusDiv.style.opacity = "0.80";
+      statusDiv.style.opacity = "0.40";
       statusDiv.style.pointerEvents = "none";
-      document.body.appendChild(statusDiv);
+      statusDiv.style.whiteSpace = "pre-line";
+      statusDiv.style.lineHeight = "1.2";
+
+      wrapper.appendChild(statusDiv);
     }
 
-    var text = "整合性チェック: 未チェック";
+    var lines = [];
+    lines.push("整合性チェック: 未チェック");
+    lines.push("判定: —");
+    lines.push("overall: —");
+    lines.push("最終チェック: —");
 
     if (typeof localStorage !== "undefined") {
       try {
@@ -715,14 +733,17 @@
             }
           }
 
-          text = "整合性チェック: チェック済み（判定: " + mark + " ／ overall: " + overall + " ／ 最終チェック: " + savedLabel + "）";
+          lines[0] = "整合性チェック: チェック済み";
+          lines[1] = "判定: " + (mark || "—");
+          lines[2] = "overall: " + (overall || "—");
+          lines[3] = "最終チェック: " + (savedLabel || "—");
         }
       } catch (e) {
         console.error("整合性チェックステータスの読み込みに失敗しました:", e);
       }
     }
 
-    statusDiv.textContent = text;
+    statusDiv.textContent = lines.join("\n");
   }
 
   /**
@@ -863,18 +884,17 @@
     btn.id = "cc-check-btn";
     btn.type = "button";
     btn.textContent = "整合性チェック";
-    btn.style.position = "fixed";
-    btn.style.top = "170px";
-    btn.style.right = "34%";
     btn.style.zIndex = "99999";
-    btn.style.fontSize = "12px";
+    btn.style.fontSize = "11px";
     btn.style.padding = "4px 8px";
     btn.style.borderRadius = "6px";
     btn.style.border = "1px solid #666666";
     btn.style.background = "#222222";
+    btn.style.margin = "0 0 0 5px";
     btn.style.color = "#eeeeee";
     btn.style.opacity = "0.55";
     btn.style.cursor = "pointer";
+    btn.style.display = "block";
 
     btn.addEventListener("click", function(e) {
     e.stopPropagation();
@@ -882,7 +902,21 @@
     window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
     });
 
-    document.body.appendChild(btn);
+        var wrapper = document.getElementById("cc-check-wrapper");
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.id = "cc-check-wrapper";
+      wrapper.style.position = "fixed";
+      wrapper.style.zIndex = "99999";
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      wrapper.style.alignItems = "flex-start";
+      wrapper.style.gap = "6px";
+      statusDiv.style.opacity = "0.80";
+      document.body.appendChild(wrapper);
+    }
+
+    wrapper.appendChild(btn);
   });
 
 })();
