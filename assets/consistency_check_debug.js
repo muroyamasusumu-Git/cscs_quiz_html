@@ -414,6 +414,9 @@
     html += '<button type="button" id="cscs-consistency-copy-debug"';
     html += ' style="margin-right:6px;border:1px solid #777777;border-radius:4px;background:#222222;color:#ffffff;';
     html += ' padding:2px 8px;font-size:12px;cursor:pointer;">デバッグ用テキストをコピー</button>';
+    html += '<button type="button" id="cscs-consistency-refresh"';
+    html += ' style="margin-right:6px;border:1px solid #777777;border-radius:4px;background:#222222;color:#ffffff;';
+    html += ' padding:2px 8px;font-size:12px;cursor:pointer;">更新</button>';
     html += '<button type="button" id="cscs-consistency-panel-close"';
     html += ' style="border:1px solid #777777;border-radius:4px;background:#333333;color:#ffffff;';
     html += ' padding:2px 8px;font-size:12px;cursor:pointer;">閉じる</button>';
@@ -560,6 +563,16 @@
       });
     }
 
+    var refreshBtn = document.getElementById("cscs-consistency-refresh");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var useStrict = typeof strict === "boolean" ? strict : STRICT_MODE_DEFAULT;
+        window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, useStrict);
+      });
+    }
+
     var copyBtn = document.getElementById("cscs-consistency-copy-debug");
     if (copyBtn) {
       copyBtn.addEventListener("click", function(e) {
@@ -650,7 +663,28 @@
 
     try {
       var result = await runConsistencyCheck(meta, q, strict);
-      showConsistencyResultPanel(meta, q, result, typeof strict === "boolean" ? strict : STRICT_MODE_DEFAULT);
+
+      var usedStrict = typeof strict === "boolean" ? strict : STRICT_MODE_DEFAULT;
+      if (typeof localStorage !== "undefined") {
+        try {
+          var keyBase = "cscs_consistency_check:";
+          var qid = meta && meta.qid ? String(meta.qid) : "";
+          var fallbackId = String(meta && meta.day ? meta.day : "") + "|" + String(q && q.question ? q.question : "").slice(0, 50);
+          var storageKey = keyBase + (qid || fallbackId);
+          var storePayload = {
+            meta: meta,
+            question: q,
+            strict: usedStrict,
+            result: result,
+            saved_at: new Date().toISOString()
+          };
+          localStorage.setItem(storageKey, JSON.stringify(storePayload));
+        } catch (storageError) {
+          console.error("整合性チェック結果の localStorage 保存に失敗しました:", storageError);
+        }
+      }
+
+      showConsistencyResultPanel(meta, q, result, usedStrict);
     } catch (e) {
       panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">整合性チェック中にエラーが発生しました: '
         + String(e && e.message ? e.message : e)
