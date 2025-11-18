@@ -98,11 +98,94 @@ async function callGeminiConsistencyCheck(env, prompt, modelName) {
   try {
     json = JSON.parse(text);
   } catch (e) {
-    throw new Error("Gemini output is not valid JSON: " + String(e && e.message ? e.message : e));
+    json = {
+      overall: "ng",
+      judgement_mark: "×",
+      reason_summary: "Gemini 出力が有効な JSON ではありませんでした。raw_text と parse_error を確認してください。",
+      answer_correctness: {
+        status: "wrong",
+        mode: "uncertain",
+        mode_reason: "Gemini 出力の JSON パースエラーのため詳細評価は実施できませんでした。",
+        issues: [
+          "Gemini 出力が JSON 形式になっていないため、answer_correctness の詳細判定はスキップしました。"
+        ],
+        suggested_correct_choice_index: 0
+      },
+      explanation_quality: {
+        status: "problematic",
+        issues: [
+          "Gemini 出力が JSON 形式になっていないため、解説品質の詳細判定はスキップしました。"
+        ]
+      },
+      problem_statement_nsac_validity: {
+        status: "ambiguous",
+        issues: [
+          "Gemini 出力が JSON 形式になっていないため、問題文の NSCA 的妥当性の詳細判定はスキップしました。"
+        ],
+        suggested_rewrite: ""
+      },
+      auto_fixable: false,
+      suggested_fixed_item: {
+        question: "",
+        choices: [
+          "",
+          "",
+          "",
+          ""
+        ],
+        correct_index: 0,
+        explanation: "",
+        deep_dive_tags: []
+      },
+      raw_text: text,
+      parse_error: String(e && e.message ? e.message : e)
+    };
+    return json;
   }
 
   if (typeof json !== "object" || json === null || Array.isArray(json)) {
-    throw new Error("Gemini output root is not a JSON object.");
+    json = {
+      overall: "ng",
+      judgement_mark: "×",
+      reason_summary: "Gemini 出力のルートがオブジェクトではありませんでした。raw_text を確認してください。",
+      answer_correctness: {
+        status: "wrong",
+        mode: "uncertain",
+        mode_reason: "Gemini 出力の JSON 形式が期待と異なるため詳細評価は実施できませんでした。",
+        issues: [
+          "Gemini 出力のルートがオブジェクトではなかったため、answer_correctness の詳細判定はスキップしました。"
+        ],
+        suggested_correct_choice_index: 0
+      },
+      explanation_quality: {
+        status: "problematic",
+        issues: [
+          "Gemini 出力の JSON 形式が期待と異なるため、解説品質の詳細判定はスキップしました。"
+        ]
+      },
+      problem_statement_nsac_validity: {
+        status: "ambiguous",
+        issues: [
+          "Gemini 出力の JSON 形式が期待と異なるため、問題文の NSCA 的妥当性の詳細判定はスキップしました。"
+        ],
+        suggested_rewrite: ""
+      },
+      auto_fixable: false,
+      suggested_fixed_item: {
+        question: "",
+        choices: [
+          "",
+          "",
+          "",
+          ""
+        ],
+        correct_index: 0,
+        explanation: "",
+        deep_dive_tags: []
+      },
+      raw_text: text,
+      parse_error: "root is not plain object"
+    };
   }
 
   return json;
