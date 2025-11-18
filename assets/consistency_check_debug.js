@@ -575,8 +575,8 @@
     btn.type = "button";
     btn.textContent = "整合性チェック";
     btn.style.position = "fixed";
-    btn.style.top = "6px";
-    btn.style.right = "6px";
+    btn.style.top = "170px";
+    btn.style.right = "34%";
     btn.style.zIndex = "99999";
     btn.style.fontSize = "12px";
     btn.style.padding = "4px 8px";
@@ -584,7 +584,7 @@
     btn.style.border = "1px solid #666666";
     btn.style.background = "#222222";
     btn.style.color = "#eeeeee";
-    btn.style.opacity = "0.85";
+    btn.style.opacity = "0.55";
     btn.style.cursor = "pointer";
 
     btn.addEventListener("click", function(e) {

@@ -36,6 +36,7 @@ line-height: 1;
 margin-bottom: 0 !important;
 gap: 0 !important;
 margin-right: 33% !important;
+    display: block !important;
 }
 
 .topmeta-left {
