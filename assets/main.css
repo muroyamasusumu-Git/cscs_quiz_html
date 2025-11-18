@@ -41,7 +41,7 @@ margin-right: 33% !important;
 .topmeta-left {
     display: flex ;
     flex-wrap: wrap;
-    gap: 10px !important;
+    gap: 5px !important;
     align-items: center;
 }
 
