@@ -1,175 +1,160 @@
 // functions/api/consistency-check.js
+// NSCA-CSCS 一問用「整合性チェック」API（Cloudflare Pages Functions）
+// フロントからは /api/consistency-check へ POST される前提
+// ボディ: { model: "models/...", prompt: "...", strict: true/false }
+// 戻り値: Gemini が生成した JSON オブジェクトだけをそのまま返す
 
 const ALLOWED_ORIGINS = [
-  "https://cscs-quiz-html.pages.dev",
-  "http://localhost:8789"
+  "http://localhost:8789",
+  "http://127.0.0.1:8789",
+  "https://cscs-quiz-html.pages.dev"
 ];
 
-export async function onRequest(context) {
-  const request = context.request;
-  let origin = request.headers.get("Origin") || "";
-  const isCorsRequest = origin !== "";
-  const isAllowedOrigin =
-    !isCorsRequest || ALLOWED_ORIGINS.includes(origin);
+const DEFAULT_MODEL = "models/gemini-2.5-flash";
 
-  // ===== CORS プリフライト（OPTIONS） =====
-  if (request.method === "OPTIONS") {
-    if (!isAllowedOrigin) {
-      return new Response(null, {
-        status: 403,
-        headers: corsHeaders(origin)
-      });
-    }
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders(origin)
+// ===== CORS ヘルパー =====
+
+function getOrigin(request) {
+  const origin = request.headers.get("Origin") || "";
+  return origin;
+}
+
+function buildCorsHeaders(request) {
+  const origin = getOrigin(request);
+  const headers = new Headers();
+
+  if (origin && ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Vary", "Origin");
+  }
+
+  headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Content-Type");
+  headers.set("Access-Control-Max-Age", "86400");
+
+  return headers;
+}
+
+function jsonResponse(request, status, data) {
+  const headers = buildCorsHeaders(request);
+  headers.set("Content-Type", "application/json; charset=utf-8");
+  return new Response(JSON.stringify(data), { status: status, headers: headers });
+}
+
+// ===== メイン処理 =====
+
+async function callGeminiConsistencyCheck(env, prompt, modelName) {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set in environment.");
+  }
+
+  const model = modelName && typeof modelName === "string" ? modelName : DEFAULT_MODEL;
+  const url = "https://generativelanguage.googleapis.com/v1beta/" + model + ":generateContent";
+
+  const reqBody = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: prompt }
+        ]
+      }
+    ]
+  };
+
+  const res = await fetch(url + "?key=" + encodeURIComponent(apiKey), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    body: JSON.stringify(reqBody)
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error("Gemini API error: HTTP " + res.status + " " + text);
+  }
+
+  const data = await res.json();
+
+  if (!data || !Array.isArray(data.candidates) || data.candidates.length === 0) {
+    throw new Error("Gemini API response has no candidates.");
+  }
+
+  const first = data.candidates[0];
+  if (!first || !first.content || !Array.isArray(first.content.parts) || first.content.parts.length === 0) {
+    throw new Error("Gemini API response has no content parts.");
+  }
+
+  const part = first.content.parts[0];
+  const text = typeof part.text === "string" ? part.text : "";
+
+  if (!text) {
+    throw new Error("Gemini API response text is empty.");
+  }
+
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch (e) {
+    throw new Error("Gemini output is not valid JSON: " + String(e && e.message ? e.message : e));
+  }
+
+  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+    throw new Error("Gemini output root is not a JSON object.");
+  }
+
+  return json;
+}
+
+// ===== Cloudflare Pages Functions エクスポート =====
+
+// CORS preflight
+export async function onRequestOptions(context) {
+  const { request } = context;
+  const headers = buildCorsHeaders(request);
+  return new Response(null, { status: 204, headers: headers });
+}
+
+// POST /api/consistency-check
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  const corsHeaders = buildCorsHeaders(request);
+
+  if (request.method !== "POST") {
+    return new Response("Method Not Allowed", {
+      status: 405,
+      headers: corsHeaders
     });
   }
 
-  // ===== メソッド制限 =====
-  if (request.method !== "POST") {
-    return jsonError("Method Not Allowed", 405, origin);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_e) {
+    return jsonResponse(request, 400, { error: "Invalid JSON body." });
   }
 
-  // CORS 本体のオリジンチェック
-  if (isCorsRequest && !isAllowedOrigin) {
-    return jsonError("Origin not allowed", 403, origin);
+  const prompt = body && typeof body.prompt === "string" ? body.prompt : "";
+  const modelName = body && typeof body.model === "string" ? body.model : DEFAULT_MODEL;
+
+  if (!prompt) {
+    return jsonResponse(request, 400, { error: "Missing 'prompt' in request body." });
   }
 
   try {
-    // ===== 1) 環境変数から Gemini API Key を取得 =====
-    const apiKey = context.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return jsonError("GEMINI_API_KEY is not set", 500, origin);
-    }
-
-    // ===== 2) フロントからの入力を取得 =====
-    const reqBody = await request.json().catch(() => null);
-    if (
-      !reqBody ||
-      typeof reqBody.prompt !== "string" ||
-      !reqBody.prompt.trim()
-    ) {
-      return jsonError("Invalid request: prompt required", 400, origin);
-    }
-
-    const prompt = reqBody.prompt.trim();
-    const modelName =
-      typeof reqBody.model === "string" && reqBody.model.trim()
-        ? reqBody.model.trim()
-        : "models/gemini-2.5-flash";
-
-    const strictFlag =
-      typeof reqBody.strict === "boolean" ? reqBody.strict : false;
-
-    // ===== 3) Gemini API 呼び出し =====
-    const modelURL =
-      "https://generativelanguage.googleapis.com/v1beta/" +
-      encodeURIComponent(modelName) +
-      ":generateContent";
-
-    const geminiRes = await fetch(modelURL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": apiKey
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }]
-          }
-        ],
-        // strictFlag は今のところプロンプトの中で使っているので、
-        // API パラメータには特に渡していない
-      })
-    });
-
-    if (!geminiRes.ok) {
-      return jsonError(
-        "Gemini API error (status " + String(geminiRes.status) + ")",
-        500,
-        origin
-      );
-    }
-
-    const geminiJson = await geminiRes.json().catch(() => null);
-    if (!geminiJson) {
-      return jsonError("Invalid JSON from Gemini", 500, origin);
-    }
-
-    // ===== 4) Gemini の応答から「JSON文字列」を取り出す =====
-    // プロンプトで「JSONオブジェクトのみ出力して」と指示しているので、
-    // parts[].text に JSON がそのまま入っている想定。
-    let llmText = "";
-    try {
-      const cand = geminiJson && geminiJson.candidates
-        ? geminiJson.candidates[0]
-        : null;
-      const parts = cand && cand.content && Array.isArray(cand.content.parts)
-        ? cand.content.parts
-        : [];
-
-      llmText = parts
-        .map(function(p) {
-          if (p && typeof p.text === "string") {
-            return p.text;
-          }
-          return "";
-        })
-        .join("")
-        .trim();
-    } catch (e) {
-      llmText = "";
-    }
-
-    if (!llmText) {
-      return jsonError("Empty response from Gemini", 500, origin);
-    }
-
-    // ===== 5) その文字列を JSON.parse して検証し、素の JSON として返す =====
-    let resultObj;
-    try {
-      resultObj = JSON.parse(llmText);
-    } catch (e) {
-      // LLM が JSON 以外を混ぜて返した場合に備えてエラー扱い
-      return jsonError(
-        "Gemini output is not valid JSON: " + String(e),
-        500,
-        origin
-      );
-    }
-
-    // フロント側(consistency_check_debug.js)は
-    // response.text() → JSON.parse(text) を期待しているので、
-    // ここでは JSON をそのまま返す
-    return new Response(JSON.stringify(resultObj), {
-      status: 200,
-      headers: corsHeaders(origin)
-    });
-  } catch (err) {
-    return jsonError("Server error: " + String(err), 500, origin);
+    const json = await callGeminiConsistencyCheck(env, prompt, modelName);
+    return jsonResponse(request, 200, json);
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    return jsonResponse(request, 500, { error: msg });
   }
 }
 
-// ===== ヘルパー =====
-
-function jsonError(msg, status, origin) {
-  return new Response(JSON.stringify({ error: msg }), {
-    status: status || 500,
-    headers: corsHeaders(origin)
-  });
-}
-
-function corsHeaders(origin) {
-  const headers = {
-    "content-type": "application/json",
-    "access-control-allow-methods": "POST,OPTIONS",
-    "access-control-allow-headers": "content-type"
-  };
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    headers["access-control-allow-origin"] = origin;
-  }
-  return headers;
+// fallback（POST 以外で呼ばれたとき用・保険）
+export async function onRequest(context) {
+  const { request } = context;
+  const headers = buildCorsHeaders(request);
+  return new Response("Method Not Allowed", { status: 405, headers: headers });
 }
