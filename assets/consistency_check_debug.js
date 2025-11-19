@@ -456,6 +456,23 @@
       classificationReason = "大きな破綻はありませんが、一部の選択肢や表現に調整の余地があります。";
     }
 
+    var severityMark = "◎";
+    var severityLabel = "変更必要なし";
+
+    if (classificationPriority === "高") {
+      severityMark = "×";
+      severityLabel = "変更が必要（優先度/高）";
+    } else if (classificationPriority === "中") {
+      severityMark = "△";
+      severityLabel = "変更を推奨（優先度/中）";
+    } else if (classificationPriority === "低") {
+      severityMark = "○";
+      severityLabel = "ほぼ変更必要なし（優先度/低）";
+    } else {
+      severityMark = "◎";
+      severityLabel = "変更必要なし";
+    }
+
     var html = "";
 
     html += '<div class="cc-panel-header-row">';
@@ -477,7 +494,7 @@
     html += '<div class="cc-panel-summary">';
     html += '<div class="cc-panel-summary-top">';
     html += '<div class="cc-summary-mode">モード: ' + strictLabel + "</div>";
-    html += '<div class="cc-summary-overall">overall: ' + overall + " ／ 判定: " + mark + "</div>";
+    html += '<div class="cc-summary-overall">ステータス: ' + severityMark + "（" + severityLabel + "） ／ 種別: " + classificationCode + "</div>";
     html += "</div>";
     html += '<div class="cc-panel-cards">';
 
@@ -805,12 +822,95 @@
       if (typeof localStorage !== "undefined") {
         try {
           var storageKey = getConsistencyStorageKey(meta, q);
+
+          var overall = result && typeof result.overall === "string" ? result.overall : "";
+          var ac = result && result.answer_correctness ? result.answer_correctness : {};
+          var eq = result && result.explanation_quality ? result.explanation_quality : {};
+          var ps = result && result.problem_statement_nsac_validity ? result.problem_statement_nsac_validity : {};
+          var acStatus = typeof ac.status === "string" ? ac.status : "";
+          var eqStatus = typeof eq.status === "string" ? eq.status : "";
+          var psStatus = typeof ps.status === "string" ? ps.status : "";
+
+          var classificationCode = "S";
+          var classificationLabel = "S. 何も直さなくて良い";
+          var classificationPriority = "なし";
+          var classificationReason = "";
+
+          if (acStatus === "wrong") {
+            classificationCode = "A";
+            classificationLabel = "A. 正解を直すべき";
+            classificationPriority = "高";
+            classificationReason = "正解ラベルが問題内容や NSCA-CSCS の知識と整合していない可能性があります。正解そのものの修正が最優先です。";
+          } else if (psStatus === "not_nsac_style") {
+            classificationCode = "D";
+            classificationLabel = "D. 問題そのものを直すべき";
+            classificationPriority = "高";
+            classificationReason = "問題文が NSCA-CSCS の出題範囲や問い方として不適切と判定されています。問題構造から見直す必要があります。";
+          } else if (eqStatus === "dangerous_or_wrong") {
+            classificationCode = "B";
+            classificationLabel = "B. 解説を直すべき";
+            classificationPriority = "高";
+            classificationReason = "解説内容が正解や NSCA-CSCS の知識と矛盾している、または誤っている可能性があります。解説の修正が優先されます。";
+          } else if (eqStatus === "problematic") {
+            classificationCode = "B";
+            classificationLabel = "B. 解説を直すべき";
+            classificationPriority = "中";
+            classificationReason = "解説が不十分であったり、前提や条件の説明が不足しているため、学習効果の面で改善余地があります。";
+          } else if (acStatus === "ambiguous") {
+            classificationCode = "C";
+            classificationLabel = "C. 選択肢を直すべき";
+            classificationPriority = "中";
+            classificationReason = "正解と意味が近い選択肢や紛らわしい誤答が含まれている可能性があります。選択肢全体の整理が望まれます。";
+          } else if (overall === "minor_issue") {
+            classificationCode = "C";
+            classificationLabel = "C. 選択肢を直すべき";
+            classificationPriority = "低";
+            classificationReason = "致命的ではありませんが、選択肢や表現に軽微な改善余地があります。余裕があれば修正を検討してください。";
+          } else if (
+            overall === "ok" &&
+            acStatus === "ok" &&
+            (eqStatus === "good" || eqStatus === "") &&
+            (psStatus === "good" || psStatus === "")
+          ) {
+            classificationCode = "S";
+            classificationLabel = "S. 何も直さなくて良い";
+            classificationPriority = "なし";
+            classificationReason = "正解・解説・選択肢・問題文はいずれも NSCA-CSCS の出題として妥当であり、優先して修正すべき点は見当たりません。";
+          } else {
+            classificationCode = "C";
+            classificationLabel = "C. 選択肢を直すべき";
+            classificationPriority = "低";
+            classificationReason = "大きな破綻はありませんが、一部の選択肢や表現に調整の余地があります。";
+          }
+
+          var severityMark = "◎";
+          var severityLabel = "変更必要なし";
+
+          if (classificationPriority === "高") {
+            severityMark = "×";
+            severityLabel = "変更が必要（優先度/高）";
+          } else if (classificationPriority === "中") {
+            severityMark = "△";
+            severityLabel = "変更を推奨（優先度/中）";
+          } else if (classificationPriority === "低") {
+            severityMark = "○";
+            severityLabel = "ほぼ変更必要なし（優先度/低）";
+          } else {
+            severityMark = "◎";
+            severityLabel = "変更必要なし";
+          }
+
           var storePayload = {
             meta: meta,
             question: q,
             strict: usedStrict,
             result: result,
-            saved_at: new Date().toISOString()
+            saved_at: new Date().toISOString(),
+            severity_mark: severityMark,
+            severity_label: severityLabel,
+            classification_code: classificationCode,
+            classification_label: classificationLabel,
+            classification_priority: classificationPriority
           };
           localStorage.setItem(storageKey, JSON.stringify(storePayload));
         } catch (storageError) {
