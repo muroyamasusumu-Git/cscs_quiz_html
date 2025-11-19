@@ -707,7 +707,7 @@
     lines.push("整合性チェック: 未");
     lines.push("判定: —");
     lines.push("overall: —");
-    lines.push("最終チェック: —");
+    lines.push("最終: —");
 
     if (typeof localStorage !== "undefined") {
       try {
@@ -736,7 +736,7 @@
           lines[0] = "整合性チェック: 済";
           lines[1] = "判定: " + (mark || "—");
           lines[2] = "overall: " + (overall || "—");
-          lines[3] = "最終チェック: " + (savedLabel || "—");
+          lines[3] = "最終: " + (savedLabel || "—");
         }
       } catch (e) {
         console.error("整合性チェックステータスの読み込みに失敗しました:", e);
