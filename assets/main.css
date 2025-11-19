@@ -1,0 +1,270 @@
+/* A：縦長（スマホ縦） */
+@media (aspect-ratio < 0.8) {
+  body {
+  }
+  .slide-content {
+  }
+}
+
+/* B：ほぼ正方形（iPad / PC小ウィンドウ） */
+@media (0.8 <= aspect-ratio <= 1.2) {
+  .slide-content {
+  }
+}
+
+/* C：横長（PC / iPad横） */
+@media (aspect-ratio > 1.2) {
+  body {
+  }
+  .slide-content {
+  }
+}
+
+html, body {
+font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Noto Sans JP", sans-serif;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+p {
+margin: 0;
+}
+
+.hr {
+margin: 10px 0;
+}
+
+h1 {
+line-height: 1 !important;
+margin-top: 15px;
+font-size: 40px !important;
+padding-bottom: 2px;
+margin-right: 33% !important;
+}
+
+.wrap {
+margin: 10px 20px 75px;
+line-height: 1;
+}
+
+.topmeta {
+margin-bottom: 0 !important;
+gap: 0 !important;
+margin-right: 33% !important;
+    display: block !important;
+}
+
+.topmeta-left {
+    display: flex ;
+    flex-wrap: wrap;
+    gap: 5px !important;
+    align-items: center;
+}
+
+.opts li {
+margin-top: 15px;
+margin-bottom: 0px;
+font-size: 30px;
+padding-bottom: 1px;
+}
+
+#judge {
+margin-top: 10px;
+}
+
+#judge.answer {
+font-size: 0.9em !important;
+margin: 10px 0 10px;
+}
+
+.hint {
+margin-top: 10px;
+}
+
+#similar-list {
+margin: 10px 0 0;
+padding-top: 10px;
+}
+
+
+.qno {
+margin: 10px 0 0;
+}
+
+.explain {
+font-size: 20px;
+margin: 10px 0 0;
+margin-right: 33% !important;
+}
+
+.explain-text {
+  line-height: 1.25;
+}
+
+
+.wrong-inline{
+margin-left: 0;
+color: #fff;
+font-size: 0.5em;
+opacity: .95;
+position: fixed;   /* 画面基準で固定。DOMは.wrap配下でもOK */
+bottom: 64px;
+right: 14px;
+z-index: 10060;
+pointer-events: none;   /* 誤タップ防止 */
+white-space: nowrap;
+}
+
+.wrap ol.opts {
+padding-top: 0;
+margin-left: 10px;
+}
+
+
+
+/* ===== 不正解行の色を揃える（推奨：#judgeに状態クラス .is-wrong を付与） ===== */
+#judge.is-wrong,
+#judge.is-wrong * {
+  color: #c9c9c9 !important;
+}
+
+/* もし .is-wrong を付けない場合の保険（b_judge が .judge-msg-wrong を出す前提） */
+#judge .judge-msg-wrong,
+#judge .judge-msg-wrong ~ .your-choice,
+#judge .judge-msg-wrong ~ .your-choice * {
+  color: #c9c9c9 !important;
+}
+
+/* 強制的に your-choice のフォントサイズを上書き */
+#judge .your-choice {
+  font-size: 0.7em !important;  /* ← 好きなサイズに変更 */
+  color: #c9c9c9 !important;     /* ついでに色も統一 */
+}
+
+
+/* ===============================
+   Aパート SYNC モニタ (#cscs_sync_monitor_a)
+   =============================== */
+
+#cscs_sync_monitor_a {
+  position: fixed;
+  right: 32.0%;
+  top: 200px;
+  z-index: 9999;
+  background: transparent;
+  color: #eee;
+  border: 0 solid #444;
+  border-radius: 0;
+  padding: 8px 10px;
+  font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  max-width: 46vw;
+  width: 140px;
+  opacity: 0.25;
+}
+
+/* 見出し行： "SYNC(A): <qid>" */
+#cscs_sync_monitor_a .sync-header {
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+/* server/local/queue/status 共通ライン */
+#cscs_sync_monitor_a .sync-line {
+  margin-bottom: 0;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* status 行だけ少し行間大きめ */
+#cscs_sync_monitor_a .sync-status-row {
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+/* server 行だけ別にしたければここで調整可能 */
+#cscs_sync_monitor_a .sync-totals {
+  /* 必要なら個別調整 */
+}
+
+/* （コメントアウト中の）テストボタン行用：復帰時に効く */
+#cscs_sync_monitor_a .sync-test-row,
+#cscs_sync_monitor_a .sync-reset-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+/* reset 行は下マージンなしにしたい場合はこちらで上書き */
+#cscs_sync_monitor_a .sync-reset-row {
+  margin-bottom: 0;
+}
+
+/* テストボタン／リセットボタン共通 */
+#cscs_sync_monitor_a .sync-test-button,
+#cscs_sync_monitor_a .sync-reset-button {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* ===============================
+   Bパート SYNC パネル表示用
+   #cscs_sync_view_b 一式
+   =============================== */
+
+#cscs_sync_view_b {
+  position: fixed;
+  right: 32.0%;                /* 右寄せ */
+  top: 230px;
+  opacity: 0.25;           /* 透明度 */
+  z-index: 9999;
+  background: transparent;
+  color: #eee;
+  border: 0 solid #444;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.2;
+  max-width: 46vw;
+  width: 140px;
+  pointer-events: auto;
+}
+
+/* タイトル行： "SYNC(B): 2025xxxx-xxx" */
+#cscs_sync_view_b_title {
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+/* server/local/diff の本体部分 */
+#cscs_sync_view_b_body {
+  margin-bottom: 0;
+  font-size: 11px;
+  opacity: 0.85;
+  display: flex;           /* 縦並び */
+  flex-direction: column;  /* 縦方向 */
+  gap: 2px;                /* 行間 */
+}
+
+/* status: xxx 行を表示する領域 */
+#cscs_sync_view_b_status {
+  margin-bottom: 8px;
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+/* SYNC送信ボタン */
+#cscs_sync_view_b_send_btn {
+  margin-top: 0;
+  font-size: 10px;
+  opacity: 0.7;
+  padding: 2px 6px;
+}
+
