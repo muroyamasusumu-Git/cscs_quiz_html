@@ -970,7 +970,12 @@ h1 { font-size: var(--h1-fs, inherit); }
             <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset server</button>
           </div>
         `;
-        document.body.appendChild(box);
+        const wrap = document.querySelector("div.wrap");
+        if (wrap) {
+          wrap.appendChild(box);
+        } else {
+          document.body.appendChild(box);
+        }
 
         const btnOk   = document.getElementById("cscs_sync_test_ok");
         const btnNg   = document.getElementById("cscs_sync_test_ng");
