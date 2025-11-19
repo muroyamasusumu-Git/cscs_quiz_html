@@ -149,6 +149,11 @@ margin-left: 10px;
 }
 
 
+#cscs-consistency-panel,
+#cscs-consistency-panel * {
+  font-weight: normal !important;
+}
+
 /* ===============================
    Aパート SYNC モニタ (#cscs_sync_monitor_a)
    =============================== */
