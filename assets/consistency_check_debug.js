@@ -118,7 +118,7 @@
       + "  \"problem_statement_nsac_validity\": {\n"
       + "    \"status\": \"good\" | \"ambiguous\" | \"not_nsac_style\",\n"
       + "    \"issues\": [\n"
-      + "      \"NSCA-CSCS の出題として問題がある場合のみ、その理由\",\n"
+      + "      \"NSCA-CSCS の出題として問題がある場合のみ、その理由（＝判断理由）を必ず具体的に書く\",\n"
       + "      \"なければ空配列も可\"\n"
       + "    ],\n"
       + "    \"suggested_rewrite\": \"必要な場合だけ、元の意図を保ったままの改善案を書く。不要なら空文字。\"\n"
@@ -566,7 +566,8 @@
     html += "status: " + psStatus;
     html += "</div>";
     if (psIssues.length > 0) {
-      html += '<ul style="margin:4px 0 0 16px;padding:0;font-size:12px;line-height:1.4;">';
+      html += '<div style="font-size:12px;color:#cccccc;margin-bottom:2px;">判断理由:</div>';
+      html += '<ul style="margin:2px 0 0 16px;padding:0;font-size:12px;line-height:1.4;">';
       for (var k = 0; k < psIssues.length; k++) {
         html += "<li>" + psIssues[k] + "</li>";
       }
