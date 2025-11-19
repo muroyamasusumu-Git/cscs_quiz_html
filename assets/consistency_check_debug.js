@@ -761,7 +761,7 @@
       statusDiv.style.padding = "8px 10px";
       statusDiv.style.borderRadius = "4px";
       statusDiv.style.color = "#dddddd";
-      statusDiv.style.opacity = "0.40";
+      statusDiv.style.opacity = "0.30";
       statusDiv.style.pointerEvents = "none";
       statusDiv.style.whiteSpace = "pre-line";
       statusDiv.style.lineHeight = "1.2";
@@ -958,7 +958,7 @@
     btn.style.background = "#222222";
     btn.style.margin = "0 0 0 5px";
     btn.style.color = "#eeeeee";
-    btn.style.opacity = "0.55";
+    btn.style.opacity = "0.45";
     btn.style.cursor = "pointer";
     btn.style.display = "block";
 
