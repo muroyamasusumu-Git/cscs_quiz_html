@@ -155,8 +155,8 @@ margin-left: 10px;
 
 #cscs-consistency-panel,
 #cscs-consistency-panel * {
-  font-weight: normal !important;
-  opacity: 0.8;
+  font-weight: 100 !important;
+  opacity: 0.85;
 }
 
 
