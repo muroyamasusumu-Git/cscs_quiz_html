@@ -365,24 +365,26 @@ margin-left: 10px;
 
 #cc-check-wrapper {
   position: fixed;
-  top: 136px;
+  top: 140px;
   right: 32%;
   z-index: 99999;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  width: 140px;
+  padding: 8px 10px;
 }
+
 
 #cc-check-status {
   font-size: 11px;
-  padding: 8px 10px;
   border-radius: 4px;
   color: #dddddd;
   opacity: 0.3;
   pointer-events: none;
   white-space: pre-line;
   line-height: 1.2;
+  margin: 0 0 8px 0;  
 }
 
 #cc-check-btn {
@@ -392,7 +394,7 @@ margin-left: 10px;
   border-radius: 6px;
   border: 1px solid #666666;
   background: #222222;
-  margin: 0 0 0 5px;
+  margin: 0 0 0 0;
   color: #eeeeee;
   opacity: 0.45;
   cursor: pointer;
