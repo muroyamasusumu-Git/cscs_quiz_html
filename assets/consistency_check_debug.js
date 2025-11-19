@@ -812,8 +812,16 @@
       showConsistencyResultPanel(meta, q, result, usedStrict);
       updateConsistencyCheckStatus(meta, q);
     } catch (e) {
+      var msg = String(e && e.message ? e.message : e);
+      var friendly = "";
+
+      if (msg.indexOf("HTTP 500") !== -1 && msg.indexOf("503") !== -1) {
+        friendly = "（Gemini のモデル側が一時的に過負荷のため利用できない状態です。少し時間を空けてから、もう一度「整合性チェック」ボタンを押してみてください。）";
+      }
+
       panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">整合性チェック中にエラーが発生しました: '
-        + String(e && e.message ? e.message : e)
+        + msg
+        + (friendly ? "<br>" + friendly : "")
         + "</div>";
     }
   }

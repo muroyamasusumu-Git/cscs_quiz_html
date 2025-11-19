@@ -63,17 +63,40 @@ async function callGeminiConsistencyCheck(env, prompt, modelName) {
     ]
   };
 
-  const res = await fetch(url + "?key=" + encodeURIComponent(apiKey), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    body: JSON.stringify(reqBody)
-  });
+  const maxRetries = 2;
+  const baseDelayMs = 400;
+  let res = null;
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error("Gemini API error: HTTP " + res.status + " " + text);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    res = await fetch(url + "?key=" + encodeURIComponent(apiKey), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      body: JSON.stringify(reqBody)
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+
+      // 503（モデル過負荷）のときだけ、少し待ってから再試行
+      if (res.status === 503 && attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise(function(resolve) {
+          setTimeout(resolve, delay);
+        });
+        continue;
+      }
+
+      throw new Error("Gemini API error: HTTP " + res.status + " " + text);
+    }
+
+    // res.ok のときはループを抜ける
+    break;
+  }
+
+  if (!res || !res.ok) {
+    throw new Error("Gemini API error: failed after retries.");
   }
 
   const data = await res.json();
