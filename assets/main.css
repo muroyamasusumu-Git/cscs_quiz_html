@@ -149,10 +149,254 @@ margin-left: 10px;
 }
 
 
+/* ===============================
+   整合性チェックパネル共通
+   =============================== */
+
 #cscs-consistency-panel,
 #cscs-consistency-panel * {
   font-weight: normal !important;
   opacity: 0.8;
+}
+
+
+#cscs-consistency-panel {
+  padding: 16px 20px 75px;
+  font-size: 15px;
+  color: rgb(238, 238, 238);
+  margin-right: 32.5%;
+  opacity: 0.8;
+}
+
+/* ヘッダー行とボタン */
+
+#cscs-consistency-panel .cc-panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#cscs-consistency-panel .cc-panel-header-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#cscs-consistency-panel .cc-panel-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ボタン共通 */
+
+#cscs-consistency-panel .cc-btn {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #777777;
+  background: #222222;
+  color: #ffffff;
+}
+
+#cscs-consistency-panel .cc-btn-secondary {
+  background: #222222;
+}
+
+#cscs-consistency-panel .cc-btn-close {
+  background: #333333;
+}
+
+/* 分類ボックス */
+
+#cscs-consistency-panel .cc-panel-classification {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #555555;
+  background: #181818;
+}
+
+#cscs-consistency-panel .cc-classification-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+#cscs-consistency-panel .cc-classification-reason {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: #dddddd;
+}
+
+/* 概要部分と4カード */
+
+#cscs-consistency-panel .cc-panel-summary {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+#cscs-consistency-panel .cc-panel-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+#cscs-consistency-panel .cc-summary-mode {
+  font-size: 12px;
+  color: #dddddd;
+  font-weight: 400;
+}
+
+#cscs-consistency-panel .cc-summary-overall {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#cscs-consistency-panel .cc-panel-cards {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+#cscs-consistency-panel .cc-card {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #1b1b1b;
+}
+
+#cscs-consistency-panel .cc-card-title {
+  font-size: 12px;
+  color: #bbbbbb;
+  margin-bottom: 4px;
+  font-weight: 400;
+}
+
+#cscs-consistency-panel .cc-card-main {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+#cscs-consistency-panel .cc-card-sub {
+  font-size: 11px;
+  color: #cccccc;
+}
+
+/* 解説文の全体コメント */
+
+#cscs-consistency-panel .cc-section-summary {
+  margin-bottom: 8px;
+}
+
+#cscs-consistency-panel .cc-section-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+#cscs-consistency-panel .cc-summary-text {
+  white-space: pre-wrap;
+  line-height: 1.4;
+  font-size: 13px;
+}
+
+/* 仕切り線 */
+
+#cscs-consistency-panel .cc-separator {
+  border-top: 1px solid #444444;
+  margin: 8px 0 6px 0;
+}
+
+/* 詳細セクション共通 */
+
+#cscs-consistency-panel .cc-section {
+  margin-bottom: 8px;
+}
+
+#cscs-consistency-panel .cc-section-status {
+  font-size: 12px;
+  color: #cccccc;
+  margin-bottom: 4px;
+}
+
+#cscs-consistency-panel .cc-section-mode-reason {
+  font-size: 12px;
+  color: #88ddff;
+  margin-bottom: 4px;
+}
+
+#cscs-consistency-panel .cc-section-subtitle {
+  font-size: 12px;
+  color: #cccccc;
+  margin-bottom: 2px;
+}
+
+#cscs-consistency-panel .cc-section-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* もし再掲部分を復活させる場合用 */
+
+#cscs-consistency-panel .cc-meta-line {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #aaaaaa;
+}
+
+#cscs-consistency-panel .cc-section-text {
+  white-space: pre-wrap;
+  line-height: 1.4;
+  font-size: 13px;
+}
+
+/* ===============================
+   画面右上のステータス / ボタン
+   =============================== */
+
+#cc-check-wrapper {
+  position: fixed;
+  top: 136px;
+  right: 32%;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+#cc-check-status {
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  color: #dddddd;
+  opacity: 0.3;
+  pointer-events: none;
+  white-space: pre-line;
+  line-height: 1.2;
+}
+
+#cc-check-btn {
+  z-index: 99999;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #666666;
+  background: #222222;
+  margin: 0 0 0 5px;
+  color: #eeeeee;
+  opacity: 0.45;
+  cursor: pointer;
+  display: block;
 }
 
 /* ===============================

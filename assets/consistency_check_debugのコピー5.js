@@ -357,6 +357,27 @@
     var div = document.createElement("div");
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
+    // div.style.position = "fixed";
+    // div.style.top = "5%";
+    // div.style.left = "50%";
+    // div.style.transform = "translateX(-50%)";
+    // div.style.maxWidth = "900px";
+    // div.style.width = "96%";
+    // div.style.maxHeight = "88%";
+    // div.style.overflowY = "auto";
+    // div.style.backgroundColor = "rgba(0, 0, 0, 0.96)";
+    // div.style.border = "1px solid #555555";
+    // div.style.borderRadius = "8px";
+    // div.style.padding = "16px 20px";     ← 一旦無効化（下で再定義）
+    // div.style.fontSize = "15px";         ← 一旦無効化（下で再定義）
+    // div.style.color = "#eeeeee";         ← 一旦無効化（下で再定義）
+    // div.style.zIndex = "99999";
+    // div.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.7)";
+
+    div.style.padding = "16px 20px 75px";
+    div.style.fontSize = "15px";
+    div.style.color = "rgb(238, 238, 238)";
+    div.style.marginRight = "32.5%";
     document.body.appendChild(div);
     return div;
   }
@@ -445,75 +466,81 @@
 
     var html = "";
 
-    html += '<div class="cc-panel-header-row">';
-    html += '<div class="cc-panel-header-title">整合性チェック結果</div>';
-    html += '<div class="cc-panel-header-actions">';
-    html += '<button type="button" id="cscs-consistency-copy-debug" class="cc-btn cc-btn-secondary">デバッグ用テキストをコピー</button>';
-    html += '<button type="button" id="cscs-consistency-refresh" class="cc-btn cc-btn-secondary">更新</button>';
-    html += '<button type="button" id="cscs-consistency-panel-close" class="cc-btn cc-btn-close">閉じる</button>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+    html += '<div style="font-weight:600;font-size:15px;">整合性チェック結果</div>';
+    html += '<div>';
+    html += '<button type="button" id="cscs-consistency-copy-debug"';
+    html += ' style="margin-right:6px;border:1px solid #777777;border-radius:4px;background:#222222;color:#ffffff;';
+    html += ' padding:2px 8px;font-size:12px;cursor:pointer;">デバッグ用テキストをコピー</button>';
+    html += '<button type="button" id="cscs-consistency-refresh"';
+    html += ' style="margin-right:6px;border:1px solid #777777;border-radius:4px;background:#222222;color:#ffffff;';
+    html += ' padding:2px 8px;font-size:12px;cursor:pointer;">更新</button>';
+    html += '<button type="button" id="cscs-consistency-panel-close"';
+    html += ' style="border:1px solid #777777;border-radius:4px;background:#333333;color:#ffffff;';
+    html += ' padding:2px 8px;font-size:12px;cursor:pointer;">閉じる</button>';
     html += "</div>";
     html += "</div>";
 
-    html += '<div class="cc-panel-classification">';
-    html += '<div class="cc-classification-title">分類結果: ' + classificationCode + " ／ " + classificationLabel + "（修正優先度: " + classificationPriority + "）</div>";
+    html += '<div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;border:1px solid #555555;background:#181818;">';
+    html += '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">分類結果: ' + classificationCode + " ／ " + classificationLabel + "（修正優先度: " + classificationPriority + "）</div>";
     if (classificationReason) {
-      html += '<div class="cc-classification-reason">' + classificationReason + "</div>";
+      html += '<div style="font-size:12px;line-height:1.4;white-space:pre-wrap;color:#dddddd;">' + classificationReason + "</div>";
     }
     html += "</div>";
 
-    html += '<div class="cc-panel-summary">';
-    html += '<div class="cc-panel-summary-top">';
-    html += '<div class="cc-summary-mode">モード: ' + strictLabel + "</div>";
-    html += '<div class="cc-summary-overall">overall: ' + overall + " ／ 判定: " + mark + "</div>";
+    html += '<div style="margin-bottom:10px;font-size:13px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
+    html += '<div style="font-size:12px;color:#dddddd;">モード: ' + strictLabel + "</div>";
+    html += '<div style="font-size:14px;font-weight:600;">overall: ' + overall + " ／ 判定: " + mark + "</div>";
     html += "</div>";
-    html += '<div class="cc-panel-cards">';
+    html += '<div style="display:flex;flex-wrap:nowrap;gap:8px;">';
 
-    html += '<div class="cc-card cc-card-answer">';
-    html += '<div class="cc-card-title">正解の妥当性</div>';
-    html += '<div class="cc-card-main">status: ' + acStatus + "</div>";
-    html += '<div class="cc-card-sub">mode: ' + acMode + "</div>";
-    html += "</div>";
-
-    html += '<div class="cc-card cc-card-choices">';
-    html += '<div class="cc-card-title">選択肢の妥当性</div>';
-    html += '<div class="cc-card-main">status: ' + acStatus + "</div>";
-    html += '<div class="cc-card-sub">choices / distractors</div>';
+    html += '<div style="flex:1 1 0;min-width:0;box-sizing:border-box;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">正解の妥当性</div>';
+    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
+    html += '<div style="font-size:11px;color:#88ddff;">mode: ' + acMode + "</div>";
     html += "</div>";
 
-    html += '<div class="cc-card cc-card-explanation">';
-    html += '<div class="cc-card-title">解説の品質</div>';
-    html += '<div class="cc-card-main">status: ' + eqStatus + "</div>";
-    html += '<div class="cc-card-sub">explanation_quality</div>';
+    html += '<div style="flex:1 1 0;min-width:0;box-sizing:border-box;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">選択肢の妥当性</div>';
+    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
+    html += '<div style="font-size:11px;color:#cccccc;">choices / distractors</div>';
     html += "</div>";
 
-    html += '<div class="cc-card cc-card-problem">';
-    html += '<div class="cc-card-title">問題文の NSCA 的妥当性</div>';
-    html += '<div class="cc-card-main">status: ' + psStatus + "</div>";
-    html += '<div class="cc-card-sub">problem_statement_nsac_validity</div>';
+    html += '<div style="flex:1 1 0;min-width:0;box-sizing:border-box;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">解説の品質</div>';
+    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + eqStatus + "</div>";
+    html += '<div style="font-size:11px;color:#cccccc;">explanation_quality</div>';
+    html += "</div>";
+
+    html += '<div style="flex:1 1 0;min-width:0;box-sizing:border-box;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">問題文の NSCA 的妥当性</div>';
+    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + psStatus + "</div>";
+    html += '<div style="font-size:11px;color:#cccccc;">problem_statement_nsac_validity</div>';
     html += "</div>";
 
     html += "</div>";
     html += "</div>";
 
-    html += '<div class="cc-section cc-section-summary">';
-    html += '<div class="cc-section-title">全体コメント</div>';
-    html += '<div class="cc-summary-text">' + summary + "</div>";
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">全体コメント</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;font-size:13px;">' + summary + "</div>";
     html += "</div>";
 
-    html += '<div class="cc-separator"></div>';
+    html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
-    html += '<div class="cc-section">';
-    html += '<div class="cc-section-title">詳細: 正解の妥当性 (answer_correctness)</div>';
-    html += '<div class="cc-section-status">';
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 正解の妥当性 (answer_correctness)</div>';
+    html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + acStatus + " ／ mode: " + acMode;
     html += "</div>";
     if (acModeReason) {
-      html += '<div class="cc-section-mode-reason">';
+      html += '<div style="font-size:12px;color:#88ddff;margin-bottom:4px;">';
       html += "mode_reason: " + acModeReason;
       html += "</div>";
     }
     if (acIssues.length > 0) {
-      html += '<ul class="cc-section-list">';
+      html += '<ul style="margin:4px 0 0 16px;padding:0;font-size:12px;line-height:1.4;">';
       for (var i = 0; i < acIssues.length; i++) {
         html += "<li>" + acIssues[i] + "</li>";
       }
@@ -521,13 +548,13 @@
     }
     html += "</div>";
 
-    html += '<div class="cc-section">';
-    html += '<div class="cc-section-title">詳細: 解説の品質 (explanation_quality)</div>';
-    html += '<div class="cc-section-status">';
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 解説の品質 (explanation_quality)</div>';
+    html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + eqStatus;
     html += "</div>";
     if (eqIssues.length > 0) {
-      html += '<ul class="cc-section-list">';
+      html += '<ul style="margin:4px 0 0 16px;padding:0;font-size:12px;line-height:1.4;">';
       for (var j = 0; j < eqIssues.length; j++) {
         html += "<li>" + eqIssues[j] + "</li>";
       }
@@ -535,14 +562,14 @@
     }
     html += "</div>";
 
-    html += '<div class="cc-section">';
-    html += '<div class="cc-section-title">詳細: 問題文の NSCA 的妥当性 (problem_statement_nsac_validity)</div>';
-    html += '<div class="cc-section-status">';
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 問題文の NSCA 的妥当性 (problem_statement_nsac_validity)</div>';
+    html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
     html += "status: " + psStatus;
     html += "</div>";
     if (psIssues.length > 0) {
-      html += '<div class="cc-section-subtitle">判断理由:</div>';
-      html += '<ul class="cc-section-list">';
+      html += '<div style="font-size:12px;color:#cccccc;margin-bottom:2px;">判断理由:</div>';
+      html += '<ul style="margin:2px 0 0 16px;padding:0;font-size:12px;line-height:1.4;">';
       for (var k = 0; k < psIssues.length; k++) {
         html += "<li>" + psIssues[k] + "</li>";
       }
@@ -550,21 +577,23 @@
     }
     html += "</div>";
 
+    // ↓ パネル下部の問題文・選択肢・解説の再掲は、
+    //    インライン表示に切り替えたため一旦非表示にする
     /*
-    html += '<div class="cc-separator"></div>';
+    html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
-    html += '<div class="cc-meta-line">';
+    html += '<div style="margin-bottom:6px;font-size:12px;color:#aaaaaa;">';
     html += "Day: " + meta.day + " ／ Field: " + meta.field + " ／ Theme: " + meta.theme + " ／ Level: " + meta.level;
     html += "</div>";
 
-    html += '<div class="cc-section">';
-    html += '<div class="cc-section-title">問題文</div>';
-    html += '<div class="cc-section-text">' + q.question + "</div>";
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">問題文</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.question + "</div>";
     html += "</div>";
 
-    html += '<div class="cc-section">';
-    html += '<div class="cc-section-title">選択肢</div>';
-    html += '<div class="cc-section-text">';
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">選択肢</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">';
     html += "A. " + q.choices[0] + "<br>";
     html += "B. " + q.choices[1] + "<br>";
     html += "C. " + q.choices[2] + "<br>";
@@ -572,9 +601,9 @@
     html += "</div>";
     html += "</div>";
 
-    html += '<div class="cc-section">';
-    html += '<div class="cc-section-title">解説</div>';
-    html += '<div class="cc-section-text">' + q.explanation + "</div>";
+    html += '<div style="margin-bottom:10px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;">解説</div>';
+    html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.explanation + "</div>";
     html += "</div>";
     */
 
@@ -717,15 +746,32 @@
     var statusDiv = document.getElementById("cc-check-status");
     if (!statusDiv) {
 
+      // 親となる wrapper を先に用意（無ければ作る）
       var wrapper = document.getElementById("cc-check-wrapper");
       if (!wrapper) {
         wrapper = document.createElement("div");
         wrapper.id = "cc-check-wrapper";
+        wrapper.style.position = "fixed";
+        wrapper.style.top = "136px";
+        wrapper.style.right = "32%";
+        wrapper.style.zIndex = "99999";
+        wrapper.style.display = "flex";
+        wrapper.style.flexDirection = "column";
+        wrapper.style.alignItems = "flex-start";
+        wrapper.style.width = "160px";
         document.body.appendChild(wrapper);
       }
 
       statusDiv = document.createElement("div");
       statusDiv.id = "cc-check-status";
+      statusDiv.style.fontSize = "11px";
+      statusDiv.style.padding = "8px 10px";
+      statusDiv.style.borderRadius = "4px";
+      statusDiv.style.color = "#dddddd";
+      statusDiv.style.opacity = "0.30";
+      statusDiv.style.pointerEvents = "none";
+      statusDiv.style.whiteSpace = "pre-line";
+      statusDiv.style.lineHeight = "1.2";
 
       wrapper.appendChild(statusDiv);
     }
@@ -927,6 +973,17 @@
     btn.id = "cc-check-btn";
     btn.type = "button";
     btn.textContent = "整合性チェック";
+    btn.style.zIndex = "99999";
+    btn.style.fontSize = "11px";
+    btn.style.padding = "4px 8px";
+    btn.style.borderRadius = "6px";
+    btn.style.border = "1px solid " + "#666666";
+    btn.style.background = "#222222";
+    btn.style.margin = "0 0 0 5px";
+    btn.style.color = "#eeeeee";
+    btn.style.opacity = "0.45";
+    btn.style.cursor = "pointer";
+    btn.style.display = "block";
 
     btn.addEventListener("click", function(e) {
       e.stopPropagation();
@@ -938,6 +995,12 @@
     if (!wrapper) {
       wrapper = document.createElement("div");
       wrapper.id = "cc-check-wrapper";
+      wrapper.style.position = "fixed";
+      wrapper.style.zIndex = "99999";
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      wrapper.style.alignItems = "flex-start";
+      wrapper.style.gap = "6px";
       document.body.appendChild(wrapper);
     }
 
