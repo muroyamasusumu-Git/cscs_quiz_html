@@ -704,7 +704,7 @@
     }
 
     var lines = [];
-    lines.push("整合性チェック: 未チェック");
+    lines.push("整合性チェック: 未");
     lines.push("判定: —");
     lines.push("overall: —");
     lines.push("最終チェック: —");
@@ -733,7 +733,7 @@
             }
           }
 
-          lines[0] = "整合性チェック: チェック済み";
+          lines[0] = "整合性チェック: 済";
           lines[1] = "判定: " + (mark || "—");
           lines[2] = "overall: " + (overall || "—");
           lines[3] = "最終チェック: " + (savedLabel || "—");
