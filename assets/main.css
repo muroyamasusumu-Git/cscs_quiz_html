@@ -183,15 +183,18 @@ margin-left: 10px;
 #cscs-consistency-panel,
 #cscs-consistency-panel * {
   font-weight: 100 !important;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
-
 #cscs-consistency-panel {
-  padding: 16px 20px 75px 0;
-  font-size: var(--cc-base-font, 25px);
+  /* ★ ここだけいじれば全体サイズを一括調整できる */
+  --cc-base-font: 13px;   /* ベースフォントサイズ */
+  --cc-font-scale: 1.1;     /* 全体スケール（0.9 や 1.1 などに変える） */
+
+  padding: 16px 10px 75px 10px;
+  font-size: calc(var(--cc-base-font) * var(--cc-font-scale));
   color: rgb(238, 238, 238);
-  width: 54% !important;
+  width: 65% !important;
 }
 
 /* ヘッダー行とボタン */
@@ -204,7 +207,7 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-panel-header-title {
-  font-size: calc(var(--cc-base-font, 13px) * 1.15);
+  font-size: 1.15em;  /* ベースより少し大きめ */
   font-weight: 600;
 }
 
@@ -218,7 +221,7 @@ margin-left: 10px;
 #cscs-consistency-panel .cc-btn {
   border-radius: 4px;
   padding: 2px 8px;
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;  /* ベースより少し小さめ */
   cursor: pointer;
   border: 1px solid #777777;
   background: #222222;
@@ -244,13 +247,13 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-classification-title {
-  font-size: calc(var(--cc-base-font, 13px) * 1.0);
+  font-size: 1em;   /* ベースと同じ */
   font-weight: 600;
   margin-bottom: 4px;
 }
 
 #cscs-consistency-panel .cc-classification-reason {
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   line-height: 1.4;
   white-space: pre-wrap;
   color: #dddddd;
@@ -260,7 +263,7 @@ margin-left: 10px;
 
 #cscs-consistency-panel .cc-panel-summary {
   margin-bottom: 10px;
-  font-size: calc(var(--cc-base-font, 13px) * 1.0);
+  font-size: 1em;
 }
 
 #cscs-consistency-panel .cc-panel-summary-top {
@@ -271,13 +274,13 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-summary-mode {
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   color: #dddddd;
   font-weight: 400;
 }
 
 #cscs-consistency-panel .cc-summary-overall {
-  font-size: calc(var(--cc-base-font, 13px) * 1.08);
+  font-size: 1.08em;
   font-weight: 600;
 }
 
@@ -298,20 +301,20 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-card-title {
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   color: #bbbbbb;
   margin-bottom: 4px;
   font-weight: 400;
 }
 
 #cscs-consistency-panel .cc-card-main {
-  font-size: calc(var(--cc-base-font, 13px) * 1.0);
+  font-size: 1em;
   font-weight: 600;
   margin-bottom: 2px;
 }
 
 #cscs-consistency-panel .cc-card-sub {
-  font-size: calc(var(--cc-base-font, 13px) * 0.85);
+  font-size: 0.85em;
   color: #cccccc;
 }
 
@@ -324,13 +327,13 @@ margin-left: 10px;
 #cscs-consistency-panel .cc-section-title {
   font-weight: 600;
   margin-bottom: 4px;
-  font-size: calc(var(--cc-base-font, 13px) * 1.0);
+  font-size: 1em;
 }
 
 #cscs-consistency-panel .cc-summary-text {
   white-space: pre-wrap;
   line-height: 1.4;
-  font-size: calc(var(--cc-base-font, 13px) * 1.0);
+  font-size: 1em;
 }
 
 /* 仕切り線 */
@@ -347,19 +350,19 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-section-status {
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   color: #cccccc;
   margin-bottom: 4px;
 }
 
 #cscs-consistency-panel .cc-section-mode-reason {
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   color: #88ddff;
   margin-bottom: 4px;
 }
 
 #cscs-consistency-panel .cc-section-subtitle {
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   color: #cccccc;
   margin-bottom: 2px;
 }
@@ -367,7 +370,7 @@ margin-left: 10px;
 #cscs-consistency-panel .cc-section-list {
   margin: 4px 0 0 16px;
   padding: 0;
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   line-height: 1.4;
 }
 
@@ -375,14 +378,14 @@ margin-left: 10px;
 
 #cscs-consistency-panel .cc-meta-line {
   margin-bottom: 6px;
-  font-size: calc(var(--cc-base-font, 13px) * 0.92);
+  font-size: 0.92em;
   color: #aaaaaa;
 }
 
 #cscs-consistency-panel .cc-section-text {
   white-space: pre-wrap;
   line-height: 1.4;
-  font-size: calc(var(--cc-base-font, 13px) * 1.0);
+  font-size: 1em;
 }
 
 /* ===============================
