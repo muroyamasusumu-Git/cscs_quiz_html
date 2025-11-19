@@ -2,6 +2,20 @@
 @media (aspect-ratio < 0.8) {
   body {
   }
+.wrap {
+margin: 0;
+line-height: 1;
+width: 100% !important;
+}
+
+#nl-panel {
+    position: initial !important;
+    margin-left: 0 !important;
+    margin-top: 15px !important;
+}
+
+
+  
   .slide-content {
   }
 }
@@ -34,7 +48,7 @@ font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "N
 }
 
 #root {
-margin: 10px 20px 0;
+margin: 10px 20px 75px;
 }
 
 .wrap {
@@ -171,7 +185,7 @@ margin-left: 10px;
 
 #cscs-consistency-panel {
   padding: 16px 20px 75px;
-  font-size: var(--cc-base-font, 18px);
+  font-size: var(--cc-base-font, 25px);
   color: rgb(238, 238, 238);
   margin-right: 32.5%;
   opacity: 0.8;
