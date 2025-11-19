@@ -725,7 +725,8 @@
       if (!wrapper) {
         wrapper = document.createElement("div");
         wrapper.id = "cc-check-wrapper";
-        document.body.appendChild(wrapper);
+        var wrapperParent = document.querySelector(".wrap") || document.body;
+        wrapperParent.appendChild(wrapper);
       }
 
       statusDiv = document.createElement("div");
@@ -950,7 +951,8 @@
     if (!wrapper) {
       wrapper = document.createElement("div");
       wrapper.id = "cc-check-wrapper";
-      document.body.appendChild(wrapper);
+      var wrapperParent = document.querySelector(".wrap") || document.body;
+      wrapperParent.appendChild(wrapper);
     }
 
     wrapper.appendChild(btn);
