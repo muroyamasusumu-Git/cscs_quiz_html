@@ -493,27 +493,27 @@
     html += '<div style="font-size:12px;color:#dddddd;">モード: ' + strictLabel + "</div>";
     html += '<div style="font-size:14px;font-weight:600;">overall: ' + overall + " ／ 判定: " + mark + "</div>";
     html += "</div>";
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+    html += '<div style="display:flex;flex-wrap:nowrap;gap:8px;">';
 
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="flex:0 0 25%;max-width:25%;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
     html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">正解の妥当性</div>';
     html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
     html += '<div style="font-size:11px;color:#88ddff;">mode: ' + acMode + "</div>";
     html += "</div>";
 
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="flex:0 0 25%;max-width:25%;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
     html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">選択肢の妥当性</div>';
     html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
     html += '<div style="font-size:11px;color:#cccccc;">choices / distractors</div>';
     html += "</div>";
 
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="flex:0 0 25%;max-width:25%;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
     html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">解説の品質</div>';
     html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + eqStatus + "</div>";
     html += '<div style="font-size:11px;color:#cccccc;">explanation_quality</div>';
     html += "</div>";
 
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
+    html += '<div style="flex:0 0 25%;max-width:25%;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
     html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">問題文の NSCA 的妥当性</div>';
     html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + psStatus + "</div>";
     html += '<div style="font-size:11px;color:#cccccc;">problem_statement_nsac_validity</div>';
