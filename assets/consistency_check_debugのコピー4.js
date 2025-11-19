@@ -405,60 +405,9 @@
 
     var strictLabel = strict ? "厳格モード" : "通常モード";
 
-    var classificationCode = "S";
-    var classificationLabel = "S. 何も直さなくて良い";
-    var classificationPriority = "なし";
-    var classificationReason = "";
-
-    if (acStatus === "wrong") {
-      classificationCode = "A";
-      classificationLabel = "A. 正解を直すべき";
-      classificationPriority = "高";
-      classificationReason = "正解ラベルが問題内容や NSCA-CSCS の知識と整合していない可能性があります。正解そのものの修正が最優先です。";
-    } else if (psStatus === "not_nsac_style") {
-      classificationCode = "D";
-      classificationLabel = "D. 問題そのものを直すべき";
-      classificationPriority = "高";
-      classificationReason = "問題文が NSCA-CSCS の出題範囲や問い方として不適切と判定されています。問題構造から見直す必要があります。";
-    } else if (eqStatus === "dangerous_or_wrong") {
-      classificationCode = "B";
-      classificationLabel = "B. 解説を直すべき";
-      classificationPriority = "高";
-      classificationReason = "解説内容が正解や NSCA-CSCS の知識と矛盾している、または誤っている可能性があります。解説の修正が優先されます。";
-    } else if (eqStatus === "problematic") {
-      classificationCode = "B";
-      classificationLabel = "B. 解説を直すべき";
-      classificationPriority = "中";
-      classificationReason = "解説が不十分であったり、前提や条件の説明が不足しているため、学習効果の面で改善余地があります。";
-    } else if (acStatus === "ambiguous") {
-      classificationCode = "C";
-      classificationLabel = "C. 選択肢を直すべき";
-      classificationPriority = "中";
-      classificationReason = "正解と意味が近い選択肢や紛らわしい誤答が含まれている可能性があります。選択肢全体の整理が望まれます。";
-    } else if (overall === "minor_issue") {
-      classificationCode = "C";
-      classificationLabel = "C. 選択肢を直すべき";
-      classificationPriority = "低";
-      classificationReason = "致命的ではありませんが、選択肢や表現に軽微な改善余地があります。余裕があれば修正を検討してください。";
-    } else if (
-      overall === "ok" &&
-      acStatus === "ok" &&
-      (eqStatus === "good" || eqStatus === "") &&
-      (psStatus === "good" || psStatus === "")
-    ) {
-      classificationCode = "S";
-      classificationLabel = "S. 何も直さなくて良い";
-      classificationPriority = "なし";
-      classificationReason = "正解・解説・選択肢・問題文はいずれも NSCA-CSCS の出題として妥当であり、優先して修正すべき点は見当たりません。";
-    } else {
-      classificationCode = "C";
-      classificationLabel = "C. 選択肢を直すべき";
-      classificationPriority = "低";
-      classificationReason = "大きな破綻はありませんが、一部の選択肢や表現に調整の余地があります。";
-    }
-
     var html = "";
 
+    // 上部：モード・overall・判定 ＋ 3カード（正解／解説／問題文）のサマリー
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
     html += '<div style="font-weight:600;font-size:15px;">整合性チェック結果</div>';
     html += '<div>';
@@ -474,13 +423,6 @@
     html += "</div>";
     html += "</div>";
 
-    html += '<div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;border:1px solid #555555;background:#181818;">';
-    html += '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">分類結果: ' + classificationCode + " ／ " + classificationLabel + "（修正優先度: " + classificationPriority + "）</div>";
-    if (classificationReason) {
-      html += '<div style="font-size:12px;line-height:1.4;white-space:pre-wrap;color:#dddddd;">' + classificationReason + "</div>";
-    }
-    html += "</div>";
-
     html += '<div style="margin-bottom:10px;font-size:13px;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
     html += '<div style="font-size:12px;color:#dddddd;">モード: ' + strictLabel + "</div>";
@@ -492,12 +434,6 @@
     html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">正解の妥当性</div>';
     html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
     html += '<div style="font-size:11px;color:#88ddff;">mode: ' + acMode + "</div>";
-    html += "</div>";
-
-    html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
-    html += '<div style="font-size:12px;color:#bbbbbb;margin-bottom:4px;">選択肢の妥当性</div>';
-    html += '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">status: ' + acStatus + "</div>";
-    html += '<div style="font-size:11px;color:#cccccc;">choices / distractors</div>';
     html += "</div>";
 
     html += '<div style="flex:1 1 160px;border:1px solid #444444;border-radius:6px;padding:8px 10px;background:#1b1b1b;">';
@@ -515,6 +451,7 @@
     html += "</div>";
     html += "</div>";
 
+    // 中段：全体コメント
     html += '<div style="margin-bottom:8px;">';
     html += '<div style="font-weight:600;margin-bottom:4px;">全体コメント</div>';
     html += '<div style="white-space:pre-wrap;line-height:1.4;font-size:13px;">' + summary + "</div>";
@@ -522,6 +459,7 @@
 
     html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
+    // 下部1：各評価軸の詳細
     html += '<div style="margin-bottom:8px;">';
     html += '<div style="font-weight:600;margin-bottom:4px;">詳細: 正解の妥当性 (answer_correctness)</div>';
     html += '<div style="font-size:12px;color:#cccccc;margin-bottom:4px;">';
@@ -571,6 +509,7 @@
 
     html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
+    // 下部2：問題本文・選択肢・解説
     html += '<div style="margin-bottom:6px;font-size:12px;color:#aaaaaa;">';
     html += "Day: " + meta.day + " ／ Field: " + meta.field + " ／ Theme: " + meta.theme + " ／ Level: " + meta.level;
     html += "</div>";
