@@ -355,22 +355,27 @@
     var div = document.createElement("div");
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
-    div.style.position = "fixed";
-    div.style.top = "5%";
-    div.style.left = "50%";
-    div.style.transform = "translateX(-50%)";
-    div.style.maxWidth = "900px";
-    div.style.width = "96%";
-    div.style.maxHeight = "88%";
-    div.style.overflowY = "auto";
-    div.style.backgroundColor = "rgba(0, 0, 0, 0.96)";
-    div.style.border = "1px solid #555555";
-    div.style.borderRadius = "8px";
-    div.style.padding = "16px 20px";
+    // div.style.position = "fixed";
+    // div.style.top = "5%";
+    // div.style.left = "50%";
+    // div.style.transform = "translateX(-50%)";
+    // div.style.maxWidth = "900px";
+    // div.style.width = "96%";
+    // div.style.maxHeight = "88%";
+    // div.style.overflowY = "auto";
+    // div.style.backgroundColor = "rgba(0, 0, 0, 0.96)";
+    // div.style.border = "1px solid #555555";
+    // div.style.borderRadius = "8px";
+    // div.style.padding = "16px 20px";     ← 一旦無効化（下で再定義）
+    // div.style.fontSize = "15px";         ← 一旦無効化（下で再定義）
+    // div.style.color = "#eeeeee";         ← 一旦無効化（下で再定義）
+    // div.style.zIndex = "99999";
+    // div.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.7)";
+
+    div.style.padding = "16px 20px 75px";
     div.style.fontSize = "15px";
-    div.style.color = "#eeeeee";
-    div.style.zIndex = "99999";
-    div.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.7)";
+    div.style.color = "rgb(238, 238, 238)";
+    div.style.marginRight = "32.5%";
     document.body.appendChild(div);
     return div;
   }
