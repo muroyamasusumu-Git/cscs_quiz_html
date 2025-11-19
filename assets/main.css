@@ -222,7 +222,7 @@ margin-left: 10px;
 #cscs_sync_view_b {
   position: fixed;
   right: 32.0%;                /* 右寄せ */
-  top: 230px;
+  top: 240px;
   opacity: 0.25;           /* 透明度 */
   z-index: 9999;
   background: transparent;
@@ -231,7 +231,7 @@ margin-left: 10px;
   border-radius: 8px;
   padding: 8px 10px;
   font: 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.2;
+  line-height: 1;
   max-width: 46vw;
   width: 140px;
   pointer-events: auto;
