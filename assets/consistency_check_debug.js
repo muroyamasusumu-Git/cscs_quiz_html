@@ -946,6 +946,22 @@
 
     updateConsistencyCheckStatus(meta, q);
 
+    if (typeof localStorage !== "undefined") {
+      try {
+        var storageKey = getConsistencyStorageKey(meta, q);
+        var storedRaw = localStorage.getItem(storageKey);
+        if (storedRaw) {
+          var storedData = JSON.parse(storedRaw);
+          if (storedData && storedData.result) {
+            var usedStrict = typeof storedData.strict === "boolean" ? storedData.strict : STRICT_MODE_DEFAULT;
+            showConsistencyResultPanel(meta, q, storedData.result, usedStrict);
+          }
+        }
+      } catch (restoreError) {
+        console.error("整合性チェック結果の復元に失敗しました:", restoreError);
+      }
+    }
+
     var btn = document.createElement("button");
     btn.id = "cc-check-btn";
     btn.type = "button";
@@ -954,7 +970,7 @@
     btn.style.fontSize = "11px";
     btn.style.padding = "4px 8px";
     btn.style.borderRadius = "6px";
-    btn.style.border = "1px solid #666666";
+    btn.style.border = "1px solid " + "#666666";
     btn.style.background = "#222222";
     btn.style.margin = "0 0 0 5px";
     btn.style.color = "#eeeeee";
@@ -963,12 +979,12 @@
     btn.style.display = "block";
 
     btn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+      e.stopPropagation();
+      e.preventDefault();
+      window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
     });
 
-        var wrapper = document.getElementById("cc-check-wrapper");
+    var wrapper = document.getElementById("cc-check-wrapper");
     if (!wrapper) {
       wrapper = document.createElement("div");
       wrapper.id = "cc-check-wrapper";
@@ -978,7 +994,6 @@
       wrapper.style.flexDirection = "column";
       wrapper.style.alignItems = "flex-start";
       wrapper.style.gap = "6px";
-      statusDiv.style.opacity = "0.80";
       document.body.appendChild(wrapper);
     }
 
