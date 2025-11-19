@@ -577,6 +577,9 @@
     }
     html += "</div>";
 
+    // ↓ パネル下部の問題文・選択肢・解説の再掲は、
+    //    インライン表示に切り替えたため一旦非表示にする
+    /*
     html += '<div style="border-top:1px solid #444444;margin:8px 0 6px 0;"></div>';
 
     html += '<div style="margin-bottom:6px;font-size:12px;color:#aaaaaa;">';
@@ -602,6 +605,7 @@
     html += '<div style="font-weight:600;margin-bottom:4px;">解説</div>';
     html += '<div style="white-space:pre-wrap;line-height:1.4;">' + q.explanation + "</div>";
     html += "</div>";
+    */
 
     return html;
   }
