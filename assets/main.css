@@ -33,6 +33,18 @@ font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "N
   overflow: auto !important;
 }
 
+#root {
+margin: 10px 20px 0;
+}
+
+.wrap {
+margin: 0;
+line-height: 1;
+width: 67%;
+}
+
+
+
 p {
 margin: 0;
 }
@@ -46,18 +58,15 @@ line-height: 1 !important;
 margin-top: 15px;
 font-size: 40px !important;
 padding-bottom: 2px;
-margin-right: 33% !important;
+margin-right: 0 !important;
 }
 
-.wrap {
-margin: 10px 20px 0;
-line-height: 1;
-}
+
 
 .topmeta {
 margin-bottom: 0 !important;
 gap: 0 !important;
-margin-right: 33% !important;
+margin-right: 0 !important;
     display: block !important;
 }
 
@@ -101,7 +110,7 @@ margin: 10px 0 0;
 .explain {
 font-size: 20px;
 margin: 10px 0 0;
-margin-right: 33% !important;
+margin-right: 0 !important;
 }
 
 .explain-text {
