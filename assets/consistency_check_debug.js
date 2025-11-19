@@ -244,11 +244,16 @@
       body: JSON.stringify(body)
     });
 
+    var text = await response.text();
+
     if (!response.ok) {
-      throw new Error("整合性チェック API エラー: HTTP " + response.status);
+      console.error("整合性チェック API 生レスポンス:", text);
+      throw new Error("整合性チェック API エラー: HTTP " + response.status + " / body: " + text);
     }
 
-    var text = await response.text();
+    if (lastConsistencyDebug) {
+      lastConsistencyDebug.rawResponseText = text;
+    }
     if (lastConsistencyDebug) {
       lastConsistencyDebug.rawResponseText = text;
     }
