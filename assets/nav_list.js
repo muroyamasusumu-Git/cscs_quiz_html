@@ -254,7 +254,13 @@
       maxHeight: "calc(100vh - 24px)"
     });
 
-    document.body.appendChild(panel);
+    // ▼ 可能なら #root の中に挿入し、無い場合のみ body 直下に挿入
+    var root = document.getElementById("root");
+    if (root){
+      root.appendChild(panel);
+    } else {
+      document.body.appendChild(panel);
+    }
 
     /* クリックバブリング抑止（内部以外のクリックで閉じない設計） */
     panel.addEventListener("click", function(e){
