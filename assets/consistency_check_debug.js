@@ -541,7 +541,6 @@
     html += "status: " + psStatus;
     html += "</div>";
     if (psIssues.length > 0) {
-      html += '<div class="cc-section-subtitle">判断理由:</div>';
       html += '<ul class="cc-section-list">';
       for (var k = 0; k < psIssues.length; k++) {
         html += "<li>" + psIssues[k] + "</li>";
