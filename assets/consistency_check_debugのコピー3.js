@@ -1050,25 +1050,6 @@
                 saved_at: savedAtIso
               };
               window.cscsConsistency.saveLocal(qid, syncPayload);
-
-              if (qid) {
-                var syncBody = {
-                  kind: "consistency_status",
-                  qid: qid,
-                  status: syncPayload
-                };
-                if (typeof fetch === "function") {
-                  fetch("/api/sync-consistency", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(syncBody)
-                  }).catch(function(syncError) {
-                    console.error("整合性チェック結果の SYNC 送信に失敗しました:", syncError);
-                  });
-                }
-              }
             } catch (consistencySaveError) {
               console.error("整合性チェック結果の cscsConsistency 保存に失敗しました:", consistencySaveError);
             }
