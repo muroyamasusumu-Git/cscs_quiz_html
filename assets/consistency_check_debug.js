@@ -1468,7 +1468,26 @@
           var storedData = JSON.parse(storedRaw);
           if (storedData && storedData.result) {
             var usedStrict = typeof storedData.strict === "boolean" ? storedData.strict : STRICT_MODE_DEFAULT;
-            showConsistencyResultPanel(meta, q, storedData.result, usedStrict);
+
+            var panel = getConsistencyPanelContainer();
+            panel.innerHTML = ""; // パネル中身は表示しない（閉じた状態）
+
+            var titleEl = panel.querySelector(".cc-panel-header-title");
+            if (titleEl) {
+              var mark = storedData.severity_mark || "";
+              var headerText = "[整合性チェック結果" + (mark ? "：" + mark : "") + " 詳細をみる]";
+              titleEl.setAttribute("data-severity-mark", mark);
+              titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + headerText + '</a>';
+
+              var reopenLink = document.getElementById("cscs-consistency-reopen-link");
+              if (reopenLink) {
+                reopenLink.addEventListener("click", function(e) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  showConsistencyResultPanel(meta, q, storedData.result, usedStrict);
+                });
+              }
+            }
           }
         }
       } catch (restoreError) {
