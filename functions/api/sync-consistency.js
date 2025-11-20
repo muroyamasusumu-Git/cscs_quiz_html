@@ -74,8 +74,8 @@ export async function onRequestGet(context) {
   let stored = null;
 
   try {
-    if (env && env.CONSISTENCY && typeof env.CONSISTENCY.get === "function") {
-      const raw = await env.CONSISTENCY.get(key);
+    if (env && env.SYNC && typeof env.SYNC.get === "function") {
+      const raw = await env.SYNC.get(key);
       if (raw) {
         try {
           stored = JSON.parse(raw);
@@ -146,7 +146,7 @@ export async function onRequestPost(context) {
     };
   });
 
-  if (env && env.CONSISTENCY && typeof env.CONSISTENCY.put === "function") {
+  if (env && env.SYNC && typeof env.SYNC.put === "function") {
     for (let i = 0; i < cleaned.length; i++) {
       const item = cleaned[i];
       const qid = item && item.qid ? item.qid : "";
@@ -155,7 +155,7 @@ export async function onRequestPost(context) {
       }
       const key = "consistency_status:" + qid;
       try {
-        await env.CONSISTENCY.put(key, JSON.stringify(item));
+        await env.SYNC.put(key, JSON.stringify(item));
       } catch (e) {
         console.error("[sync-consistency] KV put error:", e);
       }
