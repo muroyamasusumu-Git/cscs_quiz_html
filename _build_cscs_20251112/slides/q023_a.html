@@ -955,8 +955,9 @@ h1 { font-size: var(--h1-fs, inherit); }
         const btnReset  = document.getElementById("cscs_sync_test_reset");
         // ③ この問題(qid単位)のSYNCカウンタをリセット（サーバー＋ローカル両方）
         if (btnReset) btnReset.addEventListener("click", async () => {
+          if (!QID) return;
           try{
-            await fetch("/api/sync/reset", {
+            await fetch("/api/sync/reset_qid", {
               method:"POST",
               headers:{ "content-type":"application/json" },
               body: JSON.stringify({ qid: QID })
