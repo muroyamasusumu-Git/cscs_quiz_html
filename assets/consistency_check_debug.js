@@ -477,8 +477,11 @@
 
     var html = "";
 
+    var headerSeverityMark = severityMark || "";
+    var headerTitleText = "[整合性チェック結果" + (headerSeverityMark ? "：" + headerSeverityMark : "") + "]";
+
     html += '<div class="cc-panel-header-row">';
-    html += '<div class="cc-panel-header-title">整合性チェック結果</div>';
+    html += '<div class="cc-panel-header-title" data-severity-mark="' + headerSeverityMark + '">' + headerTitleText + "</div>";
     html += '<div class="cc-panel-header-actions">';
     html += '<button type="button" id="cscs-consistency-copy-debug" class="cc-btn cc-btn-secondary">デバッグ用テキストをコピー</button>';
     html += '<button type="button" id="cscs-consistency-refresh" class="cc-btn cc-btn-secondary">更新</button>';
@@ -648,7 +651,9 @@
         }
 
         if (titleEl) {
-          titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">整合性チェックの結果を見る</a>';
+          var severityForHeader = titleEl.getAttribute("data-severity-mark") || "";
+          var linkText = "[整合性チェック結果" + (severityForHeader ? "：" + severityForHeader : "") + " 詳細をみる]";
+          titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + linkText + "</a>";
           var reopenLink = document.getElementById("cscs-consistency-reopen-link");
           if (reopenLink) {
             reopenLink.addEventListener("click", function(ev) {
@@ -664,7 +669,9 @@
               }
 
               if (titleEl) {
-                titleEl.textContent = "整合性チェック結果";
+                var severityForHeaderInner = titleEl.getAttribute("data-severity-mark") || "";
+                var headerTitleTextInner = "[整合性チェック結果" + (severityForHeaderInner ? "：" + severityForHeaderInner : "") + "]";
+                titleEl.textContent = headerTitleTextInner;
               }
             });
           }
