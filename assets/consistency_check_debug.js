@@ -485,6 +485,7 @@
     html += '<button type="button" id="cscs-consistency-panel-close" class="cc-btn cc-btn-close">閉じる</button>';
     html += "</div>";
     html += "</div>";
+    html += '<div class="cc-panel-body">';
 
     html += '<div class="cc-panel-classification">';
     html += '<div class="cc-classification-title">分類結果: ' + classificationCode + " ／ " + severityMark + ". " + classificationText + "（修正優先度: " + classificationPriority + "）</div>";
@@ -609,6 +610,7 @@
     html += "</div>";
     */
 
+    html += "</div>";
     return html;
   }
 
@@ -632,8 +634,40 @@
     if (closeBtn) {
       closeBtn.addEventListener("click", function(e) {
         e.stopPropagation();
-        if (panel && panel.parentNode) {
-          panel.parentNode.removeChild(panel);
+
+        var body = panel.querySelector(".cc-panel-body");
+        var titleEl = panel.querySelector(".cc-panel-header-title");
+        var actionsEl = panel.querySelector(".cc-panel-header-actions");
+
+        if (body) {
+          body.style.display = "none";
+        }
+
+        if (actionsEl) {
+          actionsEl.style.display = "none";
+        }
+
+        if (titleEl) {
+          titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">整合性チェックの結果を見る</a>';
+          var reopenLink = document.getElementById("cscs-consistency-reopen-link");
+          if (reopenLink) {
+            reopenLink.addEventListener("click", function(ev) {
+              ev.preventDefault();
+              ev.stopPropagation();
+
+              if (body) {
+                body.style.display = "";
+              }
+
+              if (actionsEl) {
+                actionsEl.style.display = "";
+              }
+
+              if (titleEl) {
+                titleEl.textContent = "整合性チェック結果";
+              }
+            });
+          }
         }
       });
     }
