@@ -182,16 +182,16 @@ margin-left: 10px;
 
 #cscs-consistency-panel,
 #cscs-consistency-panel * {
-  font-weight: 100 !important;
+  font-weight: 150 !important;
   opacity: 0.9;
 }
 
 #cscs-consistency-panel {
   /* ★ ここだけいじれば全体サイズを一括調整できる */
-  --cc-base-font: 13px;   /* ベースフォントサイズ */
+  --cc-base-font: 14px;   /* ベースフォントサイズ */
   --cc-font-scale: 1.1;     /* 全体スケール（0.9 や 1.1 などに変える） */
 
-  padding: 16px 10px 75px 10px;
+  padding: 16px 10px 75px 1px;
   font-size: calc(var(--cc-base-font) * var(--cc-font-scale));
   color: rgb(238, 238, 238);
   width: 65% !important;
