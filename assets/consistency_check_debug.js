@@ -1469,22 +1469,44 @@
           if (storedData && storedData.result) {
             var usedStrict = typeof storedData.strict === "boolean" ? storedData.strict : STRICT_MODE_DEFAULT;
 
+            // 既存パネル取得（必要であれば生成）
             var panel = getConsistencyPanelContainer();
-            panel.innerHTML = ""; // パネル中身は表示しない（閉じた状態）
 
+            // パネル中身を一旦構築してから閉じる（リンク部分を壊さない）
+            panel.innerHTML = buildConsistencyResultHtml(meta, q, storedData.result, usedStrict);
+
+            // タイトル要素の取得（既存のリンクはそのまま残す）
             var titleEl = panel.querySelector(".cc-panel-header-title");
+            var actionsEl = panel.querySelector(".cc-panel-header-actions");
+            var bodyEl = panel.querySelector(".cc-panel-body");
+
+            // ボディとアクションを閉じる
+            if (actionsEl) {
+              actionsEl.style.display = "none";
+            }
+            if (bodyEl) {
+              bodyEl.style.display = "none";
+            }
+
+            // タイトル文字列を「閉じた表示」に文字だけ変更
             if (titleEl) {
               var mark = storedData.severity_mark || "";
-              var headerText = "[整合性チェック結果" + (mark ? "：" + mark : "") + " 詳細をみる]";
-              titleEl.setAttribute("data-severity-mark", mark);
-              titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + headerText + '</a>';
+              var headerLabel = "整合性チェック結果";
+              var collapsedText = "[" + headerLabel + (mark ? "：" + mark : "") + " 詳細をみる]";
 
+              titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + collapsedText + '</a>';
+
+              // “詳細をみる” を押すと展開
               var reopenLink = document.getElementById("cscs-consistency-reopen-link");
               if (reopenLink) {
                 reopenLink.addEventListener("click", function(e) {
                   e.preventDefault();
                   e.stopPropagation();
-                  showConsistencyResultPanel(meta, q, storedData.result, usedStrict);
+
+                  if (actionsEl) actionsEl.style.display = "";
+                  if (bodyEl) bodyEl.style.display = "";
+
+                  titleEl.textContent = headerLabel;
                 });
               }
             }
