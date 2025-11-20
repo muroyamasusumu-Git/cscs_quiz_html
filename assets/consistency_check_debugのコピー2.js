@@ -1014,13 +1014,12 @@
             severityLabel = "変更必要なし";
           }
 
-          var savedAtIso = new Date().toISOString();
           var storePayload = {
             meta: meta,
             question: q,
             strict: usedStrict,
             result: result,
-            saved_at: savedAtIso,
+            saved_at: new Date().toISOString(),
             severity_mark: severityMark,
             severity_label: severityLabel,
             classification_code: classificationCode,
@@ -1032,24 +1031,7 @@
           if (typeof window !== "undefined" && window.cscsConsistency && typeof window.cscsConsistency.saveLocal === "function") {
             try {
               var qid = meta && meta.qid ? String(meta.qid) : "";
-              var classificationDetail = "";
-              if (classificationCode === "A") {
-                classificationDetail = "正解";
-              } else if (classificationCode === "B") {
-                classificationDetail = "解説";
-              } else if (classificationCode === "C") {
-                classificationDetail = "選択肢";
-              } else if (classificationCode === "D") {
-                classificationDetail = "問題";
-              }
-              var syncPayload = {
-                status_mark: severityMark,
-                status_label: severityLabel,
-                classification_code: classificationCode,
-                classification_detail: classificationDetail,
-                saved_at: savedAtIso
-              };
-              window.cscsConsistency.saveLocal(qid, syncPayload);
+              window.cscsConsistency.saveLocal(qid, severityMark);
             } catch (consistencySaveError) {
               console.error("整合性チェック結果の cscsConsistency 保存に失敗しました:", consistencySaveError);
             }
