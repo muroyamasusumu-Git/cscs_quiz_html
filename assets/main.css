@@ -432,12 +432,12 @@ margin-left: 10px;
 
 #cc-sync-clear-btn {
   z-index: 99999;
-  font-size: 11px;
-  padding: 4px 8px;
+  font-size: 10px;
+  padding: 3px 7px;
   border-radius: 6px;
   border: 0 solid #666666;
   background: #ccc;
-  margin: 5px 0 0 0;
+  margin: 7px 0 0 0;
   color: #000;
   opacity: 0.20;
   cursor: pointer;
