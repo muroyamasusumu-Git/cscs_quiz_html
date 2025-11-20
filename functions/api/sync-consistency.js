@@ -58,7 +58,7 @@ export async function onRequestOptions(context) {
 
 // GET /api/sync-consistency?qid=...
 export async function onRequestGet(context) {
-  const { request } = context;
+  const { request, env } = context;
   const url = new URL(request.url);
   const qid = url.searchParams.get("qid") || "";
 
@@ -70,17 +70,41 @@ export async function onRequestGet(context) {
     });
   }
 
-  // いまは永続ストレージ未実装のため、常に空の items を返すだけ
-  // （将来 KV / D1 / R2 に保存するようになったら、ここで qid から読み出す）
+  const key = "consistency_status:" + qid;
+  let stored = null;
+
+  try {
+    if (env && env.CONSISTENCY && typeof env.CONSISTENCY.get === "function") {
+      const raw = await env.CONSISTENCY.get(key);
+      if (raw) {
+        try {
+          stored = JSON.parse(raw);
+        } catch (parseError) {
+          console.error("[sync-consistency] failed to parse KV JSON:", parseError);
+          stored = null;
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[sync-consistency] KV get error:", e);
+  }
+
+  if (!stored) {
+    return jsonResponse(request, 200, {
+      ok: true,
+      items: []
+    });
+  }
+
   return jsonResponse(request, 200, {
     ok: true,
-    items: []
+    items: [stored]
   });
 }
 
 // POST /api/sync-consistency
 export async function onRequestPost(context) {
-  const { request /*, env*/ } = context;
+  const { request, env } = context;
   const corsHeaders = buildCorsHeaders(request);
 
   if (request.method !== "POST") {
@@ -104,7 +128,6 @@ export async function onRequestPost(context) {
     const kind = String(item && item.kind ? item.kind : "");
     const qid = String(item && item.qid ? item.qid : "");
 
-    // status オブジェクト経由で受け取る形にそろえる
     const statusObj = item && item.status ? item.status : {};
     const statusMark = String(statusObj && statusObj.status_mark ? statusObj.status_mark : "");
     const statusLabel = String(statusObj && statusObj.status_label ? statusObj.status_label : "");
@@ -123,9 +146,21 @@ export async function onRequestPost(context) {
     };
   });
 
-  // ★ ここで本来は KV / D1 / R2 などに保存する
-  // 　いまはデバッグ用にそのまま echo するだけ
-  // 　（env バインドが決まったらここを書き換える）
+  if (env && env.CONSISTENCY && typeof env.CONSISTENCY.put === "function") {
+    for (let i = 0; i < cleaned.length; i++) {
+      const item = cleaned[i];
+      const qid = item && item.qid ? item.qid : "";
+      if (!qid) {
+        continue;
+      }
+      const key = "consistency_status:" + qid;
+      try {
+        await env.CONSISTENCY.put(key, JSON.stringify(item));
+      } catch (e) {
+        console.error("[sync-consistency] KV put error:", e);
+      }
+    }
+  }
 
   return jsonResponse(request, 200, {
     ok: true,
