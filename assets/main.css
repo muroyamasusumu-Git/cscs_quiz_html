@@ -207,13 +207,17 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-panel-header-title {
-  font-size: 1.15em;  /* ベースより少し大きめ */
+  font-size: 1.25em;  /* ベースより少し大きめ */
   font-weight: 600;
 }
 
 #cscs-consistency-panel .cc-panel-header-actions {
   display: flex;
   gap: 6px;
+}
+
+#cscs-consistency-panel #cscs-consistency-reopen-link {
+  color: #ffffff; 
 }
 
 /* ボタン共通 */
