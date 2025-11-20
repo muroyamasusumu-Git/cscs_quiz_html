@@ -1193,161 +1193,37 @@
             }
           }
 
-  /**
-   * SYNC から最新の整合性ステータスを取得し、localStorage に反映する
-   *
-   * @param {Object} meta
-   * @param {Object} q
-   * @returns {Promise<void>}
-   */
-  async function fetchConsistencySyncStatus(meta, q) {
-    if (typeof fetch !== "function") {
-      return;
-    }
-    if (typeof localStorage === "undefined") {
-      return;
-    }
-
-    var qid = meta && meta.qid ? String(meta.qid) : "";
-    if (!qid) {
-      return;
-    }
-
-    var url = "/api/sync-consistency?qid=" + encodeURIComponent(qid);
-
-    try {
-      var response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json"
-        }
-      });
-
-      var text = await response.text();
-
-      if (!response.ok) {
-        console.log("[consistency SYNC] fetch failed:", response.status, text);
-        return;
-      }
-
-      if (!text) {
-        return;
-      }
-
-      var data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error("[consistency SYNC] response JSON parse error:", parseError, text);
-        return;
-      }
-
-      var items = [];
-      if (data && Array.isArray(data.items)) {
-        items = data.items;
-      } else if (data && data.item) {
-        items = [data.item];
-      }
-
-      if (!items || items.length === 0) {
-        return;
-      }
-
-      var item = items[0];
-      var statusObj = item && item.status ? item.status : item;
-
-      if (!statusObj || typeof statusObj !== "object") {
-        return;
-      }
-
-      var severityMark = typeof statusObj.status_mark === "string" ? statusObj.status_mark : "";
-      var severityLabel = typeof statusObj.status_label === "string" ? statusObj.status_label : "";
-      var classificationCode = typeof statusObj.classification_code === "string" ? statusObj.classification_code : "";
-      var classificationDetail = typeof statusObj.classification_detail === "string" ? statusObj.classification_detail : "";
-      var savedAtRemote = typeof statusObj.saved_at === "string" ? statusObj.saved_at : "";
-      var savedAtIso = savedAtRemote || new Date().toISOString();
-
-      var storageKey = getConsistencyStorageKey(meta, q);
-      var existing = null;
-      try {
-        var existingRaw = localStorage.getItem(storageKey);
-        if (existingRaw) {
-          existing = JSON.parse(existingRaw);
-        }
-      } catch (existingError) {
-        existing = null;
-      }
-
-      var payload = {
-        meta: meta,
-        question: q,
-        strict: existing && typeof existing.strict === "boolean" ? existing.strict : true,
-        result: existing && existing.result ? existing.result : null,
-        saved_at: savedAtIso,
-        severity_mark: severityMark,
-        severity_label: severityLabel,
-        classification_code: classificationCode,
-        classification_label: existing && typeof existing.classification_label === "string" ? existing.classification_label : "",
-        classification_priority: existing && typeof existing.classification_priority === "string" ? existing.classification_priority : "",
-        classification_detail: classificationDetail
-      };
-
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(payload));
-      } catch (storeError) {
-        console.error("[consistency SYNC] failed to store merged payload into localStorage:", storeError);
-      }
-
-      try {
-        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
-        localStorage.setItem(syncOkKey, savedAtIso);
-      } catch (syncOkError) {
-        console.error("[consistency SYNC] failed to store sync_ok flag:", syncOkError);
-      }
-    } catch (e) {
-      console.error("[consistency SYNC] request failed:", e);
-    }
-  }
-
-  /**
-   * SYNC 状態とローカル結果を削除し、ステータス表示をリセットする
-   *
-   * @param {Object} meta
-   * @param {Object} q
-   */
-  function clearConsistencySyncStatus(meta, q) {
-    if (typeof localStorage === "undefined") {
-      updateConsistencyCheckStatus(meta, q);
-      return;
-    }
-
-    var storageKey = getConsistencyStorageKey(meta, q);
-    try {
-      localStorage.removeItem(storageKey);
-    } catch (removeError) {
-      console.error("整合性チェック結果の削除に失敗しました:", removeError);
-    }
-
-    var qid = meta && meta.qid ? String(meta.qid) : "";
-    if (qid) {
-      try {
-        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
-        localStorage.removeItem(syncOkKey);
-      } catch (syncRemoveError) {
-        console.error("整合性チェック SYNC ステータスの削除に失敗しました:", syncRemoveError);
-      }
-    }
-
-    updateConsistencyCheckStatus(meta, q);
-  }
-
-  /**
-   * 画面右上の「整合性チェックステータス」表示を更新
-   *
-   * @param {Object} meta
-   * @param {Object} q
-   */
-  function updateConsistencyCheckStatus(meta, q) {
+          if (qid && typeof fetch === "function") {
+            var syncBody = {
+              kind: "consistency_status",
+              qid: qid,
+              status: syncPayload
+            };
+            fetch("/api/sync-consistency", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(syncBody)
+            }).then(function(response) {
+              if (typeof localStorage !== "undefined") {
+                try {
+                  var syncOkKey = "cscs_consistency_sync_ok:" + qid;
+                  if (response && response.ok) {
+                    var syncedAt = new Date().toISOString();
+                    localStorage.setItem(syncOkKey, syncedAt);
+                  } else {
+                    localStorage.removeItem(syncOkKey);
+                  }
+                } catch (syncStoreError) {
+                  console.error("整合性チェック結果の SYNC ステータス保存に失敗しました:", syncStoreError);
+                }
+              }
+              return response;
+            }).catch(function(syncError) {
+              console.error("整合性チェック結果の SYNC 送信に失敗しました:", syncError);
+            });
+          }
         } catch (storageError) {
           console.error("整合性チェック結果の localStorage 保存に失敗しました:", storageError);
         }
@@ -1501,17 +1377,6 @@
       window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
     });
 
-    var clearBtn = document.createElement("button");
-    clearBtn.id = "cc-sync-clear-btn";
-    clearBtn.type = "button";
-    clearBtn.textContent = "SYNC削除";
-
-    clearBtn.addEventListener("click", function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      clearConsistencySyncStatus(meta, q);
-    });
-
     var wrapper = document.getElementById("cc-check-wrapper");
     if (!wrapper) {
       wrapper = document.createElement("div");
@@ -1521,7 +1386,6 @@
     }
 
     wrapper.appendChild(btn);
-    wrapper.appendChild(clearBtn);
   });
 
 })();
