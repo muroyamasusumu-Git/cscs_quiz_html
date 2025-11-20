@@ -937,38 +937,10 @@ h1 { font-size: var(--h1-fs, inherit); }
           <div id="cscs_sync_totals" class="sync-line sync-totals" data-server-c="0" data-server-i="0">server 0 / 0</div>
           <div class="sync-line sync-local">local  0 / 0</div>
           <div class="sync-line sync-queue">+Δ    0 / 0</div>
-          <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
-          
-          <!--
-            === 一時的にコメントアウト（SYNCテスト用ボタン） ===
-            更新日：2025-xx-xx
-
-            目的：
-              SYNC(A) パネルでサーバー側／ローカル側の挙動をテストするためのボタン
-              本番挙動に不要なため一時停止中（必要時に復帰可能）
-
-            各ボタンの役割：
-              ・+ok        → サーバー側 correct[qid] に +1 テスト送信
-              ・+ng        → サーバー側 wrong[qid]   に +1 テスト送信
-              ・local+ok   → ローカルの cscs_q_correct_total:<qid> を +1
-              ・local+ng   → ローカルの cscs_q_wrong_total:<qid>   を +1
-
-            復帰方法：
-              このコメントブロックを外すだけで元に戻せます
-          -->
-          <!--
-          <div class="sync-test-row">
-            <button id="cscs_sync_test_ok"    type="button" class="sync-test-button">+ok</button>
-            <button id="cscs_sync_test_ng"    type="button" class="sync-test-button">+ng</button>
-          </div>
-          <div class="sync-test-row">            
-            <button id="cscs_sync_local_inc_ok" type="button" class="sync-test-button">local+ok</button>
-            <button id="cscs_sync_local_inc_ng" type="button" class="sync-test-button">local+ng</button>            
-          </div>
-          -->
+          <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>          
           
           <div class="sync-reset-row">            
-            <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset server</button>
+            <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
           </div>
         `;
         const wrap = document.querySelector("div.wrap");
@@ -981,9 +953,7 @@ h1 { font-size: var(--h1-fs, inherit); }
         const btnOk   = document.getElementById("cscs_sync_test_ok");
         const btnNg   = document.getElementById("cscs_sync_test_ng");
         const btnReset  = document.getElementById("cscs_sync_test_reset");
-        const btnLocalIncOk = document.getElementById("cscs_sync_local_inc_ok");
-        const btnLocalIncNg = document.getElementById("cscs_sync_local_inc_ng");
-        // ③ サーバー側カウンタを消去
+        // ③ この問題(qid単位)のSYNCカウンタをリセット（サーバー＋ローカル両方）
         if (btnReset) btnReset.addEventListener("click", async () => {
           try{
             await fetch("/api/sync/reset", {
@@ -991,7 +961,21 @@ h1 { font-size: var(--h1-fs, inherit); }
               headers:{ "content-type":"application/json" },
               body: JSON.stringify({ qid: QID })
             });
-            alert("サーバー側カウンタをリセットしました。");
+
+            // サーバーリセット成功とみなしたら、このqidのローカル累積もゼロに揃える
+            try{
+              const kCorNow  = "cscs_q_correct_total:" + QID;
+              const kWrgNow  = "cscs_q_wrong_total:"   + QID;
+              const kCorLast = "cscs_sync_last_c:"     + QID;
+              const kWrgLast = "cscs_sync_last_w:"     + QID;
+
+              localStorage.setItem(kCorNow,  "0");
+              localStorage.setItem(kWrgNow,  "0");
+              localStorage.setItem(kCorLast, "0");
+              localStorage.setItem(kWrgLast, "0");
+            }catch(_){}
+
+            alert("この問題のSYNCカウンタをリセットしました。");
             await initialFetch();
           }catch(e){
             alert("reset 失敗: " + e);
@@ -1001,23 +985,6 @@ h1 { font-size: var(--h1-fs, inherit); }
         // 既存の差分テストボタン
         if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
         if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
-
-        // ローカルの値だけを増減するテストボタン
-        if (btnLocalIncOk) btnLocalIncOk.addEventListener("click", () => {
-          if (!QID) return;
-          const cur = readLocalTotalsForQid(QID);
-          const next = cur.c + 1;
-          localStorage.setItem("cscs_q_correct_total:" + QID, String(next));
-          updateMonitor();
-        });
-
-        if (btnLocalDecNg) btnLocalDecNg.addEventListener("click", () => {
-          if (!QID) return;
-          const cur = readLocalTotalsForQid(QID);
-          const next = cur.w - 1 < 0 ? 0 : cur.w - 1;
-          localStorage.setItem("cscs_q_wrong_total:" + QID, String(next));
-          updateMonitor();
-        });
       }catch(_){}
       initialFetch();
     });
