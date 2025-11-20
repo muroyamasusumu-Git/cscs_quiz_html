@@ -739,6 +739,122 @@
   }
 
   /**
+   * SYNC から最新の整合性ステータスを取得し、localStorage に反映する
+   *
+   * @param {Object} meta
+   * @param {Object} q
+   * @returns {Promise<void>}
+   */
+  async function fetchConsistencySyncStatus(meta, q) {
+    if (typeof fetch !== "function") {
+      return;
+    }
+    if (typeof localStorage === "undefined") {
+      return;
+    }
+
+    var qid = meta && meta.qid ? String(meta.qid) : "";
+    if (!qid) {
+      return;
+    }
+
+    var url = "/api/sync-consistency?qid=" + encodeURIComponent(qid);
+
+    try {
+      var response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      var text = await response.text();
+
+      if (!response.ok) {
+        console.log("[consistency SYNC] fetch failed:", response.status, text);
+        return;
+      }
+
+      if (!text) {
+        return;
+      }
+
+      var data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error("[consistency SYNC] response JSON parse error:", parseError, text);
+        return;
+      }
+
+      var items = [];
+      if (data && Array.isArray(data.items)) {
+        items = data.items;
+      } else if (data && data.item) {
+        items = [data.item];
+      }
+
+      if (!items || items.length === 0) {
+        return;
+      }
+
+      var item = items[0];
+      var statusObj = item && item.status ? item.status : item;
+
+      if (!statusObj || typeof statusObj !== "object") {
+        return;
+      }
+
+      var severityMark = typeof statusObj.status_mark === "string" ? statusObj.status_mark : "";
+      var severityLabel = typeof statusObj.status_label === "string" ? statusObj.status_label : "";
+      var classificationCode = typeof statusObj.classification_code === "string" ? statusObj.classification_code : "";
+      var classificationDetail = typeof statusObj.classification_detail === "string" ? statusObj.classification_detail : "";
+      var savedAtRemote = typeof statusObj.saved_at === "string" ? statusObj.saved_at : "";
+      var savedAtIso = savedAtRemote || new Date().toISOString();
+
+      var storageKey = getConsistencyStorageKey(meta, q);
+      var existing = null;
+      try {
+        var existingRaw = localStorage.getItem(storageKey);
+        if (existingRaw) {
+          existing = JSON.parse(existingRaw);
+        }
+      } catch (existingError) {
+        existing = null;
+      }
+
+      var payload = {
+        meta: meta,
+        question: q,
+        strict: existing && typeof existing.strict === "boolean" ? existing.strict : true,
+        result: existing && existing.result ? existing.result : null,
+        saved_at: savedAtIso,
+        severity_mark: severityMark,
+        severity_label: severityLabel,
+        classification_code: classificationCode,
+        classification_label: existing && typeof existing.classification_label === "string" ? existing.classification_label : "",
+        classification_priority: existing && typeof existing.classification_priority === "string" ? existing.classification_priority : "",
+        classification_detail: classificationDetail
+      };
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      } catch (storeError) {
+        console.error("[consistency SYNC] failed to store merged payload into localStorage:", storeError);
+      }
+
+      try {
+        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
+        localStorage.setItem(syncOkKey, savedAtIso);
+      } catch (syncOkError) {
+        console.error("[consistency SYNC] failed to store sync_ok flag:", syncOkError);
+      }
+    } catch (e) {
+      console.error("[consistency SYNC] request failed:", e);
+    }
+  }
+
+  /**
    * 画面右上の「整合性チェックステータス」表示を更新
    *
    * @param {Object} meta
@@ -1207,7 +1323,15 @@
     };
 
     if (questionText) {
-      updateConsistencyCheckStatus(meta, q);
+      if (meta && meta.qid) {
+        fetchConsistencySyncStatus(meta, q).then(function() {
+          updateConsistencyCheckStatus(meta, q);
+        }).catch(function() {
+          updateConsistencyCheckStatus(meta, q);
+        });
+      } else {
+        updateConsistencyCheckStatus(meta, q);
+      }
     }
 
     if (!isB) {
