@@ -1166,64 +1166,63 @@
           };
           localStorage.setItem(storageKey, JSON.stringify(storePayload));
 
+          var qid = meta && meta.qid ? String(meta.qid) : "";
+          var classificationDetail = "";
+          if (classificationCode === "A") {
+            classificationDetail = "正解";
+          } else if (classificationCode === "B") {
+            classificationDetail = "解説";
+          } else if (classificationCode === "C") {
+            classificationDetail = "選択肢";
+          } else if (classificationCode === "D") {
+            classificationDetail = "問題";
+          }
+          var syncPayload = {
+            status_mark: severityMark,
+            status_label: severityLabel,
+            classification_code: classificationCode,
+            classification_detail: classificationDetail,
+            saved_at: savedAtIso
+          };
+
           if (typeof window !== "undefined" && window.cscsConsistency && typeof window.cscsConsistency.saveLocal === "function") {
             try {
-              var qid = meta && meta.qid ? String(meta.qid) : "";
-              var classificationDetail = "";
-              if (classificationCode === "A") {
-                classificationDetail = "正解";
-              } else if (classificationCode === "B") {
-                classificationDetail = "解説";
-              } else if (classificationCode === "C") {
-                classificationDetail = "選択肢";
-              } else if (classificationCode === "D") {
-                classificationDetail = "問題";
-              }
-              var syncPayload = {
-                status_mark: severityMark,
-                status_label: severityLabel,
-                classification_code: classificationCode,
-                classification_detail: classificationDetail,
-                saved_at: savedAtIso
-              };
               window.cscsConsistency.saveLocal(qid, syncPayload);
-
-              if (qid) {
-                var syncBody = {
-                  kind: "consistency_status",
-                  qid: qid,
-                  status: syncPayload
-                };
-                if (typeof fetch === "function") {
-                  fetch("/api/sync-consistency", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(syncBody)
-                  }).then(function(response) {
-                    if (typeof localStorage !== "undefined") {
-                      try {
-                        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
-                        if (response && response.ok) {
-                          var syncedAt = new Date().toISOString();
-                          localStorage.setItem(syncOkKey, syncedAt);
-                        } else {
-                          localStorage.removeItem(syncOkKey);
-                        }
-                      } catch (syncStoreError) {
-                        console.error("整合性チェック結果の SYNC ステータス保存に失敗しました:", syncStoreError);
-                      }
-                    }
-                    return response;
-                  }).catch(function(syncError) {
-                    console.error("整合性チェック結果の SYNC 送信に失敗しました:", syncError);
-                  });
-                }
-              }
             } catch (consistencySaveError) {
               console.error("整合性チェック結果の cscsConsistency 保存に失敗しました:", consistencySaveError);
             }
+          }
+
+          if (qid && typeof fetch === "function") {
+            var syncBody = {
+              kind: "consistency_status",
+              qid: qid,
+              status: syncPayload
+            };
+            fetch("/api/sync-consistency", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(syncBody)
+            }).then(function(response) {
+              if (typeof localStorage !== "undefined") {
+                try {
+                  var syncOkKey = "cscs_consistency_sync_ok:" + qid;
+                  if (response && response.ok) {
+                    var syncedAt = new Date().toISOString();
+                    localStorage.setItem(syncOkKey, syncedAt);
+                  } else {
+                    localStorage.removeItem(syncOkKey);
+                  }
+                } catch (syncStoreError) {
+                  console.error("整合性チェック結果の SYNC ステータス保存に失敗しました:", syncStoreError);
+                }
+              }
+              return response;
+            }).catch(function(syncError) {
+              console.error("整合性チェック結果の SYNC 送信に失敗しました:", syncError);
+            });
           }
         } catch (storageError) {
           console.error("整合性チェック結果の localStorage 保存に失敗しました:", storageError);
