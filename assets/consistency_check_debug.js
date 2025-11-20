@@ -765,6 +765,7 @@
     var lines = [];
     lines.push("整合性チェック: 未");
     lines.push("ステータス: —");
+    lines.push("（—）");
     lines.push("種別: —");
     lines.push("最終: —");
 
@@ -878,16 +879,18 @@
 
           lines[0] = "整合性チェック: 済";
           if (severityMark) {
-            lines[1] = "ステータス: " + severityMark + "（" + (severityLabel || "") + "）";
+            lines[1] = "ステータス: " + severityMark;
+            lines[2] = "（" + (severityLabel || "") + "）";
           } else {
             lines[1] = "ステータス: —";
+            lines[2] = "（—）";
           }
           if (classificationCode) {
-            lines[2] = "種別: " + classificationCode;
+            lines[3] = "種別: " + classificationCode;
           } else {
-            lines[2] = "種別: —";
+            lines[3] = "種別: —";
           }
-          lines[3] = "最終: " + (savedLabel || "—");
+          lines[4] = "最終: " + (savedLabel || "—");
         }
       } catch (e) {
         console.error("整合性チェックステータスの読み込みに失敗しました:", e);
@@ -1036,7 +1039,7 @@
     showConsistencyResultPanel: showConsistencyResultPanel
   };
 
-  // Bパート用：整合性チェックボタンの自動生成
+  // Bパート用：整合性チェックボタンの自動生成（Aパートではステータス表示のみ）
   document.addEventListener("DOMContentLoaded", function() {
     var scripts = document.querySelectorAll('script[src$="consistency_check_debug.js"]');
     var isB = false;
@@ -1046,13 +1049,6 @@
         isB = true;
         break;
       }
-    }
-    if (!isB) {
-      return;
-    }
-
-    if (document.getElementById("cc-check-btn")) {
-      return;
     }
 
     var metaScript = document.getElementById("cscs-meta");
@@ -1109,10 +1105,6 @@
       }
     }
 
-    if (!questionText || choices.length === 0 || !explanationText) {
-      return;
-    }
-
     var q = {
       question: questionText,
       choices: choices,
@@ -1120,7 +1112,21 @@
       explanation: explanationText
     };
 
-    updateConsistencyCheckStatus(meta, q);
+    if (questionText) {
+      updateConsistencyCheckStatus(meta, q);
+    }
+
+    if (!isB) {
+      return;
+    }
+
+    if (document.getElementById("cc-check-btn")) {
+      return;
+    }
+
+    if (!questionText || choices.length === 0 || !explanationText) {
+      return;
+    }
 
     if (typeof localStorage !== "undefined") {
       try {
