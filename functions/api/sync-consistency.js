@@ -34,7 +34,7 @@ function buildCorsHeaders(request) {
     headers.set("Vary", "Origin");
   }
 
-  headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type");
   headers.set("Access-Control-Max-Age", "86400");
 
@@ -54,6 +54,28 @@ export async function onRequestOptions(context) {
   const { request } = context;
   const headers = buildCorsHeaders(request);
   return new Response(null, { status: 204, headers: headers });
+}
+
+// GET /api/sync-consistency?qid=...
+export async function onRequestGet(context) {
+  const { request } = context;
+  const url = new URL(request.url);
+  const qid = url.searchParams.get("qid") || "";
+
+  if (!qid) {
+    return jsonResponse(request, 400, {
+      ok: false,
+      error: "Missing qid parameter.",
+      items: []
+    });
+  }
+
+  // いまは永続ストレージ未実装のため、常に空の items を返すだけ
+  // （将来 KV / D1 / R2 に保存するようになったら、ここで qid から読み出す）
+  return jsonResponse(request, 200, {
+    ok: true,
+    items: []
+  });
 }
 
 // POST /api/sync-consistency
@@ -81,11 +103,14 @@ export async function onRequestPost(context) {
   const cleaned = items.map(function(item) {
     const kind = String(item && item.kind ? item.kind : "");
     const qid = String(item && item.qid ? item.qid : "");
-    const statusMark = String(item && item.status_mark ? item.status_mark : "");
-    const statusLabel = String(item && item.status_label ? item.status_label : "");
-    const classificationCode = String(item && item.classification_code ? item.classification_code : "");
-    const classificationDetail = String(item && item.classification_detail ? item.classification_detail : "");
-    const savedAt = String(item && item.saved_at ? item.saved_at : "");
+
+    // status オブジェクト経由で受け取る形にそろえる
+    const statusObj = item && item.status ? item.status : {};
+    const statusMark = String(statusObj && statusObj.status_mark ? statusObj.status_mark : "");
+    const statusLabel = String(statusObj && statusObj.status_label ? statusObj.status_label : "");
+    const classificationCode = String(statusObj && statusObj.classification_code ? statusObj.classification_code : "");
+    const classificationDetail = String(statusObj && statusObj.classification_detail ? statusObj.classification_detail : "");
+    const savedAt = String(statusObj && statusObj.saved_at ? statusObj.saved_at : "");
 
     return {
       kind: kind,
