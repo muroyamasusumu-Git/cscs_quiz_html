@@ -473,6 +473,8 @@
       severityLabel = "変更必要なし";
     }
 
+    var classificationText = classificationLabel.replace(/^.\.\s*/, "");
+
     var html = "";
 
     html += '<div class="cc-panel-header-row">';
@@ -485,7 +487,7 @@
     html += "</div>";
 
     html += '<div class="cc-panel-classification">';
-    html += '<div class="cc-classification-title">分類結果: ' + classificationCode + " ／ " + classificationLabel.replace(/^.\.\s*/, "") + "（修正優先度: " + classificationPriority + "）</div>";
+    html += '<div class="cc-classification-title">分類結果: ' + classificationCode + " ／ " + severityMark + ". " + classificationText + "（修正優先度: " + classificationPriority + "）</div>";
     if (classificationReason) {
       html += '<div class="cc-classification-reason">' + classificationReason + "</div>";
     }
