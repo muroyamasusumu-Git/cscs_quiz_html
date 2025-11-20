@@ -631,12 +631,27 @@
 
     panel.addEventListener("click", function(e) {
       e.stopPropagation();
+      e.preventDefault();
     });
+
+    if (panel._ccGlobalClickBlocker && typeof window.removeEventListener === "function") {
+      window.removeEventListener("click", panel._ccGlobalClickBlocker, true);
+    }
+    var globalClickBlocker = function(e) {
+      var panelEl = document.getElementById("cscs-consistency-panel");
+      if (panelEl && panelEl.contains(e.target)) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("click", globalClickBlocker, true);
+    panel._ccGlobalClickBlocker = globalClickBlocker;
 
     var closeBtn = document.getElementById("cscs-consistency-panel-close");
     if (closeBtn) {
       closeBtn.addEventListener("click", function(e) {
         e.stopPropagation();
+        e.preventDefault();
 
         var body = panel.querySelector(".cc-panel-body");
         var titleEl = panel.querySelector(".cc-panel-header-title");
