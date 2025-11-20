@@ -861,7 +861,16 @@
    * @param {Object} q
    */
   function clearConsistencySyncStatus(meta, q) {
+    var qid = meta && meta.qid ? String(meta.qid) : "";
+
     if (typeof localStorage === "undefined") {
+      if (qid && typeof fetch === "function") {
+        fetch("/api/sync-consistency?qid=" + encodeURIComponent(qid), {
+          method: "DELETE"
+        }).catch(function(e) {
+          console.error("整合性チェック SYNC 削除リクエストに失敗しました:", e);
+        });
+      }
       updateConsistencyCheckStatus(meta, q);
       return;
     }
@@ -873,13 +882,36 @@
       console.error("整合性チェック結果の削除に失敗しました:", removeError);
     }
 
-    var qid = meta && meta.qid ? String(meta.qid) : "";
     if (qid) {
       try {
         var syncOkKey = "cscs_consistency_sync_ok:" + qid;
         localStorage.removeItem(syncOkKey);
       } catch (syncRemoveError) {
         console.error("整合性チェック SYNC ステータスの削除に失敗しました:", syncRemoveError);
+      }
+
+      if (typeof fetch === "function") {
+        fetch("/api/sync-consistency?qid=" + encodeURIComponent(qid), {
+          method: "DELETE"
+        }).then(function(response) {
+          if (!response || !response.ok) {
+            console.error("整合性チェック SYNC 削除 API エラー:", response && response.status);
+          }
+          try {
+            updateConsistencyCheckStatus(meta, q);
+          } catch (updateError) {
+            console.error("整合性チェックステータスの更新に失敗しました:", updateError);
+          }
+          return response;
+        }).catch(function(e) {
+          console.error("整合性チェック SYNC 削除リクエストに失敗しました:", e);
+          try {
+            updateConsistencyCheckStatus(meta, q);
+          } catch (updateError2) {
+            console.error("整合性チェックステータスの更新に失敗しました:", updateError2);
+          }
+        });
+        return;
       }
     }
 

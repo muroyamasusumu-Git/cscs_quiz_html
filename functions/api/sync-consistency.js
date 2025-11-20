@@ -34,7 +34,7 @@ function buildCorsHeaders(request) {
     headers.set("Vary", "Origin");
   }
 
-  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type");
   headers.set("Access-Control-Max-Age", "86400");
 
@@ -166,6 +166,55 @@ export async function onRequestPost(context) {
     ok: true,
     stored_count: cleaned.length,
     items: cleaned
+  });
+}
+
+// DELETE /api/sync-consistency?qid=...
+export async function onRequestDelete(context) {
+  const { request, env } = context;
+  const corsHeaders = buildCorsHeaders(request);
+  const url = new URL(request.url);
+  const qid = url.searchParams.get("qid") || "";
+
+  if (request.method !== "DELETE") {
+    return new Response("Method Not Allowed", {
+      status: 405,
+      headers: corsHeaders
+    });
+  }
+
+  if (!qid) {
+    return jsonResponse(request, 400, {
+      ok: false,
+      error: "Missing qid parameter.",
+      deleted: false
+    });
+  }
+
+  const key = "consistency_status:" + qid;
+  let deleteError = null;
+
+  if (env && env.SYNC && typeof env.SYNC.delete === "function") {
+    try {
+      await env.SYNC.delete(key);
+    } catch (e) {
+      console.error("[sync-consistency] KV delete error:", e);
+      deleteError = e;
+    }
+  }
+
+  if (deleteError) {
+    return jsonResponse(request, 500, {
+      ok: false,
+      error: "KV delete failed.",
+      deleted: false
+    });
+  }
+
+  return jsonResponse(request, 200, {
+    ok: true,
+    deleted: true,
+    qid: qid
   });
 }
 
