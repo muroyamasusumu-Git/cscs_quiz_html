@@ -855,6 +855,38 @@
   }
 
   /**
+   * SYNC 状態とローカル結果を削除し、ステータス表示をリセットする
+   *
+   * @param {Object} meta
+   * @param {Object} q
+   */
+  function clearConsistencySyncStatus(meta, q) {
+    if (typeof localStorage === "undefined") {
+      updateConsistencyCheckStatus(meta, q);
+      return;
+    }
+
+    var storageKey = getConsistencyStorageKey(meta, q);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (removeError) {
+      console.error("整合性チェック結果の削除に失敗しました:", removeError);
+    }
+
+    var qid = meta && meta.qid ? String(meta.qid) : "";
+    if (qid) {
+      try {
+        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
+        localStorage.removeItem(syncOkKey);
+      } catch (syncRemoveError) {
+        console.error("整合性チェック SYNC ステータスの削除に失敗しました:", syncRemoveError);
+      }
+    }
+
+    updateConsistencyCheckStatus(meta, q);
+  }
+
+  /**
    * 画面右上の「整合性チェックステータス」表示を更新
    *
    * @param {Object} meta
@@ -1219,6 +1251,11 @@
                   console.error("整合性チェック結果の SYNC ステータス保存に失敗しました:", syncStoreError);
                 }
               }
+              try {
+                updateConsistencyCheckStatus(meta, q);
+              } catch (updateError) {
+                console.error("整合性チェックステータスの即時更新に失敗しました:", updateError);
+              }
               return response;
             }).catch(function(syncError) {
               console.error("整合性チェック結果の SYNC 送信に失敗しました:", syncError);
@@ -1377,6 +1414,17 @@
       window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
     });
 
+    var clearBtn = document.createElement("button");
+    clearBtn.id = "cc-sync-clear-btn";
+    clearBtn.type = "button";
+    clearBtn.textContent = "SYNC削除";
+
+    clearBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      clearConsistencySyncStatus(meta, q);
+    });
+
     var wrapper = document.getElementById("cc-check-wrapper");
     if (!wrapper) {
       wrapper = document.createElement("div");
@@ -1386,6 +1434,7 @@
     }
 
     wrapper.appendChild(btn);
+    wrapper.appendChild(clearBtn);
   });
 
 })();
