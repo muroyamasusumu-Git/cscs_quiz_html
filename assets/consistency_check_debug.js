@@ -768,6 +768,7 @@
     lines.push("—");
     lines.push("種別: —");
     lines.push("最終: —");
+    lines.push("SYNC: 未保存");
 
     if (typeof localStorage !== "undefined") {
       try {
@@ -908,6 +909,21 @@
           }
 
           lines[4] = "最終: " + (savedLabel || "—");
+
+          var syncStatusLabel = "SYNC: 未保存";
+          var qidForSync = meta && meta.qid ? String(meta.qid) : "";
+          if (qidForSync && typeof localStorage !== "undefined") {
+            try {
+              var syncOkKey = "cscs_consistency_sync_ok:" + qidForSync;
+              var syncOkValue = localStorage.getItem(syncOkKey);
+              if (syncOkValue) {
+                syncStatusLabel = "SYNC: 保存済";
+              }
+            } catch (syncReadError) {
+              console.error("整合性チェック SYNC ステータスの読み込みに失敗しました:", syncReadError);
+            }
+          }
+          lines[5] = syncStatusLabel;
         }
       } catch (e) {
         console.error("整合性チェックステータスの読み込みに失敗しました:", e);
@@ -1064,6 +1080,21 @@
                       "Content-Type": "application/json"
                     },
                     body: JSON.stringify(syncBody)
+                  }).then(function(response) {
+                    if (typeof localStorage !== "undefined") {
+                      try {
+                        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
+                        if (response && response.ok) {
+                          var syncedAt = new Date().toISOString();
+                          localStorage.setItem(syncOkKey, syncedAt);
+                        } else {
+                          localStorage.removeItem(syncOkKey);
+                        }
+                      } catch (syncStoreError) {
+                        console.error("整合性チェック結果の SYNC ステータス保存に失敗しました:", syncStoreError);
+                      }
+                    }
+                    return response;
                   }).catch(function(syncError) {
                     console.error("整合性チェック結果の SYNC 送信に失敗しました:", syncError);
                   });
