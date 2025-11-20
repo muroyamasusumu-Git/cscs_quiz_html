@@ -875,7 +875,12 @@
       statusDiv = document.createElement("div");
       statusDiv.id = "cc-check-status";
 
-      wrapper.appendChild(statusDiv);
+      var btnInWrapper = document.getElementById("cc-check-btn");
+      if (btnInWrapper && btnInWrapper.parentNode === wrapper) {
+        wrapper.insertBefore(statusDiv, btnInWrapper);
+      } else {
+        wrapper.appendChild(statusDiv);
+      }
     }
 
     var lines = [];
@@ -1381,12 +1386,7 @@
       wrapperParent.appendChild(wrapper);
     }
 
-    var statusDivForOrder = document.getElementById("cc-check-status");
-    if (statusDivForOrder && statusDivForOrder.parentNode === wrapper) {
-      wrapper.insertBefore(btn, statusDivForOrder);
-    } else {
-      wrapper.appendChild(btn);
-    }
+    wrapper.appendChild(btn);
   });
 
 })();
