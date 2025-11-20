@@ -765,7 +765,7 @@
     var lines = [];
     lines.push("整合性チェック: 未");
     lines.push("ステータス: —");
-    lines.push("（—）");
+    lines.push("—");
     lines.push("種別: —");
     lines.push("最終: —");
 
@@ -880,16 +880,33 @@
           lines[0] = "整合性チェック: 済";
           if (severityMark) {
             lines[1] = "ステータス: " + severityMark;
-            lines[2] = "（" + (severityLabel || "") + "）";
+            lines[2] = severityLabel || "—";
           } else {
             lines[1] = "ステータス: —";
-            lines[2] = "（—）";
+            lines[2] = "—";
           }
+
+          var typeDetail = "";
+          if (classificationCode === "A") {
+            typeDetail = "正解";
+          } else if (classificationCode === "B") {
+            typeDetail = "解説";
+          } else if (classificationCode === "C") {
+            typeDetail = "選択肢";
+          } else if (classificationCode === "D") {
+            typeDetail = "問題";
+          }
+
           if (classificationCode) {
-            lines[3] = "種別: " + classificationCode;
+            if (typeDetail) {
+              lines[3] = "種別: " + classificationCode + " / " + typeDetail;
+            } else {
+              lines[3] = "種別: " + classificationCode;
+            }
           } else {
             lines[3] = "種別: —";
           }
+
           lines[4] = "最終: " + (savedLabel || "—");
         }
       } catch (e) {
