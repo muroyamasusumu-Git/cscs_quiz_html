@@ -1381,7 +1381,12 @@
       wrapperParent.appendChild(wrapper);
     }
 
-    wrapper.appendChild(btn);
+    var statusDivForOrder = document.getElementById("cc-check-status");
+    if (statusDivForOrder && statusDivForOrder.parentNode === wrapper) {
+      wrapper.insertBefore(btn, statusDivForOrder);
+    } else {
+      wrapper.appendChild(btn);
+    }
   });
 
 })();
