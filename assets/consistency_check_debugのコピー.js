@@ -1027,15 +1027,6 @@
             classification_priority: classificationPriority
           };
           localStorage.setItem(storageKey, JSON.stringify(storePayload));
-
-          if (typeof window !== "undefined" && window.cscsConsistency && typeof window.cscsConsistency.saveLocal === "function") {
-            try {
-              var qid = meta && meta.qid ? String(meta.qid) : "";
-              window.cscsConsistency.saveLocal(qid, severityMark);
-            } catch (consistencySaveError) {
-              console.error("整合性チェック結果の cscsConsistency 保存に失敗しました:", consistencySaveError);
-            }
-          }
         } catch (storageError) {
           console.error("整合性チェック結果の localStorage 保存に失敗しました:", storageError);
         }
