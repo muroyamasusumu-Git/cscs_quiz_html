@@ -1119,10 +1119,11 @@
               severityLabel = "変更必要なし";
             }
 
-            var el = document.querySelector('.consistency_status');
-            if (el) {
-              el.textContent = severityMark;
-            }
+          // ▼▼▼ ブロックの最後に移動する：ここが置換後コード ▼▼▼
+          var el = document.querySelector('.consistency_status');
+          if (el) {
+            el.textContent = severityMark;
+          }
           } else if (!severityLabel) {
             if (classificationPriority === "高") {
               severityLabel = "変更が必要（優先度/高）";
