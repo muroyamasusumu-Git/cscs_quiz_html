@@ -209,7 +209,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
-<script src="../../assets/b_judge.js" data-stem="q030" data-audio-base="/_build_cscs_20250926/audio" data-ext=".m4a"></script>
+<script src="../../assets/b_judge.js" data-stem="q030" data-audio-base="/_build_cscs_20250926/audio" data-ext=".wav"></script>
 
 
 <script>
@@ -236,6 +236,43 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 <script src="../../assets/b_judge_record.js" defer></script>
 
+
+    <script>
+    (function(){
+      if (window.__b_audio_btn_installed) return;
+      window.__b_audio_btn_installed = true;
+      const src = "/_build_cscs_20250926/audio/q030_b.wav";
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.playsInline = true;
+
+      function ensureBtn(){
+        var btn = document.querySelector(".audio-fallback-btn");
+        if (btn) return btn;
+        btn = document.createElement("button");
+        btn.textContent = "🔊 音声を再生";
+        btn.className = "audio-fallback-btn";
+        btn.addEventListener("click", function(){
+          try{
+            audio.currentTime = 0;
+            audio.play().catch(function(){
+              btn.textContent = "再生できません（ブラウザ設定を確認）";
+            });
+          }catch(e){
+            btn.textContent = "再生できません（ブラウザ設定を確認）";
+          }
+        });
+        document.addEventListener("DOMContentLoaded", function(){
+          document.body.appendChild(btn);
+        });
+        return btn;
+      }
+
+      // 常時ボタンを出しておく（自動再生はしない）
+      ensureBtn();
+    })();
+    </script>
+        
 
 <link rel="stylesheet" href="../../assets/wrong_badge.css">
 <script src="../../assets/wrong_badge.js" defer></script>
@@ -328,7 +365,7 @@ ol.opts li.is-correct a.opt-link {
 <div id="root">
   <div class="wrap">
     <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 問題集 (1/90)</div><div class='top-number'>番号: <span class='top-number-val'>30/30</span></div><div class='top-level'>Lvl 5</div></div><div class='topmeta-right'></div></div>
-    <div class='qno'><span class="top-date">2025年9月26日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>酸素摂取量</span></div>
+    <div class='qno'><span class="consistency_status">◎</span><span class="top-date">2025年9月26日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>酸素摂取量</span></div>
     <h1 style="">運動強度が上がると酸素摂取量が増える理由はどれか？</h1>
     <ol class='opts' type='A'><li>SVが低下する</li><li>毛細血管数が減る</li><li class="is-correct">動静脈酸素較差が増大する</li><li>筋温が低下する</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>

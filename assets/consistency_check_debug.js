@@ -1103,6 +1103,11 @@
               severityMark = "◎";
               severityLabel = "変更必要なし";
             }
+
+            var el = document.querySelector('.consistency_status');
+            if (el) {
+              el.textContent = severityMark;
+            }
           } else if (!severityLabel) {
             if (classificationPriority === "高") {
               severityLabel = "変更が必要（優先度/高）";

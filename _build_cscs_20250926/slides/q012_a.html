@@ -634,6 +634,52 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       </script>
     
 
+  <script>
+    function autoPlayAudio(src) {
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.playsInline = true;
+      const p = audio.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          const btn = document.createElement("button");
+          btn.textContent = "🔊 音声を再生";
+          btn.className = "audio-fallback-btn";
+          btn.addEventListener("click", () => {
+            audio.play().then(() => btn.remove()).catch(() => {
+              btn.textContent = "再生できません（ブラウザ設定を確認）";
+            });
+          });
+          document.body.appendChild(btn);
+        });
+      }
+    }
+    window.addEventListener("DOMContentLoaded", () => {
+      autoPlayAudio("/_build_cscs_20250926/audio/q012_a.wav");
+    });
+  </script>
+  <style>
+
+/* 失敗時にだけ出る小さな再生ボタン */
+.audio-fallback-btn{
+  position: fixed;
+  right: 16px;
+  bottom: 16px; /* 右下配置（現状維持） */
+  padding: 8px 12px;
+  font-size: 16px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: .9;
+  z-index: 10000; /* Bのオーバーレイより前面 */
+}
+.audio-fallback-btn:hover{ opacity: 1; }
+
+  </style>
+
+
       <script> try{ maybeStartNewRunIfRequested(); }catch(_){} </script>
     
 
@@ -689,7 +735,7 @@ h1 { font-size: var(--h1-fs, inherit); }
   <div class="wrap">
     <div id="cc-check-wrapper" class="cc-check-wrapper"></div>
     <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 問題集 (1/90)</div><div class='top-number'>番号: <span class='top-number-val'>12/30</span></div><div class='top-level'>Lvl 2</div></div><div class='topmeta-right'></div></div>
-    <div class='qno'><span class="top-date">2025年9月26日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>無酸素性代謝</span></div>
+    <div class='qno'><span class="consistency_status">◎</span><span class="top-date">2025年9月26日</span><span class='crumb-field'>運動生理学</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>無酸素性代謝</span></div>
     <h1 style="">乳酸性作業閾値​（​LT​）​はどのような点を示すか？</h1>
     <ol class='opts' type='A'><li><a class="opt-link" href="q012_b.html?choice=A">VO2maxの低下点</a></li><li><a class="opt-link" href="q012_b.html?choice=B">筋グリコーゲン枯渇点</a></li><li><a class="opt-link" href="q012_b.html?choice=C">心拍数が最大の点</a></li><li><a class="opt-link" href="q012_b.html?choice=D">乳酸生成が除去を上回る点</a></li></ol>
     <div class='hint'>（この後、正解と解説が表示されます）</div>

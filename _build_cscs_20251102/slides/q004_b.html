@@ -209,7 +209,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
-<script src="../../assets/b_judge.js" data-stem="q004" data-audio-base="/_build_cscs_20251102/audio" data-ext=".m4a"></script>
+<script src="../../assets/b_judge.js" data-stem="q004" data-audio-base="/_build_cscs_20251102/audio" data-ext=".wav"></script>
 
 
 <script>
@@ -241,7 +241,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     (function(){
       if (window.__b_audio_btn_installed) return;
       window.__b_audio_btn_installed = true;
-      const src = "/_build_cscs_20251102/audio/q004_b.m4a";
+      const src = "/_build_cscs_20251102/audio/q004_b.wav";
       const audio = new Audio(src);
       audio.preload = "auto";
       audio.playsInline = true;
@@ -328,6 +328,9 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       function goNext(){ window.location.href = nextHref; }
 
       document.addEventListener("click", (e) => {
+        // ▼ 追加：整合性チェックパネル内なら遷移しない
+        if (e.target.closest("#cscs-consistency-panel")) return;
+
         // Deep Dive または お気に入りモーダル操作中は遷移しない
         if (isDeepDiveOpen() || clickIsInsideDeepDive(e.target)) return;
         if (isFavOpen() || clickIsInsideFav(e.target)) return;
@@ -433,7 +436,7 @@ ol.opts li.is-correct a.opt-link {
 <div id="root">
   <div class="wrap">
     <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 問題集 (38/90)</div><div class='top-number'>番号: <span class='top-number-val'>4/30</span></div><div class='top-level'>Lvl 1</div></div><div class='topmeta-right'></div></div>
-    <div class='qno'><span class="top-date">2025年11月2日</span><span class='crumb-field'>エクササイズテクニック</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>フォーム分析</span></div>
+    <div class='qno'><span class="consistency_status">◎</span><span class="top-date">2025年11月2日</span><span class='crumb-field'>エクササイズテクニック</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>フォーム分析</span></div>
     <h1 style="">オーバーヘッドプレス時の誤りとして最も多いのはどれか？</h1>
     <ol class='opts' type='A'><li>肘のロック</li><li class="is-correct">体幹の反りすぎ</li><li>前腕の内旋不足</li><li>足幅が広すぎる</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>

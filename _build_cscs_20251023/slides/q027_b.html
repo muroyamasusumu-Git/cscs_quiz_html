@@ -209,7 +209,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
-<script src="../../assets/b_judge.js" data-stem="q027" data-audio-base="/_build_cscs_20251023/audio" data-ext=".m4a"></script>
+<script src="../../assets/b_judge.js" data-stem="q027" data-audio-base="/_build_cscs_20251023/audio" data-ext=".wav"></script>
 
 
 <script>
@@ -241,7 +241,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
     (function(){
       if (window.__b_audio_btn_installed) return;
       window.__b_audio_btn_installed = true;
-      const src = "/_build_cscs_20251023/audio/q027_b.m4a";
+      const src = "/_build_cscs_20251023/audio/q027_b.wav";
       const audio = new Audio(src);
       audio.preload = "auto";
       audio.playsInline = true;
@@ -328,6 +328,9 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       function goNext(){ window.location.href = nextHref; }
 
       document.addEventListener("click", (e) => {
+        // ▼ 追加：整合性チェックパネル内なら遷移しない
+        if (e.target.closest("#cscs-consistency-panel")) return;
+
         // Deep Dive または お気に入りモーダル操作中は遷移しない
         if (isDeepDiveOpen() || clickIsInsideDeepDive(e.target)) return;
         if (isFavOpen() || clickIsInsideFav(e.target)) return;
@@ -433,7 +436,7 @@ ol.opts li.is-correct a.opt-link {
 <div id="root">
   <div class="wrap">
     <div class='topmeta'><div class='topmeta-left'><div class='top-title'>NSCA CSCS 問題集 (28/90)</div><div class='top-number'>番号: <span class='top-number-val'>27/30</span></div><div class='top-level'>Lvl 5</div></div><div class='topmeta-right'></div></div>
-    <div class='qno'><span class="top-date">2025年10月23日</span><span class='crumb-field'>パフォーマンス向上物質</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>倫理的配慮</span></div>
+    <div class='qno'><span class="consistency_status">◎</span><span class="top-date">2025年10月23日</span><span class='crumb-field'>パフォーマンス向上物質</span><span class='crumb-sep'> ＞ </span><span class='crumb-theme'>倫理的配慮</span></div>
     <h1 style="">持続的パフォーマンス向上のため最も重要なのはどれか？</h1>
     <ol class='opts' type='A'><li class="is-correct">睡眠・栄養・トレーニング最適化</li><li>禁止薬物使用</li><li>短期減量法</li><li>脱水戦略</li></ol>
     <div id="judge" class="answer" aria-live="polite"></div>
