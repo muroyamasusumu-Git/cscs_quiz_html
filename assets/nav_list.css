@@ -41,7 +41,7 @@
   overflow: auto;
   background: var(--nl-bg);
   border: 1px solid var(--nl-border);
-  border-radius: 12px;
+  border-radius: 0px;
   padding: 0 0 0 !important;
   z-index: 99999;
   display: none;
