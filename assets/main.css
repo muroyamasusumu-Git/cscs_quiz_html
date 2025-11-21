@@ -226,6 +226,11 @@ margin-left: 10px;
   color: #ffffff !important; 
 }
 
+#cscs-consistency-panel #cscs-consistency-toggle-link{
+  color: #ffffff !important; 
+}
+
+
 /* ボタン共通 */
 
 #cscs-consistency-panel .cc-btn {
