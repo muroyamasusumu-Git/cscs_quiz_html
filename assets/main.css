@@ -125,6 +125,11 @@ padding-top: 10px;
 margin: 10px 0 0;
 }
 
+.consistency_status {
+margin: 0 10px 0 0;
+}
+
+
 .explain {
 font-size: 20px;
 margin: 10px 0 0;
