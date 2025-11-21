@@ -92,10 +92,8 @@
     var isActive = hasStreak3(qid);
 
     if (isActive) {
-      starElement.style.display = "inline-block";
       starElement.setAttribute("data-star-state", "on");
     } else {
-      starElement.style.display = "none";
       starElement.setAttribute("data-star-state", "off");
     }
   }
