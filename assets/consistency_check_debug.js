@@ -630,7 +630,6 @@
     panel.innerHTML = buildConsistencyResultHtml(meta, q, result, strict);
 
     panel.addEventListener("click", function(e) {
-      // パネル内のクリックはここでは特別な処理を行わない（ボタンのハンドラを優先）
     });
 
     if (panel._ccGlobalClickBlocker && typeof window.removeEventListener === "function") {
@@ -643,50 +642,47 @@
       panel._ccGlobalClickBlocker = null;
     }
 
+    var bodyEl = panel.querySelector(".cc-panel-body");
+    var titleEl = panel.querySelector(".cc-panel-header-title");
+    var actionsEl = panel.querySelector(".cc-panel-header-actions");
+
+    function consistencyToggleClickHandler(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var isOpen = true;
+      if (bodyEl && bodyEl.style.display === "none") {
+        isOpen = false;
+      }
+      setConsistencyPanelOpen(!isOpen);
+    }
+
+    function setConsistencyPanelOpen(open) {
+      if (bodyEl) {
+        bodyEl.style.display = open ? "" : "none";
+      }
+      if (actionsEl) {
+        actionsEl.style.display = open ? "" : "none";
+      }
+      if (titleEl) {
+        var severityForHeader = titleEl.getAttribute("data-severity-mark") || "";
+        var baseLabel = "整合性チェック結果";
+        var linkText = "[" + baseLabel + (severityForHeader ? "：" + severityForHeader : "") + (open ? " を閉じる" : " 詳細を見る") + "]";
+        titleEl.innerHTML = '<a href="#" id="cscs-consistency-toggle-link">' + linkText + "</a>";
+        var toggleLink = document.getElementById("cscs-consistency-toggle-link");
+        if (toggleLink) {
+          toggleLink.addEventListener("click", consistencyToggleClickHandler);
+        }
+      }
+    }
+
+    setConsistencyPanelOpen(true);
+
     var closeBtn = document.getElementById("cscs-consistency-panel-close");
     if (closeBtn) {
       closeBtn.addEventListener("click", function(e) {
         e.stopPropagation();
         e.preventDefault();
-
-        var body = panel.querySelector(".cc-panel-body");
-        var titleEl = panel.querySelector(".cc-panel-header-title");
-        var actionsEl = panel.querySelector(".cc-panel-header-actions");
-
-        if (body) {
-          body.style.display = "none";
-        }
-
-        if (actionsEl) {
-          actionsEl.style.display = "none";
-        }
-
-        if (titleEl) {
-          var severityForHeader = titleEl.getAttribute("data-severity-mark") || "";
-          var linkText = "[整合性チェック結果" + (severityForHeader ? "：" + severityForHeader : "") + " 詳細を見る]";
-          titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + linkText + "</a>";
-          var reopenLink = document.getElementById("cscs-consistency-reopen-link");
-          if (reopenLink) {
-            reopenLink.addEventListener("click", function(ev) {
-              ev.preventDefault();
-              ev.stopPropagation();
-
-              if (body) {
-                body.style.display = "";
-              }
-
-              if (actionsEl) {
-                actionsEl.style.display = "";
-              }
-
-              if (titleEl) {
-                var severityForHeaderInner = titleEl.getAttribute("data-severity-mark") || "";
-                var headerTitleTextInner = "[整合性チェック結果" + (severityForHeaderInner ? "：" + severityForHeaderInner : "") + "]";
-                titleEl.textContent = headerTitleTextInner;
-              }
-            });
-          }
-        }
+        setConsistencyPanelOpen(false);
       });
     }
 
