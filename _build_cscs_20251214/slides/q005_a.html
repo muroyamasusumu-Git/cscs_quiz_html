@@ -634,52 +634,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       </script>
     
 
-  <script>
-    function autoPlayAudio(src) {
-      const audio = new Audio(src);
-      audio.preload = "auto";
-      audio.playsInline = true;
-      const p = audio.play();
-      if (p && typeof p.catch === "function") {
-        p.catch(() => {
-          const btn = document.createElement("button");
-          btn.textContent = "🔊 音声を再生";
-          btn.className = "audio-fallback-btn";
-          btn.addEventListener("click", () => {
-            audio.play().then(() => btn.remove()).catch(() => {
-              btn.textContent = "再生できません（ブラウザ設定を確認）";
-            });
-          });
-          document.body.appendChild(btn);
-        });
-      }
-    }
-    window.addEventListener("DOMContentLoaded", () => {
-      autoPlayAudio("/_build_cscs_20251214/audio/q005_a.wav");
-    });
-  </script>
-  <style>
-
-/* 失敗時にだけ出る小さな再生ボタン */
-.audio-fallback-btn{
-  position: fixed;
-  right: 16px;
-  bottom: 16px; /* 右下配置（現状維持） */
-  padding: 8px 12px;
-  font-size: 16px;
-  background: #222;
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 8px;
-  cursor: pointer;
-  opacity: .9;
-  z-index: 10000; /* Bのオーバーレイより前面 */
-}
-.audio-fallback-btn:hover{ opacity: 1; }
-
-  </style>
-
-
       <script> try{ maybeStartNewRunIfRequested(); }catch(_){} </script>
     
 
