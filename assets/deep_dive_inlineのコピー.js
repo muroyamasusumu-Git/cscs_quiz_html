@@ -481,16 +481,77 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       body.style.fontSize = "16px";
 
       let generating = false;
-      // initial: 未生成, open: 表示中, closed: 非表示（セッションには保存済み）
-      let state = "initial";
 
-      function attachClearLink(){
-        // 既存の消去リンクがあれば一度削除
-        const existingClear = body.querySelector(".dd-clear");
-        if (existingClear && existingClear.parentElement) {
-          existingClear.parentElement.removeChild(existingClear);
+      async function doGenerate(){
+        if(generating) return;
+        generating = true;
+        setLoading(body, true);
+        body.innerHTML = "生成中…";
+
+        try{
+          body.innerHTML = "生成中…";
+          const result = await generateDeepDive(sectionKey, ctx);
+          const text = result?.text || "";
+          // 本文を表示
+          body.innerHTML = text || "(内容なし)";
+
+          // 末尾：消去ボタン
+          const clear = document.createElement("a");
+          clear.href = "javascript:void(0)";
+          clear.className = "dd-clear";
+          clear.style.marginLeft = "0.5rem";
+          clear.style.textDecoration = "underline";
+          clear.textContent = "[×消去]";
+          clear.addEventListener("click", () => {
+            // セッションキャッシュも削除して完全に消去
+            deleteSession(sectionKey, ctx);
+
+            // UIを消去
+            body.innerHTML = "";
+
+            // 見出しを再表示（再生成フローは廃止）
+            head.style.display = "";
+            head.textContent = `[${headLabel}を生成]`;
+          });
+          // 末尾の段落/リスト内に消去リンクを内包させる（改行防止）
+          let container = body;
+          const deepLastP = body.querySelector("section p:last-of-type, div p:last-of-type, p:last-of-type");
+          if (deepLastP) {
+            container = deepLastP;
+          } else {
+            const lastEl = body.lastElementChild;
+            if (lastEl && /^(P|UL|OL)$/i.test(lastEl.tagName)) container = lastEl;
+          }
+          container.insertAdjacentHTML("beforeend", "&nbsp;");
+          container.appendChild(clear);
+
+          // 見出しは消してスペース節約
+          head.style.display = "none";
+
+          // セッションキャッシュ保存
+          saveSession(sectionKey, ctx, result);
+
+        }catch(e){
+          console.warn("generate failed", e);
+          body.innerHTML = "生成に失敗しました。もう一度お試しください。";
+          // 失敗時は見出しを表示して再試行可能に
+          head.style.display = "";
+          head.textContent = `[${headLabel}を生成]`;
+        }finally{
+          setLoading(body, false);
+          generating = false;
         }
+      }
 
+      head.addEventListener("click", () => { doGenerate(); });
+      head.addEventListener("keydown",(ev)=>{
+        if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); doGenerate(); }
+      });
+
+      // 復元（あれば）…復元時は見出しは非表示で、本文＋[×消去]のみ表示
+      const cached = loadSession(sectionKey, ctx);
+      if(cached && cached.text){
+        body.innerHTML = cached.text;
         const clear = document.createElement("a");
         clear.href = "javascript:void(0)";
         clear.className = "dd-clear";
@@ -503,13 +564,9 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
           // UIをクリア
           body.innerHTML = "";
-          body.style.display = "";
-
-          // 見出しを「生成」に戻す
+          head.style.display = "";
           head.textContent = `[${headLabel}を生成]`;
-          state = "initial";
         });
-
         // 末尾の段落/リスト内に消去リンクを内包させる（改行防止）
         let container = body;
         const deepLastP = body.querySelector("section p:last-of-type, div p:last-of-type, p:last-of-type");
@@ -521,94 +578,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         }
         container.insertAdjacentHTML("beforeend", "&nbsp;");
         container.appendChild(clear);
-      }
-
-      async function doGenerate(){
-        if (generating) return;
-        generating = true;
-        state = "initial";
-        setLoading(body, true);
-        body.style.display = "";
-        body.innerHTML = "生成中…";
-
-        try{
-          const result = await generateDeepDive(sectionKey, ctx);
-          const text = result?.text || "";
-          // 本文を表示
-          body.innerHTML = text || "(内容なし)";
-
-          // 消去ボタンを付与
-          attachClearLink();
-
-          // 見出しは表示したまま「閉じる」に変更
-          head.textContent = `[${headLabel}を閉じる]`;
-          state = "open";
-
-          // セッションキャッシュ保存
-          saveSession(sectionKey, ctx, result);
-
-        }catch(e){
-          console.warn("generate failed", e);
-          body.innerHTML = "生成に失敗しました。もう一度お試しください。";
-          // 失敗時は「生成」のまま再試行可能に
-          head.textContent = `[${headLabel}を生成]`;
-          state = "initial";
-        }finally{
-          setLoading(body, false);
-          generating = false;
-        }
-      }
-
-      function handleToggle(){
-        // まだ生成していない場合：生成フローへ
-        if (state === "initial") {
-          doGenerate();
-          return;
-        }
-
-        // 表示中 → 「閉じる」動作：テキストは残したまま非表示にして見出しを「見る」へ
-        if (state === "open") {
-          body.style.display = "none";
-          head.textContent = `[${headLabel}を見る]`;
-          state = "closed";
-          return;
-        }
-
-        // 非表示（closed） → 「見る」動作：保存済み内容を表示（再生成はしない）
-        if (state === "closed") {
-          const cached = loadSession(sectionKey, ctx);
-          if (cached && cached.text && (!body.innerHTML || !body.innerHTML.trim())) {
-            body.innerHTML = cached.text;
-            attachClearLink();
-          }
-          body.style.display = "";
-          head.textContent = `[${headLabel}を閉じる]`;
-          state = "open";
-          return;
-        }
-      }
-
-      head.addEventListener("click", () => { handleToggle(); });
-      head.addEventListener("keydown",(ev)=>{
-        if(ev.key==="Enter"||ev.key===" "){
-          ev.preventDefault();
-          handleToggle();
-        }
-      });
-
-      // 復元（あれば）…初期状態から「閉じる」見出し＋本文表示にする
-      const cached = loadSession(sectionKey, ctx);
-      if (cached && cached.text) {
-        body.innerHTML = cached.text;
-        attachClearLink();
-        body.style.display = "";
-        head.textContent = `[${headLabel}を閉じる]`;
-        state = "open";
-      } else {
-        body.innerHTML = "";
-        body.style.display = "";
-        head.textContent = `[${headLabel}を生成]`;
-        state = "initial";
+        head.style.display = "none";
       }
 
       row.appendChild(head);
