@@ -596,14 +596,14 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         }
       });
 
-      // 復元（あれば）…初期状態から「閉じる」見出し＋本文表示にする
+      // 復元（あれば）…初期状態では本文を閉じ、見出しは「見る」にする
       const cached = loadSession(sectionKey, ctx);
       if (cached && cached.text) {
         body.innerHTML = cached.text;
         attachClearLink();
-        body.style.display = "";
-        head.textContent = `[${headLabel}を閉じる]`;
-        state = "open";
+        body.style.display = "none";
+        head.textContent = `[${headLabel}を見る]`;
+        state = "closed";
       } else {
         body.innerHTML = "";
         body.style.display = "";
