@@ -33,10 +33,9 @@
 /* オーバーレイ本体 */
 #nl-panel {
   position: fixed;
-  inset:5px 16px 66px !important;
+  inset:5px 16px 20px !important;
   margin-left: 66%;
   font-size: 0.9rem;
-  bottom: 66px !important;
   width: auto !important;
   height: auto !important;
   overflow: auto;
