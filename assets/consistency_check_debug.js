@@ -630,20 +630,7 @@
     panel.innerHTML = buildConsistencyResultHtml(meta, q, result, strict);
 
     panel.addEventListener("click", function(e) {
-      var id = e.target && e.target.id ? String(e.target.id) : "";
-
-      if (
-        id === "cscs-consistency-panel-close" ||
-        id === "cscs-consistency-refresh" ||
-        id === "cscs-consistency-copy-debug"
-      ) {
-        return;
-      }
-
-      e.stopPropagation();
-      if (typeof e.preventDefault === "function") {
-        e.preventDefault();
-      }
+      // パネル内のクリックはここでは特別な処理を行わない（ボタンのハンドラを優先）
     });
 
     if (panel._ccGlobalClickBlocker && typeof window.removeEventListener === "function") {
@@ -653,45 +640,8 @@
           window.removeEventListener(prev.types[i], prev.handler, true);
         }
       }
+      panel._ccGlobalClickBlocker = null;
     }
-
-    var captureTypes = [
-      "click",
-      "mousedown",
-      "mouseup",
-      "pointerdown",
-      "pointerup",
-      "touchstart",
-      "touchend"
-    ];
-
-    var globalClickBlocker = function(e) {
-      var panelEl = document.getElementById("cscs-consistency-panel");
-      if (panelEl && panelEl.contains(e.target)) {
-        var id2 = e.target && e.target.id ? String(e.target.id) : "";
-
-        if (
-          id2 === "cscs-consistency-panel-close" ||
-          id2 === "cscs-consistency-refresh" ||
-          id2 === "cscs-consistency-copy-debug"
-        ) {
-          return;
-        }
-
-        e.stopPropagation();
-        if (typeof e.preventDefault === "function") {
-          e.preventDefault();
-        }
-      }
-    };
-
-    for (var t = 0; t < captureTypes.length; t++) {
-      window.addEventListener(captureTypes[t], globalClickBlocker, true);
-    }
-    panel._ccGlobalClickBlocker = {
-      handler: globalClickBlocker,
-      types: captureTypes
-    };
 
     var closeBtn = document.getElementById("cscs-consistency-panel-close");
     if (closeBtn) {
