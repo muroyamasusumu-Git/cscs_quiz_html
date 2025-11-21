@@ -237,43 +237,6 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 <script src="../../assets/b_judge_record.js" defer></script>
 
 
-    <script>
-    (function(){
-      if (window.__b_audio_btn_installed) return;
-      window.__b_audio_btn_installed = true;
-      const src = "/_build_cscs_20250926/audio/q017_b.m4a";
-      const audio = new Audio(src);
-      audio.preload = "auto";
-      audio.playsInline = true;
-
-      function ensureBtn(){
-        var btn = document.querySelector(".audio-fallback-btn");
-        if (btn) return btn;
-        btn = document.createElement("button");
-        btn.textContent = "🔊 音声を再生";
-        btn.className = "audio-fallback-btn";
-        btn.addEventListener("click", function(){
-          try{
-            audio.currentTime = 0;
-            audio.play().catch(function(){
-              btn.textContent = "再生できません（ブラウザ設定を確認）";
-            });
-          }catch(e){
-            btn.textContent = "再生できません（ブラウザ設定を確認）";
-          }
-        });
-        document.addEventListener("DOMContentLoaded", function(){
-          document.body.appendChild(btn);
-        });
-        return btn;
-      }
-
-      // 常時ボタンを出しておく（自動再生はしない）
-      ensureBtn();
-    })();
-    </script>
-        
-
 <link rel="stylesheet" href="../../assets/wrong_badge.css">
 <script src="../../assets/wrong_badge.js" defer></script>
 
@@ -328,6 +291,9 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
       function goNext(){ window.location.href = nextHref; }
 
       document.addEventListener("click", (e) => {
+        // ▼ 追加：整合性チェックパネル内なら遷移しない
+        if (e.target.closest("#cscs-consistency-panel")) return;
+
         // Deep Dive または お気に入りモーダル操作中は遷移しない
         if (isDeepDiveOpen() || clickIsInsideDeepDive(e.target)) return;
         if (isFavOpen() || clickIsInsideFav(e.target)) return;
