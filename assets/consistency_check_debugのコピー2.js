@@ -1495,7 +1495,48 @@
           var storedData = JSON.parse(storedRaw);
           if (storedData && storedData.result) {
             var usedStrict = typeof storedData.strict === "boolean" ? storedData.strict : STRICT_MODE_DEFAULT;
-            showConsistencyResultPanel(meta, q, storedData.result, usedStrict);
+
+            // 既存パネル取得（必要であれば生成）
+            var panel = getConsistencyPanelContainer();
+
+            // パネル中身を一旦構築してから閉じる（リンク部分を壊さない）
+            panel.innerHTML = buildConsistencyResultHtml(meta, q, storedData.result, usedStrict);
+
+            // タイトル要素の取得（既存のリンクはそのまま残す）
+            var titleEl = panel.querySelector(".cc-panel-header-title");
+            var actionsEl = panel.querySelector(".cc-panel-header-actions");
+            var bodyEl = panel.querySelector(".cc-panel-body");
+
+            // ボディとアクションを閉じる
+            if (actionsEl) {
+              actionsEl.style.display = "none";
+            }
+            if (bodyEl) {
+              bodyEl.style.display = "none";
+            }
+
+            // タイトル文字列を「閉じた表示」に文字だけ変更
+            if (titleEl) {
+              var mark = storedData.severity_mark || "";
+              var headerLabel = "整合性チェック結果";
+              var collapsedText = "[" + headerLabel + (mark ? "：" + mark : "") + " 詳細を見る]";
+
+              titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + collapsedText + '</a>';
+
+              // “詳細を見る” を押すと展開
+              var reopenLink = document.getElementById("cscs-consistency-reopen-link");
+              if (reopenLink) {
+                reopenLink.addEventListener("click", function(e) {
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  if (actionsEl) actionsEl.style.display = "";
+                  if (bodyEl) bodyEl.style.display = "";
+
+                  titleEl.textContent = headerLabel;
+                });
+              }
+            }
           }
         }
       } catch (restoreError) {
