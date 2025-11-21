@@ -630,6 +630,16 @@
     panel.innerHTML = buildConsistencyResultHtml(meta, q, result, strict);
 
     panel.addEventListener("click", function(e) {
+      var id = e.target && e.target.id ? String(e.target.id) : "";
+
+      if (
+        id === "cscs-consistency-panel-close" ||
+        id === "cscs-consistency-refresh" ||
+        id === "cscs-consistency-copy-debug"
+      ) {
+        return;
+      }
+
       e.stopPropagation();
       e.preventDefault();
     });
@@ -640,6 +650,16 @@
     var globalClickBlocker = function(e) {
       var panelEl = document.getElementById("cscs-consistency-panel");
       if (panelEl && panelEl.contains(e.target)) {
+        var id2 = e.target && e.target.id ? String(e.target.id) : "";
+
+        if (
+          id2 === "cscs-consistency-panel-close" ||
+          id2 === "cscs-consistency-refresh" ||
+          id2 === "cscs-consistency-copy-debug"
+        ) {
+          return;
+        }
+
         e.stopPropagation();
         e.preventDefault();
       }
