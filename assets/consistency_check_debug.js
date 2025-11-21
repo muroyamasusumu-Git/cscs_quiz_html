@@ -1118,12 +1118,6 @@
               severityMark = "◎";
               severityLabel = "変更必要なし";
             }
-
-          // ▼▼▼ ブロックの最後に移動する：ここが置換後コード ▼▼▼
-          var el = document.querySelector('.consistency_status');
-          if (el) {
-            el.textContent = severityMark;
-          }
           } else if (!severityLabel) {
             if (classificationPriority === "高") {
               severityLabel = "変更が必要（優先度/高）";
@@ -1133,6 +1127,16 @@
               severityLabel = "ほぼ変更必要なし（優先度/低）";
             } else {
               severityLabel = "変更必要なし";
+            }
+          }
+
+          if (severityMark) {
+            var qnoStatusEl = document.querySelector(".qno .consistency_status");
+            if (!qnoStatusEl) {
+              qnoStatusEl = document.querySelector(".consistency_status");
+            }
+            if (qnoStatusEl) {
+              qnoStatusEl.textContent = severityMark;
             }
           }
 
