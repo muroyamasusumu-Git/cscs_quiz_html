@@ -1196,7 +1196,7 @@
    */
   async function runAndShowConsistencyCheck(meta, q, strict) {
     var panel = getConsistencyPanelContainer();
-    panel.innerHTML = '<div style="font-size:14px;">整合性チェックを実行中です。少し待ってください。</div>';
+    panel.innerHTML = '<div style="font-size:16px;margin-top:10px;">整合性チェックを実行中です。少し待ってください。</div>';
 
     try {
       var result = await runConsistencyCheck(meta, q, strict);
