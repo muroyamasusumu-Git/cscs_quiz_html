@@ -625,7 +625,7 @@
    * @param {Object} result
    * @param {boolean} strict
    */
-  function showConsistencyResultPanel(meta, q, result, strict) {
+  function showConsistencyResultPanel(meta, q, result, strict, isImmediate) {
     var panel = getConsistencyPanelContainer();
     panel.innerHTML = buildConsistencyResultHtml(meta, q, result, strict);
 
@@ -689,8 +689,12 @@
       }
     }
 
-    // チェック直後は展開 / リロード復元時は閉じた状態
-    setConsistencyPanelOpen(!hasStored);
+    // チェック直後なら常に開く / 復元時は閉じる
+    if (isImmediate) {
+    setConsistencyPanelOpen(true);
+    } else {
+    setConsistencyPanelOpen(false);
+    }
 
     var closeBtn = document.getElementById("cscs-consistency-panel-close");
     if (closeBtn) {
@@ -1366,7 +1370,7 @@
         }
       }
 
-      showConsistencyResultPanel(meta, q, result, usedStrict);
+      showConsistencyResultPanel(meta, q, result, usedStrict, true);
       updateConsistencyCheckStatus(meta, q);
     } catch (e) {
       var msg = String(e && e.message ? e.message : e);
