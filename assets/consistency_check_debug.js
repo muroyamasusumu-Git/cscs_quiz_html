@@ -663,7 +663,7 @@
 
         if (titleEl) {
           var severityForHeader = titleEl.getAttribute("data-severity-mark") || "";
-          var linkText = "[整合性チェック結果" + (severityForHeader ? "：" + severityForHeader : "") + " 詳細をみる]";
+          var linkText = "[整合性チェック結果" + (severityForHeader ? "：" + severityForHeader : "") + " 詳細を見る]";
           titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + linkText + "</a>";
           var reopenLink = document.getElementById("cscs-consistency-reopen-link");
           if (reopenLink) {
@@ -1508,11 +1508,11 @@
             if (titleEl) {
               var mark = storedData.severity_mark || "";
               var headerLabel = "整合性チェック結果";
-              var collapsedText = "[" + headerLabel + (mark ? "：" + mark : "") + " 詳細をみる]";
+              var collapsedText = "[" + headerLabel + (mark ? "：" + mark : "") + " 詳細を見る]";
 
               titleEl.innerHTML = '<a href="#" id="cscs-consistency-reopen-link">' + collapsedText + '</a>';
 
-              // “詳細をみる” を押すと展開
+              // “詳細を見る” を押すと展開
               var reopenLink = document.getElementById("cscs-consistency-reopen-link");
               if (reopenLink) {
                 reopenLink.addEventListener("click", function(e) {
