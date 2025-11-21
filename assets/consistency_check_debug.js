@@ -641,12 +641,30 @@
       }
 
       e.stopPropagation();
-      e.preventDefault();
+      if (typeof e.preventDefault === "function") {
+        e.preventDefault();
+      }
     });
 
     if (panel._ccGlobalClickBlocker && typeof window.removeEventListener === "function") {
-      window.removeEventListener("click", panel._ccGlobalClickBlocker, true);
+      var prev = panel._ccGlobalClickBlocker;
+      if (prev && prev.handler && Array.isArray(prev.types)) {
+        for (var i = 0; i < prev.types.length; i++) {
+          window.removeEventListener(prev.types[i], prev.handler, true);
+        }
+      }
     }
+
+    var captureTypes = [
+      "click",
+      "mousedown",
+      "mouseup",
+      "pointerdown",
+      "pointerup",
+      "touchstart",
+      "touchend"
+    ];
+
     var globalClickBlocker = function(e) {
       var panelEl = document.getElementById("cscs-consistency-panel");
       if (panelEl && panelEl.contains(e.target)) {
@@ -661,11 +679,19 @@
         }
 
         e.stopPropagation();
-        e.preventDefault();
+        if (typeof e.preventDefault === "function") {
+          e.preventDefault();
+        }
       }
     };
-    window.addEventListener("click", globalClickBlocker, true);
-    panel._ccGlobalClickBlocker = globalClickBlocker;
+
+    for (var t = 0; t < captureTypes.length; t++) {
+      window.addEventListener(captureTypes[t], globalClickBlocker, true);
+    }
+    panel._ccGlobalClickBlocker = {
+      handler: globalClickBlocker,
+      types: captureTypes
+    };
 
     var closeBtn = document.getElementById("cscs-consistency-panel-close");
     if (closeBtn) {
