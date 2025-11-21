@@ -129,8 +129,16 @@ margin: 10px 0 0;
 margin: 0 5px 0 0;
 }
 
+/* === correct_star.js 用のスター表示制御 === */
 .correct_star {
-margin: 0 5px 0 0;
+  display: none;
+  margin-right: 4px;
+  font-size: 1.05em;
+  vertical-align: middle;
+}
+
+.correct_star[data-star-state="on"] {
+  display: inline-block;
 }
 
 .explain {
