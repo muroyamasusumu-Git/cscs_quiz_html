@@ -727,7 +727,7 @@ h1 { font-size: var(--h1-fs, inherit); }
     const QID = detectQidFromLocationA();
 
     // === ② 差分キュー（Aパート専用） ===
-    const queue = { correctDelta: {}, incorrectDelta: {} };
+    const queue = { correctDelta: {}, incorrectDelta: {}, streak3Delta: {} };
     let sendTimer = null;
 
     // SYNCモニタ用ステータス
@@ -802,13 +802,15 @@ h1 { font-size: var(--h1-fs, inherit); }
     async function sendDelta(){
       const hasC = Object.keys(queue.correctDelta).length>0;
       const hasI = Object.keys(queue.incorrectDelta).length>0;
-      if (!hasC && !hasI) return;
+      const hasS = Object.keys(queue.streak3Delta).length>0;
+      if (!hasC && !hasI && !hasS) return;
 
       // ★ 差分送信用のペイロード（qid とタイムスタンプ付き）
       const payload = {
         qid: QID || null,
         correctDelta: queue.correctDelta,
         incorrectDelta: queue.incorrectDelta,
+        streak3Delta: queue.streak3Delta,
         updatedAt: Date.now()
       };
 
@@ -827,6 +829,7 @@ h1 { font-size: var(--h1-fs, inherit); }
         // 送信が成功したら差分キューをクリア
         queue.correctDelta   = {};
         queue.incorrectDelta = {};
+        queue.streak3Delta   = {};
 
         const latest = await res.json();
         if (QID){
@@ -854,6 +857,11 @@ h1 { font-size: var(--h1-fs, inherit); }
       recordIncorrect(){
         if (!QID) return;
         queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
+      recordStreak3(){
+        if (!QID) return;
+        queue.streak3Delta[QID] = (queue.streak3Delta[QID] || 0) + 1;
         scheduleSend();
       },
       async fetchServer(){
