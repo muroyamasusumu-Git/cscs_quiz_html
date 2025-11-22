@@ -58,7 +58,7 @@
 
     // 問題別の3連正解累計キー
     // 例: "cscs_q_correct_streak3_total:20250926-001"
-    var key = "cscs_q_correct_streak3_total:" + qid;
+    var key = "cscs_correct_streak3_total:" + qid;
     var raw = null;
 
     try {
