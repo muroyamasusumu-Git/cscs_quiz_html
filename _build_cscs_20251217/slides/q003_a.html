@@ -903,6 +903,7 @@ h1 { font-size: var(--h1-fs, inherit); }
           
           <div class="sync-reset-row">            
             <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
+            <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
           </div>
         `;
         const wrap = document.querySelector("div.wrap");
@@ -915,6 +916,7 @@ h1 { font-size: var(--h1-fs, inherit); }
         const btnOk   = document.getElementById("cscs_sync_test_ok");
         const btnNg   = document.getElementById("cscs_sync_test_ng");
         const btnReset  = document.getElementById("cscs_sync_test_reset");
+        const btnStarReset = document.getElementById("cscs_sync_star_reset");
         // ③ この問題(qid単位)のSYNCカウンタをリセット（サーバー＋ローカル両方）
         if (btnReset) btnReset.addEventListener("click", async () => {
           if (!QID) return;
@@ -942,6 +944,41 @@ h1 { font-size: var(--h1-fs, inherit); }
             await initialFetch();
           }catch(e){
             alert("reset 失敗: " + e);
+          }
+        });
+
+        // ④ この問題(qid単位)の星データ（連続正解関連）をリセット（ローカルのみ）
+        if (btnStarReset) btnStarReset.addEventListener("click", () => {
+          if (!QID) return;
+          try{
+            // 連続正解カウンタ系（qidごと）のリセット
+            const kStreakLen   = "cscs_correct_streak_len:" + QID;
+            const kStreakTotal = "cscs_correct_streak3_total:" + QID;
+            try{
+              localStorage.removeItem(kStreakLen);
+              localStorage.removeItem(kStreakTotal);
+            }catch(_){}
+
+            // 3連正解達成履歴ログから、このqidの記録だけを削除
+            const logKey = "cscs_correct_streak3_log";
+            try{
+              const raw = localStorage.getItem(logKey);
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                  const filtered = parsed.filter(function(entry){
+                    if (!entry || typeof entry !== "object") return true;
+                    if (!("qid" in entry)) return true;
+                    return entry.qid !== QID;
+                  });
+                  localStorage.setItem(logKey, JSON.stringify(filtered));
+                }
+              }
+            }catch(_){}
+
+            alert("この問題の星データをリセットしました。");
+          }catch(e){
+            alert("星データのリセットに失敗しました: " + e);
           }
         });
 
