@@ -643,8 +643,8 @@ ol.opts li.is-correct a.opt-link {
       text += "local  " + localCorrect + " / " + localWrong + "\n";
       text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
       text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
-      text += "この問題の3連続正解回数（SYNC）  : " + serverStreak3 + " 回\n";
-      text += "この問題の3連続正解回数（ローカル）: " + localStreak3 + " 回";
+      text += "3連続正解回数:\n";
+      text += "SYNC " + serverStreak3 + " 回 / local " + localStreak3 + " 回";
 
       // server/local/diff/s3 はボディ側に縦並び表示
       updateSyncBody(text);
