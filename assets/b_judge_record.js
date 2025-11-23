@@ -10,7 +10,7 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2025-11-22
+ * 最終更新: 2025-11-23
  *
  * === SPEC CONTENT ===
  */
@@ -52,9 +52,9 @@
 // │ 連続正解   │ cscs_correct_streak_len               │ 現在の連続正解数                                           │
 // │             │ cscs_correct_streak3_total            │ 3連正解達成回数の累計                                     │
 // │             │ cscs_correct_streak3_log              │ 3連正解達成履歴。{ts,qid,day,choice} の配列                │
-// │             │ cscs_correct_streak_len:{qid}         │ その問題における現在の連続正解数                           │
-// │             │ cscs_correct_streak3_total:{qid}      │ その問題における3連正解達成回数の累計                     │
-// │             │ cscs_correct_streak3_log:{qid}        │ その問題で3連正解を達成した履歴。{ts,qid,day,choice} の配列 │
+// │             │ cscs_q_correct_streak_len:{qid}       │ その問題における現在の連続正解数                           │
+// │             │ cscs_q_correct_streak3_total:{qid}    │ その問題における3連正解達成回数の累計                     │
+// │             │ cscs_q_correct_streak3_log:{qid}      │ その問題で3連正解を達成した履歴。{ts,qid,day,choice} の配列 │
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 // │ 実行メタ   │ cscs_current_runId_<日付>            │ その日の一意ランID（セッション識別用）                     │
 // │             │ cscs_last_seen_day                   │ 直近に計測した日付（JST基準）                              │
@@ -93,9 +93,9 @@
 // 🆕 2025-11-22 追加
 // ・⭐️仕様「問題別 3 回連続正解で付与」を正式ルール化。
 // ・問題別連続正解トラッキングキーを新設：
-//     cscs_correct_streak_len:{qid}
-//     cscs_correct_streak3_total:{qid}
-//     cscs_correct_streak3_log:{qid}
+//     cscs_q_correct_streak_len:{qid}
+//     cscs_q_correct_streak3_total:{qid}
+//     cscs_q_correct_streak3_log:{qid}
 // ・全体ストリーク（cscs_correct_streak_len 等）とは独立し、
 //   各 qid 単位で連続正解を個別計測する方式に変更。
 // ===========================================================
@@ -258,9 +258,9 @@
       //  総試行:   cscs_q_correct_total:{qid} / cscs_q_wrong_total:{qid}
       //  計測された:   cscs_q_correct_counted_total:{qid} / cscs_q_wrong_counted_total:{qid}
       //  計測されない: cscs_q_correct_uncounted_total:{qid} / cscs_q_wrong_uncounted_total:{qid}
-      //  3連正解:  現在の連続長 -> cscs_correct_streak_len
-      //            3連達成回数合計 -> cscs_correct_streak3_total
-      //            ログ -> cscs_correct_streak3_log (配列)
+      //  3連正解:  現在の連続長 -> cscs_q_correct_streak_len
+      //            3連達成回数合計 -> cscs_q_correct_streak3_total
+      //            ログ -> cscs_q_correct_streak3_log (配列)
 
       if(isCorrect){
         // 今日の試行回数（正解：全体＋問題別総試行を正規フローに統合）
@@ -299,12 +299,12 @@
           setIntLS("cscs_correct_streak_len", sLen);
 
           // 問題別ストリーク
-          var sKeyQ = "cscs_correct_streak_len:" + qid;
+          var sKeyQ = "cscs_q_correct_streak_len:" + qid;
           var sLenQ = getIntLS(sKeyQ);
           sLenQ += 1;
           if(sLenQ >= 3){
-            incIntLS("cscs_correct_streak3_total:" + qid, 1);
-            var sLogKeyQ = "cscs_correct_streak3_log:" + qid;
+            incIntLS("cscs_q_correct_streak3_total:" + qid, 1);
+            var sLogKeyQ = "cscs_q_correct_streak3_log:" + qid;
             var sLogQ = []; try{ sLogQ = JSON.parse(localStorage.getItem(sLogKeyQ)||"[]"); }catch(_){ sLogQ = []; }
             sLogQ.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(sLogKeyQ, JSON.stringify(sLogQ));
@@ -344,7 +344,7 @@
         // 不正解が出たらストリークはリセット
         try{
           setIntLS("cscs_correct_streak_len", 0);
-          setIntLS("cscs_correct_streak_len:" + qid, 0);
+          setIntLS("cscs_q_correct_streak_len:" + qid, 0);
         }catch(_){}
 
         // 互換: 従来の通算集計 cscs_wrong_log[qid]++

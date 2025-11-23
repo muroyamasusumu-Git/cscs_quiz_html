@@ -332,6 +332,11 @@ html, body { height: auto !important; min-height: 0 !important; }
     font-size: 22px;
     font-weight: 400;
 }
+.correct_star {
+    display: none;
+    font-size: 22px;
+    margin: 0 0 0 6px;
+}
 </style>
 
 
@@ -623,14 +628,20 @@ ol.opts li.is-correct a.opt-link {
       var localWrong = payload.localWrong || 0;
       var diffCorrect = payload.diffCorrect || 0;
       var diffWrong = payload.diffWrong || 0;
+
+      var serverStreak3 = payload.serverStreak3 || 0;
+      var localStreak3 = payload.localStreak3 || 0;
+      var diffStreak3 = payload.diffStreak3 || 0;
+
       var statusText = payload.statusText || "";
 
       var text = "";
       text += "server " + serverCorrect + " / " + serverWrong + "\n";
       text += "local  " + localCorrect + " / " + localWrong + "\n";
-      text += "diff   " + diffCorrect + " / " + diffWrong;
+      text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
+      text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")";
 
-      // server/local/diff はボディ側に縦並び表示
+      // server/local/diff/s3 はボディ側に縦並び表示
       updateSyncBody(text);
 
       // statusText は個別の <div> に分離して表示
@@ -658,18 +669,28 @@ ol.opts li.is-correct a.opt-link {
     var qid = info.qid;
     var diffCorrect = params.diffCorrect;
     var diffWrong = params.diffWrong;
+    var diffStreak3 = params.diffStreak3 || 0;
+
     var localCorrect = params.localCorrect;
     var localWrong = params.localWrong;
+    var localStreak3 = params.localStreak3 || 0;
+
+    var serverCorrect = params.serverCorrect;
+    var serverWrong = params.serverWrong;
+    var serverStreak3 = params.serverStreak3 || 0;
 
     // 差分がなければ何もしない（表示だけ更新）
-    if (diffCorrect <= 0 && diffWrong <= 0) {
+    if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0) {
       renderPanel(box, {
-        serverCorrect: params.serverCorrect,
-        serverWrong: params.serverWrong,
+        serverCorrect: serverCorrect,
+        serverWrong: serverWrong,
         localCorrect: localCorrect,
         localWrong: localWrong,
         diffCorrect: diffCorrect,
         diffWrong: diffWrong,
+        serverStreak3: serverStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3,
         statusText: "no diff"
       });
       return;
@@ -678,12 +699,15 @@ ol.opts li.is-correct a.opt-link {
     // オフラインなら送信しない
     if (!navigator.onLine) {
       renderPanel(box, {
-        serverCorrect: params.serverCorrect,
-        serverWrong: params.serverWrong,
+        serverCorrect: serverCorrect,
+        serverWrong: serverWrong,
         localCorrect: localCorrect,
         localWrong: localWrong,
         diffCorrect: diffCorrect,
         diffWrong: diffWrong,
+        serverStreak3: serverStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3,
         statusText: "offline"
       });
       return;
@@ -692,16 +716,21 @@ ol.opts li.is-correct a.opt-link {
     // Aパートと同じ Delta 形式で /api/sync/merge に送る
     var correctDeltaObj = {};
     var incorrectDeltaObj = {};
+    var streak3DeltaObj = {};
     if (diffCorrect > 0) {
       correctDeltaObj[qid] = diffCorrect;
     }
     if (diffWrong > 0) {
       incorrectDeltaObj[qid] = diffWrong;
     }
+    if (diffStreak3 > 0) {
+      streak3DeltaObj[qid] = diffStreak3;
+    }
 
     var payload = {
       correctDelta: correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
+      streak3Delta: streak3DeltaObj,
       updatedAt: Date.now()
     };
 
@@ -720,12 +749,15 @@ ol.opts li.is-correct a.opt-link {
       if (!response.ok) {
         console.error("[SYNC-B] server returned non-ok status:", response.status);
         renderPanel(box, {
-          serverCorrect: params.serverCorrect,
-          serverWrong: params.serverWrong,
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
           localCorrect: localCorrect,
           localWrong: localWrong,
           diffCorrect: diffCorrect,
           diffWrong: diffWrong,
+          serverStreak3: serverStreak3,
+          localStreak3: localStreak3,
+          diffStreak3: diffStreak3,
           statusText: "merge " + String(response.status)
         });
         return;
@@ -740,9 +772,10 @@ ol.opts li.is-correct a.opt-link {
 
       console.log("[SYNC-B] sync success:", data);
 
-      // merge のレスポンスは { correct: {qid: total, ...}, incorrect: {...}, ... } 形式を想定
-      var newServerCorrect = params.serverCorrect;
-      var newServerWrong = params.serverWrong;
+      // merge のレスポンスは { correct: {qid: total, ...}, incorrect: {...}, streak3: {...} } 形式を想定
+      var newServerCorrect = serverCorrect;
+      var newServerWrong = serverWrong;
+      var newServerStreak3 = serverStreak3;
 
       if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
         if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
@@ -762,8 +795,18 @@ ol.opts li.is-correct a.opt-link {
         }
       }
 
-      var newDiffCorrect = localCorrect - newServerCorrect;
-      var newDiffWrong = localWrong - newServerWrong;
+      if (data && data.streak3 && typeof data.streak3 === "object" && data.streak3 !== null) {
+        if (Object.prototype.hasOwnProperty.call(data.streak3, qid)) {
+          var sVal = data.streak3[qid];
+          if (typeof sVal === "number" && Number.isFinite(sVal) && sVal >= 0) {
+            newServerStreak3 = sVal;
+          }
+        }
+      }
+
+      var newDiffCorrect = Math.max(0, localCorrect - newServerCorrect);
+      var newDiffWrong = Math.max(0, localWrong - newServerWrong);
+      var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
 
       renderPanel(box, {
         serverCorrect: newServerCorrect,
@@ -772,17 +815,23 @@ ol.opts li.is-correct a.opt-link {
         localWrong: localWrong,
         diffCorrect: newDiffCorrect,
         diffWrong: newDiffWrong,
+        serverStreak3: newServerStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: newDiffStreak3,
         statusText: "ok"
       });
     } catch (e) {
       console.error("[SYNC-B] fetch failed:", e);
       renderPanel(box, {
-        serverCorrect: params.serverCorrect,
-        serverWrong: params.serverWrong,
+        serverCorrect: serverCorrect,
+        serverWrong: serverWrong,
         localCorrect: localCorrect,
         localWrong: localWrong,
         diffCorrect: diffCorrect,
         diffWrong: diffWrong,
+        serverStreak3: serverStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3,
         statusText: "error"
       });
     }
@@ -793,19 +842,26 @@ ol.opts li.is-correct a.opt-link {
       .then(function (state) {
         var serverCorrect = 0;
         var serverWrong = 0;
+        var serverStreak3 = 0;
+
         if (state && state.correct && state.correct[info.qid] != null) {
           serverCorrect = state.correct[info.qid];
         }
         if (state && state.incorrect && state.incorrect[info.qid] != null) {
           serverWrong = state.incorrect[info.qid];
         }
+        if (state && state.streak3 && state.streak3[info.qid] != null) {
+          serverStreak3 = state.streak3[info.qid];
+        }
 
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
+        var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
 
         // diff は「まだサーバーに反映されていない増分」として扱うので 0 未満にはしない
         var diffCorrect = Math.max(0, localCorrect - serverCorrect);
         var diffWrong = Math.max(0, localWrong - serverWrong);
+        var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
 
         renderPanel(box, {
           serverCorrect: serverCorrect,
@@ -814,27 +870,40 @@ ol.opts li.is-correct a.opt-link {
           localWrong: localWrong,
           diffCorrect: diffCorrect,
           diffWrong: diffWrong,
+          serverStreak3: serverStreak3,
+          localStreak3: localStreak3,
+          diffStreak3: diffStreak3,
           statusText: "state ok"
         });
 
         return sendDiffToServer(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
+          serverStreak3: serverStreak3,
           localCorrect: localCorrect,
           localWrong: localWrong,
+          localStreak3: localStreak3,
           diffCorrect: diffCorrect,
-          diffWrong: diffWrong
+          diffWrong: diffWrong,
+          diffStreak3: diffStreak3
         });
       })
       .catch(function (e) {
         console.error("[SYNC-B] state fetch error:", e);
+        var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
+        var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
+        var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
+
         renderPanel(box, {
           serverCorrect: 0,
           serverWrong: 0,
-          localCorrect: readIntFromLocalStorage("cscs_q_correct_total:" + info.qid),
-          localWrong: readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid),
+          localCorrect: localCorrect,
+          localWrong: localWrong,
           diffCorrect: 0,
           diffWrong: 0,
+          serverStreak3: 0,
+          localStreak3: localStreak3,
+          diffStreak3: 0,
           statusText: "state error"
         });
       });
