@@ -369,13 +369,13 @@ ol.opts li.is-correct a.opt-link {
 
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
-    const cNow = loadInt(KEY_COR);
-    const wNow = loadInt(KEY_WRG);
+    const cNow  = loadInt(KEY_COR);
+    const wNow  = loadInt(KEY_WRG);
     const s3Now = loadInt(KEY_S3);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
-    const cLast = loadInt(KEY_LAST_COR);
-    const wLast = loadInt(KEY_LAST_WRG);
+    const cLast  = loadInt(KEY_LAST_COR);
+    const wLast  = loadInt(KEY_LAST_WRG);
     const s3Last = loadInt(KEY_LAST_S3);
 
     // 3) 差分（マイナスは送らない）
@@ -394,9 +394,17 @@ ol.opts li.is-correct a.opt-link {
       updatedAt: Date.now()
     };
 
-    // ★★★ 追加：送信直前ログ ★★★
-    console.log("[SYNC/B] trying to send", {
+    console.log("[SYNC/B] streak3 merge payload", {
       qid: info.qid,
+      cNow,
+      wNow,
+      s3Now,
+      cLast,
+      wLast,
+      s3Last,
+      dc,
+      dw,
+      ds3,
       payload
     });
 
