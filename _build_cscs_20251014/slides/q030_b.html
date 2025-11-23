@@ -192,6 +192,9 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
+<script src="../../assets/correct_star.js" defer></script>
+
+
 <script src="../../assets/b_judge.js" data-stem="q030" data-audio-base="/_build_cscs_20251014/audio" data-ext=".wav"></script>
 
 
@@ -568,7 +571,9 @@ ol.opts li.is-correct a.opt-link {
       text += "server " + serverCorrect + " / " + serverWrong + "\n";
       text += "local  " + localCorrect + " / " + localWrong + "\n";
       text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
-      text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")";
+      text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
+      text += "この問題の3連続正解回数（SYNC）  : " + serverStreak3 + " 回\n";
+      text += "この問題の3連続正解回数（ローカル）: " + localStreak3 + " 回";
 
       // server/local/diff/s3 はボディ側に縦並び表示
       updateSyncBody(text);

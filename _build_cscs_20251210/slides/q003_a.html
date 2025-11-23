@@ -752,11 +752,24 @@ h1 { font-size: var(--h1-fs, inherit); }
       }
     }
 
-    function setServerTotalsForQid(c, i){
+    function readLocalStreak3ForQid(qid){
+      try{
+        const kS = "cscs_q_correct_streak3_total:" + qid;
+        const s  = parseInt(localStorage.getItem(kS) || "0", 10) || 0;
+        return s;
+      }catch(_){
+        return 0;
+      }
+    }
+
+    function setServerTotalsForQid(c, i, s3){
       const el = document.getElementById("cscs_sync_totals");
       if (el) {
         el.dataset.serverC = String(c);
         el.dataset.serverI = String(i);
+        if (typeof s3 === "number") {
+          el.dataset.serverS3 = String(s3);
+        }
       }
     }
 
@@ -773,20 +786,33 @@ h1 { font-size: var(--h1-fs, inherit); }
         const lc = local.c;
         const li = local.w;
 
-        let sc = 0, si = 0;
+        const ls = readLocalStreak3ForQid(QID);
+
+        let sc = 0, si = 0, ss = 0;
         if (totalsEl) {
           sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
           si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+          ss = parseInt(totalsEl.dataset.serverS3 || "0", 10) || 0;
           totalsEl.textContent = "server " + sc + " / " + si;
         }
 
         if (box) {
-          box.querySelector(".sync-qid").textContent    = QID;
-          box.querySelector(".sync-local").textContent  = "local  " + lc + " / " + li;
-          box.querySelector(".sync-queue").textContent  = "+Δ    " + dC + " / " + dI;
+          const qEl  = box.querySelector(".sync-qid");
+          const lEl  = box.querySelector(".sync-local");
+          const qdEl = box.querySelector(".sync-queue");
+          const stEl = box.querySelector(".sync-status");
+          const s3El = box.querySelector(".sync-streak3-val");
+          const s3sEl = box.querySelector(".sync-streak3-server");
+
+          if (qEl)   qEl.textContent  = QID;
+          if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
+          if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
+          if (s3El)  s3El.textContent = String(ls);
+          if (s3sEl) s3sEl.textContent = String(ss);
+
           const time = lastSyncTime ? lastSyncTime : "-";
           const err  = lastSyncError ? (" err:" + lastSyncError) : "";
-          box.querySelector(".sync-status").textContent = lastSyncStatus + " (" + time + ")" + err;
+          if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
         }
       }catch(_){
         // UI更新失敗は握りつぶし
@@ -838,9 +864,10 @@ h1 { font-size: var(--h1-fs, inherit); }
 
         const latest = await res.json();
         if (QID){
-          const c = (latest.correct   && latest.correct[QID])   || 0;
-          const i = (latest.incorrect && latest.incorrect[QID]) || 0;
-          setServerTotalsForQid(c, i);
+          const c  = (latest.correct   && latest.correct[QID])   || 0;
+          const i  = (latest.incorrect && latest.incorrect[QID]) || 0;
+          const s3 = (latest.streak3   && latest.streak3[QID])   || 0;
+          setServerTotalsForQid(c, i, s3);
         }
         lastSyncStatus = "ok";
         lastSyncTime   = new Date().toLocaleTimeString();
@@ -880,14 +907,20 @@ h1 { font-size: var(--h1-fs, inherit); }
     async function initialFetch(){
       if (!QID) return;
       try{
-        const s = await CSCS_SYNC.fetchServer();
-        const c = (s.correct   && s.correct[QID])   || 0;
-        const i = (s.incorrect && s.incorrect[QID]) || 0;
-        setServerTotalsForQid(c, i);
+        const s  = await CSCS_SYNC.fetchServer();
+        const c  = (s.correct   && s.correct[QID])   || 0;
+        const i  = (s.incorrect && s.incorrect[QID]) || 0;
+        const s3 = (s.streak3   && s.streak3[QID])   || 0;
+
+        // SYNC 側の 3連続正解回数も含めてステータスに反映
+        setServerTotalsForQid(c, i, s3);
 
         try{
+          // 正解／不正解の累積をサーバー値でローカルに揃える
           localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
           localStorage.setItem("cscs_q_wrong_total:"   + QID, String(i));
+          // 3連続正解累積もサーバー値でローカルに揃える
+          localStorage.setItem("cscs_q_correct_streak3_total:" + QID, String(s3));
         }catch(_){}
 
         lastSyncStatus = "pulled";
@@ -911,6 +944,11 @@ h1 { font-size: var(--h1-fs, inherit); }
           <div class="sync-header">SYNC(A): <span class="sync-qid"></span></div>
           <div id="cscs_sync_totals" class="sync-line sync-totals" data-server-c="0" data-server-i="0">server 0 / 0</div>
           <div class="sync-line sync-local">local  0 / 0</div>
+          <div class="sync-line sync-streak3">
+            3連続正解回数:
+            SYNC <span class="sync-streak3-server">0</span> 回 /
+            local <span class="sync-streak3-val">0</span> 回
+          </div>
           <div class="sync-line sync-queue">+Δ    0 / 0</div>
           <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>          
           
@@ -960,19 +998,28 @@ h1 { font-size: var(--h1-fs, inherit); }
           }
         });
 
-        // ④ この問題(qid単位)の星データ（連続正解関連）をリセット（ローカルのみ）
-        if (btnStarReset) btnStarReset.addEventListener("click", () => {
+        // ④ この問題(qid単位)の星データ（連続正解関連）をリセット（ローカル＋SYNC＋DOM）
+        if (btnStarReset) btnStarReset.addEventListener("click", async () => {
           if (!QID) return;
           try{
-            // 連続正解カウンタ系（qidごと）のリセット
+            // SYNC 側（サーバー）の streak3 カウンタもリセット
+            try{
+              await fetch("/api/sync/reset_streak3_qid", {
+                method:"POST",
+                headers:{ "content-type":"application/json" },
+                body: JSON.stringify({ qid: QID })
+              });
+            }catch(_){}
+
+            // 連続正解カウンタ系（qidごと）のリセット（ローカル）
             const kStreakLen   = "cscs_correct_streak_len:" + QID;
-            const kStreakTotal = "cscs_correct_streak3_total:" + QID;
+            const kStreakTotal = "cscs_q_correct_streak3_total:" + QID;
             try{
               localStorage.removeItem(kStreakLen);
               localStorage.removeItem(kStreakTotal);
             }catch(_){}
 
-            // 3連正解達成履歴ログから、このqidの記録だけを削除
+            // 3連正解達成履歴ログから、このqidの記録だけを削除（ローカル）
             const logKey = "cscs_correct_streak3_log";
             try{
               const raw = localStorage.getItem(logKey);
@@ -988,6 +1035,17 @@ h1 { font-size: var(--h1-fs, inherit); }
                 }
               }
             }catch(_){}
+
+            // DOM 上の ⭐️ を即時非表示（A/B共通クラス）
+            try{
+              const stars = document.querySelectorAll(".correct_star");
+              stars.forEach(function(el){
+                el.style.display = "none";
+              });
+            }catch(_){}
+
+            // モニタも更新（3連続正解回数を 0 に反映）
+            updateMonitor();
 
             alert("この問題の星データをリセットしました。");
           }catch(e){
