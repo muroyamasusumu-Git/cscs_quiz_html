@@ -21,20 +21,24 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (raw) {
     try {
       data = JSON.parse(raw);
-    } catch (e) {
-      data = { correct: {}, incorrect: {}, streak3: {}, updatedAt: Date.now() };
+    } catch (_) {
+      data = { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, updatedAt: Date.now() };
     }
   } else {
-    data = { correct: {}, incorrect: {}, streak3: {}, updatedAt: Date.now() };
+    data = { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, updatedAt: Date.now() };
   }
 
-  // --- streak3 ブロックが未定義なら作成 ---
+  // --- safety: streak3/streakLen が無ければ作る ---
   if (!data.streak3 || typeof data.streak3 !== "object") {
     data.streak3 = {};
   }
+  if (!data.streakLen || typeof data.streakLen !== "object") {
+    data.streakLen = {};
+  }
 
-  // --- qid の streak3 カウンタを 0 にリセット ---
+  // --- qid の streak3 / streakLen を 0 にリセット ---
   data.streak3[qid] = 0;
+  data.streakLen[qid] = 0;
 
   // --- 更新 ---
   data.updatedAt = Date.now();
@@ -43,7 +47,11 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   await env.SYNC.put(key, JSON.stringify(data));
 
   // --- レスポンス ---
-  return new Response(JSON.stringify({ ok: true, cleared_streak3_qid: qid, data }), {
+  return new Response(JSON.stringify({
+    ok: true,
+    cleared_streak3_qid: qid,
+    data
+  }), {
     headers: { "content-type": "application/json" }
   });
 };
