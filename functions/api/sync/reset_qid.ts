@@ -22,18 +22,32 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     try {
       data = JSON.parse(raw);
     } catch (e) {
-      data = { correct: {}, incorrect: {}, updatedAt: Date.now() };
+      data = { correct: {}, incorrect: {}, streak3: {}, updatedAt: Date.now() };
     }
   } else {
-    data = { correct: {}, incorrect: {}, updatedAt: Date.now() };
+    data = { correct: {}, incorrect: {}, streak3: {}, updatedAt: Date.now() };
+  }
+
+  // 念のためプロパティが無い場合も初期化しておく
+  if (!data.correct) {
+    data.correct = {};
+  }
+  if (!data.incorrect) {
+    data.incorrect = {};
+  }
+  if (!data.streak3) {
+    data.streak3 = {};
   }
 
   // --- qid をピンポイントで削除 ---
-  if (data.correct && data.correct[qid] !== undefined) {
+  if (data.correct[qid] !== undefined) {
     delete data.correct[qid];
   }
-  if (data.incorrect && data.incorrect[qid] !== undefined) {
+  if (data.incorrect[qid] !== undefined) {
     delete data.incorrect[qid];
+  }
+  if (data.streak3[qid] !== undefined) {
+    delete data.streak3[qid];
   }
 
   // --- updatedAt 更新 ---

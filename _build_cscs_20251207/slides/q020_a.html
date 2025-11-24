@@ -1011,11 +1011,14 @@ h1 { font-size: var(--h1-fs, inherit); }
             }catch(_){}
 
             // 連続正解カウンタ系（qidごと）のリセット（ローカル）
-            const kStreakLen   = "cscs_correct_streak_len:" + QID;
-            const kStreakTotal = "cscs_q_correct_streak3_total:" + QID;
+            const kStreakLen    = "cscs_correct_streak_len:" + QID;
+            const kStreakTotal  = "cscs_q_correct_streak3_total:" + QID;
+            const kStreakLastS3 = "cscs_sync_last_s3:" + QID;
             try{
               localStorage.removeItem(kStreakLen);
               localStorage.removeItem(kStreakTotal);
+              // Bパート用の「前回SYNC済みstreak3」も 0 に揃える
+              localStorage.setItem(kStreakLastS3, "0");
             }catch(_){}
 
             // 3連正解達成履歴ログから、このqidの記録だけを削除（ローカル）
@@ -1032,6 +1035,16 @@ h1 { font-size: var(--h1-fs, inherit); }
                   });
                   localStorage.setItem(logKey, JSON.stringify(filtered));
                 }
+              }
+            }catch(_){}
+
+            // SYNC 側 streak3 を 0 とみなしてモニタ用データにも反映
+            try{
+              const totalsEl = document.getElementById("cscs_sync_totals");
+              if (totalsEl) {
+                const sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+                const si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+                setServerTotalsForQid(sc, si, 0);
               }
             }catch(_){}
 
