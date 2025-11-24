@@ -764,7 +764,7 @@ h1 { font-size: var(--h1-fs, inherit); }
 
     function readLocalStreakLenForQid(qid){
       try{
-        const kL = "cscs_correct_streak_len:" + qid;
+        const kL = "cscs_q_correct_streak_len:" + qid;
         const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
         return l;
       }catch(_){
@@ -929,7 +929,8 @@ h1 { font-size: var(--h1-fs, inherit); }
       },
       recordStreakLen(){
         if (!QID) return;
-        queue.streakLenDelta[QID] = (queue.streakLenDelta[QID] || 0) + 1;
+        const currentLen = readLocalStreakLenForQid(QID);
+        queue.streakLenDelta[QID] = currentLen;
         scheduleSend();
       },
       async fetchServer(){
@@ -959,7 +960,7 @@ h1 { font-size: var(--h1-fs, inherit); }
           // 3連続正解累積もサーバー値でローカルに揃える
           localStorage.setItem("cscs_q_correct_streak3_total:" + QID, String(s3));
           // 連続正解長もサーバー値でローカルに揃える
-          localStorage.setItem("cscs_correct_streak_len:" + QID, String(sl));
+          localStorage.setItem("cscs_q_correct_streak_len:" + QID, String(sl));
         }catch(_){}
 
         lastSyncStatus = "pulled";
@@ -1055,7 +1056,7 @@ h1 { font-size: var(--h1-fs, inherit); }
             }catch(_){}
 
             // 連続正解カウンタ系（qidごと）のリセット（ローカル）
-            const kStreakLen    = "cscs_correct_streak_len:" + QID;
+            const kStreakLen    = "cscs_q_correct_streak_len:" + QID;
             const kStreakTotal  = "cscs_q_correct_streak3_total:" + QID;
             const kStreakLastS3 = "cscs_sync_last_s3:" + QID;
             try{

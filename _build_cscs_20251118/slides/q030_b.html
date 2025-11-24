@@ -347,9 +347,10 @@ ol.opts li.is-correct a.opt-link {
   if (!info) return;
 
   // b_judge_record.js が管理している「本物の累積キー」
-  const KEY_COR      = `cscs_q_correct_total:${info.qid}`;
-  const KEY_WRG      = `cscs_q_wrong_total:${info.qid}`;
-  const KEY_S3       = `cscs_q_correct_streak3_total:${info.qid}`;
+  const KEY_COR        = `cscs_q_correct_total:${info.qid}`;
+  const KEY_WRG        = `cscs_q_wrong_total:${info.qid}`;
+  const KEY_S3         = `cscs_q_correct_streak3_total:${info.qid}`;
+  const KEY_STREAK_LEN = `cscs_q_correct_streak_len:${info.qid}`;
 
   // B側だけで使う「最後に SYNC 済みだったときの累積値」
   const KEY_LAST_COR = `cscs_sync_last_c:${info.qid}`;
@@ -369,9 +370,10 @@ ol.opts li.is-correct a.opt-link {
 
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
-    const cNow  = loadInt(KEY_COR);
-    const wNow  = loadInt(KEY_WRG);
-    const s3Now = loadInt(KEY_S3);
+    const cNow        = loadInt(KEY_COR);
+    const wNow        = loadInt(KEY_WRG);
+    const s3Now       = loadInt(KEY_S3);
+    const streakLenNow = loadInt(KEY_STREAK_LEN);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
     const cLast  = loadInt(KEY_LAST_COR);
@@ -390,14 +392,15 @@ ol.opts li.is-correct a.opt-link {
     const dw  = Math.max(0, wNow  - wLast);
     const ds3 = Math.max(0, s3Now - s3Last);
 
-    // 送るべき差分が無ければ何もしない
-    if (!dc && !dw && !ds3) return;
+    // streakLenNow が 0 でも「リセットとして送る」ケースがあるので条件に含めない
+    if (!dc && !dw && !ds3 && streakLenNow === 0) return;
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
     const payload = {
       correctDelta:   dc  > 0 ? { [info.qid]: dc  } : {},
       incorrectDelta: dw  > 0 ? { [info.qid]: dw  } : {},
       streak3Delta:   ds3 > 0 ? { [info.qid]: ds3 } : {},
+      streakLenDelta: { [info.qid]: streakLenNow },
       updatedAt: Date.now()
     };
 
@@ -406,6 +409,7 @@ ol.opts li.is-correct a.opt-link {
       cNow,
       wNow,
       s3Now,
+      streakLenNow,
       cLast,
       wLast,
       s3Last,
@@ -671,8 +675,8 @@ ol.opts li.is-correct a.opt-link {
     var serverStreak3 = params.serverStreak3 || 0;
     var serverStreakLen = params.serverStreakLen || 0;
 
-    // 差分がなければ何もしない（表示だけ更新）
-    if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0 && diffStreakLen <= 0) {
+    // 差分がなく、かつ streakLen もサーバーと同じなら何もしない（表示だけ更新）
+    if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0 && localStreakLen === serverStreakLen) {
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -725,9 +729,7 @@ ol.opts li.is-correct a.opt-link {
     if (diffStreak3 > 0) {
       streak3DeltaObj[qid] = diffStreak3;
     }
-    if (diffStreakLen > 0) {
-      streakLenDeltaObj[qid] = diffStreakLen;
-    }
+    streakLenDeltaObj[qid] = localStreakLen;
 
     var payload = {
       correctDelta: correctDeltaObj,
@@ -884,7 +886,7 @@ ol.opts li.is-correct a.opt-link {
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
-        var localStreakLen = readIntFromLocalStorage("cscs_correct_streak_len:" + info.qid);
+        var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
 
         // diff は「まだサーバーに反映されていない増分」として扱うので 0 未満にはしない
         var diffCorrect = Math.max(0, localCorrect - serverCorrect);
@@ -928,7 +930,7 @@ ol.opts li.is-correct a.opt-link {
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
-        var localStreakLen = readIntFromLocalStorage("cscs_correct_streak_len:" + info.qid);
+        var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
 
         renderPanel(box, {
           serverCorrect: 0,
