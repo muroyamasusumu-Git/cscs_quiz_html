@@ -447,7 +447,14 @@ ol.opts li.is-correct a.opt-link {
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
     const cLast  = loadInt(KEY_LAST_COR);
     const wLast  = loadInt(KEY_LAST_WRG);
-    const s3Last = loadInt(KEY_LAST_S3);
+    let s3Last = loadInt(KEY_LAST_S3);
+
+    // local が s3Last より小さい場合 → s3Last を local に強制修正
+    if (s3Last > s3Now) {
+    console.warn("[SYNC/B] 修正: s3Last が local より大きかったため補正しました");
+    s3Last = s3Now;
+    saveInt(KEY_LAST_S3, s3Last);
+    }
 
     // 3) 差分（マイナスは送らない）
     const dc  = Math.max(0, cNow  - cLast);
