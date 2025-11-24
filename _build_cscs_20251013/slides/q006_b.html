@@ -683,7 +683,11 @@ ol.opts li.is-correct a.opt-link {
       text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
       text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
       text += "3連続正解回数:\n";
-      text += "SYNC " + serverStreak3 + " 回 / local " + localStreak3 + " 回";
+      if (serverStreak3 === localStreak3) {
+        text += "SYNC " + serverStreak3 + " 回 / local " + localStreak3 + " 回";
+      } else {
+        text += "SYNC " + serverStreak3 + " 回 / local " + localStreak3 + " 回 (差分 " + diffStreak3 + " 回)";
+      }
 
       // server/local/diff/s3 はボディ側に縦並び表示
       updateSyncBody(text);
