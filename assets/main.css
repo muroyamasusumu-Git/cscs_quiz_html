@@ -134,7 +134,6 @@ margin: 0 5px 0 0;
   display: none;
   margin-right: 4px;
   font-size: 1.05em;
-  vertical-align: middle;
 }
 
 .correct_star[data-star-state="on"] {
