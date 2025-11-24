@@ -10,7 +10,7 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2025-11-23
+ * 最終更新: 2025-11-24
  *
  * === SPEC CONTENT ===
  */
@@ -98,6 +98,19 @@
 //     cscs_q_correct_streak3_log:{qid}
 // ・全体ストリーク（cscs_correct_streak_len 等）とは独立し、
 //   各 qid 単位で連続正解を個別計測する方式に変更。
+// 🆕 2025-11-24 更新
+// ・A/Bパート間で「現在の問題別連続正解数（streakLen）」を
+//   SYNC に正しく反映するため、正解処理（isCorrect=true）で
+//   問題別ストリーク更新直後に
+//     window.CSCS_SYNC.recordStreakLen()
+//   を呼び出す実装を追加。
+// ・これにより、1/3 → 2/3 → 3/3 の “3連続正解進捗” が
+//   端末A ↔ 端末B をまたいでも正しく同期される仕様に拡張。
+// ・streak3_total（3連達成回数）と streak3Delta に加え、
+//   streakLenDelta（現在の連続正解数の差分）を
+//   /api/sync/merge へ送信できるようになる。
+// ・SYNC Worker 側の streakLen[qid] と UI（A/B）の
+//   「(進捗 a/3) 表示」と整合するための必須改修。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -311,6 +324,10 @@
             sLenQ = 0;
           }
           setIntLS(sKeyQ, sLenQ);
+
+          if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreakLen === "function") {
+            window.CSCS_SYNC.recordStreakLen();
+          }
         }catch(_){}
 
         // ログ（day単位）※選択肢も保持

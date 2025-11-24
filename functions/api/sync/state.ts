@@ -10,12 +10,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     correct: {},
     incorrect: {},
     streak3: {},
+    streakLen: {},
     updatedAt: 0
   };
 
   // data が存在しても streak3 が無い可能性があるので補完する
   const out = data || empty;
   if (!out.streak3) out.streak3 = {};
+  if (!out.streakLen) out.streakLen = {};
 
   return new Response(JSON.stringify(out), {
     headers: { "content-type": "application/json" },

@@ -682,21 +682,26 @@ ol.opts li.is-correct a.opt-link {
       var localStreak3 = payload.localStreak3 || 0;
       var diffStreak3 = payload.diffStreak3 || 0;
 
+      var serverStreakLen = payload.serverStreakLen || 0;
+      var localStreakLen = payload.localStreakLen || 0;
+      var diffStreakLen = payload.diffStreakLen || 0;
+
       var statusText = payload.statusText || "";
+
+      // 進捗用: 3連続に対する現在の連続正解長の位置 (0〜2)
+      var serverProgress = serverStreakLen % 3;
+      var localProgress = localStreakLen % 3;
 
       var text = "";
       text += "server " + serverCorrect + " / " + serverWrong + "\n";
       text += "local  " + localCorrect + " / " + localWrong + "\n";
       text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
       text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
-      text += "3連続正解回数:\n";
-      if (serverStreak3 === localStreak3) {
-        text += "SYNC " + serverStreak3 + " 回 / local " + localStreak3 + " 回";
-      } else {
-        text += "SYNC " + serverStreak3 + " 回 / local " + localStreak3 + " 回 (差分 " + diffStreak3 + " 回)";
-      }
+      text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
+      text += "3連続正解回数 (進捗):\n";
+      text += "SYNC " + serverStreak3 + " 回 (" + serverProgress + "/3) / local " + localStreak3 + " 回 (" + localProgress + "/3)";
 
-      // server/local/diff/s3 はボディ側に縦並び表示
+      // server/local/diff/s3/sLen はボディ側に縦並び表示
       updateSyncBody(text);
 
       // statusText は個別の <div> に分離して表示
@@ -725,17 +730,20 @@ ol.opts li.is-correct a.opt-link {
     var diffCorrect = params.diffCorrect;
     var diffWrong = params.diffWrong;
     var diffStreak3 = params.diffStreak3 || 0;
+    var diffStreakLen = params.diffStreakLen || 0;
 
     var localCorrect = params.localCorrect;
     var localWrong = params.localWrong;
     var localStreak3 = params.localStreak3 || 0;
+    var localStreakLen = params.localStreakLen || 0;
 
     var serverCorrect = params.serverCorrect;
     var serverWrong = params.serverWrong;
     var serverStreak3 = params.serverStreak3 || 0;
+    var serverStreakLen = params.serverStreakLen || 0;
 
     // 差分がなければ何もしない（表示だけ更新）
-    if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0) {
+    if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0 && diffStreakLen <= 0) {
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -746,6 +754,9 @@ ol.opts li.is-correct a.opt-link {
         serverStreak3: serverStreak3,
         localStreak3: localStreak3,
         diffStreak3: diffStreak3,
+        serverStreakLen: serverStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen,
         statusText: "no diff"
       });
       return;
@@ -763,6 +774,9 @@ ol.opts li.is-correct a.opt-link {
         serverStreak3: serverStreak3,
         localStreak3: localStreak3,
         diffStreak3: diffStreak3,
+        serverStreakLen: serverStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen,
         statusText: "offline"
       });
       return;
@@ -772,6 +786,7 @@ ol.opts li.is-correct a.opt-link {
     var correctDeltaObj = {};
     var incorrectDeltaObj = {};
     var streak3DeltaObj = {};
+    var streakLenDeltaObj = {};
     if (diffCorrect > 0) {
       correctDeltaObj[qid] = diffCorrect;
     }
@@ -781,11 +796,15 @@ ol.opts li.is-correct a.opt-link {
     if (diffStreak3 > 0) {
       streak3DeltaObj[qid] = diffStreak3;
     }
+    if (diffStreakLen > 0) {
+      streakLenDeltaObj[qid] = diffStreakLen;
+    }
 
     var payload = {
       correctDelta: correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
       streak3Delta: streak3DeltaObj,
+      streakLenDelta: streakLenDeltaObj,
       updatedAt: Date.now()
     };
 
@@ -813,6 +832,9 @@ ol.opts li.is-correct a.opt-link {
           serverStreak3: serverStreak3,
           localStreak3: localStreak3,
           diffStreak3: diffStreak3,
+          serverStreakLen: serverStreakLen,
+          localStreakLen: localStreakLen,
+          diffStreakLen: diffStreakLen,
           statusText: "merge " + String(response.status)
         });
         return;
@@ -827,10 +849,11 @@ ol.opts li.is-correct a.opt-link {
 
       console.log("[SYNC-B] sync success:", data);
 
-      // merge のレスポンスは { correct: {qid: total, ...}, incorrect: {...}, streak3: {...} } 形式を想定
+      // merge のレスポンスは { correct: {qid: total, ...}, incorrect: {...}, streak3: {...}, streakLen: {...} } 形式を想定
       var newServerCorrect = serverCorrect;
       var newServerWrong = serverWrong;
       var newServerStreak3 = serverStreak3;
+      var newServerStreakLen = serverStreakLen;
 
       if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
         if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
@@ -859,9 +882,19 @@ ol.opts li.is-correct a.opt-link {
         }
       }
 
+      if (data && data.streakLen && typeof data.streakLen === "object" && data.streakLen !== null) {
+        if (Object.prototype.hasOwnProperty.call(data.streakLen, qid)) {
+          var slVal = data.streakLen[qid];
+          if (typeof slVal === "number" && Number.isFinite(slVal) && slVal >= 0) {
+            newServerStreakLen = slVal;
+          }
+        }
+      }
+
       var newDiffCorrect = Math.max(0, localCorrect - newServerCorrect);
       var newDiffWrong = Math.max(0, localWrong - newServerWrong);
       var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
+      var newDiffStreakLen = Math.max(0, localStreakLen - newServerStreakLen);
 
       renderPanel(box, {
         serverCorrect: newServerCorrect,
@@ -873,6 +906,9 @@ ol.opts li.is-correct a.opt-link {
         serverStreak3: newServerStreak3,
         localStreak3: localStreak3,
         diffStreak3: newDiffStreak3,
+        serverStreakLen: newServerStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: newDiffStreakLen,
         statusText: "ok"
       });
     } catch (e) {
@@ -887,6 +923,9 @@ ol.opts li.is-correct a.opt-link {
         serverStreak3: serverStreak3,
         localStreak3: localStreak3,
         diffStreak3: diffStreak3,
+        serverStreakLen: serverStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen,
         statusText: "error"
       });
     }
@@ -898,6 +937,7 @@ ol.opts li.is-correct a.opt-link {
         var serverCorrect = 0;
         var serverWrong = 0;
         var serverStreak3 = 0;
+        var serverStreakLen = 0;
 
         if (state && state.correct && state.correct[info.qid] != null) {
           serverCorrect = state.correct[info.qid];
@@ -908,15 +948,20 @@ ol.opts li.is-correct a.opt-link {
         if (state && state.streak3 && state.streak3[info.qid] != null) {
           serverStreak3 = state.streak3[info.qid];
         }
+        if (state && state.streakLen && state.streakLen[info.qid] != null) {
+          serverStreakLen = state.streakLen[info.qid];
+        }
 
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
+        var localStreakLen = readIntFromLocalStorage("cscs_correct_streak_len:" + info.qid);
 
         // diff は「まだサーバーに反映されていない増分」として扱うので 0 未満にはしない
         var diffCorrect = Math.max(0, localCorrect - serverCorrect);
         var diffWrong = Math.max(0, localWrong - serverWrong);
         var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
+        var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
 
         renderPanel(box, {
           serverCorrect: serverCorrect,
@@ -928,6 +973,9 @@ ol.opts li.is-correct a.opt-link {
           serverStreak3: serverStreak3,
           localStreak3: localStreak3,
           diffStreak3: diffStreak3,
+          serverStreakLen: serverStreakLen,
+          localStreakLen: localStreakLen,
+          diffStreakLen: diffStreakLen,
           statusText: "state ok"
         });
 
@@ -935,12 +983,15 @@ ol.opts li.is-correct a.opt-link {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
           serverStreak3: serverStreak3,
+          serverStreakLen: serverStreakLen,
           localCorrect: localCorrect,
           localWrong: localWrong,
           localStreak3: localStreak3,
+          localStreakLen: localStreakLen,
           diffCorrect: diffCorrect,
           diffWrong: diffWrong,
-          diffStreak3: diffStreak3
+          diffStreak3: diffStreak3,
+          diffStreakLen: diffStreakLen
         });
       })
       .catch(function (e) {
@@ -948,6 +999,7 @@ ol.opts li.is-correct a.opt-link {
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
+        var localStreakLen = readIntFromLocalStorage("cscs_correct_streak_len:" + info.qid);
 
         renderPanel(box, {
           serverCorrect: 0,
@@ -959,6 +1011,9 @@ ol.opts li.is-correct a.opt-link {
           serverStreak3: 0,
           localStreak3: localStreak3,
           diffStreak3: 0,
+          serverStreakLen: 0,
+          localStreakLen: localStreakLen,
+          diffStreakLen: 0,
           statusText: "state error"
         });
       });

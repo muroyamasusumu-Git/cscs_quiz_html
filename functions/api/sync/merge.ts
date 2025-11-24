@@ -2,9 +2,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
 
-  const delta = await request.json(); // { correctDelta:{qid:n}, incorrectDelta:{qid:n}, streak3Delta:{qid:n} }
+  const delta = await request.json(); // { correctDelta:{qid:n}, incorrectDelta:{qid:n}, streak3Delta:{qid:n}, streakLenDelta:{qid:n} }
   const server =
-    (await env.SYNC.get(key, "json")) || { correct: {}, incorrect: {}, streak3: {}, updatedAt: 0 };
+    (await env.SYNC.get(key, "json")) ||
+    { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, updatedAt: 0 };
 
   for (const [qid, n] of Object.entries(delta.correctDelta || {})) {
     server.correct[qid] = (server.correct[qid] || 0) + (n as number);
@@ -17,6 +18,13 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     if (!Number.isFinite(v) || v <= 0) continue;
     if (!server.streak3) server.streak3 = {};
     server.streak3[qid] = (server.streak3[qid] || 0) + v;
+  }
+
+  for (const [qid, n] of Object.entries(delta.streakLenDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v < 0) continue;
+    if (!server.streakLen) server.streakLen = {};
+    server.streakLen[qid] = v;
   }
 
   server.updatedAt = Date.now();

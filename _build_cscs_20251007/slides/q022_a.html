@@ -732,7 +732,7 @@ h1 { font-size: var(--h1-fs, inherit); }
     const QID = detectQidFromLocationA();
 
     // === ② 差分キュー（Aパート専用） ===
-    const queue = { correctDelta: {}, incorrectDelta: {}, streak3Delta: {} };
+    const queue = { correctDelta: {}, incorrectDelta: {}, streak3Delta: {}, streakLenDelta: {} };
     let sendTimer = null;
 
     // SYNCモニタ用ステータス
@@ -762,13 +762,26 @@ h1 { font-size: var(--h1-fs, inherit); }
       }
     }
 
-    function setServerTotalsForQid(c, i, s3){
+    function readLocalStreakLenForQid(qid){
+      try{
+        const kL = "cscs_correct_streak_len:" + qid;
+        const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
+        return l;
+      }catch(_){
+        return 0;
+      }
+    }
+
+    function setServerTotalsForQid(c, i, s3, sLen){
       const el = document.getElementById("cscs_sync_totals");
       if (el) {
         el.dataset.serverC = String(c);
         el.dataset.serverI = String(i);
         if (typeof s3 === "number") {
           el.dataset.serverS3 = String(s3);
+        }
+        if (typeof sLen === "number") {
+          el.dataset.serverSL = String(sLen);
         }
       }
     }
@@ -787,14 +800,19 @@ h1 { font-size: var(--h1-fs, inherit); }
         const li = local.w;
 
         const ls = readLocalStreak3ForQid(QID);
+        const ll = readLocalStreakLenForQid(QID);
 
-        let sc = 0, si = 0, ss = 0;
+        let sc = 0, si = 0, ss = 0, sl = 0;
         if (totalsEl) {
           sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
           si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
           ss = parseInt(totalsEl.dataset.serverS3 || "0", 10) || 0;
+          sl = parseInt(totalsEl.dataset.serverSL || "0", 10) || 0;
           totalsEl.textContent = "server " + sc + " / " + si;
         }
+
+        const serverProgress = sl % 3;
+        const localProgress  = ll % 3;
 
         if (box) {
           const qEl  = box.querySelector(".sync-qid");
@@ -803,12 +821,21 @@ h1 { font-size: var(--h1-fs, inherit); }
           const stEl = box.querySelector(".sync-status");
           const s3El = box.querySelector(".sync-streak3-val");
           const s3sEl = box.querySelector(".sync-streak3-server");
+          const slEl = box.querySelector(".sync-streaklen-val");
+          const slsEl = box.querySelector(".sync-streaklen-server");
+          const slsProgEl = box.querySelector(".sync-streaklen-server-progress");
+          const sllProgEl = box.querySelector(".sync-streaklen-local-progress");
 
           if (qEl)   qEl.textContent  = QID;
           if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
           if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
           if (s3El)  s3El.textContent = String(ls);
           if (s3sEl) s3sEl.textContent = String(ss);
+
+          if (slEl)        slEl.textContent        = String(ll);
+          if (slsEl)       slsEl.textContent       = String(sl);
+          if (slsProgEl)   slsProgEl.textContent   = String(serverProgress);
+          if (sllProgEl)   sllProgEl.textContent   = String(localProgress);
 
           const time = lastSyncTime ? lastSyncTime : "-";
           const err  = lastSyncError ? (" err:" + lastSyncError) : "";
@@ -831,10 +858,11 @@ h1 { font-size: var(--h1-fs, inherit); }
     }
 
     async function sendDelta(){
-      const hasC = Object.keys(queue.correctDelta).length>0;
-      const hasI = Object.keys(queue.incorrectDelta).length>0;
-      const hasS = Object.keys(queue.streak3Delta).length>0;
-      if (!hasC && !hasI && !hasS) return;
+      const hasC  = Object.keys(queue.correctDelta).length>0;
+      const hasI  = Object.keys(queue.incorrectDelta).length>0;
+      const hasS3 = Object.keys(queue.streak3Delta).length>0;
+      const hasSL = Object.keys(queue.streakLenDelta).length>0;
+      if (!hasC && !hasI && !hasS3 && !hasSL) return;
 
       // ★ 差分送信用のペイロード（qid とタイムスタンプ付き）
       const payload = {
@@ -842,6 +870,7 @@ h1 { font-size: var(--h1-fs, inherit); }
         correctDelta: queue.correctDelta,
         incorrectDelta: queue.incorrectDelta,
         streak3Delta: queue.streak3Delta,
+        streakLenDelta: queue.streakLenDelta,
         updatedAt: Date.now()
       };
 
@@ -858,16 +887,18 @@ h1 { font-size: var(--h1-fs, inherit); }
         if (!res.ok) throw new Error(String(res.status));
 
         // 送信が成功したら差分キューをクリア
-        queue.correctDelta   = {};
-        queue.incorrectDelta = {};
-        queue.streak3Delta   = {};
+        queue.correctDelta    = {};
+        queue.incorrectDelta  = {};
+        queue.streak3Delta    = {};
+        queue.streakLenDelta  = {};
 
         const latest = await res.json();
         if (QID){
-          const c  = (latest.correct   && latest.correct[QID])   || 0;
-          const i  = (latest.incorrect && latest.incorrect[QID]) || 0;
-          const s3 = (latest.streak3   && latest.streak3[QID])   || 0;
-          setServerTotalsForQid(c, i, s3);
+          const c   = (latest.correct   && latest.correct[QID])   || 0;
+          const i   = (latest.incorrect && latest.incorrect[QID]) || 0;
+          const s3  = (latest.streak3   && latest.streak3[QID])   || 0;
+          const sl  = (latest.streakLen && latest.streakLen[QID]) || 0;
+          setServerTotalsForQid(c, i, s3, sl);
         }
         lastSyncStatus = "ok";
         lastSyncTime   = new Date().toLocaleTimeString();
@@ -896,6 +927,11 @@ h1 { font-size: var(--h1-fs, inherit); }
         queue.streak3Delta[QID] = (queue.streak3Delta[QID] || 0) + 1;
         scheduleSend();
       },
+      recordStreakLen(){
+        if (!QID) return;
+        queue.streakLenDelta[QID] = (queue.streakLenDelta[QID] || 0) + 1;
+        scheduleSend();
+      },
       async fetchServer(){
         const r = await fetch("/api/sync/state");
         if(!r.ok) throw new Error(r.statusText);
@@ -911,9 +947,10 @@ h1 { font-size: var(--h1-fs, inherit); }
         const c  = (s.correct   && s.correct[QID])   || 0;
         const i  = (s.incorrect && s.incorrect[QID]) || 0;
         const s3 = (s.streak3   && s.streak3[QID])   || 0;
+        const sl = (s.streakLen && s.streakLen[QID]) || 0;
 
-        // SYNC 側の 3連続正解回数も含めてステータスに反映
-        setServerTotalsForQid(c, i, s3);
+        // SYNC 側の 3連続正解回数＋連続正解長も含めてステータスに反映
+        setServerTotalsForQid(c, i, s3, sl);
 
         try{
           // 正解／不正解の累積をサーバー値でローカルに揃える
@@ -921,6 +958,8 @@ h1 { font-size: var(--h1-fs, inherit); }
           localStorage.setItem("cscs_q_wrong_total:"   + QID, String(i));
           // 3連続正解累積もサーバー値でローカルに揃える
           localStorage.setItem("cscs_q_correct_streak3_total:" + QID, String(s3));
+          // 連続正解長もサーバー値でローカルに揃える
+          localStorage.setItem("cscs_correct_streak_len:" + QID, String(sl));
         }catch(_){}
 
         lastSyncStatus = "pulled";
@@ -947,6 +986,11 @@ h1 { font-size: var(--h1-fs, inherit); }
           <div class="sync-line sync-streak3">
             3連続正解回数:<br>
             SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
+          </div>
+          <div class="sync-line sync-streaklen">
+            連続正解長(3連続への進捗):<br>
+            SYNC <span class="sync-streaklen-server">0</span> (<span class="sync-streaklen-server-progress">0</span>/3) /
+            local <span class="sync-streaklen-val">0</span> (<span class="sync-streaklen-local-progress">0</span>/3)
           </div>
           <div class="sync-line sync-queue">+Δ    0 / 0</div>
           <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>          
