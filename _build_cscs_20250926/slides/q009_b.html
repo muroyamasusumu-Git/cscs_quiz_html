@@ -508,7 +508,38 @@ ol.opts li.is-correct a.opt-link {
     }
   }
 
+  function showStreakStatus(){
+    const localTotal  = loadInt(KEY_S3);
+    const syncedTotal = loadInt(KEY_LAST_S3);
+
+    console.log("== Bパート: 3連続正解 SYNC ステータス ==");
+    console.log("qid:", info.qid);
+    console.log("localStorage[KEY_S3] =", localStorage.getItem(KEY_S3), "→", localTotal);
+    console.log("localStorage[KEY_LAST_S3] =", localStorage.getItem(KEY_LAST_S3), "→", syncedTotal);
+
+    if (localTotal === 0 && syncedTotal === 0) {
+      console.log("ℹ まだこの問題では 3回連続正解が発生していません。");
+    } else if (localTotal === syncedTotal) {
+      console.log(`✅ 3連続正解回数: SYNC ${syncedTotal} 回 / local ${localTotal} 回（完全一致）です。`);
+    } else if (syncedTotal < localTotal) {
+      console.warn(
+        "⚠ 同期待ちの 3連続正解があります。",
+        "SYNC 側 =", syncedTotal, "/ local 側 =", localTotal,
+        "（次回の Bパート遷移時に追加送信される可能性があります。）"
+      );
+    } else {
+      console.error(
+        "✕ 異常: SYNC 側の 3連続正解回数の方が大きくなっています (SYNC > local)。",
+        "SYNC 側 =", syncedTotal, "/ local 側 =", localTotal,
+        "一度リセットしてから再テストした方が良いかもしれません。"
+      );
+    }
+
+    console.log("== Bパート: 3連続正解 SYNC ステータス終了 ==");
+  }
+
   schedule();
+  showStreakStatus();
 })();
 </script>
 
