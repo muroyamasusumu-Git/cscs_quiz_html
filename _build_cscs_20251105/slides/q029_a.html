@@ -395,6 +395,15 @@ h1 { font-size: var(--h1-fs, inherit); }
         queue.streakLenDelta  = {};
 
         const latest = await res.json();
+
+        // ★ nav_list 用：今回の merge で更新された qid のみを抽出
+        var updatedQids = [];
+        if (latest && Array.isArray(latest.updatedQids)) {
+          updatedQids = latest.updatedQids.slice();
+        } else if (QID) {
+          updatedQids = [QID];
+        }
+
         if (QID){
           const c   = (latest.correct   && latest.correct[QID])   || 0;
           const i   = (latest.incorrect && latest.incorrect[QID]) || 0;
@@ -402,6 +411,24 @@ h1 { font-size: var(--h1-fs, inherit); }
           const sl  = (latest.streakLen && latest.streakLen[QID]) || 0;
           setServerTotalsForQid(c, i, s3, sl);
         }
+
+        // ★ nav_list へ「差分更新通知」を送る（1行だけの DOM 更新を想定）
+        try{
+          if (updatedQids.length > 0) {
+            if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.handleSyncMergeUpdate === "function") {
+              window.CSCS_NAV_LIST.handleSyncMergeUpdate({
+                updatedQids: updatedQids,
+                state: latest
+              });
+            } else if (typeof window.CustomEvent === "function") {
+              var ev = new CustomEvent("cscs-sync-updated", {
+                detail: { updatedQids: updatedQids, state: latest }
+              });
+              window.dispatchEvent(ev);
+            }
+          }
+        }catch(_){}
+
         lastSyncStatus = "ok";
         lastSyncTime   = new Date().toLocaleTimeString();
         lastSyncError  = "";

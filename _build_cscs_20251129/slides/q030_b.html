@@ -742,6 +742,31 @@ h1 { font-size: var(--h1-fs, inherit); }
       var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
       var newDiffStreakLen = Math.max(0, localStreakLen - newServerStreakLen);
 
+      // ★ nav_list への部分更新通知（merge レスポンスに含まれる updatedQids を優先）
+      try {
+        var updatedQids = [];
+        if (data && Array.isArray(data.updatedQids)) {
+          updatedQids = data.updatedQids.slice();
+        } else if (info && info.qid) {
+          updatedQids = [info.qid];
+        }
+        if (updatedQids.length > 0) {
+          if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.handleSyncMergeUpdate === "function") {
+            window.CSCS_NAV_LIST.handleSyncMergeUpdate({
+              updatedQids: updatedQids,
+              state: data || null
+            });
+          } else if (typeof window.CustomEvent === "function") {
+            var ev = new CustomEvent("cscs-sync-updated", {
+              detail: { updatedQids: updatedQids, state: data || null }
+            });
+            window.dispatchEvent(ev);
+          }
+        }
+      } catch (e2) {
+        console.warn("[SYNC-B] nav_list update notify failed:", e2);
+      }
+
       renderPanel(box, {
         serverCorrect: newServerCorrect,
         serverWrong: newServerWrong,
