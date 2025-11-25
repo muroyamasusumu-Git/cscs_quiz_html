@@ -324,39 +324,39 @@
       const n3 = pad3(i);
       const qid = day + "-" + n3;
 
-      const streakTotalSync = (window.CSCS_SYNC_DATA?.streak3?.[qid] || 0);
+      const syncRoot =
+        window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object"
+          ? (window.CSCS_SYNC_DATA.data && typeof window.CSCS_SYNC_DATA.data === "object"
+              ? window.CSCS_SYNC_DATA.data
+              : window.CSCS_SYNC_DATA)
+          : {};
+
+      const streakTotalSync =
+        syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
+          ? Number(syncRoot.streak3[qid] || 0)
+          : 0;
       const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
-        // --- SYNC root を取得（.data があればそちらを優先） ---
-        const syncRoot = 
-        window.CSCS_SYNC_DATA && window.CSCS_SYNC_DATA.data
-            ? window.CSCS_SYNC_DATA.data
-            : window.CSCS_SYNC_DATA || {};
-
-        // --- consistency オブジェクト取得 ---
-        const consistencyObjSync =
+      const consistencyObjSync =
         syncRoot && syncRoot.consistency
-            ? syncRoot.consistency[qid]
-            : null;
-
-        // --- status_mark を抽出 ---
-        const consistencyRawSync =
+          ? syncRoot.consistency[qid]
+          : null;
+      const consistencyRawSync =
         consistencyObjSync && typeof consistencyObjSync.status_mark === "string"
-            ? consistencyObjSync.status_mark
-            : "";
+          ? consistencyObjSync.status_mark
+          : "";
 
-        // --- 表示用のマークを決定 ---
-        let consistencyMark = "—";
+      let consistencyMark = "—";
 
-        if (consistencyRawSync === "◎") {
+      if (consistencyRawSync === "◎") {
         consistencyMark = "◎";
-        } else if (consistencyRawSync === "○") {
+      } else if (consistencyRawSync === "○") {
         consistencyMark = "○";
-        } else if (consistencyRawSync === "△") {
+      } else if (consistencyRawSync === "△") {
         consistencyMark = "△";
-        } else if (consistencyRawSync === "×") {
+      } else if (consistencyRawSync === "×") {
         consistencyMark = "×";
-        }
+      }
 
       const correctTotalRaw = localStorage.getItem("cscs_q_correct_total:" + qid);
       const wrongTotalRaw = localStorage.getItem("cscs_q_wrong_total:" + qid);
