@@ -13,7 +13,7 @@
       }
     }catch(_){}
     try{
-      const res = await fetch("/api/sync/get", { cache: "no-store" });
+      const res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
       const json = await res.json();
       if (!json || typeof json !== "object") {
         window.CSCS_SYNC_DATA = { ok: false, data: {} };
