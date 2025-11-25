@@ -327,10 +327,10 @@
       const n3 = pad3(i);
       const qid = day + "-" + n3;
 
-      const streakTotalSync = (window.CSCS_SYNC_DATA?.data?.streak3?.[qid] || 0);
+      const streakTotalSync = (window.CSCS_SYNC_DATA?.streak3?.[qid] || 0);
       const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
-      const consistencyRawSync = (window.CSCS_SYNC_DATA?.data?.consistency?.[qid] || "");
+      const consistencyRawSync = (window.CSCS_SYNC_DATA?.consistency?.[qid] || "");
 
       let consistencyMark = "—";
 
