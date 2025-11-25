@@ -925,6 +925,15 @@ h1 { font-size: var(--h1-fs, inherit); }
       recordStreak3(){
         if (!QID) return;
         queue.streak3Delta[QID] = (queue.streak3Delta[QID] || 0) + 1;
+        try{
+          var ev = new CustomEvent("cscs:streak3-earned", {
+            detail: {
+              qid: QID,
+              ts: Date.now()
+            }
+          });
+          window.dispatchEvent(ev);
+        }catch(_){}
         scheduleSend();
       },
       recordStreakLen(){

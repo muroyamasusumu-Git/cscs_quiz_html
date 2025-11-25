@@ -517,6 +517,12 @@
     }
   }
 
+  window.addEventListener("cscs:streak3-earned", function(){
+    try{
+      mountAndOpenPanel();
+    }catch(_){}
+  });
+
   window.addEventListener("DOMContentLoaded", function(){
     if (!isAPart()) return;
     try {
