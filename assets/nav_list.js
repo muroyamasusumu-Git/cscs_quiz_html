@@ -307,11 +307,21 @@
       const streakTotal = Number(streakTotalRaw || "0");
       const streakMark = streakTotal > 0 ? "⭐️" : "—";
 
-      const consistencyRaw = localStorage.getItem("cscs_consistency_status:" + qid) || "";
+      let consistencyRaw = localStorage.getItem("cscs_consistency_status:" + qid);
+      if (consistencyRaw == null) {
+        consistencyRaw = localStorage.getItem("cscs_consistency:" + qid);
+      }
+      consistencyRaw = consistencyRaw || "";
+
       let consistencyMark = "—";
-      if (consistencyRaw === "ok") {
+
+      if (consistencyRaw === "◎" || consistencyRaw === "ok") {
         consistencyMark = "◎";
-      } else if (consistencyRaw === "ng") {
+      } else if (consistencyRaw === "○") {
+        consistencyMark = "○";
+      } else if (consistencyRaw === "△") {
+        consistencyMark = "△";
+      } else if (consistencyRaw === "×" || consistencyRaw === "ng") {
         consistencyMark = "×";
       }
 
