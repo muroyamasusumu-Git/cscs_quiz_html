@@ -517,7 +517,7 @@
     }
   }
 
-  window.addEventListener("cscs:streak3-earned", function(){
+  window.addEventListener("cscs-sync-updated", function(){
     try{
       mountAndOpenPanel();
     }catch(_){}

@@ -112,6 +112,9 @@
 //   /api/sync/merge へ送信できるようになる。
 // ・SYNC Worker 側の streakLen[qid] と UI（A/B）の
 //   「(進捗 a/3) 表示」と整合するための必須改修。
+// ・streakLen 更新直後に UI 連動用 CustomEvent
+//     window.dispatchEvent(new CustomEvent("cscs-sync-updated"))
+//   を発火し、ナビリスト等から SYNC 状態の再読込をトリガーできるようにした。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -329,6 +332,9 @@
           if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreakLen === "function") {
             window.CSCS_SYNC.recordStreakLen();
           }
+          try{
+            window.dispatchEvent(new CustomEvent("cscs-sync-updated"));
+          }catch(_){}
         }catch(_){}
 
         // ログ（day単位）※選択肢も保持
@@ -366,6 +372,9 @@
           if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreakLen === "function") {
             window.CSCS_SYNC.recordStreakLen();
           }
+          try{
+            window.dispatchEvent(new CustomEvent("cscs-sync-updated"));
+          }catch(_){}
         }catch(_){}
 
         // 互換: 従来の通算集計 cscs_wrong_log[qid]++
