@@ -50,10 +50,10 @@
     return null;
   }
 
-  // ===== 3連続正解フラグの判定 =====
-  function hasStreak3(qid) {
+  // ===== 3連続正解カウント取得 =====
+  function getStreak3Count(qid) {
     if (!qid) {
-      return false;
+      return 0;
     }
 
     // 問題別の3連正解累計キー
@@ -64,20 +64,20 @@
     try {
       raw = window.localStorage.getItem(key);
     } catch (e) {
-      // localStorage が使えない環境では常に false
-      return false;
+      // localStorage が使えない環境では 0 回扱い
+      return 0;
     }
 
     if (raw === null || raw === undefined || raw === "") {
-      return false;
+      return 0;
     }
 
     var n = parseInt(raw, 10);
-    if (!Number.isFinite(n)) {
-      return false;
+    if (!Number.isFinite(n) || n < 0) {
+      return 0;
     }
 
-    return n >= 1;
+    return n;
   }
 
   // ===== スター表示の更新 =====
@@ -89,11 +89,20 @@
       return;
     }
 
-    var isActive = hasStreak3(qid);
+    // 3連続正解達成回数
+    var count = getStreak3Count(qid);
 
-    if (isActive) {
+    if (count >= 3) {
+      // 3回以上達成で 🌟 に昇格
+      starElement.textContent = "🌟";
+      starElement.setAttribute("data-star-state", "on");
+    } else if (count >= 1) {
+      // 1〜2回達成で ⭐️ を表示
+      starElement.textContent = "⭐️";
       starElement.setAttribute("data-star-state", "on");
     } else {
+      // 未達成時は非表示扱い（data 属性のみ OFF）
+      starElement.textContent = "⭐️";
       starElement.setAttribute("data-star-state", "off");
     }
   }
