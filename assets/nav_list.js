@@ -345,6 +345,12 @@
           : 0;
       const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
+      const streakLenSync =
+        syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
+          ? Number(syncRoot.streakLen[qid] || 0)
+          : 0;
+      const streakProgress = "（" + streakLenSync + "/3）";
+
       const consistencyObjSync =
         syncRoot && syncRoot.consistency_status
           ? syncRoot.consistency_status[qidJp]
@@ -384,16 +390,15 @@
       const url   = "q" + n3 + "_a.html?nav=manual";
 
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
-      // 1行目は「[テーマ]＋問題文」に変更（番号は下段へ）
       const line1Text = "[" + (q.Theme || "—") + "] " + snippet;
 
-      // ▼ Level の表記を「Level 1」→「1」へ正規化
       let rawLevel = q.Level || "—";
       rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
 
       const levelText  = "Lvl " + rawLevel;
       const line2Text  =
         streakMark +
+        streakProgress +
         "／" +
         consistencyMark +
         "／" +
