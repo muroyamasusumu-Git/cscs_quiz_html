@@ -520,7 +520,7 @@
       //   少し待ってから nav_list を再構築する
       setTimeout(function(){
         mountAndOpenPanel();
-      }, 500); // 必要に応じて 500〜2000ms の範囲で調整
+      }, 1000); // 必要に応じて 500〜2000ms の範囲で調整
     }catch(_){}
   });
 
