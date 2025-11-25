@@ -303,25 +303,20 @@
       const n3 = pad3(i);
       const qid = day + "-" + n3;
 
-      const streakTotalRaw = localStorage.getItem("cscs_correct_streak3_total:" + qid);
-      const streakTotal = Number(streakTotalRaw || "0");
-      const streakMark = streakTotal > 0 ? "⭐️" : "—";
+      const streakTotalSync = (window.CSCS_SYNC_DATA?.data?.streak3?.[qid] || 0);
+      const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
-      let consistencyRaw = localStorage.getItem("cscs_consistency_status:" + qid);
-      if (consistencyRaw == null) {
-        consistencyRaw = localStorage.getItem("cscs_consistency:" + qid);
-      }
-      consistencyRaw = consistencyRaw || "";
+      const consistencyRawSync = (window.CSCS_SYNC_DATA?.data?.consistency?.[qid] || "");
 
       let consistencyMark = "—";
 
-      if (consistencyRaw === "◎" || consistencyRaw === "ok") {
+      if (consistencyRawSync === "◎") {
         consistencyMark = "◎";
-      } else if (consistencyRaw === "○") {
+      } else if (consistencyRawSync === "○") {
         consistencyMark = "○";
-      } else if (consistencyRaw === "△") {
+      } else if (consistencyRawSync === "△") {
         consistencyMark = "△";
-      } else if (consistencyRaw === "×" || consistencyRaw === "ng") {
+      } else if (consistencyRawSync === "×") {
         consistencyMark = "×";
       }
 
