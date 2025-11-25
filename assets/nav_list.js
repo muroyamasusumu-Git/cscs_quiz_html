@@ -395,7 +395,7 @@
       let rawLevel = q.Level || "—";
       rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
 
-      const levelText  = "Lvl " + rawLevel;
+      const levelText  = "Lv " + rawLevel;
       const line2Text  =
         streakMark +
         streakProgress +
