@@ -7,10 +7,27 @@
   const NAV_ALWAYS_OPEN = true;
 
   async function loadSyncDataForNavList(){
-    if (window.CSCS_SYNC && typeof window.CSCS_SYNC.loadAllSyncData === "function") {
-      return window.CSCS_SYNC.loadAllSyncData();
+    try{
+      if (window.CSCS_SYNC_DATA && window.CSCS_SYNC_DATA.data) {
+        return window.CSCS_SYNC_DATA;
+      }
+    }catch(_){}
+    try{
+      const res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
+      const json = await res.json();
+      if (!json || typeof json !== "object") {
+        window.CSCS_SYNC_DATA = { ok: false, data: {} };
+      } else {
+        if (!json.data || typeof json.data !== "object") {
+          json.data = {};
+        }
+        window.CSCS_SYNC_DATA = json;
+      }
+    }catch(e){
+      console.error("nav_list.js: SYNC 読み込み失敗:", e);
+      window.CSCS_SYNC_DATA = { ok: false, data: {} };
     }
-    throw new Error("CSCS_SYNC.loadAllSyncData が定義されていません。");
+    return window.CSCS_SYNC_DATA;
   }
 
   function isAPart(){
@@ -310,25 +327,27 @@
       const n3 = pad3(i);
       const qid = day + "-" + n3;
 
-      const streak3Total = window.CSCS_SYNC.getStreak3Total(qid);
-      const streakMark = streak3Total > 0 ? "⭐️" : "—";
+      const streakTotalSync = (window.CSCS_SYNC_DATA?.streak3?.[qid] || 0);
+      const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
-      const consistencyStatus = window.CSCS_SYNC.getConsistencyStatus(qid);
+      const consistencyRawSync = (window.CSCS_SYNC_DATA?.consistency?.[qid] || "");
 
       let consistencyMark = "—";
 
-      if (consistencyStatus === "◎") {
+      if (consistencyRawSync === "◎") {
         consistencyMark = "◎";
-      } else if (consistencyStatus === "○") {
+      } else if (consistencyRawSync === "○") {
         consistencyMark = "○";
-      } else if (consistencyStatus === "△") {
+      } else if (consistencyRawSync === "△") {
         consistencyMark = "△";
-      } else if (consistencyStatus === "×") {
+      } else if (consistencyRawSync === "×") {
         consistencyMark = "×";
       }
 
-      const correctTotal = window.CSCS_SYNC.getCorrectTotal(qid);
-      const wrongTotal = window.CSCS_SYNC.getWrongTotal(qid);
+      const correctTotalRaw = localStorage.getItem("cscs_q_correct_total:" + qid);
+      const wrongTotalRaw = localStorage.getItem("cscs_q_wrong_total:" + qid);
+      const correctTotal = Number(correctTotalRaw || "0");
+      const wrongTotal = Number(wrongTotalRaw || "0");
 
       const favRaw = localStorage.getItem("cscs_fav:" + qid);
       let favText = "未設定";
