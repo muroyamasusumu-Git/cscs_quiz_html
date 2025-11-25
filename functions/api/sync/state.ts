@@ -11,13 +11,19 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     incorrect: {},
     streak3: {},
     streakLen: {},
+    consistency_status: {},
     updatedAt: 0
   };
 
   // data が存在しても streak3 が無い可能性があるので補完する
-  const out = data || empty;
+  const out: any = data || empty;
+  if (!out.correct) out.correct = {};
+  if (!out.incorrect) out.incorrect = {};
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
+  if (!out.consistency_status) {
+    out.consistency_status = out.consistency ? out.consistency : {};
+  }
 
   return new Response(JSON.stringify(out), {
     headers: { "content-type": "application/json" },

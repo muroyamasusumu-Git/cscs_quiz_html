@@ -5,7 +5,17 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   const delta = await request.json(); // { correctDelta:{qid:n}, incorrectDelta:{qid:n}, streak3Delta:{qid:n}, streakLenDelta:{qid:n} }
   const server =
     (await env.SYNC.get(key, "json")) ||
-    { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, updatedAt: 0 };
+    { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, consistency_status: {}, updatedAt: 0 };
+
+  if (!server.streak3) {
+    server.streak3 = {};
+  }
+  if (!server.streakLen) {
+    server.streakLen = {};
+  }
+  if (!server.consistency_status) {
+    server.consistency_status = {};
+  }
 
   for (const [qid, n] of Object.entries(delta.correctDelta || {})) {
     server.correct[qid] = (server.correct[qid] || 0) + (n as number);

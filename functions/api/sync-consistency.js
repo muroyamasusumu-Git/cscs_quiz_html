@@ -121,6 +121,30 @@ export async function onRequestPost(context) {
     return jsonResponse(request, 400, { ok: false, error: "Invalid JSON body." });
   }
 
+  let userId = "";
+  try {
+    const jwt = request.headers.get("CF-Access-Jwt-Assertion");
+    if (!jwt) {
+      throw new Error("Unauthorized");
+    }
+    const parts = jwt.split(".");
+    if (parts.length < 2) {
+      throw new Error("Invalid JWT");
+    }
+    const payloadJson = atob(parts[1]);
+    const payload = JSON.parse(payloadJson);
+    userId = String(payload && payload.email ? payload.email : "");
+    if (!userId) {
+      throw new Error("Missing email in JWT");
+    }
+  } catch (_authError) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: corsHeaders
+    });
+  }
+  const syncRootKey = "sync:" + userId;
+
   // 1件でも配列でも受け取れるように正規化
   const items = Array.isArray(body) ? body : [body];
 
@@ -153,11 +177,42 @@ export async function onRequestPost(context) {
       if (!qid) {
         continue;
       }
+
       const key = "consistency_status:" + qid;
       try {
         await env.SYNC.put(key, JSON.stringify(item));
       } catch (e) {
         console.error("[sync-consistency] KV put error:", e);
+      }
+
+      try {
+        let root = await env.SYNC.get(syncRootKey, "json");
+        if (!root || typeof root !== "object") {
+          root = {
+            correct: {},
+            incorrect: {},
+            streak3: {},
+            streakLen: {},
+            updatedAt: 0
+          };
+        }
+        if (!root.consistency_status || typeof root.consistency_status !== "object") {
+          root.consistency_status = {};
+        }
+        root.consistency_status[qid] = {
+          status_mark: item.status_mark,
+          status_label: item.status_label,
+          classification_code: item.classification_code,
+          classification_detail: item.classification_detail,
+          saved_at: item.saved_at
+        };
+        try {
+          root.updatedAt = Date.now();
+        } catch (_e2) {
+        }
+        await env.SYNC.put(syncRootKey, JSON.stringify(root));
+      } catch (e2) {
+        console.error("[sync-consistency] sync root merge error:", e2);
       }
     }
   }

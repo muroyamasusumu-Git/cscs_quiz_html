@@ -338,8 +338,8 @@
       const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
       const consistencyObjSync =
-        syncRoot && syncRoot.consistency
-          ? syncRoot.consistency[qid]
+        syncRoot && syncRoot.consistency_status
+          ? syncRoot.consistency_status[qid]
           : null;
       const consistencyRawSync =
         consistencyObjSync && typeof consistencyObjSync.status_mark === "string"
