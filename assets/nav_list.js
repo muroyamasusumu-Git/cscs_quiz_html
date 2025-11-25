@@ -520,7 +520,7 @@
       //   少し待ってから nav_list を再構築する
       setTimeout(function(){
         mountAndOpenPanel();
-      }, 1000); // 必要に応じて 500〜2000ms の範囲で調整
+      }, 1000); // Cloudflare KV / SYNC 反映ラグ対策のため、1秒待ってから再描画
     }catch(_){}
   });
 

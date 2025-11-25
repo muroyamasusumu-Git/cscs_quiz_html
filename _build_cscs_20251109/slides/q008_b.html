@@ -703,7 +703,7 @@ ol.opts li.is-correct a.opt-link {
       text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
       text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
       text += "3連続正解回数 (進捗):\n";
-      text += "SYNC " + serverStreak3 + " 回 (" + serverProgress + "/3) / local " + localStreak3 + " 回 (" + localProgress + "/3)";
+      text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)";
 
       // server/local/diff/s3/sLen はボディ側に縦並び表示
       updateSyncBody(text);
