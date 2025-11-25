@@ -327,26 +327,36 @@
       const streakTotalSync = (window.CSCS_SYNC_DATA?.streak3?.[qid] || 0);
       const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
 
-      const consistencyObjSync =
-        window.CSCS_SYNC_DATA && window.CSCS_SYNC_DATA.consistency
-          ? window.CSCS_SYNC_DATA.consistency[qid]
-          : null;
-      const consistencyRawSync =
+        // --- SYNC root を取得（.data があればそちらを優先） ---
+        const syncRoot = 
+        window.CSCS_SYNC_DATA && window.CSCS_SYNC_DATA.data
+            ? window.CSCS_SYNC_DATA.data
+            : window.CSCS_SYNC_DATA || {};
+
+        // --- consistency オブジェクト取得 ---
+        const consistencyObjSync =
+        syncRoot && syncRoot.consistency
+            ? syncRoot.consistency[qid]
+            : null;
+
+        // --- status_mark を抽出 ---
+        const consistencyRawSync =
         consistencyObjSync && typeof consistencyObjSync.status_mark === "string"
-          ? consistencyObjSync.status_mark
-          : "";
+            ? consistencyObjSync.status_mark
+            : "";
 
-      let consistencyMark = "—";
+        // --- 表示用のマークを決定 ---
+        let consistencyMark = "—";
 
-      if (consistencyRawSync === "◎") {
+        if (consistencyRawSync === "◎") {
         consistencyMark = "◎";
-      } else if (consistencyRawSync === "○") {
+        } else if (consistencyRawSync === "○") {
         consistencyMark = "○";
-      } else if (consistencyRawSync === "△") {
+        } else if (consistencyRawSync === "△") {
         consistencyMark = "△";
-      } else if (consistencyRawSync === "×") {
+        } else if (consistencyRawSync === "×") {
         consistencyMark = "×";
-      }
+        }
 
       const correctTotalRaw = localStorage.getItem("cscs_q_correct_total:" + qid);
       const wrongTotalRaw = localStorage.getItem("cscs_q_wrong_total:" + qid);
