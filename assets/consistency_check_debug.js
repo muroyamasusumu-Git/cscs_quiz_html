@@ -1022,6 +1022,17 @@
     lines.push("最終: —");
     lines.push("SYNC: 未保存");
 
+    (function() {
+      var qnoStatusEl = document.querySelector(".qno .consistency_status");
+      if (!qnoStatusEl) {
+        qnoStatusEl = document.querySelector(".consistency_status");
+      }
+      if (qnoStatusEl) {
+        qnoStatusEl.textContent = "";
+        qnoStatusEl.style.display = "none";
+      }
+    })();
+
     if (typeof localStorage !== "undefined") {
       try {
         var storageKey = getConsistencyStorageKey(meta, q);
@@ -1130,13 +1141,21 @@
             }
           }
 
-          if (severityMark) {
-            var qnoStatusEl = document.querySelector(".qno .consistency_status");
-            if (!qnoStatusEl) {
-              qnoStatusEl = document.querySelector(".consistency_status");
-            }
-            if (qnoStatusEl) {
+          // 整合性ステータス記号の反映（未チェック時は非表示）
+          var qnoStatusEl = document.querySelector(".qno .consistency_status");
+          if (!qnoStatusEl) {
+            qnoStatusEl = document.querySelector(".consistency_status");
+          }
+
+          if (qnoStatusEl) {
+            if (severityMark && severityMark.trim() !== "") {
+              // チェック済み：◎ / ○ / △ / × を表示
               qnoStatusEl.textContent = severityMark;
+              qnoStatusEl.style.display = "";
+            } else {
+              // 未チェック：非表示
+              qnoStatusEl.textContent = "";
+              qnoStatusEl.style.display = "none";
             }
           }
 
