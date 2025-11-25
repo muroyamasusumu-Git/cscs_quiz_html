@@ -37,6 +37,13 @@
   function pad2(n){ return String(n).padStart(2, "0"); }
   function pad3(n){ return String(n).padStart(3, "0"); }
 
+  function toJpDateQid(day, n3){
+    var y = day.slice(0, 4);
+    var m = String(Number(day.slice(4, 6)));
+    var d = String(Number(day.slice(6, 8)));
+    return y + "年" + m + "月" + d + "日-" + n3;
+  }
+
   // 現在開いている A/Bパートの問題番号（q013_a.html / q013_b.html → "013"）を取得
   function getCurrentQuestionNumber3(){
     try{
@@ -323,6 +330,7 @@
       const i = idx + 1;
       const n3 = pad3(i);
       const qid = day + "-" + n3;
+      const qidJp = toJpDateQid(day, n3);
 
       const syncRoot =
         window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object"
@@ -339,7 +347,7 @@
 
       const consistencyObjSync =
         syncRoot && syncRoot.consistency_status
-          ? syncRoot.consistency_status[qid]
+          ? syncRoot.consistency_status[qidJp]
           : null;
       const consistencyRawSync =
         consistencyObjSync && typeof consistencyObjSync.status_mark === "string"
