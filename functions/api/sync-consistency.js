@@ -193,6 +193,7 @@ export async function onRequestPost(context) {
             incorrect: {},
             streak3: {},
             streakLen: {},
+            consistency_status: {},
             updatedAt: 0
           };
         }
@@ -246,6 +247,31 @@ export async function onRequestDelete(context) {
     });
   }
 
+  // ユーザー特定（sync:{user} の consistency_status からも削除するため）
+  let userId = "";
+  try {
+    const jwt = request.headers.get("CF-Access-Jwt-Assertion");
+    if (!jwt) {
+      throw new Error("Unauthorized");
+    }
+    const parts = jwt.split(".");
+    if (parts.length < 2) {
+      throw new Error("Invalid JWT");
+    }
+    const payloadJson = atob(parts[1]);
+    const payload = JSON.parse(payloadJson);
+    userId = String(payload && payload.email ? payload.email : "");
+    if (!userId) {
+      throw new Error("Missing email in JWT");
+    }
+  } catch (_authError) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: corsHeaders
+    });
+  }
+  const syncRootKey = "sync:" + userId;
+
   const key = "consistency_status:" + qid;
   let deleteError = null;
 
@@ -264,6 +290,36 @@ export async function onRequestDelete(context) {
       error: "KV delete failed.",
       deleted: false
     });
+  }
+
+  // sync:{user} 側の consistency_status[qid] も削除
+  if (env && env.SYNC && typeof env.SYNC.get === "function" && typeof env.SYNC.put === "function") {
+    try {
+      let root = await env.SYNC.get(syncRootKey, "json");
+      if (!root || typeof root !== "object") {
+        root = {
+          correct: {},
+          incorrect: {},
+          streak3: {},
+          streakLen: {},
+          consistency_status: {},
+          updatedAt: 0
+        };
+      }
+      if (!root.consistency_status || typeof root.consistency_status !== "object") {
+        root.consistency_status = {};
+      }
+      if (root.consistency_status[qid] !== undefined) {
+        delete root.consistency_status[qid];
+      }
+      try {
+        root.updatedAt = Date.now();
+      } catch (_e2) {
+      }
+      await env.SYNC.put(syncRootKey, JSON.stringify(root));
+    } catch (e2) {
+      console.error("[sync-consistency] sync root delete merge error:", e2);
+    }
   }
 
   return jsonResponse(request, 200, {

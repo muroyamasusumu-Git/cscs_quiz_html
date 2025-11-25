@@ -28,12 +28,21 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     data = { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, updatedAt: Date.now() };
   }
 
-  // --- safety: streak3/streakLen が無ければ作る ---
+  // --- safety: 各フィールドが無ければ作る（merge.ts と統一） ---
+  if (!data.correct || typeof data.correct !== "object") {
+    data.correct = {};
+  }
+  if (!data.incorrect || typeof data.incorrect !== "object") {
+    data.incorrect = {};
+  }
   if (!data.streak3 || typeof data.streak3 !== "object") {
     data.streak3 = {};
   }
   if (!data.streakLen || typeof data.streakLen !== "object") {
     data.streakLen = {};
+  }
+  if (!data.consistency_status || typeof data.consistency_status !== "object") {
+    data.consistency_status = {};
   }
 
   // --- qid の streak3 / streakLen を 0 にリセット ---

@@ -22,21 +22,41 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     try {
       data = JSON.parse(raw);
     } catch (e) {
-      data = { correct: {}, incorrect: {}, streak3: {}, updatedAt: Date.now() };
+      data = {
+        correct: {},
+        incorrect: {},
+        streak3: {},
+        streakLen: {},
+        consistency_status: {},
+        updatedAt: Date.now()
+      };
     }
   } else {
-    data = { correct: {}, incorrect: {}, streak3: {}, updatedAt: Date.now() };
+    data = {
+      correct: {},
+      incorrect: {},
+      streak3: {},
+      streakLen: {},
+      consistency_status: {},
+      updatedAt: Date.now()
+    };
   }
 
   // 念のためプロパティが無い場合も初期化しておく
-  if (!data.correct) {
+  if (!data.correct || typeof data.correct !== "object") {
     data.correct = {};
   }
-  if (!data.incorrect) {
+  if (!data.incorrect || typeof data.incorrect !== "object") {
     data.incorrect = {};
   }
-  if (!data.streak3) {
+  if (!data.streak3 || typeof data.streak3 !== "object") {
     data.streak3 = {};
+  }
+  if (!data.streakLen || typeof data.streakLen !== "object") {
+    data.streakLen = {};
+  }
+  if (!data.consistency_status || typeof data.consistency_status !== "object") {
+    data.consistency_status = {};
   }
 
   // --- qid をピンポイントで削除 ---
@@ -48,6 +68,12 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
   if (data.streak3[qid] !== undefined) {
     delete data.streak3[qid];
+  }
+  if (data.streakLen[qid] !== undefined) {
+    delete data.streakLen[qid];
+  }
+  if (data.consistency_status[qid] !== undefined) {
+    delete data.consistency_status[qid];
   }
 
   // --- updatedAt 更新 ---

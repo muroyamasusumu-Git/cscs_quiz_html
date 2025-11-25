@@ -2,10 +2,13 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
 
-  // このユーザーの正誤データを全クリア
+  // SYNC の統一構造で完全初期化
   const empty = {
     correct: {},
     incorrect: {},
+    streak3: {},
+    streakLen: {},
+    consistency_status: {},
     updatedAt: Date.now()
   };
 
