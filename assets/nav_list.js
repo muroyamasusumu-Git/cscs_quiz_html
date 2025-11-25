@@ -6,6 +6,30 @@
   // false: これまで通り、トグルボタンで開閉
   const NAV_ALWAYS_OPEN = true;
 
+  async function loadSyncDataForNavList(){
+    try{
+      if (window.CSCS_SYNC_DATA && window.CSCS_SYNC_DATA.data) {
+        return window.CSCS_SYNC_DATA;
+      }
+    }catch(_){}
+    try{
+      const res = await fetch("/api/sync/get", { cache: "no-store" });
+      const json = await res.json();
+      if (!json || typeof json !== "object") {
+        window.CSCS_SYNC_DATA = { ok: false, data: {} };
+      } else {
+        if (!json.data || typeof json.data !== "object") {
+          json.data = {};
+        }
+        window.CSCS_SYNC_DATA = json;
+      }
+    }catch(e){
+      console.error("nav_list.js: SYNC 読み込み失敗:", e);
+      window.CSCS_SYNC_DATA = { ok: false, data: {} };
+    }
+    return window.CSCS_SYNC_DATA;
+  }
+
   function isAPart(){
     return /_(a|b)(?:\.html)?(?:\?.*)?(?:#.*)?$/i.test(String(location.href || ""));
   }
@@ -445,6 +469,8 @@
   async function mountAndOpenPanel(){
     ensurePanel();
     const panel = document.getElementById("nl-panel");
+
+    await loadSyncDataForNavList();
 
     // ▼ 一覧パネルを表示状態にしてからレイアウト計測＆スクロール
     panel.style.display = "block";
