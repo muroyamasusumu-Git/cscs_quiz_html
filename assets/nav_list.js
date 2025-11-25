@@ -349,7 +349,7 @@
         syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
           ? Number(syncRoot.streakLen[qid] || 0)
           : 0;
-      const streakProgress = "（" + streakLenSync + "/3）";
+      const streakProgress = "(" + streakLenSync + "/3)";
 
       const consistencyObjSync =
         syncRoot && syncRoot.consistency_status
