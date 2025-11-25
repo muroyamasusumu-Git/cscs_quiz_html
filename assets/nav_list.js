@@ -6,20 +6,7 @@
   // false: これまで通り、トグルボタンで開閉
   const NAV_ALWAYS_OPEN = true;
 
-  async function loadSyncDataForNavList(syncDataOverride){
-    try{
-      if (syncDataOverride && typeof syncDataOverride === "object") {
-        window.CSCS_SYNC_DATA = syncDataOverride;
-        return window.CSCS_SYNC_DATA;
-      }
-    }catch(_){}
-
-    try{
-      if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
-        return window.CSCS_SYNC_DATA;
-      }
-    }catch(_){}
-
+  async function loadSyncDataForNavList(){
     try{
       const res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
       const json = await res.json();
@@ -527,26 +514,13 @@
     }
   }
 
-  window.addEventListener("cscs-sync-updated", function(ev){
+  window.addEventListener("cscs-sync-updated", function(){
     try{
-      var detail = ev && ev.detail ? ev.detail : null;
-      var syncData = detail && typeof detail === "object" ? detail : null;
-
+      // ★ SYNC 側の /api/sync/state 反映にラグがあることがあるので、
+      //   少し待ってから nav_list を再構築する
       setTimeout(function(){
-        (async function(){
-          await loadSyncDataForNavList(syncData);
-
-          var panel = document.getElementById("nl-panel");
-          if (!panel) return;
-
-          var isOpen = panel.style.display !== "none";
-          if (!NAV_ALWAYS_OPEN && !isOpen) {
-            return;
-          }
-
-          await renderListInto(panel);
-        })();
-      }, 200);
+        mountAndOpenPanel();
+      }, 1000); // Cloudflare KV / SYNC 反映ラグ対策のため、1秒待ってから再描画
     }catch(_){}
   });
 
