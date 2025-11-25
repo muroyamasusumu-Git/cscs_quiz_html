@@ -301,26 +301,60 @@
     (manifest.questions || []).forEach((q, idx) => {
       const i = idx + 1;
       const n3 = pad3(i);
-      const stats = readStats(day, n3);
-      const total = stats.correct + stats.wrong;
-      const rate  = (total > 0) ? Math.round((stats.correct / total) * 100) : null;
-      const mark  = stats.cleared ? "★Clear" : "—";
+      const qid = day + "-" + n3;
+
+      const streakTotalRaw = localStorage.getItem("cscs_correct_streak3_total:" + qid);
+      const streakTotal = Number(streakTotalRaw || "0");
+      const streakMark = streakTotal > 0 ? "⭐️" : "—";
+
+      const consistencyRaw = localStorage.getItem("cscs_consistency_status:" + qid) || "";
+      let consistencyMark = "—";
+      if (consistencyRaw === "ok") {
+        consistencyMark = "◎";
+      } else if (consistencyRaw === "ng") {
+        consistencyMark = "×";
+      }
+
+      const correctTotalRaw = localStorage.getItem("cscs_q_correct_total:" + qid);
+      const wrongTotalRaw = localStorage.getItem("cscs_q_wrong_total:" + qid);
+      const correctTotal = Number(correctTotalRaw || "0");
+      const wrongTotal = Number(wrongTotalRaw || "0");
+
+      const favRaw = localStorage.getItem("cscs_fav:" + qid);
+      let favText = "未設定";
+      if (favRaw === "1") {
+        favText = "★1";
+      } else if (favRaw === "2") {
+        favText = "★2";
+      } else if (favRaw === "3") {
+        favText = "★3";
+      }
+
       const url   = "q" + n3 + "_a.html?nav=manual";
 
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
       // 1行目は「[テーマ]＋問題文」に変更（番号は下段へ）
       const line1Text = "[" + (q.Theme || "—") + "] " + snippet;
 
-      const wrongText = "×" + String(stats.wrong).padStart(1, "0") + "（累計 " + String(stats.wrongLog).padStart(1, "0") + "）";
-      const rateText  = (rate != null) ? ("正解率 " + String(rate).padStart(2, " ") + "%") : "正解率 —";
-
       // ▼ Level の表記を「Level 1」→「1」へ正規化
       let rawLevel = q.Level || "—";
       rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
 
-      // ▼ 下段を「番号／Lvl N／正解率／×数／Clear」に統一（スペースなし）
       const levelText  = "Lvl " + rawLevel;
-      const line2Text  = pad2(i) + "／" + levelText + "／" + rateText + "／" + wrongText + "／" + mark;
+      const line2Text  =
+        streakMark +
+        "／" +
+        consistencyMark +
+        "／" +
+        pad2(i) +
+        "／" +
+        levelText +
+        "／正×" +
+        String(correctTotal) +
+        "／不×" +
+        String(wrongTotal) +
+        "／" +
+        favText;
 
       const item = document.createElement("div");
       const isCurrent = (currentN3 && n3 === currentN3);
