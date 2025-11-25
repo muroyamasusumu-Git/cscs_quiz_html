@@ -8,11 +8,6 @@
 
   async function loadSyncDataForNavList(){
     try{
-      // if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
-        // return window.CSCS_SYNC_DATA;
-      }
-    }catch(_){}
-    try{
       const res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
       const json = await res.json();
       if (!json || typeof json !== "object") {
