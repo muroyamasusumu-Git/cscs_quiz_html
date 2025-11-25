@@ -8,8 +8,8 @@
 
   async function loadSyncDataForNavList(){
     try{
-      if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
-        return window.CSCS_SYNC_DATA;
+      // if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
+        // return window.CSCS_SYNC_DATA;
       }
     }catch(_){}
     try{
