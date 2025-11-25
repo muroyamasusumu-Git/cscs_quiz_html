@@ -134,61 +134,12 @@ ol.opts {
   margin-left: 0;
 }
   
-/* 画面全体クリック用の透明オーバーレイ */
-.next-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: transparent;
-  cursor: pointer;
-  display: block;
-}
 
 
-/* 判定用メッセージだけ少し控えめに */
-#judge {
-  font-size: 28px;
-  margin-top: 12px;
-  opacity: 0.9;
-}
 
 
-/* 左下 [TOPへ戻る] ボタン */
-.back-to-top {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  padding: 6px 10px;
-  background: rgba(255,255,255,0.08);
-  color: #66d9ff;
-  font-size: 16px;
-  border-radius: 6px;
-  text-decoration: none;
-  z-index: 10050; /* オーバーレイ(9999)や他要素より前面にしてクリック可能に */
-  transition: background 0.2s, opacity 0.2s;
-}
-.back-to-top:hover {
-  background: rgba(255,255,255,0.15);
-  opacity: 1.0;
-}
 
 
-/* 選択肢リンクの色を常に本文色に（iOSのvisited/activeの青/紫も潰す） */
-ol.opts a.opt-link,
-ol.opts a.opt-link:link,
-ol.opts a.opt-link:visited,
-ol.opts a.opt-link:active,
-ol.opts a.opt-link:hover,
-ol.opts a.opt-link:focus {
-  color: inherit !important;
-  -webkit-text-fill-color: currentColor !important; /* iOS Safari */
-  text-decoration: none;
-}
-ol.opts a.opt-link:hover,
-ol.opts a.opt-link:focus { text-decoration: underline; }
-
-/* iOSのタップ時ハイライトを控えめに */
-a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 </style>
 
@@ -252,24 +203,6 @@ html, body { height: auto !important; min-height: 0 !important; }
 <link rel="stylesheet" href="../../assets/main.css">
 
 
-<style>
-.top-date {
-    color: #a8b0b8;
-    opacity: .95;
-    font-size: 22px;
-    width: auto;
-    margin: 0 10px 0 0;
-}
-.crumb-field {
-    font-size: 22px;
-    font-weight: 400;
-}
-.correct_star {
-    display: none;
-    font-size: 22px;
-    margin: 0 0 0 0;
-}
-</style>
 
 
 <style>
@@ -296,25 +229,7 @@ h1 { font-size: var(--h1-fs, inherit); }
 
 <!-- JUDGE_OVERRIDE_CSS_APPLIED -->
 
-<style>
-/* B: 正解の選択肢に下線（AタグがないBレイアウトにも対応） */
-ol.opts li.is-correct {
-  text-decoration: underline !important;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
-}
-/* 将来Aタグ化された場合にも効くように併記 */
-ol.opts li.is-correct > a.opt-link,
-ol.opts li.is-correct a.opt-link {
-  text-decoration: underline !important;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
-}
-/* Fallback：太さ未対応ブラウザ */
-@supports not (text-decoration-thickness: 2px) {
-  ol.opts li.is-correct { border-bottom: 2px solid currentColor; padding-bottom: 2px; }
-}
-</style>
+<style></style>
 
 <!-- B_CORRECT_UNDERLINE_APPLIED -->
 </head>
@@ -483,6 +398,9 @@ ol.opts li.is-correct a.opt-link {
 })();
 </script>
 
+
+  <!-- 画面全体クリックで結果へ（エクスポート後に遷移） -->
+  <a class="next-overlay" href="#" aria-label="結果へ" tabindex="0" role="link"></a>
 
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
