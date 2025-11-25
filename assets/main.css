@@ -553,7 +553,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_view_b {
   position: fixed;
   right: 0;                /* 右寄せ */
-  top: 240px;
+  top: 370px;
   opacity: 0.25;           /* 透明度 */
   z-index: 9999;
   background: transparent;
@@ -564,7 +564,7 @@ body.mode-b #cc-check-wrapper {
   font: 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1;
   max-width: 46vw;
-  width: 370px;
+  width: 160px;
   pointer-events: auto;
 }
 
