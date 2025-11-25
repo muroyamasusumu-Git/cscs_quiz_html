@@ -294,6 +294,8 @@
 
   /* メイン描画：nav_manifest.json から構築 */
   async function renderListInto(panel){
+  // ★ 追加：既存内容をクリアし、新しいリストに置き換える
+  while (panel.firstChild) panel.removeChild(panel.firstChild);
     const day = getDayFromPath();
     const currentN3 = getCurrentQuestionNumber3();
     let manifest = null;
