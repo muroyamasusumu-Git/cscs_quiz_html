@@ -1,5 +1,5 @@
 /* A：縦長（スマホ縦） */
-@media (aspect-ratio < 0.8) {
+/* @media (aspect-ratio < 0.8) {
   body {
   }
 .wrap {
@@ -12,7 +12,7 @@ width: 100% !important;
     position: initial !important;
     margin-left: 0 !important;
     margin-top: 15px !important;
-}
+}*/
 
 
   
