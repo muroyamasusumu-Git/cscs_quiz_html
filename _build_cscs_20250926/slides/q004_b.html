@@ -190,80 +190,7 @@ ol.opts {
 
 <script src="../../assets/consistency_check_debug.js" data-part="b" defer></script>
 
-
-  <script>
-    (function(){
-      function isDeepDiveOpen(){
-        try{
-          const p = document.getElementById('dd-panel');
-          return p && p.style && p.style.display !== 'none';
-        }catch(_){ return false; }
-      }
-      function clickIsInsideDeepDive(target){
-        return !!(target && (target.closest && (
-          target.closest('#dd-panel') ||         // パネル内
-          target.closest('.deep-dive-btn') ||    // トグルボタン
-          target.closest('.dd-btn')              // 生成/再生成/コピー/閉じる 等
-        )));
-      }
-
-      // ▼ 追加：お気に入りモーダル開閉検知＆内側クリック検出
-      function isFavOpen(){
-        try{
-          const bd = document.getElementById('fav-backdrop');
-          if (!bd) return false;
-          // display:flex 中は開いている扱い
-          const st = window.getComputedStyle ? getComputedStyle(bd) : bd.style;
-          return (bd.style.display === 'flex') || (st && st.display === 'flex');
-        }catch(_){ return false; }
-      }
-      function clickIsInsideFav(target){
-        return !!(target && (target.closest && (
-          target.closest('#fav-backdrop .fav-modal') || // モーダル内
-          target.closest('#fav-backdrop')               // バックドロップ
-        )));
-      }
-
-      const nextHref = "q005_a.html";
-      function goNext(){ window.location.href = nextHref; }
-
-      document.addEventListener("click", (e) => {
-        // ▼ 追加：整合性チェックパネル内なら遷移しない
-        if (e.target.closest("#cscs-consistency-panel")) return;
-
-        // Deep Dive または お気に入りモーダル操作中は遷移しない
-        if (isDeepDiveOpen() || clickIsInsideDeepDive(e.target)) return;
-        if (isFavOpen() || clickIsInsideFav(e.target)) return;
-
-        // 既存の除外：音声ボタン / aタグ
-        if (e.target.closest(".audio-fallback-btn")) return;
-        if (e.target.closest("a")) return;
-
-        // その他のクリックで次へ
-        goNext();
-      });
-
-      document.addEventListener("keydown", (e) => {
-        // Deep Dive or Fav モーダル開時はキーボード遷移も抑止
-        if (isDeepDiveOpen() || isFavOpen()) return;
-
-        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
-          e.preventDefault();
-          goNext();
-        }
-      });
-
-      // 念のためオーバーレイの前面化
-      const ov = document.querySelector(".next-overlay");
-      if (ov) {
-        ov.style.zIndex = 9999;
-        ov.setAttribute("aria-label","次の問題へ");
-        ov.setAttribute("role","link");
-        ov.setAttribute("tabindex","0");
-      }
-    })();
-  </script>
-
+<script src="{assets}/next_nav.js" data-next="q005_a.html" defer></script>
 
 <style>
 /* 全ページ強制：html/body の高さ指定を解除 */
@@ -469,6 +396,9 @@ h1 { font-size: var(--h1-fs, inherit); }
 })();
 </script>
 
+
+  <!-- 画面全体クリックで次の問題へ -->
+  <a class="next-overlay" href="q005_a.html" aria-label="次の問題へ" tabindex="0" role="link"></a>
 
   <!-- 左下の [TOPへ戻る] ボタン -->
   <a class="back-to-top" href="../../index.html" title="問題一覧に戻る">［TOPへ戻る］</a>
