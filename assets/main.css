@@ -543,7 +543,8 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_monitor_a .sync-reset-button {
   font-size: 10px;
   opacity: 0.7;
-  margin: 0 0 8px;
+  margin: 0 0 7px;
+  display: block;
 }
 
 /* ===============================
