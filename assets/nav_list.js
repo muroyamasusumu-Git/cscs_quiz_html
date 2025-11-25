@@ -516,7 +516,11 @@
 
   window.addEventListener("cscs-sync-updated", function(){
     try{
-      mountAndOpenPanel();
+      // ★ SYNC 側の /api/sync/state 反映にラグがあることがあるので、
+      //   少し待ってから nav_list を再構築する
+      setTimeout(function(){
+        mountAndOpenPanel();
+      }, 1500); // 必要に応じて 500〜2000ms の範囲で調整
     }catch(_){}
   });
 
