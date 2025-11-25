@@ -527,8 +527,7 @@ body.mode-b #cc-check-wrapper {
 /* （コメントアウト中の）テストボタン行用：復帰時に効く */
 #cscs_sync_monitor_a .sync-test-row,
 #cscs_sync_monitor_a .sync-reset-row {
-  display: flex;
-  gap: 4px;
+  display: block;
   flex-wrap: wrap;
   margin-bottom: 4px;
 }
