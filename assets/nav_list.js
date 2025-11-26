@@ -592,6 +592,7 @@
 
     var now = new Date();
 
+    summaryLine2.style.marginTop = "4px";
     summaryLine2.textContent =
       "★｜獲得済｜" +
       starQStr +
@@ -617,6 +618,7 @@
       "｜" +
       consRateStr +
       "% 達成";
+    summaryLine3.style.marginBottom = "4px";
 
     summaryLine4.textContent = buildExamLineText(now);
 
