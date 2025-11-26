@@ -347,7 +347,7 @@
       background: "rgba(0, 0, 0, 0.86)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
-      padding: "14px 16px 0px",
+      padding: "6px 16px 0px",
       zIndex: "99999",
       display: "none",
       backdropFilter: "blur(8px)",
