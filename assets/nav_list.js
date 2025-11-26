@@ -189,25 +189,14 @@
       syncRoot = {};
     }
 
-    // correct_star.js の記号をランクに変換するヘルパー
-    function getStarRank(symbol){
-      if (symbol === "⭐️") return 1;
-      if (symbol === "🌟") return 2;
-      if (symbol === "💫") return 3;
-      return 0;
-    }
-
-    // 各日ごとに「DAY / 日付 / ★獲得率 / 日別⭐️〜💫」を表示
+    // 各日ごとに「DAY / 日付 / ⭐️獲得率」を表示
     days.forEach(function(dayStr, idx){
       var isCurrent = (dayStr === currentDay);
 
+      // 30問のうち何問「3連続正解達成回数 > 0（＝⭐️以上）」になっているかを数える
       var TOTAL_QUESTIONS = 30;
-
-      // その日30問分のスター状況を集計
-      var starCount = 0;          // 「⭐️以上」になっている問題数
-      var minRankAll = 4;         // その日でスターが付いている問題の中での最小ランク（1=⭐️,2=🌟,3=💫）
+      var starCount = 0;
       var qIndex;
-
       for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
         var n3 = pad3(qIndex);
         var qid = dayStr + "-" + n3;
@@ -215,38 +204,11 @@
         if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
           streakTotal = Number(syncRoot.streak3[qid] || 0);
         }
-
-        var rank = 0;
-        if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-          var sym = window.cscsGetStarSymbolFromStreakCount(streakTotal);
-          rank = getStarRank(sym);
-        } else {
-          if (streakTotal > 0) {
-            rank = 1;
-          }
-        }
-
-        if (rank > 0) {
+        if (streakTotal > 0) {
           starCount += 1;
-          if (rank < minRankAll) {
-            minRankAll = rank;
-          }
         }
       }
-
       var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
-
-      // 30問すべてが「⭐️以上」のときだけ、日別タイトルに ⭐️/🌟/💫 を付ける
-      var dayStarSuffix = "";
-      if (starCount === TOTAL_QUESTIONS) {
-        if (minRankAll >= 3) {
-          dayStarSuffix = "💫";
-        } else if (minRankAll >= 2) {
-          dayStarSuffix = "🌟";
-        } else if (minRankAll >= 1) {
-          dayStarSuffix = "⭐️";
-        }
-      }
 
       var item = document.createElement("div");
       item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
@@ -259,7 +221,7 @@
 
       var titleRow = document.createElement("div");
       titleRow.className = "nl-day-title";
-      titleRow.textContent = "DAY-" + pad2(idx + 1) + dayStarSuffix;
+      titleRow.textContent = "DAY-" + pad2(idx + 1);
 
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
@@ -492,60 +454,7 @@
       } else if (consistencyRawSync === "○") {
         consistencyMark = "○";
       } else if (consistencyRawSync === "△") {
-        consistencyMark = "△";    // 各日ごとに「DAY / 日付 / ⭐️獲得率」を表示
-    days.forEach(function(dayStr, idx){
-      var isCurrent = (dayStr === currentDay);
-
-      // 30問のうち何問「3連続正解達成回数 > 0（＝⭐️以上）」になっているかを数える
-      var TOTAL_QUESTIONS = 30;
-      var starCount = 0;
-      var qIndex;
-      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
-        var n3 = pad3(qIndex);
-        var qid = dayStr + "-" + n3;
-        var streakTotal = 0;
-        if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
-          streakTotal = Number(syncRoot.streak3[qid] || 0);
-        }
-        if (streakTotal > 0) {
-          starCount += 1;
-        }
-      }
-      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
-
-      var item = document.createElement("div");
-      item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
-
-      var link = document.createElement("a");
-      link.href = "/_build_cscs_" + dayStr + "/slides/q001_a.html?nav=manual";
-      link.setAttribute("data-nl-allow", "1");
-      link.style.display = "block";
-      link.style.textDecoration = "none";
-
-      var titleRow = document.createElement("div");
-      titleRow.className = "nl-day-title";
-      titleRow.textContent = "DAY-" + pad2(idx + 1);
-
-      var dateRow = document.createElement("div");
-      dateRow.textContent = dayStr;
-
-      var rateRow = document.createElement("div");
-      rateRow.textContent =
-        "★獲得：" +
-        String(starCount) +
-        "/" +
-        String(TOTAL_QUESTIONS) +
-        "(" +
-        String(ratePercent) +
-        "%)";
-
-      link.appendChild(titleRow);
-      link.appendChild(dateRow);
-      link.appendChild(rateRow);
-
-      item.appendChild(link);
-      rightCol.appendChild(item);
-    });
+        consistencyMark = "△";
       } else if (consistencyRawSync === "×") {
         consistencyMark = "×";
       }
