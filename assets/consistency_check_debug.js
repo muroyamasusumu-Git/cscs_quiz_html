@@ -1093,7 +1093,6 @@
         var raw = localStorage.getItem(storageKey);
         if (raw) {
           var data = JSON.parse(raw);
-          var result = data && data.result ? data.result : {};
           var savedAt = data && data.saved_at ? String(data.saved_at) : "";
           var savedLabel = savedAt;
 
@@ -1109,81 +1108,35 @@
             }
           }
 
+          var qidForSync = getConsistencySyncQid(meta);
+          var syncStatusLabel = "SYNC: 未保存";
+          var hasSyncOk = false;
+          if (qidForSync && typeof localStorage !== "undefined") {
+            try {
+              var syncOkKey = "cscs_consistency_sync_ok:" + qidForSync;
+              var syncOkValue = localStorage.getItem(syncOkKey);
+              if (syncOkValue) {
+                syncStatusLabel = "SYNC: 保存済";
+                hasSyncOk = true;
+              }
+            } catch (syncReadError) {
+              console.error("整合性チェック SYNC ステータスの読み込みに失敗しました:", syncReadError);
+            }
+          }
+          lines[5] = syncStatusLabel;
+
+          if (!hasSyncOk) {
+            statusDiv.textContent = lines.join("\n");
+            return;
+          }
+
           var severityMark = data && typeof data.severity_mark === "string" ? data.severity_mark : "";
           var severityLabel = data && typeof data.severity_label === "string" ? data.severity_label : "";
           var classificationCode = data && typeof data.classification_code === "string" ? data.classification_code : "";
           var classificationLabel = data && typeof data.classification_label === "string" ? data.classification_label : "";
           var classificationPriority = data && typeof data.classification_priority === "string" ? data.classification_priority : "";
 
-          if (!severityMark || !classificationCode) {
-            var overall = typeof result.overall === "string" ? result.overall : "";
-            var ac = result && result.answer_correctness ? result.answer_correctness : {};
-            var eq = result && result.explanation_quality ? result.explanation_quality : {};
-            var ps = result && result.problem_statement_nsac_validity ? result.problem_statement_nsac_validity : {};
-            var acStatus = typeof ac.status === "string" ? ac.status : "";
-            var eqStatus = typeof eq.status === "string" ? eq.status : "";
-            var psStatus = typeof ps.status === "string" ? ps.status : "";
-
-            classificationCode = "S";
-            classificationLabel = "S. 何も直さなくて良い";
-            classificationPriority = "なし";
-
-            if (acStatus === "wrong") {
-              classificationCode = "A";
-              classificationLabel = "A. 正解を直すべき";
-              classificationPriority = "高";
-            } else if (psStatus === "not_nsac_style") {
-              classificationCode = "D";
-              classificationLabel = "D. 問題そのものを直すべき";
-              classificationPriority = "高";
-            } else if (eqStatus === "dangerous_or_wrong") {
-              classificationCode = "B";
-              classificationLabel = "B. 解説を直すべき";
-              classificationPriority = "高";
-            } else if (eqStatus === "problematic") {
-              classificationCode = "B";
-              classificationLabel = "B. 解説を直すべき";
-              classificationPriority = "中";
-            } else if (acStatus === "ambiguous") {
-              classificationCode = "C";
-              classificationLabel = "C. 選択肢を直すべき";
-              classificationPriority = "中";
-            } else if (overall === "minor_issue") {
-              classificationCode = "C";
-              classificationLabel = "C. 選択肢を直すべき";
-              classificationPriority = "低";
-            } else if (
-              overall === "ok" &&
-              acStatus === "ok" &&
-              (eqStatus === "good" || eqStatus === "") &&
-              (psStatus === "good" || psStatus === "")
-            ) {
-              classificationCode = "S";
-              classificationLabel = "S. 何も直さなくて良い";
-              classificationPriority = "なし";
-            } else {
-              classificationCode = "C";
-              classificationLabel = "C. 選択肢を直すべき";
-              classificationPriority = "低";
-            }
-
-            severityMark = "◎";
-            severityLabel = "変更必要なし";
-
-            if (classificationPriority === "高") {
-              severityMark = "×";
-              severityLabel = "変更が必要（優先度/高）";
-            } else if (classificationPriority === "中") {
-              severityMark = "△";
-              severityLabel = "変更を推奨（優先度/中）";
-            } else if (classificationPriority === "低") {
-              severityMark = "○";
-              severityLabel = "ほぼ変更必要なし（優先度/低）";
-            } else {
-              severityMark = "◎";
-              severityLabel = "変更必要なし";
-            }
-          } else if (!severityLabel) {
+          if (!severityLabel) {
             if (classificationPriority === "高") {
               severityLabel = "変更が必要（優先度/高）";
             } else if (classificationPriority === "中") {
@@ -1244,21 +1197,6 @@
           }
 
           lines[4] = "最終: " + (savedLabel || "—");
-
-          var syncStatusLabel = "SYNC: 未保存";
-          var qidForSync = getConsistencySyncQid(meta);
-          if (qidForSync && typeof localStorage !== "undefined") {
-            try {
-              var syncOkKey = "cscs_consistency_sync_ok:" + qidForSync;
-              var syncOkValue = localStorage.getItem(syncOkKey);
-              if (syncOkValue) {
-                syncStatusLabel = "SYNC: 保存済";
-              }
-            } catch (syncReadError) {
-              console.error("整合性チェック SYNC ステータスの読み込みに失敗しました:", syncReadError);
-            }
-          }
-          lines[5] = syncStatusLabel;
         }
       } catch (e) {
         console.error("整合性チェックステータスの読み込みに失敗しました:", e);
