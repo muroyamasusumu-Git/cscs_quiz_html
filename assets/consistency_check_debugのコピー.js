@@ -805,37 +805,6 @@
     return keyBase + (qid || fallbackId);
   }
 
-  function getConsistencySyncQid(meta) {
-    var dayRaw = meta && meta.day ? String(meta.day) : "";
-    var qidRaw = meta && meta.qid ? String(meta.qid) : "";
-    var num3 = "";
-    var m;
-    if (qidRaw) {
-      m = qidRaw.match(/-(\d{3})$/);
-      if (m) {
-        num3 = m[1];
-      }
-    }
-    if (!num3) {
-      num3 = "000";
-    }
-    var datePart = "";
-    if (dayRaw && dayRaw.indexOf("年") !== -1 && dayRaw.indexOf("月") !== -1 && dayRaw.indexOf("日") !== -1) {
-      datePart = dayRaw;
-    } else if (/^\d{8}$/.test(dayRaw)) {
-      var year = dayRaw.slice(0, 4);
-      var month = String(parseInt(dayRaw.slice(4, 6), 10));
-      var day = String(parseInt(dayRaw.slice(6, 8), 10));
-      datePart = year + "年" + month + "月" + day + "日";
-    } else {
-      datePart = dayRaw;
-    }
-    if (!datePart) {
-      return "";
-    }
-    return datePart + "-" + num3;
-  }
-
   /**
    * SYNC から最新の整合性ステータスを取得し、localStorage に反映する
    *
@@ -851,12 +820,12 @@
       return;
     }
 
-    var consistencyQid = getConsistencySyncQid(meta);
-    if (!consistencyQid) {
+    var qid = meta && meta.qid ? String(meta.qid) : "";
+    if (!qid) {
       return;
     }
 
-    var url = "/api/sync-consistency?qid=" + encodeURIComponent(consistencyQid);
+    var url = "/api/sync-consistency?qid=" + encodeURIComponent(qid);
 
     try {
       var response = await fetch(url, {
@@ -942,7 +911,7 @@
       }
 
       try {
-        var syncOkKey = "cscs_consistency_sync_ok:" + consistencyQid;
+        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
         localStorage.setItem(syncOkKey, savedAtIso);
       } catch (syncOkError) {
         console.error("[consistency SYNC] failed to store sync_ok flag:", syncOkError);
@@ -959,11 +928,11 @@
    * @param {Object} q
    */
   function clearConsistencySyncStatus(meta, q) {
-    var consistencyQid = getConsistencySyncQid(meta);
+    var qid = meta && meta.qid ? String(meta.qid) : "";
 
     if (typeof localStorage === "undefined") {
-      if (consistencyQid && typeof fetch === "function") {
-        fetch("/api/sync-consistency?qid=" + encodeURIComponent(consistencyQid), {
+      if (qid && typeof fetch === "function") {
+        fetch("/api/sync-consistency?qid=" + encodeURIComponent(qid), {
           method: "DELETE"
         }).catch(function(e) {
           console.error("整合性チェック SYNC 削除リクエストに失敗しました:", e);
@@ -980,16 +949,16 @@
       console.error("整合性チェック結果の削除に失敗しました:", removeError);
     }
 
-    if (consistencyQid) {
+    if (qid) {
       try {
-        var syncOkKey = "cscs_consistency_sync_ok:" + consistencyQid;
+        var syncOkKey = "cscs_consistency_sync_ok:" + qid;
         localStorage.removeItem(syncOkKey);
       } catch (syncRemoveError) {
         console.error("整合性チェック SYNC ステータスの削除に失敗しました:", syncRemoveError);
       }
 
       if (typeof fetch === "function") {
-        fetch("/api/sync-consistency?qid=" + encodeURIComponent(consistencyQid), {
+        fetch("/api/sync-consistency?qid=" + encodeURIComponent(qid), {
           method: "DELETE"
         }).then(function(response) {
           if (!response || !response.ok) {
@@ -1223,7 +1192,7 @@
           lines[4] = "最終: " + (savedLabel || "—");
 
           var syncStatusLabel = "SYNC: 未保存";
-          var qidForSync = getConsistencySyncQid(meta);
+          var qidForSync = meta && meta.qid ? String(meta.qid) : "";
           if (qidForSync && typeof localStorage !== "undefined") {
             try {
               var syncOkKey = "cscs_consistency_sync_ok:" + qidForSync;
@@ -1357,9 +1326,7 @@
           };
           localStorage.setItem(storageKey, JSON.stringify(storePayload));
 
-          var qidLocal = meta && meta.qid ? String(meta.qid) : "";
-          var consistencyQid = getConsistencySyncQid(meta);
-          var qidForSync = consistencyQid || qidLocal;
+          var qid = meta && meta.qid ? String(meta.qid) : "";
           var classificationDetail = "";
           if (classificationCode === "A") {
             classificationDetail = "正解";
@@ -1380,16 +1347,16 @@
 
           if (typeof window !== "undefined" && window.cscsConsistency && typeof window.cscsConsistency.saveLocal === "function") {
             try {
-              window.cscsConsistency.saveLocal(qidForSync, syncPayload);
+              window.cscsConsistency.saveLocal(qid, syncPayload);
             } catch (consistencySaveError) {
               console.error("整合性チェック結果の cscsConsistency 保存に失敗しました:", consistencySaveError);
             }
           }
 
-          if (qidForSync && typeof fetch === "function") {
+          if (qid && typeof fetch === "function") {
             var syncBody = {
               kind: "consistency_status",
-              qid: qidForSync,
+              qid: qid,
               status: syncPayload
             };
             fetch("/api/sync-consistency", {
@@ -1401,7 +1368,7 @@
             }).then(function(response) {
               if (typeof localStorage !== "undefined") {
                 try {
-                  var syncOkKey = "cscs_consistency_sync_ok:" + qidForSync;
+                  var syncOkKey = "cscs_consistency_sync_ok:" + qid;
                   if (response && response.ok) {
                     var syncedAt = new Date().toISOString();
                     localStorage.setItem(syncOkKey, syncedAt);
