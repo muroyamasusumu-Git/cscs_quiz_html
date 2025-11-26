@@ -356,6 +356,54 @@
     const gridHost = document.createElement("div");
     gridHost.className = "quiz-list-grid";
 
+    // お気に入り（fav_modal.js 準拠）の現在値をまとめて読み込む
+    let favObj = {};
+    let favMap = {};
+    try{
+      favObj = JSON.parse(localStorage.getItem("cscs_fav") || "{}");
+    }catch(_){
+      favObj = {};
+    }
+    try{
+      favMap = JSON.parse(localStorage.getItem("cscs_fav_map") || "{}");
+    }catch(_){
+      favMap = {};
+    }
+
+    // qid / qidJp から「★1/★2/★3/未設定」の表示文字列を返す
+    function getFavTextForQid(qid, qidJp){
+      var num = 0;
+
+      // ① 数値マップ（cscs_fav_map）を優先
+      if (favMap && Object.prototype.hasOwnProperty.call(favMap, qid)) {
+        num = Number(favMap[qid] || 0);
+      } else if (favMap && qidJp && Object.prototype.hasOwnProperty.call(favMap, qidJp)) {
+        num = Number(favMap[qidJp] || 0);
+      } else {
+        // ② 文字列マップ（cscs_fav）から補完
+        var v = null;
+        if (favObj && Object.prototype.hasOwnProperty.call(favObj, qid)) {
+          v = favObj[qid];
+        } else if (favObj && qidJp && Object.prototype.hasOwnProperty.call(favObj, qidJp)) {
+          v = favObj[qidJp];
+        }
+        if (v === "understood") {
+          num = 1;
+        } else if (v === "unanswered") {
+          num = 2;
+        } else if (v === "none") {
+          num = 3;
+        } else {
+          num = 0;
+        }
+      }
+
+      if (num === 1) return "★1";
+      if (num === 2) return "★2";
+      if (num === 3) return "★3";
+      return "未設定";
+    }
+
     (manifest.questions || []).forEach((q, idx) => {
       const i = idx + 1;
       const n3 = pad3(i);
@@ -416,15 +464,7 @@
       const correctTotal = Number(correctTotalRaw || "0");
       const wrongTotal = Number(wrongTotalRaw || "0");
 
-      const favRaw = localStorage.getItem("cscs_fav:" + qid);
-      let favText = "未設定";
-      if (favRaw === "1") {
-        favText = "★1";
-      } else if (favRaw === "2") {
-        favText = "★2";
-      } else if (favRaw === "3") {
-        favText = "★3";
-      }
+      const favText = getFavTextForQid(qid, qidJp);
 
       const url   = "q" + n3 + "_a.html?nav=manual";
 
