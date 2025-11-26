@@ -921,6 +921,29 @@
         existing = null;
       }
 
+      // SYNC を常に優先する方針：
+      // classification_code に応じて classification_label / classification_priority を再計算し、
+      // 既存ローカルの値は使用しない。
+      var classificationLabelFromSync = "";
+      var classificationPriorityFromSync = "";
+
+      if (classificationCode === "A") {
+        classificationLabelFromSync = "A. 正解を直すべき";
+        classificationPriorityFromSync = "高";
+      } else if (classificationCode === "B") {
+        classificationLabelFromSync = "B. 解説を直すべき";
+        classificationPriorityFromSync = "高";
+      } else if (classificationCode === "C") {
+        classificationLabelFromSync = "C. 選択肢を直すべき";
+        classificationPriorityFromSync = "中";
+      } else if (classificationCode === "D") {
+        classificationLabelFromSync = "D. 問題そのものを直すべき";
+        classificationPriorityFromSync = "高";
+      } else if (classificationCode === "S") {
+        classificationLabelFromSync = "S. 何も直さなくて良い";
+        classificationPriorityFromSync = "なし";
+      }
+
       var payload = {
         meta: meta,
         question: q,
@@ -930,8 +953,8 @@
         severity_mark: severityMark,
         severity_label: severityLabel,
         classification_code: classificationCode,
-        classification_label: existing && typeof existing.classification_label === "string" ? existing.classification_label : "",
-        classification_priority: existing && typeof existing.classification_priority === "string" ? existing.classification_priority : "",
+        classification_label: classificationLabelFromSync,
+        classification_priority: classificationPriorityFromSync,
         classification_detail: classificationDetail
       };
 
