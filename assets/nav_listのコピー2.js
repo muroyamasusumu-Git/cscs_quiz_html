@@ -629,228 +629,51 @@
           currentValue = "";
         }
 
-        var baseDate = new Date();
+        var input = document.createElement("input");
+        input.type = "date";
+        input.style.position = "fixed";
+        input.style.left = "-9999px";
+        input.style.top = "0";
         if (currentValue) {
-          var storedDate = new Date(currentValue);
-          if (!isNaN(storedDate.getTime())) {
-            baseDate = storedDate;
-          }
-        }
-        var currentYear = baseDate.getFullYear();
-        var currentMonth = baseDate.getMonth();
-
-        var existingBackdrop = document.getElementById("nl-exam-calendar-backdrop");
-        if (existingBackdrop && existingBackdrop.parentNode) {
-          existingBackdrop.parentNode.removeChild(existingBackdrop);
+          input.value = currentValue;
         }
 
-        var backdrop = document.createElement("div");
-        backdrop.id = "nl-exam-calendar-backdrop";
-        backdrop.style.position = "fixed";
-        backdrop.style.left = "0";
-        backdrop.style.top = "0";
-        backdrop.style.right = "0";
-        backdrop.style.bottom = "0";
-        backdrop.style.background = "rgba(0, 0, 0, 0.4)";
-        backdrop.style.zIndex = "100001";
-        backdrop.style.display = "flex";
-        backdrop.style.alignItems = "center";
-        backdrop.style.justifyContent = "center";
-
-        var box = document.createElement("div");
-        box.id = "nl-exam-calendar";
-        box.style.background = "rgb(17, 17, 17)";
-        box.style.color = "#fff";
-        box.style.border = "1px solid #444";
-        box.style.borderRadius = "8px";
-        box.style.padding = "12px";
-        box.style.minWidth = "260px";
-        box.style.fontSize = "13px";
-        box.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.6)";
-
-        var headerRow = document.createElement("div");
-        headerRow.style.display = "flex";
-        headerRow.style.justifyContent = "space-between";
-        headerRow.style.alignItems = "center";
-        headerRow.style.marginBottom = "8px";
-
-        var prevBtn = document.createElement("button");
-        prevBtn.type = "button";
-        prevBtn.textContent = "◀";
-        prevBtn.style.padding = "2px 6px";
-        prevBtn.style.fontSize = "12px";
-        prevBtn.style.background = "#222";
-        prevBtn.style.color = "#fff";
-        prevBtn.style.border = "1px solid #444";
-        prevBtn.style.borderRadius = "4px";
-        prevBtn.style.cursor = "pointer";
-
-        var monthLabel = document.createElement("span");
-        monthLabel.style.fontWeight = "500";
-
-        var nextBtn = document.createElement("button");
-        nextBtn.type = "button";
-        nextBtn.textContent = "▶";
-        nextBtn.style.padding = "2px 6px";
-        nextBtn.style.fontSize = "12px";
-        nextBtn.style.background = "#222";
-        nextBtn.style.color = "#fff";
-        nextBtn.style.border = "1px solid #444";
-        nextBtn.style.borderRadius = "4px";
-        nextBtn.style.cursor = "pointer";
-
-        headerRow.appendChild(prevBtn);
-        headerRow.appendChild(monthLabel);
-        headerRow.appendChild(nextBtn);
-
-        var grid = document.createElement("div");
-        grid.style.display = "grid";
-        grid.style.gridTemplateColumns = "repeat(7, 1fr)";
-        grid.style.columnGap = "4px";
-        grid.style.rowGap = "4px";
-        grid.style.marginBottom = "8px";
-
-        var weekdays = ["日","月","火","水","木","金","土"];
-        for (var w = 0; w < 7; w++) {
-          var wdCell = document.createElement("div");
-          wdCell.textContent = weekdays[w];
-          wdCell.style.textAlign = "center";
-          wdCell.style.fontSize = "11px";
-          wdCell.style.opacity = "0.8";
-          grid.appendChild(wdCell);
-        }
-
-        var footerRow = document.createElement("div");
-        footerRow.style.display = "flex";
-        footerRow.style.justifyContent = "flex-end";
-        footerRow.style.columnGap = "8px";
-
-        var cancelBtn = document.createElement("button");
-        cancelBtn.type = "button";
-        cancelBtn.textContent = "キャンセル";
-        cancelBtn.style.padding = "4px 10px";
-        cancelBtn.style.fontSize = "12px";
-        cancelBtn.style.background = "#222";
-        cancelBtn.style.color = "#fff";
-        cancelBtn.style.border = "1px solid #444";
-        cancelBtn.style.borderRadius = "4px";
-        cancelBtn.style.cursor = "pointer";
-
-        footerRow.appendChild(cancelBtn);
-
-        function closeCalendar(){
+        function handleChange(){
           try{
-            if (backdrop && backdrop.parentNode) {
-              backdrop.parentNode.removeChild(backdrop);
-            }
-          }catch(_){}
-        }
-
-        function handleSelectDate(dateStr){
-          try{
-            localStorage.setItem("cscs_exam_date", dateStr);
-            summaryLine4.textContent = buildExamLineText(new Date());
-          }catch(_){}
-          closeCalendar();
-        }
-
-        function pad2Int(n){
-          return String(n).padStart(2, "0");
-        }
-
-        function renderCalendar(){
-          while (grid.childNodes.length > 7) {
-            grid.removeChild(grid.lastChild);
-          }
-
-          monthLabel.textContent = String(currentYear) + "年" + String(currentMonth + 1) + "月";
-
-          var first = new Date(currentYear, currentMonth, 1);
-          var startDow = first.getDay();
-          var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-          var selectedDay = null;
-          if (currentValue) {
-            var sd = new Date(currentValue);
-            if (!isNaN(sd.getTime()) && sd.getFullYear() === currentYear && sd.getMonth() === currentMonth) {
-              selectedDay = sd.getDate();
-            }
-          }
-
-          var i;
-          for (i = 0; i < startDow; i++) {
-            var emptyCell = document.createElement("div");
-            emptyCell.textContent = "";
-            grid.appendChild(emptyCell);
-          }
-
-          var day;
-          for (day = 1; day <= daysInMonth; day++) {
-            (function(d){
-              var btn = document.createElement("button");
-              btn.type = "button";
-              btn.textContent = String(d);
-              btn.style.width = "100%";
-              btn.style.padding = "4px 0";
-              btn.style.fontSize = "12px";
-              btn.style.background = "#222";
-              btn.style.color = "#fff";
-              btn.style.border = "1px solid #444";
-              btn.style.borderRadius = "4px";
-              btn.style.cursor = "pointer";
-
-              if (selectedDay === d) {
-                btn.style.background = "#3a6fd8";
-                btn.style.borderColor = "#3a6fd8";
+            if (input.value){
+              var dt = new Date(input.value);
+              if (!isNaN(dt.getTime())){
+                localStorage.setItem("cscs_exam_date", input.value);
+                summaryLine4.textContent = buildExamLineText(new Date());
               }
-
-              btn.addEventListener("click", function(){
-                var monthStr = pad2Int(currentMonth + 1);
-                var dayStr = pad2Int(d);
-                var dateStr = String(currentYear) + "-" + monthStr + "-" + dayStr;
-                handleSelectDate(dateStr);
-              });
-
-              grid.appendChild(btn);
-            })(day);
-          }
+            }
+          }catch(_){}
+          try{ document.body.removeChild(input); }catch(_){}
+          input.removeEventListener("change", handleChange);
+          input.removeEventListener("blur", handleBlur);
         }
 
-        prevBtn.addEventListener("click", function(){
-          currentMonth -= 1;
-          if (currentMonth < 0) {
-            currentMonth = 11;
-            currentYear -= 1;
-          }
-          renderCalendar();
-        });
+        function handleBlur(){
+          try{ document.body.removeChild(input); }catch(_){}
+          input.removeEventListener("change", handleChange);
+          input.removeEventListener("blur", handleBlur);
+        }
 
-        nextBtn.addEventListener("click", function(){
-          currentMonth += 1;
-          if (currentMonth > 11) {
-            currentMonth = 0;
-            currentYear += 1;
-          }
-          renderCalendar();
-        });
+        input.addEventListener("change", handleChange);
+        input.addEventListener("blur", handleBlur);
 
-        cancelBtn.addEventListener("click", function(){
-          closeCalendar();
-        });
+        document.body.appendChild(input);
 
-        backdrop.addEventListener("click", function(ev){
-          if (ev.target === backdrop) {
-            closeCalendar();
-          }
-        });
+        // Safari 対策：2段階で強制的に "日付編集 UI" を開く
+        setTimeout(function(){
+          input.focus();
+          input.click();
+          setTimeout(function(){
+            input.focus();
+            input.click();
+          }, 10);
+        }, 10);
 
-        box.appendChild(headerRow);
-        box.appendChild(grid);
-        box.appendChild(footerRow);
-        backdrop.appendChild(box);
-        document.body.appendChild(backdrop);
-
-        renderCalendar();
       }catch(_){}
     });
 
