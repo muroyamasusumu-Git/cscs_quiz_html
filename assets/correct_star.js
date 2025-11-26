@@ -92,8 +92,12 @@
     // 3連続正解達成回数
     var count = getStreak3Count(qid);
 
-    if (count >= 3) {
-      // 3回以上達成で 🌟 に昇格
+    if (count >= 9) {
+      // 9回以上達成で 💫 に昇格
+      starElement.textContent = "💫";
+      starElement.setAttribute("data-star-state", "on");
+    } else if (count >= 3) {
+      // 3〜8回達成で 🌟 を表示
       starElement.textContent = "🌟";
       starElement.setAttribute("data-star-state", "on");
     } else if (count >= 1) {
