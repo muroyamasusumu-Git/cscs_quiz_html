@@ -1019,10 +1019,18 @@
     var leftCol = document.createElement("div");
     leftCol.className = "nl-left-col";
     leftCol.id = "nl-left-col";
+    leftCol.style.marginTop = "6px";
 
     var rightCol = document.createElement("div");
     rightCol.className = "nl-right-col";
     rightCol.id = "nl-right-col";
+    rightCol.style.marginTop = "6px";
+
+    bodyHost.appendChild(leftCol);
+    bodyHost.appendChild(rightCol);
+
+    panel.appendChild(summaryHost);
+    panel.appendChild(bodyHost);
 
     bodyHost.appendChild(leftCol);
     bodyHost.appendChild(rightCol);
