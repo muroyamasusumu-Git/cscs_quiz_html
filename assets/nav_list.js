@@ -513,6 +513,16 @@
     // ▼ 全体サマリー（固定ヘッダー）DOM構築
     var summaryHost = document.createElement("div");
     summaryHost.id = "nl-summary-header";
+    try{
+      Object.assign(summaryHost.style, {
+        position: "sticky",
+        top: "0",
+        zIndex: "100000",
+        background: "rgba(0, 0, 0, 0.86)",
+        paddingBottom: "8px",
+        marginBottom: "8px"
+      });
+    }catch(_){}
 
     var summaryLine1 = document.createElement("div");
     summaryLine1.textContent = "CSCS全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
