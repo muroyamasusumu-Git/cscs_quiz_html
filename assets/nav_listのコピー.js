@@ -372,13 +372,13 @@
 
   /* メイン描画：nav_manifest.json から構築 */
   async function renderListInto(panel){
-    while (panel.firstChild) panel.removeChild(panel.firstChild);
-
+  // ★ 追加：既存内容をクリアし、新しいリストに置き換える
+  while (panel.firstChild) panel.removeChild(panel.firstChild);
     const day = getDayFromPath();
     const currentN3 = getCurrentQuestionNumber3();
     let manifest = null;
     try {
-      const res = await fetch("nav_manifest.json", { cache: "no-store" });
+      const res = await fetch("nav_manifest.json", {cache:"no-store"});
       manifest = await res.json();
     } catch (e) {
       console.error("nav_manifest.json 読み込み失敗:", e);
@@ -389,167 +389,15 @@
     const title = manifest.questions?.[0]?.Title || "NSCA CSCS 試験対策問題集";
     const field = manifest.questions?.[0]?.Field || "—";
     const theme = manifest.questions?.[0]?.Theme || "—";
+        
+    // ヘッダーを一時的に消去。必要な場合は復活させる
+    const headerHtml =
+      '<!-- <div class="nl-head">' +
+        '<div class="nl-title">' + title + '</div>' +
+        '<div class="nl-crumbs">' + day + ' ／ ' + field + ' ／ ' + theme + '</div>' +
+        '<div class="nl-note">★＝3連続正解（2連続不正解で取消）</div>' +
+      '</div> -->';
 
-    // SYNC ルート取得（streak3 / consistency_status など）
-    var syncRoot = {};
-    try {
-      if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
-        if (window.CSCS_SYNC_DATA.data && typeof window.CSCS_SYNC_DATA.data === "object") {
-          syncRoot = window.CSCS_SYNC_DATA.data;
-        } else {
-          syncRoot = window.CSCS_SYNC_DATA;
-        }
-      }
-    } catch (_) {
-      syncRoot = {};
-    }
-
-    // ★ CSCS全体サマリー用：日付配列生成（90日分）
-    function buildDayArrayForSummary(startStr, endStr){
-      var list = [];
-
-      var sy = Number(startStr.slice(0, 4));
-      var sm = Number(startStr.slice(4, 6)) - 1;
-      var sd = Number(startStr.slice(6, 8));
-
-      var ey = Number(endStr.slice(0, 4));
-      var em = Number(endStr.slice(4, 6)) - 1;
-      var ed = Number(endStr.slice(6, 8));
-
-      var cur = new Date(sy, sm, sd);
-      var end = new Date(ey, em, ed);
-
-      while (cur.getTime() <= end.getTime()){
-        var y = cur.getFullYear();
-        var m = pad2(cur.getMonth() + 1);
-        var d = pad2(cur.getDate());
-        var s = String(y) + m + d;
-        list.push(s);
-        cur.setDate(cur.getDate() + 1);
-      }
-
-      return list;
-    }
-
-    var allDays = buildDayArrayForSummary("20250926", "20251224");
-    var TOTAL_QUESTIONS_PER_DAY = 30;
-    var totalQuestionsAll = allDays.length * TOTAL_QUESTIONS_PER_DAY;
-
-    // ★ 獲得済（3連続正解1回以上）集計
-    var starQuestionCount = 0;
-    var starFullDayCount = 0;
-
-    allDays.forEach(function(dayStr){
-      var dayStarCount = 0;
-      var qIndex;
-      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS_PER_DAY; qIndex++){
-        var n3 = pad3(qIndex);
-        var qid = dayStr + "-" + n3;
-        var streakTotal = 0;
-
-        if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
-          streakTotal = Number(syncRoot.streak3[qid] || 0);
-        }
-
-        if (streakTotal > 0){
-          starQuestionCount += 1;
-          dayStarCount += 1;
-        }
-      }
-      if (dayStarCount === TOTAL_QUESTIONS_PER_DAY){
-        starFullDayCount += 1;
-      }
-    });
-
-    // ◎ 整合性集計（status_mark が「◎」のもの）
-    var consistencyQuestionCount = 0;
-    var consistencyFullDayCount = 0;
-
-    allDays.forEach(function(dayStr){
-      var dayConsistentCount = 0;
-      var qIndex;
-      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS_PER_DAY; qIndex++){
-        var n3 = pad3(qIndex);
-        var qidJp = toJpDateQid(dayStr, n3);
-        var statusObj = null;
-        var statusMark = "";
-
-        if (syncRoot && syncRoot.consistency_status && Object.prototype.hasOwnProperty.call(syncRoot.consistency_status, qidJp)) {
-          statusObj = syncRoot.consistency_status[qidJp];
-        }
-
-        if (statusObj && typeof statusObj.status_mark === "string"){
-          statusMark = statusObj.status_mark;
-        }
-
-        if (statusMark === "◎"){
-          consistencyQuestionCount += 1;
-          dayConsistentCount += 1;
-        }
-      }
-      if (dayConsistentCount === TOTAL_QUESTIONS_PER_DAY){
-        consistencyFullDayCount += 1;
-      }
-    });
-
-    function formatPercent1(value){
-      var n = Number(value) || 0;
-      return n.toFixed(1);
-    }
-
-    var totalQuestionsStr = String(totalQuestionsAll);
-    var totalDaysStr = String(allDays.length);
-
-    var starQStr = String(starQuestionCount).padStart(4, "0");
-    var starDayStr = pad2(starFullDayCount);
-    var starRate = totalQuestionsAll > 0 ? (starQuestionCount / totalQuestionsAll) * 100 : 0;
-    var starRateStr = formatPercent1(starRate);
-
-    var consQStr = String(consistencyQuestionCount).padStart(4, "0");
-    var consDayStr = pad2(consistencyFullDayCount);
-    var consRate = totalQuestionsAll > 0 ? (consistencyQuestionCount / totalQuestionsAll) * 100 : 0;
-    var consRateStr = formatPercent1(consRate);
-
-    // ▼ 全体サマリー（固定ヘッダー）DOM構築
-    var summaryHost = document.createElement("div");
-    summaryHost.id = "nl-summary-header";
-
-    var summaryLine1 = document.createElement("div");
-    summaryLine1.textContent = "CSCS全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
-
-    var summaryLine2 = document.createElement("div");
-    summaryLine2.textContent =
-      "★獲得済｜" +
-      starQStr +
-      "／" +
-      totalQuestionsStr +
-      "｜" +
-      starDayStr +
-      "／" +
-      totalDaysStr +
-      "｜" +
-      starRateStr +
-      "% 達成";
-
-    var summaryLine3 = document.createElement("div");
-    summaryLine3.textContent =
-      "◎整合性｜" +
-      consQStr +
-      "／" +
-      totalQuestionsStr +
-      "｜" +
-      consDayStr +
-      "／" +
-      totalDaysStr +
-      "｜" +
-      consRateStr +
-      "% 達成";
-
-    summaryHost.appendChild(summaryLine1);
-    summaryHost.appendChild(summaryLine2);
-    summaryHost.appendChild(summaryLine3);
-
-    // ▼ 問題リスト（左カラム）用コンテナ
     const gridHost = document.createElement("div");
     gridHost.className = "quiz-list-grid";
 
@@ -571,11 +419,13 @@
     function getFavTextForQid(qid, qidJp){
       var num = 0;
 
+      // ① 数値マップ（cscs_fav_map）を優先
       if (favMap && Object.prototype.hasOwnProperty.call(favMap, qid)) {
         num = Number(favMap[qid] || 0);
       } else if (favMap && qidJp && Object.prototype.hasOwnProperty.call(favMap, qidJp)) {
         num = Number(favMap[qidJp] || 0);
       } else {
+        // ② 文字列マップ（cscs_fav）から補完
         var v = null;
         if (favObj && Object.prototype.hasOwnProperty.call(favObj, qid)) {
           v = favObj[qid];
@@ -605,15 +455,24 @@
       const qid = day + "-" + n3;
       const qidJp = toJpDateQid(day, n3);
 
+      const syncRoot =
+        window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object"
+          ? (window.CSCS_SYNC_DATA.data && typeof window.CSCS_SYNC_DATA.data === "object"
+              ? window.CSCS_SYNC_DATA.data
+              : window.CSCS_SYNC_DATA)
+          : {};
+
       const streakTotalSync =
         syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
 
+      // correct_star.js 側の共通ルールを参照して ⭐️/🌟/💫 を決定
       let streakMark = "—";
       if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
         var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
         if (streakTotalSync > 0) {
+          // 「0回」は nav_list 上では「—」のままにする
           streakMark = starSymbol || "⭐️";
         }
       }
@@ -652,7 +511,7 @@
 
       const favText = getFavTextForQid(qid, qidJp);
 
-      const url = "q" + n3 + "_a.html?nav=manual";
+      const url   = "q" + n3 + "_a.html?nav=manual";
 
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
       const line1Text = snippet;
@@ -660,8 +519,8 @@
       let rawLevel = q.Level || "—";
       rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
 
-      const levelText = "Lv" + rawLevel;
-      const line2Text =
+      const levelText  = "Lv" + rawLevel;
+      const line2Text  =
         streakMark +
         streakProgress +
         "／" +
@@ -678,12 +537,12 @@
         favText;
 
       const item = document.createElement("div");
-      const isCurrent = currentN3 && n3 === currentN3;
+      const isCurrent = (currentN3 && n3 === currentN3);
       item.className = "quiz-item" + (isCurrent ? " is-current" : "");
 
       const l1 = document.createElement("div");
       l1.className = "line1";
-      const a = document.createElement("a");
+      const a  = document.createElement("a");
       a.href = url;
       a.setAttribute("data-nl-allow", "1");
       a.textContent = line1Text;
@@ -698,29 +557,38 @@
       gridHost.appendChild(item);
     });
 
-    // ▼ パネル本体のレイアウト（上部に全体サマリー、その下に2カラム）
-    var bodyHost = document.createElement("div");
-    bodyHost.id = "nl-body";
-    bodyHost.className = "nl-body-grid";
+    // nl-toolbar（閉じるボタン）は廃止。トグルボタンで開閉する。
+    panel.innerHTML =
+      '<div id="nl-body" class="nl-body-grid">' +
+        '<div class="nl-left-col" id="nl-left-col">' +
+          headerHtml +
+        '</div>' +
+        '<div class="nl-right-col" id="nl-right-col"></div>' +
+      '</div>';
 
-    var leftCol = document.createElement("div");
-    leftCol.className = "nl-left-col";
-    leftCol.id = "nl-left-col";
+    const bodyHost = panel.querySelector("#nl-body");
+    const leftCol  = panel.querySelector("#nl-left-col");
+    const rightCol = panel.querySelector("#nl-right-col");
 
-    var rightCol = document.createElement("div");
-    rightCol.className = "nl-right-col";
-    rightCol.id = "nl-right-col";
+    if (bodyHost){
+      try{
+      }catch(_){}
+    }
 
-    bodyHost.appendChild(leftCol);
-    bodyHost.appendChild(rightCol);
+    if (leftCol){
+      try{
+      }catch(_){}
+      leftCol.appendChild(gridHost);
+    }
 
-    panel.appendChild(summaryHost);
-    panel.appendChild(bodyHost);
+    if (rightCol){
+      try{
+      }catch(_){}
+      renderDayList(rightCol, day);
+    }
 
-    leftCol.appendChild(gridHost);
-    renderDayList(rightCol, day);
-
-    try {
+    // ▼ 現在の問題（.quiz-item.is-current）と現在の日（.nl-day-item.is-current）が見えるように自動スクロール
+    try{
       var quizContainer = panel.querySelector("#nl-left-col");
       var currentItem = quizContainer ? quizContainer.querySelector(".quiz-item.is-current") : null;
       if (quizContainer){
@@ -746,7 +614,7 @@
           dayContainer.scrollTop = 0;
         }
       }
-    } catch (_){}
+    }catch(_){}
   }
 
   async function mountAndOpenPanel(){
