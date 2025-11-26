@@ -528,7 +528,7 @@
     }catch(_){}
 
     var summaryLine1 = document.createElement("div");
-    summaryLine1.textContent = "CSCS全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
+    summaryLine1.textContent = "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
 
     var summaryLine2 = document.createElement("div");
     summaryLine2.textContent =
