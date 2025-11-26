@@ -347,7 +347,7 @@
       background: "rgba(0, 0, 0, 0.86)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
-      padding: "6px 16px 0px",
+      padding: "14px 16px 0px",
       zIndex: "99999",
       display: "none",
       backdropFilter: "blur(8px)",
@@ -520,7 +520,7 @@
         zIndex: "100000",
         background: "#111",
         paddingBottom: "8px",
-        padding: "0 17px 10px",
+        padding: "6px 17px 10px",
         borderBottom: "1px solid #2a2a2a",
         fontSize: "13px",
         fontWeight: "400"
