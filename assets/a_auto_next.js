@@ -91,7 +91,7 @@
       "bottom: 16px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
-      "color: #fff;" +          // ← ★白文字
+      "color: #fff;" +
       "z-index: 9999;" +
       "pointer-events: none;" +
       "font-weight: 300;";
@@ -100,31 +100,38 @@
     return div;
   }
 
-  // 画面をふわっと暗転させてから遷移する
+  // フェード用オーバーレイ生成（共通）
+  function getOrCreateFadeOverlay() {
+    var overlay = document.getElementById("auto-next-fade-overlay");
+    if (overlay) {
+      return overlay;
+    }
+    overlay = document.createElement("div");
+    overlay.id = "auto-next-fade-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.left = "0";
+    overlay.style.top = "0";
+    overlay.style.right = "0";
+    overlay.style.bottom = "0";
+    overlay.style.backgroundColor = "#000000";
+    overlay.style.opacity = "0";
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "9998";
+    overlay.style.transition = "opacity 300ms linear";
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  // 画面をふわっと暗転させてから遷移する（フェードアウト側）
   function fadeOutAndNavigate(nextUrl) {
     if (!nextUrl) {
       return;
     }
 
-    var overlay = document.getElementById("auto-next-fade-overlay");
-    if (!overlay) {
-      overlay = document.createElement("div");
-      overlay.id = "auto-next-fade-overlay";
-      overlay.style.position = "fixed";
-      overlay.style.left = "0";
-      overlay.style.top = "0";
-      overlay.style.right = "0";
-      overlay.style.bottom = "0";
-      overlay.style.backgroundColor = "#000000";
-      overlay.style.opacity = "0";
-      overlay.style.pointerEvents = "none";
-      overlay.style.zIndex = "9998";
-      overlay.style.transition = "opacity 300ms linear";
-      document.body.appendChild(overlay);
-    }
-
-    // クリックなどを誤って拾わないようにする
+    var overlay = getOrCreateFadeOverlay();
+    overlay.style.opacity = "0";
     overlay.style.pointerEvents = "auto";
+    overlay.style.transition = "opacity 300ms linear";
 
     // 少し遅らせてからフェード開始（レイアウト確定のため）
     window.setTimeout(function () {
@@ -133,8 +140,47 @@
 
     // フェード完了後にページ遷移
     window.setTimeout(function () {
+      try {
+        sessionStorage.setItem("cscs_auto_next_fade", "1");
+      } catch (_e) {
+        // sessionStorage が使えない場合は何もしない
+      }
       location.href = nextUrl;
     }, 340);
+  }
+
+  // 遷移後のページで、黒からフェードインする
+  function runFadeInIfNeeded() {
+    var needFade = false;
+    try {
+      if (sessionStorage.getItem("cscs_auto_next_fade") === "1") {
+        needFade = true;
+        sessionStorage.removeItem("cscs_auto_next_fade");
+      }
+    } catch (_e) {
+      needFade = false;
+    }
+
+    if (!needFade) {
+      return;
+    }
+
+    var overlay = getOrCreateFadeOverlay();
+    overlay.style.opacity = "1";
+    overlay.style.pointerEvents = "none";
+    overlay.style.transition = "opacity 400ms linear";
+
+    // 少し遅らせてからフェードイン開始
+    window.setTimeout(function () {
+      overlay.style.opacity = "0";
+    }, 20);
+
+    // 完全に透明になったあとでDOMから取り除く（任意）
+    window.setTimeout(function () {
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }, 450);
   }
 
   // HEAD で存在確認してからフェード遷移
@@ -151,7 +197,7 @@
         // 404 やネットワークエラー時は静かに何もしない
       });
     } catch (_e) {
-      // fetch が使えない環境では、そのまま遷移（最悪のときも真っ白フラッシュよりはマシ）
+      // fetch が使えない環境では、そのまま遷移
       fadeOutAndNavigate(nextUrl);
     }
   }
@@ -199,9 +245,16 @@
     }, AUTO_ADVANCE_MS);
   }
 
-  if (document.readyState === "complete" || document.readyState === "interactive") {
+  function onReady() {
+    // 必要ならフェードイン
+    runFadeInIfNeeded();
+    // そのうえで自動遷移カウンタ開始
     scheduleAutoAdvance();
+  }
+
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    onReady();
   } else {
-    document.addEventListener("DOMContentLoaded", scheduleAutoAdvance);
+    document.addEventListener("DOMContentLoaded", onReady);
   }
 })();
