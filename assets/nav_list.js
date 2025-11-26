@@ -537,7 +537,7 @@
     summaryLine1.style.display = "flex";
     summaryLine1.style.justifyContent = "flex-start";
     summaryLine1.style.alignItems = "center";
-    summaryLine1.style.columnGap = "8px";
+    summaryLine1.style.columnGap = "0";
 
     var summaryTitleSpan = document.createElement("span");
     summaryTitleSpan.textContent = "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
