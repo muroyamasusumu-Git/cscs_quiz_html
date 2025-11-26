@@ -518,12 +518,14 @@
         position: "sticky",
         top: "0px",
         zIndex: "100000",
-        background: "#111",
-        paddingBottom: "8px",
+        background: "rgb(17, 17, 17)",
         padding: "6px 17px 10px",
-        borderBottom: "1px solid #2a2a2a",
+        borderBottomWidth: "1px",
+        borderBottomStyle: "solid",
+        borderBottomColor: "rgb(42, 42, 42)",
         fontSize: "13px",
-        fontWeight: "400"
+        fontWeight: "400",
+        lineHeight: "1.2"
       });
     }catch(_){}
 
