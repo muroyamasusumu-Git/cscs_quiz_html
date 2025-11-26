@@ -627,15 +627,62 @@
         }catch(_){
           currentValue = "";
         }
-        var input = window.prompt("試験日を YYYY-MM-DD 形式で入力してください（例: 2025-09-05）", currentValue || "");
-        if (!input) return;
-        var dt = new Date(input);
-        if (isNaN(dt.getTime())){
-          window.alert("日付の形式が正しくありません。YYYY-MM-DD 形式で入力してください。");
-          return;
+
+        var input = document.createElement("input");
+        input.type = "date";
+        input.style.position = "fixed";
+        input.style.left = "-9999px";
+        input.style.top = "0";
+        if (currentValue) {
+          input.value = currentValue;
         }
-        localStorage.setItem("cscs_exam_date", input);
-        summaryLine4.textContent = buildExamLineText(new Date());
+
+        function handleChange(){
+          try{
+            if (!input.value){
+              try{
+                document.body.removeChild(input);
+              }catch(_){}
+              input.removeEventListener("change", handleChange);
+              input.removeEventListener("blur", handleBlur);
+              return;
+            }
+            var dt = new Date(input.value);
+            if (isNaN(dt.getTime())){
+              window.alert("日付の形式が正しくありません。");
+              try{
+                document.body.removeChild(input);
+              }catch(_){}
+              input.removeEventListener("change", handleChange);
+              input.removeEventListener("blur", handleBlur);
+              return;
+            }
+            localStorage.setItem("cscs_exam_date", input.value);
+            summaryLine4.textContent = buildExamLineText(new Date());
+            try{
+              document.body.removeChild(input);
+            }catch(_){}
+          }catch(_){}
+          input.removeEventListener("change", handleChange);
+          input.removeEventListener("blur", handleBlur);
+        }
+
+        function handleBlur(){
+          try{
+            if (document.body.contains(input)){
+              document.body.removeChild(input);
+            }
+          }catch(_){}
+          input.removeEventListener("change", handleChange);
+          input.removeEventListener("blur", handleBlur);
+        }
+
+        input.addEventListener("change", handleChange);
+        input.addEventListener("blur", handleBlur);
+
+        document.body.appendChild(input);
+        input.focus();
+        input.click();
       }catch(_){}
     });
 
