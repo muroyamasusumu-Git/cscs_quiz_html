@@ -212,26 +212,26 @@
           streakTotal = Number(syncRoot.streak3[qid] || 0);
         }
 
+        // 3連続正解達成回数が 0 の問題は一切カウントしない
+        if (!(streakTotal > 0)) {
+          continue;
+        }
+
         // correct_star.js が提供する共通関数から記号を取得
         var starSymbol = "";
         if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-          starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotal) || "";
+          starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotal) || "⭐️";
         } else {
-          // フォールバック：3連続正解達成回数が 1 以上ならひとまず ⭐️ 扱い
-          if (streakTotal > 0) {
-            starSymbol = "⭐️";
-          }
+          starSymbol = "⭐️";
         }
 
-        if (starSymbol) {
-          anyStarCount += 1;
-          if (starSymbol === "⭐️") {
-            starCountBasic += 1;
-          } else if (starSymbol === "🌟") {
-            starCountUpgraded += 1;
-          } else if (starSymbol === "💫") {
-            starCountMax += 1;
-          }
+        anyStarCount += 1;
+        if (starSymbol === "⭐️") {
+          starCountBasic += 1;
+        } else if (starSymbol === "🌟") {
+          starCountUpgraded += 1;
+        } else if (starSymbol === "💫") {
+          starCountMax += 1;
         }
       }
 
