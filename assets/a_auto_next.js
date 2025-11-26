@@ -201,7 +201,7 @@
     var overlay = getOrCreateFadeOverlay();
     overlay.style.opacity = "0";
     overlay.style.pointerEvents = "auto";
-    overlay.style.transition = "opacity 300ms linear";
+    overlay.style.transition = "opacity 800ms linear";
 
     // 少し遅らせてからフェード開始（レイアウト確定のため）
     window.setTimeout(function () {
@@ -216,7 +216,7 @@
         // sessionStorage が使えない場合は何もしない
       }
       location.href = nextUrl;
-    }, 340);
+    }, 840);
   }
 
   // 遷移後のページで、黒からフェードインする
@@ -238,7 +238,7 @@
     var overlay = getOrCreateFadeOverlay();
     overlay.style.opacity = "1";
     overlay.style.pointerEvents = "none";
-    overlay.style.transition = "opacity 400ms linear";
+    overlay.style.transition = "opacity 800ms linear";
 
     // 少し遅らせてからフェードイン開始
     window.setTimeout(function () {
@@ -250,7 +250,7 @@
       if (overlay && overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
-    }, 450);
+    }, 850);
   }
 
   // HEAD で存在確認してからフェード遷移
