@@ -143,8 +143,8 @@
     btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
     btn.style.cssText =
     "position: fixed;"+
-    "left: 265px;"+
-    "bottom: 16px;"+
+    "left: 260px;"+
+    "bottom: 14px;"+
     "padding: 6px 10px;"+
     "font-size: 13px;"+
     "color: rgb(150, 150, 150);"+
