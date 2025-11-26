@@ -343,7 +343,7 @@
       right: "16px",
       top: "12px",
       bottom: "66px",
-      overflow: "auto",
+      overflow: "hidden",
       background: "rgba(0, 0, 0, 0.86)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
@@ -1015,6 +1015,8 @@
     var bodyHost = document.createElement("div");
     bodyHost.id = "nl-body";
     bodyHost.className = "nl-body-grid";
+    bodyHost.style.flex = "1 1 auto";
+    bodyHost.style.overflow = "auto";
 
     var leftCol = document.createElement("div");
     leftCol.className = "nl-left-col";
@@ -1077,7 +1079,8 @@
     await loadSyncDataForNavList();
 
     // ▼ 一覧パネルを表示状態にしてからレイアウト計測＆スクロール
-    panel.style.display = "block";
+    panel.style.display = "flex";
+    panel.style.flexDirection = "column";
 
     await renderListInto(panel);
 
