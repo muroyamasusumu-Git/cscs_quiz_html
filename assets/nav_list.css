@@ -39,7 +39,7 @@
   width: auto !important;
   height: auto !important;
   overflow: auto;
-  background: var(--nl-bg);
+  background: none !important;
   border: 0 solid var(--nl-border) !important;
   border-radius: 0 !important;
   padding: 10px 0 0 !important;
