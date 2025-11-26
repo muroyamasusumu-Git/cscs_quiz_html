@@ -189,66 +189,62 @@
       syncRoot = {};
     }
 
-    // 各日ごとに「DAY / 日付 / ⭐️獲得率」を表示
+    // correct_star.js の記号をランクに変換するヘルパー
+    function getStarRank(symbol){
+      if (symbol === "⭐️") return 1;
+      if (symbol === "🌟") return 2;
+      if (symbol === "💫") return 3;
+      return 0;
+    }
+
+    // 各日ごとに「DAY / 日付 / ★獲得率 / 日別⭐️〜💫」を表示
     days.forEach(function(dayStr, idx){
       var isCurrent = (dayStr === currentDay);
 
-      // 30問のうち何問「★が付いているか」を数える（★/🌟/💫 いずれもカウント）
       var TOTAL_QUESTIONS = 30;
-      var anyStarCount = 0;
 
-      // それぞれの記号ごとの 30/30 判定用カウンタ
-      var starCountBasic = 0;    // ⭐️
-      var starCountUpgraded = 0; // 🌟
-      var starCountMax = 0;      // 💫
-
+      // その日30問分のスター状況を集計
+      var starCount = 0;          // 「⭐️以上」になっている問題数
+      var minRankAll = 4;         // その日でスターが付いている問題の中での最小ランク（1=⭐️,2=🌟,3=💫）
       var qIndex;
+
       for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
         var n3 = pad3(qIndex);
         var qid = dayStr + "-" + n3;
         var streakTotal = 0;
-
         if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
           streakTotal = Number(syncRoot.streak3[qid] || 0);
         }
 
-        // 3連続正解達成回数が 0 の問題は一切カウントしない
-        if (!(streakTotal > 0)) {
-          continue;
-        }
-
-        // correct_star.js が提供する共通関数から記号を取得
-        var starSymbol = "";
+        var rank = 0;
         if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-          starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotal) || "⭐️";
+          var sym = window.cscsGetStarSymbolFromStreakCount(streakTotal);
+          rank = getStarRank(sym);
         } else {
-          starSymbol = "⭐️";
+          if (streakTotal > 0) {
+            rank = 1;
+          }
         }
 
-        anyStarCount += 1;
-        if (starSymbol === "⭐️") {
-          starCountBasic += 1;
-        } else if (starSymbol === "🌟") {
-          starCountUpgraded += 1;
-        } else if (starSymbol === "💫") {
-          starCountMax += 1;
+        if (rank > 0) {
+          starCount += 1;
+          if (rank < minRankAll) {
+            minRankAll = rank;
+          }
         }
       }
 
-      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((anyStarCount / TOTAL_QUESTIONS) * 100) : 0;
+      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
 
-      // DAY 見出しに付けるシンボル（30/30 の場合のみ）
-      var daySuffix = "";
-      if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-        if (starCountMax === TOTAL_QUESTIONS) {
-          // 全 30 問が 💫
-          daySuffix = "💫";
-        } else if (starCountUpgraded === TOTAL_QUESTIONS) {
-          // 全 30 問が 🌟
-          daySuffix = "🌟";
-        } else if (starCountBasic === TOTAL_QUESTIONS) {
-          // 全 30 問が ⭐️
-          daySuffix = "⭐️";
+      // 30問すべてが「⭐️以上」のときだけ、日別タイトルに ⭐️/🌟/💫 を付ける
+      var dayStarSuffix = "";
+      if (starCount === TOTAL_QUESTIONS) {
+        if (minRankAll >= 3) {
+          dayStarSuffix = "💫";
+        } else if (minRankAll >= 2) {
+          dayStarSuffix = "🌟";
+        } else if (minRankAll >= 1) {
+          dayStarSuffix = "⭐️";
         }
       }
 
@@ -263,7 +259,7 @@
 
       var titleRow = document.createElement("div");
       titleRow.className = "nl-day-title";
-      titleRow.textContent = "DAY-" + pad2(idx + 1) + daySuffix;
+      titleRow.textContent = "DAY-" + pad2(idx + 1) + dayStarSuffix;
 
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
@@ -271,7 +267,7 @@
       var rateRow = document.createElement("div");
       rateRow.textContent =
         "★獲得：" +
-        String(anyStarCount) +
+        String(starCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
         "(" +
