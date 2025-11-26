@@ -528,7 +528,24 @@
     }catch(_){}
 
     var summaryLine1 = document.createElement("div");
-    summaryLine1.textContent = "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
+
+    // 日時フォーマット生成
+    var now = new Date();
+    var y   = now.getFullYear();
+    var m   = String(now.getMonth() + 1).padStart(2, "0");
+    var d   = String(now.getDate()).padStart(2, "0");
+    var wd  = ["日","月","火","水","木","金","土"][now.getDay()];
+    var hh  = now.getHours();
+    var ap  = hh >= 12 ? "pm" : "am";
+    var h12 = hh % 12; 
+    if (h12 === 0) h12 = 12;
+    h12 = String(h12).padStart(2, "0");
+    var mm  = String(now.getMinutes()).padStart(2, "0");
+
+    var dateStr = y + "." + m + "." + d + "(" + wd + ")" + h12 + ":" + mm + ap;
+
+    summaryLine1.textContent =
+      "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）" + dateStr;
 
     var summaryLine2 = document.createElement("div");
     summaryLine2.textContent =
