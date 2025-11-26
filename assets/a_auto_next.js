@@ -64,16 +64,14 @@
     // ★ ユーザー指定のスタイルをそのまま反映 ★
     div.style.cssText =
       "position: fixed;" +
-      "left: 66px;" +
+      "left: 146px;" +
       "bottom: 16px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
-      "background: rgba(0,0,0,0.6);" +
       "color: #fff;" +          // ← ★白文字
-      "border-radius: 12px;" +
       "z-index: 9999;" +
       "pointer-events: none;" +
-      "font-weight: 600;";
+      "font-weight: 300;";
 
     document.body.appendChild(div);
     return div;
