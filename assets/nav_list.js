@@ -584,7 +584,16 @@
           var diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
           var em = examDate.getMonth() + 1;
           var ed = examDate.getDate();
-          var examLabel = "試験(" + String(em) + "/" + String(ed) + ")まであと" + String(diffDays) + "日";
+          var examLabel =
+            "試験(" +
+            String(em) +
+            "/" +
+            String(ed) +
+            ")まであと" +
+            "<span class='nl-exam-days'>" +
+            String(diffDays) +
+            "</span>" +
+            "日";
           return examLabel + "｜" + dateStr;
         }
       }
