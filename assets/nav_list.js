@@ -535,8 +535,9 @@
     var summaryLine4 = document.createElement("div");
 
     summaryLine1.style.display = "flex";
-    summaryLine1.style.justifyContent = "space-between";
+    summaryLine1.style.justifyContent = "flex-start";
     summaryLine1.style.alignItems = "center";
+    summaryLine1.style.columnGap = "8px";
 
     var summaryTitleSpan = document.createElement("span");
     summaryTitleSpan.textContent = "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
@@ -639,40 +640,21 @@
 
         function handleChange(){
           try{
-            if (!input.value){
-              try{
-                document.body.removeChild(input);
-              }catch(_){}
-              input.removeEventListener("change", handleChange);
-              input.removeEventListener("blur", handleBlur);
-              return;
+            if (input.value){
+              var dt = new Date(input.value);
+              if (!isNaN(dt.getTime())){
+                localStorage.setItem("cscs_exam_date", input.value);
+                summaryLine4.textContent = buildExamLineText(new Date());
+              }
             }
-            var dt = new Date(input.value);
-            if (isNaN(dt.getTime())){
-              window.alert("日付の形式が正しくありません。");
-              try{
-                document.body.removeChild(input);
-              }catch(_){}
-              input.removeEventListener("change", handleChange);
-              input.removeEventListener("blur", handleBlur);
-              return;
-            }
-            localStorage.setItem("cscs_exam_date", input.value);
-            summaryLine4.textContent = buildExamLineText(new Date());
-            try{
-              document.body.removeChild(input);
-            }catch(_){}
           }catch(_){}
+          try{ document.body.removeChild(input); }catch(_){}
           input.removeEventListener("change", handleChange);
           input.removeEventListener("blur", handleBlur);
         }
 
         function handleBlur(){
-          try{
-            if (document.body.contains(input)){
-              document.body.removeChild(input);
-            }
-          }catch(_){}
+          try{ document.body.removeChild(input); }catch(_){}
           input.removeEventListener("change", handleChange);
           input.removeEventListener("blur", handleBlur);
         }
@@ -681,8 +663,17 @@
         input.addEventListener("blur", handleBlur);
 
         document.body.appendChild(input);
-        input.focus();
-        input.click();
+
+        // Safari 対策：2段階で強制的に "日付編集 UI" を開く
+        setTimeout(function(){
+          input.focus();
+          input.click();
+          setTimeout(function(){
+            input.focus();
+            input.click();
+          }, 10);
+        }, 10);
+
       }catch(_){}
     });
 
