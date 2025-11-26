@@ -175,9 +175,40 @@
     // TODO: セット数や日付レンジを変更したくなったらここを書き換える
     var days = buildDayArray("20250926", "20251224");
 
-    // いったん達成率は未定のためダミー表示
+    // SYNC データから streak3（3連続正解達成回数）を参照するためのルートを取得
+    var syncRoot = {};
+    try{
+      if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
+        if (window.CSCS_SYNC_DATA.data && typeof window.CSCS_SYNC_DATA.data === "object") {
+          syncRoot = window.CSCS_SYNC_DATA.data;
+        } else {
+          syncRoot = window.CSCS_SYNC_DATA;
+        }
+      }
+    }catch(_){
+      syncRoot = {};
+    }
+
+    // 各日ごとに「DAY / 日付 / ⭐️獲得率」を表示
     days.forEach(function(dayStr, idx){
       var isCurrent = (dayStr === currentDay);
+
+      // 30問のうち何問「3連続正解達成回数 > 0（＝⭐️以上）」になっているかを数える
+      var TOTAL_QUESTIONS = 30;
+      var starCount = 0;
+      var qIndex;
+      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
+        var n3 = pad3(qIndex);
+        var qid = dayStr + "-" + n3;
+        var streakTotal = 0;
+        if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
+          streakTotal = Number(syncRoot.streak3[qid] || 0);
+        }
+        if (streakTotal > 0) {
+          starCount += 1;
+        }
+      }
+      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
 
       var item = document.createElement("div");
       item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
@@ -192,18 +223,20 @@
       titleRow.className = "nl-day-title";
       titleRow.textContent = "DAY-" + pad2(idx + 1);
 
-      var fieldRow = document.createElement("div");
-      // 分野名は未定のため一旦プレースホルダ
-      fieldRow.textContent = "（分野名）";
-
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
 
       var rateRow = document.createElement("div");
-      rateRow.textContent = "達成率：—%";
+      rateRow.textContent =
+        "⭐️獲得：" +
+        String(starCount) +
+        "/" +
+        String(TOTAL_QUESTIONS) +
+        "（" +
+        String(ratePercent) +
+        "%）";
 
       link.appendChild(titleRow);
-      link.appendChild(fieldRow);
       link.appendChild(dateRow);
       link.appendChild(rateRow);
 
