@@ -80,6 +80,33 @@
     return n;
   }
 
+  // ===== 3連続正解回数 → スター絵文字 変換ヘルパー =====
+  function getStarSymbolFromStreakCount(count) {
+    var n = Number(count || 0);
+    if (!Number.isFinite(n) || n < 0) {
+      n = 0;
+    }
+
+    if (n >= 9) {
+      // 9回以上達成で 💫
+      return "💫";
+    } else if (n >= 3) {
+      // 3〜8回達成で 🌟
+      return "🌟";
+    } else if (n >= 1) {
+      // 1〜2回達成で ⭐️
+      return "⭐️";
+    }
+
+    // 未達成時は従来どおり ⭐️（CSS側で data 属性を見て制御）
+    return "⭐️";
+  }
+
+  // nav_list.js など他スクリプトからも利用できるように公開
+  if (typeof window !== "undefined") {
+    window.cscsGetStarSymbolFromStreakCount = getStarSymbolFromStreakCount;
+  }
+
   // ===== スター表示の更新 =====
   function updateCorrectStar() {
     var qid = getCurrentQid();
@@ -92,21 +119,17 @@
     // 3連続正解達成回数
     var count = getStreak3Count(qid);
 
-    if (count >= 9) {
-      // 9回以上達成で 💫 に昇格
-      starElement.textContent = "💫";
-      starElement.setAttribute("data-star-state", "on");
-    } else if (count >= 3) {
-      // 3〜8回達成で 🌟 を表示
-      starElement.textContent = "🌟";
-      starElement.setAttribute("data-star-state", "on");
-    } else if (count >= 1) {
-      // 1〜2回達成で ⭐️ を表示
-      starElement.textContent = "⭐️";
+    // 共通ヘルパーで ⭐️/🌟/💫 を決定
+    var symbol = getStarSymbolFromStreakCount(count);
+
+    // テキストは常に共通ルールに従う
+    starElement.textContent = symbol;
+
+    if (count >= 1) {
+      // 1回以上達成時は ON
       starElement.setAttribute("data-star-state", "on");
     } else {
-      // 未達成時は非表示扱い（data 属性のみ OFF）
-      starElement.textContent = "⭐️";
+      // 未達成時は OFF（CSS 側で非表示扱いにする想定）
       starElement.setAttribute("data-star-state", "off");
     }
   }

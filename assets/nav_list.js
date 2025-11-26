@@ -340,11 +340,15 @@
         syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
+
+      // correct_star.js 側の共通ルールを参照して ⭐️/🌟/💫 を決定
       let streakMark = "—";
-      if (streakTotalSync > 0 && streakTotalSync < 3) {
-        streakMark = "⭐️";
-      } else if (streakTotalSync >= 3) {
-        streakMark = "🌟";
+      if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
+        var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
+        if (streakTotalSync > 0) {
+          // 「0回」は nav_list 上では「—」のままにする
+          streakMark = starSymbol || "⭐️";
+        }
       }
 
       const streakLenSync =
