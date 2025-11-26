@@ -549,7 +549,7 @@
 
     var summaryLine2 = document.createElement("div");
     summaryLine2.textContent =
-      "★獲得済｜" +
+      "★｜獲得済｜" +
       starQStr +
       "／" +
       totalQuestionsStr +
@@ -563,7 +563,7 @@
 
     var summaryLine3 = document.createElement("div");
     summaryLine3.textContent =
-      "◎整合性｜" +
+      "◎｜整合性｜" +
       consQStr +
       "／" +
       totalQuestionsStr +
