@@ -387,7 +387,7 @@
       const url   = "q" + n3 + "_a.html?nav=manual";
 
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
-      const line1Text = "[" + (q.Theme || "—") + "] " + snippet;
+      const line1Text = snippet;
 
       let rawLevel = q.Level || "—";
       rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
