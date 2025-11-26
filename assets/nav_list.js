@@ -559,8 +559,15 @@
     examButtonSpan.style.fontSize = "12px";
     examButtonSpan.style.marginLeft = "8px";
 
+    var reloadButtonSpan = document.createElement("span");
+    reloadButtonSpan.textContent = "[SYNC再読込]";
+    reloadButtonSpan.style.cursor = "pointer";
+    reloadButtonSpan.style.fontSize = "12px";
+    reloadButtonSpan.style.marginLeft = "8px";
+
     summaryLine1.appendChild(summaryTitleSpan);
     summaryLine1.appendChild(examButtonSpan);
+    summaryLine1.appendChild(reloadButtonSpan);
 
     function buildExamLineText(nowDate){
       var y = nowDate.getFullYear();
@@ -877,6 +884,16 @@
         document.body.appendChild(backdrop);
 
         renderCalendar();
+      }catch(_){}
+    });
+
+    reloadButtonSpan.addEventListener("click", async function(){
+      try{
+        await loadSyncDataForNavList();
+        var panel = document.getElementById("nl-panel");
+        if (panel){
+          await renderListInto(panel);
+        }
       }catch(_){}
     });
 
