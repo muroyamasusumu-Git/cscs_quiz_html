@@ -238,7 +238,7 @@
     var overlay = getOrCreateFadeOverlay();
     overlay.style.opacity = "0.7";
     overlay.style.pointerEvents = "none";
-    overlay.style.transition = "opacity 1000ms ease-in-out";
+    overlay.style.transition = "opacity 1500ms ease-in-out";
 
     // 少し遅らせてからフェードイン開始
     window.setTimeout(function () {
@@ -250,7 +250,7 @@
       if (overlay && overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
-    }, 1060);
+    }, 1560);
   }
 
   // HEAD で存在確認してからフェード遷移
