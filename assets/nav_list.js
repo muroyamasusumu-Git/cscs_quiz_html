@@ -421,6 +421,55 @@
       syncRoot = {};
     }
 
+    // 現在表示中の問題だけは /api/sync-consistency を参照して consistency_status を補正する
+    async function enrichConsistencyForCurrent(syncRootBase, dayStr, currentN3Str){
+      if (!dayStr || dayStr === "unknown") return syncRootBase;
+      if (!currentN3Str) return syncRootBase;
+
+      var qidJp = toJpDateQid(dayStr, currentN3Str);
+
+      try{
+        var url = "/api/sync-consistency?qid=" + encodeURIComponent(qidJp);
+        var res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          return syncRootBase;
+        }
+        var json = await res.json();
+        if (!json) {
+          return syncRootBase;
+        }
+
+        var item = null;
+        if (Array.isArray(json.items) && json.items.length > 0) {
+          item = json.items[0];
+        } else if (json.item && typeof json.item === "object") {
+          item = json.item;
+        }
+
+        if (!item || typeof item !== "object") {
+          return syncRootBase;
+        }
+        if (typeof item.status_mark !== "string") {
+          return syncRootBase;
+        }
+
+        if (!syncRootBase || typeof syncRootBase !== "object") {
+          syncRootBase = {};
+        }
+        if (!syncRootBase.consistency_status || typeof syncRootBase.consistency_status !== "object") {
+          syncRootBase.consistency_status = {};
+        }
+
+        // キー形式は「YYYY年M月D日-NNN」のみを使用
+        syncRootBase.consistency_status[qidJp] = item;
+        return syncRootBase;
+      }catch(_){
+        return syncRootBase;
+      }
+    }
+
+    syncRoot = await enrichConsistencyForCurrent(syncRoot, day, currentN3);
+
     // ★ CSCS全体サマリー用：日付配列生成（90日分）
     function buildDayArrayForSummary(startStr, endStr){
       var list = [];
