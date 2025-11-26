@@ -64,7 +64,7 @@
     // ★ ユーザー指定のスタイルをそのまま反映 ★
     div.style.cssText =
       "position: fixed;" +
-      "left: 146px;" +
+      "left: 140px;" +
       "bottom: 16px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
