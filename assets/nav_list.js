@@ -465,7 +465,8 @@
 
           // キー形式は「YYYY年M月D日-NNN」のみを使用
           syncRootBase.consistency_status[qidJp] = item;
-        }catch(_){
+        }catch(e){
+          console.warn("nav_list.js: /api/sync-consistency 取得に失敗しました:", qidJp, e);
           continue;
         }
       }
@@ -473,7 +474,12 @@
       return syncRootBase;
     }
 
-    syncRoot = await enrichConsistencyForDay(syncRoot, day);
+    // 救済パッチは nav_list 全体を落とさないように try/catch で囲む
+    try{
+      syncRoot = await enrichConsistencyForDay(syncRoot, day);
+    }catch(e){
+      console.warn("nav_list.js: enrichConsistencyForDay でエラーが発生したため、/api/sync/state のみで描画を続行します。", e);
+    }
 
     // ★ CSCS全体サマリー用：日付配列生成（90日分）
     function buildDayArrayForSummary(startStr, endStr){
