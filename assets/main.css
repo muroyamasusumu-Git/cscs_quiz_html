@@ -55,10 +55,9 @@ margin: 10px 20px 75px;
     position: relative;
     margin: 0;
     line-height: 1;
-    width: 67%;
+    width: 69%;
     overflow-y: auto;
     transform: translateZ(0);  /* レイヤーを揃えて描画ズレを減らす */
-}
 }
 
 
