@@ -340,7 +340,12 @@
         syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
-      const streakMark = streakTotalSync > 0 ? "⭐️" : "—";
+      let streakMark = "—";
+      if (streakTotalSync > 0 && streakTotalSync < 3) {
+        streakMark = "⭐️";
+      } else if (streakTotalSync >= 3) {
+        streakMark = "🌟";
+      }
 
       const streakLenSync =
         syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
