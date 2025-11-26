@@ -524,8 +524,9 @@
         borderBottomStyle: "solid",
         borderBottomColor: "rgb(42, 42, 42)",
         fontSize: "13px",
-        fontWeight: "400",
-        lineHeight: "1.4"
+        fontWeight: "300",
+        lineHeight: "1.4",
+        opacity: "0.45"
       });
     }catch(_){}
 
