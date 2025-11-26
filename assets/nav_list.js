@@ -421,66 +421,6 @@
       syncRoot = {};
     }
 
-    // 現在の日付の全30問について /api/sync-consistency を参照して consistency_status を補正する
-    async function enrichConsistencyForDay(syncRootBase, dayStr){
-      if (!dayStr || dayStr === "unknown") return syncRootBase;
-
-      var TOTAL_QUESTIONS_PER_DAY_FOR_CONSISTENCY = 30;
-      var n;
-      for (n = 1; n <= TOTAL_QUESTIONS_PER_DAY_FOR_CONSISTENCY; n++){
-        var n3 = pad3(n);
-        var qidJp = toJpDateQid(dayStr, n3);
-
-        try{
-          var url = "/api/sync-consistency?qid=" + encodeURIComponent(qidJp);
-          var res = await fetch(url, { cache: "no-store" });
-          if (!res.ok) {
-            continue;
-          }
-          var json = await res.json();
-          if (!json) {
-            continue;
-          }
-
-          var item = null;
-          if (Array.isArray(json.items) && json.items.length > 0) {
-            item = json.items[0];
-          } else if (json.item && typeof json.item === "object") {
-            item = json.item;
-          }
-
-          if (!item || typeof item !== "object") {
-            continue;
-          }
-          if (typeof item.status_mark !== "string") {
-            continue;
-          }
-
-          if (!syncRootBase || typeof syncRootBase !== "object") {
-            syncRootBase = {};
-          }
-          if (!syncRootBase.consistency_status || typeof syncRootBase.consistency_status !== "object") {
-            syncRootBase.consistency_status = {};
-          }
-
-          // キー形式は「YYYY年M月D日-NNN」のみを使用
-          syncRootBase.consistency_status[qidJp] = item;
-        }catch(e){
-          console.warn("nav_list.js: /api/sync-consistency 取得に失敗しました:", qidJp, e);
-          continue;
-        }
-      }
-
-      return syncRootBase;
-    }
-
-    // 救済パッチは nav_list 全体を落とさないように try/catch で囲む
-    try{
-      syncRoot = await enrichConsistencyForDay(syncRoot, day);
-    }catch(e){
-      console.warn("nav_list.js: enrichConsistencyForDay でエラーが発生したため、/api/sync/state のみで描画を続行します。", e);
-    }
-
     // ★ CSCS全体サマリー用：日付配列生成（90日分）
     function buildDayArrayForSummary(startStr, endStr){
       var list = [];
@@ -619,15 +559,8 @@
     examButtonSpan.style.fontSize = "12px";
     examButtonSpan.style.marginLeft = "8px";
 
-    var reloadButtonSpan = document.createElement("span");
-    reloadButtonSpan.textContent = "[SYNC再読込]";
-    reloadButtonSpan.style.cursor = "pointer";
-    reloadButtonSpan.style.fontSize = "12px";
-    reloadButtonSpan.style.marginLeft = "8px";
-
     summaryLine1.appendChild(summaryTitleSpan);
     summaryLine1.appendChild(examButtonSpan);
-    summaryLine1.appendChild(reloadButtonSpan);
 
     function buildExamLineText(nowDate){
       var y = nowDate.getFullYear();
@@ -944,16 +877,6 @@
         document.body.appendChild(backdrop);
 
         renderCalendar();
-      }catch(_){}
-    });
-
-    reloadButtonSpan.addEventListener("click", async function(){
-      try{
-        await loadSyncDataForNavList();
-        var panel = document.getElementById("nl-panel");
-        if (panel){
-          await renderListInto(panel);
-        }
       }catch(_){}
     });
 
