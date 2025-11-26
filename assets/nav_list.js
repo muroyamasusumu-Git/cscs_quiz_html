@@ -189,26 +189,71 @@
       syncRoot = {};
     }
 
-    // 各日ごとに「DAY / 日付 / ⭐️獲得率」を表示
+    // 各日ごとに「DAY / 日付 / ★獲得率 / 日別⭐️〜💫」を表示
     days.forEach(function(dayStr, idx){
       var isCurrent = (dayStr === currentDay);
 
-      // 30問のうち何問「3連続正解達成回数 > 0（＝⭐️以上）」になっているかを数える
       var TOTAL_QUESTIONS = 30;
-      var starCount = 0;
+
+      // その日30問分のスター状況を集計
+      var anyStarCount = 0;   // 「何らかの★（⭐️/🌟/💫）」が付いている問題数
+      var starGe1 = 0;        // ランク1以上（⭐️以上）
+      var starGe2 = 0;        // ランク2以上（🌟以上）
+      var starGe3 = 0;        // ランク3以上（💫）
+
       var qIndex;
       for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
         var n3 = pad3(qIndex);
         var qid = dayStr + "-" + n3;
         var streakTotal = 0;
+
         if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
           streakTotal = Number(syncRoot.streak3[qid] || 0);
         }
-        if (streakTotal > 0) {
-          starCount += 1;
+
+        // 3連続正解達成回数が 0 の問題は一切カウントしない
+        if (!(streakTotal > 0)) {
+          continue;
+        }
+
+        var symbol = "";
+        if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
+          symbol = window.cscsGetStarSymbolFromStreakCount(streakTotal) || "⭐️";
+        } else {
+          symbol = "⭐️";
+        }
+
+        anyStarCount += 1;
+
+        // ランクを判定
+        if (symbol === "⭐️") {
+          starGe1 += 1;
+        } else if (symbol === "🌟") {
+          starGe1 += 1;
+          starGe2 += 1;
+        } else if (symbol === "💫") {
+          starGe1 += 1;
+          starGe2 += 1;
+          starGe3 += 1;
         }
       }
-      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
+
+      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((anyStarCount / TOTAL_QUESTIONS) * 100) : 0;
+
+      // DAY 見出しに付けるシンボル（30/30 の場合のみ）
+      var daySuffix = "";
+      if (anyStarCount === TOTAL_QUESTIONS) {
+        if (starGe3 === TOTAL_QUESTIONS) {
+          // 全 30 問が 💫
+          daySuffix = "💫";
+        } else if (starGe2 === TOTAL_QUESTIONS) {
+          // 全 30 問が 🌟（または🌟以上）
+          daySuffix = "🌟";
+        } else if (starGe1 === TOTAL_QUESTIONS) {
+          // 全 30 問が ⭐️（または⭐️以上）
+          daySuffix = "⭐️";
+        }
+      }
 
       var item = document.createElement("div");
       item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
@@ -221,7 +266,7 @@
 
       var titleRow = document.createElement("div");
       titleRow.className = "nl-day-title";
-      titleRow.textContent = "DAY-" + pad2(idx + 1);
+      titleRow.textContent = "DAY-" + pad2(idx + 1) + daySuffix;
 
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
@@ -229,7 +274,7 @@
       var rateRow = document.createElement("div");
       rateRow.textContent =
         "★獲得：" +
-        String(starCount) +
+        String(anyStarCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
         "(" +
