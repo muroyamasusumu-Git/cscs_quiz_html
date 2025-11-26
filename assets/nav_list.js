@@ -525,7 +525,7 @@
         borderBottomColor: "rgb(42, 42, 42)",
         fontSize: "13px",
         fontWeight: "400",
-        lineHeight: "1.35"
+        lineHeight: "1.4"
       });
     }catch(_){}
 
