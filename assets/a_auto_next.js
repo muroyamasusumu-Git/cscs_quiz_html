@@ -4,6 +4,36 @@
   // Aパート自動遷移までの待ち時間（ミリ秒）
   var AUTO_ADVANCE_MS = 30000;
   var COUNTER_INTERVAL_MS = 1000;
+  var AUTO_ENABLED_KEY = "cscs_auto_next_enabled";
+
+  // グローバル状態
+  var autoEnabled = loadAutoAdvanceEnabled();
+  var NEXT_URL = null;
+  var counterEl = null;
+  var counterTimerId = null;
+  var autoTimeoutId = null;
+  var startTime = 0;
+  var endTime = 0;
+
+  function loadAutoAdvanceEnabled() {
+    try {
+      var v = localStorage.getItem(AUTO_ENABLED_KEY);
+      if (v === null) {
+        return true; // デフォルトは ON
+      }
+      return v === "1";
+    } catch (_e) {
+      return true;
+    }
+  }
+
+  function saveAutoAdvanceEnabled(flag) {
+    try {
+      localStorage.setItem(AUTO_ENABLED_KEY, flag ? "1" : "0");
+    } catch (_e) {
+      // 失敗しても無視
+    }
+  }
 
   function parseSlideInfo() {
     var path = String(location.pathname || "");
@@ -87,17 +117,56 @@
 
     div.style.cssText =
       "position: fixed;" +
-      "left: 140px;" +
+      "left: 140px;" +          // ★ 指定どおり
       "bottom: 16px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
-      "color: #fff;" +
+      "color: #fff;" +         // 白文字
       "z-index: 9999;" +
       "pointer-events: none;" +
       "font-weight: 300;";
 
     document.body.appendChild(div);
     return div;
+  }
+
+  // 自動送り ON/OFF トグルボタン
+  function createAutoNextToggleButton() {
+    var btn = document.getElementById("auto-next-toggle");
+    if (btn) {
+      return btn;
+    }
+
+    btn = document.createElement("button");
+    btn.id = "auto-next-toggle";
+    btn.type = "button";
+    btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
+    btn.style.cssText =
+      "position: fixed;" +
+      "left: 176px;" +
+      "bottom: 16px;" +
+      "padding: 6px 10px;" +
+      "font-size: 13px;" +
+      "color: #fff;" +
+      "border-bottom: 1 solid rgba(255,255,255,0.4);" +
+      "border-radius: 0;" +
+      "z-index: 10000;" +
+      "cursor: pointer;";
+
+    btn.addEventListener("click", function () {
+      autoEnabled = !autoEnabled;
+      saveAutoAdvanceEnabled(autoEnabled);
+      btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
+
+      if (autoEnabled) {
+        startAutoAdvanceCountdown();
+      } else {
+        cancelAutoAdvanceCountdown(true);
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
   }
 
   // フェード用オーバーレイ生成（共通）
@@ -202,21 +271,45 @@
     }
   }
 
-  function scheduleAutoAdvance() {
-    var nextUrl = buildNextUrl();
-    if (!nextUrl) {
-      return;
+  function cancelAutoAdvanceCountdown(updateText) {
+    if (counterTimerId) {
+      window.clearInterval(counterTimerId);
+      counterTimerId = null;
     }
-
-    var startTime = Date.now();
-    var endTime = startTime + AUTO_ADVANCE_MS;
-    var counterEl = null;
-    var counterTimerId = null;
-
-    function updateCounter() {
+    if (autoTimeoutId) {
+      window.clearTimeout(autoTimeoutId);
+      autoTimeoutId = null;
+    }
+    if (updateText) {
       if (!counterEl) {
         counterEl = createAutoNextCounterElement();
       }
+      counterEl.textContent = "自動送りは OFF です";
+    }
+  }
+
+  function startAutoAdvanceCountdown() {
+    cancelAutoAdvanceCountdown(false);
+
+    if (!NEXT_URL) {
+      return;
+    }
+
+    if (!autoEnabled) {
+      if (!counterEl) {
+        counterEl = createAutoNextCounterElement();
+      }
+      counterEl.textContent = "自動送りは OFF です";
+      return;
+    }
+
+    startTime = Date.now();
+    endTime = startTime + AUTO_ADVANCE_MS;
+    if (!counterEl) {
+      counterEl = createAutoNextCounterElement();
+    }
+
+    function updateCounter() {
       var now = Date.now();
       var remainingMs = endTime - now;
 
@@ -237,19 +330,34 @@
     counterTimerId = window.setInterval(updateCounter, COUNTER_INTERVAL_MS);
 
     // 一定時間後にフェード付きで次へ
-    window.setTimeout(function () {
+    autoTimeoutId = window.setTimeout(function () {
       if (counterTimerId) {
         window.clearInterval(counterTimerId);
+        counterTimerId = null;
       }
-      goNextIfExists(nextUrl);
+      goNextIfExists(NEXT_URL);
     }, AUTO_ADVANCE_MS);
   }
 
   function onReady() {
     // 必要ならフェードイン
     runFadeInIfNeeded();
-    // そのうえで自動遷移カウンタ開始
-    scheduleAutoAdvance();
+
+    // 次URL決定
+    NEXT_URL = buildNextUrl();
+    if (!NEXT_URL) {
+      return;
+    }
+
+    // トグルボタン生成
+    createAutoNextToggleButton();
+
+    // 自動送りの状態に応じて挙動
+    if (autoEnabled) {
+      startAutoAdvanceCountdown();
+    } else {
+      cancelAutoAdvanceCountdown(true);
+    }
   }
 
   if (document.readyState === "complete" || document.readyState === "interactive") {
