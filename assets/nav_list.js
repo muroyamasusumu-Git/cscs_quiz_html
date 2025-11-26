@@ -228,13 +228,13 @@
 
       var rateRow = document.createElement("div");
       rateRow.textContent =
-        "⭐️獲得：" +
+        "★獲得：" +
         String(starCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
-        "（" +
+        " (" +
         String(ratePercent) +
-        "%）";
+        "%)";
 
       link.appendChild(titleRow);
       link.appendChild(dateRow);
