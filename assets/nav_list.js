@@ -193,22 +193,64 @@
     days.forEach(function(dayStr, idx){
       var isCurrent = (dayStr === currentDay);
 
-      // 30問のうち何問「3連続正解達成回数 > 0（＝⭐️以上）」になっているかを数える
+      // 30問のうち何問「★が付いているか」を数える（★/🌟/💫 いずれもカウント）
       var TOTAL_QUESTIONS = 30;
-      var starCount = 0;
+      var anyStarCount = 0;
+
+      // それぞれの記号ごとの 30/30 判定用カウンタ
+      var starCountBasic = 0;    // ⭐️
+      var starCountUpgraded = 0; // 🌟
+      var starCountMax = 0;      // 💫
+
       var qIndex;
       for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
         var n3 = pad3(qIndex);
         var qid = dayStr + "-" + n3;
         var streakTotal = 0;
+
         if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
           streakTotal = Number(syncRoot.streak3[qid] || 0);
         }
-        if (streakTotal > 0) {
-          starCount += 1;
+
+        // correct_star.js が提供する共通関数から記号を取得
+        var starSymbol = "";
+        if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
+          starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotal) || "";
+        } else {
+          // フォールバック：3連続正解達成回数が 1 以上ならひとまず ⭐️ 扱い
+          if (streakTotal > 0) {
+            starSymbol = "⭐️";
+          }
+        }
+
+        if (starSymbol) {
+          anyStarCount += 1;
+          if (starSymbol === "⭐️") {
+            starCountBasic += 1;
+          } else if (starSymbol === "🌟") {
+            starCountUpgraded += 1;
+          } else if (starSymbol === "💫") {
+            starCountMax += 1;
+          }
         }
       }
-      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
+
+      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((anyStarCount / TOTAL_QUESTIONS) * 100) : 0;
+
+      // DAY 見出しに付けるシンボル（30/30 の場合のみ）
+      var daySuffix = "";
+      if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
+        if (starCountMax === TOTAL_QUESTIONS) {
+          // 全 30 問が 💫
+          daySuffix = "💫";
+        } else if (starCountUpgraded === TOTAL_QUESTIONS) {
+          // 全 30 問が 🌟
+          daySuffix = "🌟";
+        } else if (starCountBasic === TOTAL_QUESTIONS) {
+          // 全 30 問が ⭐️
+          daySuffix = "⭐️";
+        }
+      }
 
       var item = document.createElement("div");
       item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
@@ -221,7 +263,7 @@
 
       var titleRow = document.createElement("div");
       titleRow.className = "nl-day-title";
-      titleRow.textContent = "DAY-" + pad2(idx + 1);
+      titleRow.textContent = "DAY-" + pad2(idx + 1) + daySuffix;
 
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
@@ -229,7 +271,7 @@
       var rateRow = document.createElement("div");
       rateRow.textContent =
         "★獲得：" +
-        String(starCount) +
+        String(anyStarCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
         "(" +
@@ -454,7 +496,60 @@
       } else if (consistencyRawSync === "○") {
         consistencyMark = "○";
       } else if (consistencyRawSync === "△") {
-        consistencyMark = "△";
+        consistencyMark = "△";    // 各日ごとに「DAY / 日付 / ⭐️獲得率」を表示
+    days.forEach(function(dayStr, idx){
+      var isCurrent = (dayStr === currentDay);
+
+      // 30問のうち何問「3連続正解達成回数 > 0（＝⭐️以上）」になっているかを数える
+      var TOTAL_QUESTIONS = 30;
+      var starCount = 0;
+      var qIndex;
+      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS; qIndex++){
+        var n3 = pad3(qIndex);
+        var qid = dayStr + "-" + n3;
+        var streakTotal = 0;
+        if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
+          streakTotal = Number(syncRoot.streak3[qid] || 0);
+        }
+        if (streakTotal > 0) {
+          starCount += 1;
+        }
+      }
+      var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((starCount / TOTAL_QUESTIONS) * 100) : 0;
+
+      var item = document.createElement("div");
+      item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
+
+      var link = document.createElement("a");
+      link.href = "/_build_cscs_" + dayStr + "/slides/q001_a.html?nav=manual";
+      link.setAttribute("data-nl-allow", "1");
+      link.style.display = "block";
+      link.style.textDecoration = "none";
+
+      var titleRow = document.createElement("div");
+      titleRow.className = "nl-day-title";
+      titleRow.textContent = "DAY-" + pad2(idx + 1);
+
+      var dateRow = document.createElement("div");
+      dateRow.textContent = dayStr;
+
+      var rateRow = document.createElement("div");
+      rateRow.textContent =
+        "★獲得：" +
+        String(starCount) +
+        "/" +
+        String(TOTAL_QUESTIONS) +
+        "(" +
+        String(ratePercent) +
+        "%)";
+
+      link.appendChild(titleRow);
+      link.appendChild(dateRow);
+      link.appendChild(rateRow);
+
+      item.appendChild(link);
+      rightCol.appendChild(item);
+    });
       } else if (consistencyRawSync === "×") {
         consistencyMark = "×";
       }
