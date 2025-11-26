@@ -142,16 +142,17 @@
     btn.type = "button";
     btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
     btn.style.cssText =
-      "position: fixed;" +
-      "left: 176px;" +
-      "bottom: 16px;" +
-      "padding: 6px 10px;" +
-      "font-size: 13px;" +
-      "color: #fff;" +
-      "border-bottom: 1 solid rgba(255,255,255,0.4);" +
-      "border-radius: 0;" +
-      "z-index: 10000;" +
-      "cursor: pointer;";
+    "position: fixed;"+
+    "left: 265px;"+
+    "bottom: 16px;"+
+    "padding: 6px 10px;"+
+    "font-size: 13px;"+
+    "color: rgb(150, 150, 150);"+
+    "border-radius: 0px;"+
+    "z-index: 10000;"+
+    "cursor: pointer;"+
+    "background: none;"+
+    "border: none;";
 
     btn.addEventListener("click", function () {
       autoEnabled = !autoEnabled;
