@@ -471,15 +471,15 @@
       for (qIndex = 1; qIndex <= TOTAL_QUESTIONS_PER_DAY; qIndex++){
         var n3 = pad3(qIndex);
         var qidJp = toJpDateQid(dayStr, n3);
-        var statusObj = null;
+        var consistencyObj = null;
         var statusMark = "";
 
         if (syncRoot && syncRoot.consistency_status && Object.prototype.hasOwnProperty.call(syncRoot.consistency_status, qidJp)) {
-          statusObj = syncRoot.consistency_status[qidJp];
+          consistencyObj = syncRoot.consistency_status[qidJp];
         }
 
-        if (statusObj && typeof statusObj.status_mark === "string"){
-          statusMark = statusObj.status_mark;
+        if (consistencyObj && typeof consistencyObj.status_mark === "string"){
+          statusMark = consistencyObj.status_mark;
         }
 
         if (statusMark === "◎"){
@@ -952,10 +952,14 @@
           : 0;
       const streakProgress = "(" + streakLenSync + "/3)";
 
-      const consistencyObjSync =
-        syncRoot && syncRoot.consistency_status
-          ? syncRoot.consistency_status[qidJp]
-          : null;
+      let consistencyObjSync = null;
+      if (
+        syncRoot &&
+        syncRoot.consistency_status &&
+        Object.prototype.hasOwnProperty.call(syncRoot.consistency_status, qidJp)
+      ) {
+        consistencyObjSync = syncRoot.consistency_status[qidJp];
+      }
       const consistencyRawSync =
         consistencyObjSync && typeof consistencyObjSync.status_mark === "string"
           ? consistencyObjSync.status_mark
