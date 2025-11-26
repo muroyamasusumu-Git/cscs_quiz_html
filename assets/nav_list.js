@@ -516,11 +516,14 @@
     try{
       Object.assign(summaryHost.style, {
         position: "sticky",
-        top: "0",
+        top: "0px",
         zIndex: "100000",
-        background: "rgba(0, 0, 0, 0.86)",
+        background: "#111",
         paddingBottom: "8px",
-        marginBottom: "8px"
+        padding: "0 17px 10px",
+        borderBottom: "1px solid #2a2a2a",
+        fontSize: "13px",
+        fontWeight: "400"
       });
     }catch(_){}
 
