@@ -232,7 +232,7 @@
         String(starCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
-        " (" +
+        "(" +
         String(ratePercent) +
         "%)";
 
