@@ -421,54 +421,59 @@
       syncRoot = {};
     }
 
-    // 現在表示中の問題だけは /api/sync-consistency を参照して consistency_status を補正する
-    async function enrichConsistencyForCurrent(syncRootBase, dayStr, currentN3Str){
+    // 現在の日付の全30問について /api/sync-consistency を参照して consistency_status を補正する
+    async function enrichConsistencyForDay(syncRootBase, dayStr){
       if (!dayStr || dayStr === "unknown") return syncRootBase;
-      if (!currentN3Str) return syncRootBase;
 
-      var qidJp = toJpDateQid(dayStr, currentN3Str);
+      var TOTAL_QUESTIONS_PER_DAY_FOR_CONSISTENCY = 30;
+      var n;
+      for (n = 1; n <= TOTAL_QUESTIONS_PER_DAY_FOR_CONSISTENCY; n++){
+        var n3 = pad3(n);
+        var qidJp = toJpDateQid(dayStr, n3);
 
-      try{
-        var url = "/api/sync-consistency?qid=" + encodeURIComponent(qidJp);
-        var res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) {
-          return syncRootBase;
-        }
-        var json = await res.json();
-        if (!json) {
-          return syncRootBase;
-        }
+        try{
+          var url = "/api/sync-consistency?qid=" + encodeURIComponent(qidJp);
+          var res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) {
+            continue;
+          }
+          var json = await res.json();
+          if (!json) {
+            continue;
+          }
 
-        var item = null;
-        if (Array.isArray(json.items) && json.items.length > 0) {
-          item = json.items[0];
-        } else if (json.item && typeof json.item === "object") {
-          item = json.item;
-        }
+          var item = null;
+          if (Array.isArray(json.items) && json.items.length > 0) {
+            item = json.items[0];
+          } else if (json.item && typeof json.item === "object") {
+            item = json.item;
+          }
 
-        if (!item || typeof item !== "object") {
-          return syncRootBase;
-        }
-        if (typeof item.status_mark !== "string") {
-          return syncRootBase;
-        }
+          if (!item || typeof item !== "object") {
+            continue;
+          }
+          if (typeof item.status_mark !== "string") {
+            continue;
+          }
 
-        if (!syncRootBase || typeof syncRootBase !== "object") {
-          syncRootBase = {};
-        }
-        if (!syncRootBase.consistency_status || typeof syncRootBase.consistency_status !== "object") {
-          syncRootBase.consistency_status = {};
-        }
+          if (!syncRootBase || typeof syncRootBase !== "object") {
+            syncRootBase = {};
+          }
+          if (!syncRootBase.consistency_status || typeof syncRootBase.consistency_status !== "object") {
+            syncRootBase.consistency_status = {};
+          }
 
-        // キー形式は「YYYY年M月D日-NNN」のみを使用
-        syncRootBase.consistency_status[qidJp] = item;
-        return syncRootBase;
-      }catch(_){
-        return syncRootBase;
+          // キー形式は「YYYY年M月D日-NNN」のみを使用
+          syncRootBase.consistency_status[qidJp] = item;
+        }catch(_){
+          continue;
+        }
       }
+
+      return syncRootBase;
     }
 
-    syncRoot = await enrichConsistencyForCurrent(syncRoot, day, currentN3);
+    syncRoot = await enrichConsistencyForDay(syncRoot, day);
 
     // ★ CSCS全体サマリー用：日付配列生成（90日分）
     function buildDayArrayForSummary(startStr, endStr){
