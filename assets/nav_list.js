@@ -630,7 +630,13 @@
       "% 達成";
     summaryLine3.style.marginBottom = "5px";
 
-    summaryLine4.textContent = buildExamLineText(now);
+    summaryLine4.innerHTML = buildExamLineText(now);
+
+    try{
+      var style = document.createElement("style");
+      style.textContent = ".nl-exam-days { font-size: 20px; font-weight: 600; padding: 0 2px; }";
+      document.head.appendChild(style);
+    }catch(_){}
 
     examButtonSpan.addEventListener("click", function(){
       try{
