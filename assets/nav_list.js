@@ -39,6 +39,23 @@
     return y + "年" + m + "月" + d + "日-" + n3;
   }
 
+  function getConsistencyInfoFromSync(day, n3, syncRoot){
+    var qidJp = toJpDateQid(day, n3);
+    var obj = null;
+    var mark = "";
+    if (
+      syncRoot &&
+      syncRoot.consistency_status &&
+      Object.prototype.hasOwnProperty.call(syncRoot.consistency_status, qidJp)
+    ){
+      obj = syncRoot.consistency_status[qidJp];
+    }
+    if (obj && typeof obj.status_mark === "string"){
+      mark = obj.status_mark;
+    }
+    return { qidJp: qidJp, statusMark: mark };
+  }
+
   // 現在開いている A/Bパートの問題番号（q013_a.html / q013_b.html → "013"）を取得
   function getCurrentQuestionNumber3(){
     try{
@@ -470,17 +487,8 @@
       var qIndex;
       for (qIndex = 1; qIndex <= TOTAL_QUESTIONS_PER_DAY; qIndex++){
         var n3 = pad3(qIndex);
-        var qidJp = toJpDateQid(dayStr, n3);
-        var consistencyObj = null;
-        var statusMark = "";
-
-        if (syncRoot && syncRoot.consistency_status && Object.prototype.hasOwnProperty.call(syncRoot.consistency_status, qidJp)) {
-          consistencyObj = syncRoot.consistency_status[qidJp];
-        }
-
-        if (consistencyObj && typeof consistencyObj.status_mark === "string"){
-          statusMark = consistencyObj.status_mark;
-        }
+        var info = getConsistencyInfoFromSync(dayStr, n3, syncRoot);
+        var statusMark = info.statusMark;
 
         if (statusMark === "◎"){
           consistencyQuestionCount += 1;
@@ -952,18 +960,8 @@
           : 0;
       const streakProgress = "(" + streakLenSync + "/3)";
 
-      let consistencyObjSync = null;
-      if (
-        syncRoot &&
-        syncRoot.consistency_status &&
-        Object.prototype.hasOwnProperty.call(syncRoot.consistency_status, qidJp)
-      ) {
-        consistencyObjSync = syncRoot.consistency_status[qidJp];
-      }
-      const consistencyRawSync =
-        consistencyObjSync && typeof consistencyObjSync.status_mark === "string"
-          ? consistencyObjSync.status_mark
-          : "";
+      var consistencyInfo = getConsistencyInfoFromSync(day, n3, syncRoot);
+      const consistencyRawSync = consistencyInfo.statusMark;
 
       let consistencyMark = "—";
 
