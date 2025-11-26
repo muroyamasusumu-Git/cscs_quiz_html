@@ -557,7 +557,7 @@
     examButtonSpan.textContent = "[試験日設定]";
     examButtonSpan.style.cursor = "pointer";
     examButtonSpan.style.fontSize = "12px";
-    examButtonSpan.style.marginLeft = "8px";
+    examButtonSpan.style.marginLeft = "4px";
 
     summaryLine1.appendChild(summaryTitleSpan);
     summaryLine1.appendChild(examButtonSpan);
