@@ -530,26 +530,67 @@
     }catch(_){}
 
     var summaryLine1 = document.createElement("div");
-
-    // 日時フォーマット生成
-    var now = new Date();
-    var y   = now.getFullYear();
-    var m   = String(now.getMonth() + 1).padStart(2, "0");
-    var d   = String(now.getDate()).padStart(2, "0");
-    var wd  = ["日","月","火","水","木","金","土"][now.getDay()];
-    var hh  = now.getHours();
-    var ap  = hh >= 12 ? "pm" : "am";
-    var h12 = hh % 12; 
-    if (h12 === 0) h12 = 12;
-    h12 = String(h12).padStart(2, "0");
-    var mm  = String(now.getMinutes()).padStart(2, "0");
-
-    var dateStr = y + "." + m + "." + d + "(" + wd + ")" + h12 + ":" + mm + ap;
-
-    summaryLine1.textContent =
-      "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）" + dateStr;
-
     var summaryLine2 = document.createElement("div");
+    var summaryLine3 = document.createElement("div");
+    var summaryLine4 = document.createElement("div");
+
+    summaryLine1.style.display = "flex";
+    summaryLine1.style.justifyContent = "space-between";
+    summaryLine1.style.alignItems = "center";
+
+    var summaryTitleSpan = document.createElement("span");
+    summaryTitleSpan.textContent = "全体サマリー（総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分）";
+    summaryTitleSpan.style.fontSize = "14px";
+    summaryTitleSpan.style.fontWeight = "500";
+
+    var examButtonSpan = document.createElement("span");
+    examButtonSpan.textContent = "[試験日設定]";
+    examButtonSpan.style.cursor = "pointer";
+    examButtonSpan.style.fontSize = "12px";
+    examButtonSpan.style.marginLeft = "8px";
+
+    summaryLine1.appendChild(summaryTitleSpan);
+    summaryLine1.appendChild(examButtonSpan);
+
+    function buildExamLineText(nowDate){
+      var y = nowDate.getFullYear();
+      var m = String(nowDate.getMonth() + 1).padStart(2, "0");
+      var d = String(nowDate.getDate()).padStart(2, "0");
+      var wdList = ["日","月","火","水","木","金","土"];
+      var wd = wdList[nowDate.getDay()];
+      var hh = nowDate.getHours();
+      var ap = hh >= 12 ? "pm" : "am";
+      var h12 = hh % 12;
+      if (h12 === 0) h12 = 12;
+      var h12Str = String(h12).padStart(2, "0");
+      var mm = String(nowDate.getMinutes()).padStart(2, "0");
+      var dateStr = y + "." + m + "." + d + "(" + wd + ")" + h12Str + ":" + mm + ap;
+
+      var examRaw = "";
+      try{
+        examRaw = localStorage.getItem("cscs_exam_date") || "";
+      }catch(_){
+        examRaw = "";
+      }
+
+      if (examRaw){
+        var examDate = new Date(examRaw);
+        if (!isNaN(examDate.getTime())){
+          var todayBase = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+          var examBase = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+          var diffMs = examBase.getTime() - todayBase.getTime();
+          var diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          var em = examDate.getMonth() + 1;
+          var ed = examDate.getDate();
+          var examLabel = "試験(" + String(em) + "/" + String(ed) + ")まであと" + String(diffDays) + "日";
+          return examLabel + "｜" + dateStr;
+        }
+      }
+      return "試験日未設定｜" + dateStr;
+    }
+
+    var now = new Date();
+
     summaryLine2.textContent =
       "★｜獲得済｜" +
       starQStr +
@@ -563,7 +604,6 @@
       starRateStr +
       "% 達成";
 
-    var summaryLine3 = document.createElement("div");
     summaryLine3.textContent =
       "◎｜整合性｜" +
       consQStr +
@@ -577,9 +617,32 @@
       consRateStr +
       "% 達成";
 
+    summaryLine4.textContent = buildExamLineText(now);
+
+    examButtonSpan.addEventListener("click", function(){
+      try{
+        var currentValue = "";
+        try{
+          currentValue = localStorage.getItem("cscs_exam_date") || "";
+        }catch(_){
+          currentValue = "";
+        }
+        var input = window.prompt("試験日を YYYY-MM-DD 形式で入力してください（例: 2025-09-05）", currentValue || "");
+        if (!input) return;
+        var dt = new Date(input);
+        if (isNaN(dt.getTime())){
+          window.alert("日付の形式が正しくありません。YYYY-MM-DD 形式で入力してください。");
+          return;
+        }
+        localStorage.setItem("cscs_exam_date", input);
+        summaryLine4.textContent = buildExamLineText(new Date());
+      }catch(_){}
+    });
+
     summaryHost.appendChild(summaryLine1);
     summaryHost.appendChild(summaryLine2);
     summaryHost.appendChild(summaryLine3);
+    summaryHost.appendChild(summaryLine4);
 
     // ▼ 問題リスト（左カラム）用コンテナ
     const gridHost = document.createElement("div");
