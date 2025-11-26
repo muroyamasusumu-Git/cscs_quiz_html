@@ -525,7 +525,7 @@
         borderBottomColor: "rgb(42, 42, 42)",
         fontSize: "13px",
         fontWeight: "400",
-        lineHeight: "1.2"
+        lineHeight: "1.35"
       });
     }catch(_){}
 
@@ -541,7 +541,7 @@
 
     var summaryTitleSpan = document.createElement("span");
     summaryTitleSpan.textContent = "全体サマリー(総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分)";
-    summaryTitleSpan.style.fontSize = "14px";
+    summaryTitleSpan.style.fontSize = "16px";
     summaryTitleSpan.style.fontWeight = "500";
 
     var examButtonSpan = document.createElement("span");
