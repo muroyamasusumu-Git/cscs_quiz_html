@@ -628,7 +628,7 @@
       "｜" +
       consRateStr +
       "% 達成";
-    summaryLine3.style.marginBottom = "5px";
+    summaryLine3.style.marginBottom = "0";
 
     summaryLine4.innerHTML = buildExamLineText(now);
 
