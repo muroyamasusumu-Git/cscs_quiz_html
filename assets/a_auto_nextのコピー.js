@@ -1,0 +1,315 @@
+(function () {
+  "use strict";
+
+  // Aパート自動遷移までの待ち時間（ミリ秒）
+  var AUTO_ADVANCE_MS = 30000;
+  var COUNTER_INTERVAL_MS = 1000;
+  var AUTO_ENABLED_KEY = "cscs_auto_next_enabled";
+
+  // グローバル状態
+  var autoEnabled = loadAutoAdvanceEnabled();
+  var NEXT_URL = null;
+  var counterEl = null;
+  var counterTimerId = null;
+  var autoTimeoutId = null;
+  var startTime = 0;
+  var endTime = 0;
+
+  function loadAutoAdvanceEnabled() {
+    try {
+      var v = localStorage.getItem(AUTO_ENABLED_KEY);
+      if (v === null) {
+        return true; // デフォルトは ON
+      }
+      return v === "1";
+    } catch (_e) {
+      return true;
+    }
+  }
+
+  function saveAutoAdvanceEnabled(flag) {
+    try {
+      localStorage.setItem(AUTO_ENABLED_KEY, flag ? "1" : "0");
+    } catch (_e) {
+      // 失敗しても無視
+    }
+  }
+
+  function parseSlideInfo() {
+    var path = String(location.pathname || "");
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_[ab](?:\.html)?$/);
+    if (!m) {
+      return null;
+    }
+    var day = m[1];           // "20250926"
+    var num3 = m[2];          // "001"〜"030"
+    var idx = parseInt(num3, 10);
+    if (!idx || idx < 1 || idx > 999) {
+      return null;
+    }
+    return {
+      day: day,
+      idx: idx
+    };
+  }
+
+  function addDaysToDayString(dayStr, dayOffset) {
+    var y = parseInt(dayStr.slice(0, 4), 10);
+    var m = parseInt(dayStr.slice(4, 6), 10);
+    var d = parseInt(dayStr.slice(6, 8), 10);
+    if (!y || !m || !d) {
+      return null;
+    }
+    var date = new Date(Date.UTC(y, m - 1, d));
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return null;
+    }
+    date.setUTCDate(date.getUTCDate() + dayOffset);
+    var yy = date.getUTCFullYear();
+    var mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+    var dd = String(date.getUTCDate()).padStart(2, "0");
+    return String(yy) + String(mm) + String(dd);
+  }
+
+  function buildNextUrl() {
+    var info = parseSlideInfo();
+    if (!info) {
+      return null;
+    }
+
+    var path = String(location.pathname || "");
+    var day = info.day;
+    var idx = info.idx;
+
+    // 1〜29問目：同じ日付の次のAパートへ
+    if (idx < 30) {
+      var nextIdx = idx + 1;
+      var nextNum3 = String(nextIdx).padStart(3, "0");
+      var nextPath = path.replace(/q\d{3}_a(?:\.html)?$/, "q" + nextNum3 + "_a.html");
+      return nextPath;
+    }
+
+    // 30問目：翌日の 1問目 (q001_a.html) へ
+    if (idx === 30) {
+      var nextDay = addDaysToDayString(day, 1);
+      if (!nextDay) {
+        return null;
+      }
+      var prefix = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
+      var nextPath2 = prefix + "_build_cscs_" + nextDay + "/slides/q001_a.html";
+      return nextPath2;
+    }
+
+    // 想定外（31問目以降など）は何もしない
+    return null;
+  }
+
+  // 左下カウンターの生成
+  function createAutoNextCounterElement() {
+    var existing = document.getElementById("auto-next-counter");
+    if (existing) {
+      return existing;
+    }
+
+    var div = document.createElement("div");
+    div.id = "auto-next-counter";
+    div.textContent = "";
+
+    div.style.cssText =
+      "position: fixed;" +
+      "left: 140px;" +          // ★ 指定どおり
+      "bottom: 16px;" +
+      "padding: 6px 10px;" +
+      "font-size: 13px;" +
+      "color: #fff;" +         // 白文字
+      "z-index: 9999;" +
+      "pointer-events: none;" +
+      "font-weight: 300;";
+
+    document.body.appendChild(div);
+    return div;
+  }
+
+  // 自動送り ON/OFF トグルボタン
+  function createAutoNextToggleButton() {
+    var btn = document.getElementById("auto-next-toggle");
+    if (btn) {
+      return btn;
+    }
+
+    btn = document.createElement("button");
+    btn.id = "auto-next-toggle";
+    btn.type = "button";
+    btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
+    btn.style.cssText =
+    "position: fixed;"+
+    "left: 260px;"+
+    "bottom: 14px;"+
+    "padding: 6px 10px;"+
+    "font-size: 13px;"+
+    "color: rgb(150, 150, 150);"+
+    "border-radius: 0px;"+
+    "z-index: 10000;"+
+    "cursor: pointer;"+
+    "background: none;"+
+    "border: none;";
+
+    btn.addEventListener("click", function () {
+      autoEnabled = !autoEnabled;
+      saveAutoAdvanceEnabled(autoEnabled);
+      btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
+
+      if (autoEnabled) {
+        startAutoAdvanceCountdown();
+      } else {
+        cancelAutoAdvanceCountdown(true);
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }
+
+  // フェードアウトしてから遷移する（共通フェードモジュール連携）
+  function fadeOutAndNavigate(nextUrl) {
+    if (!nextUrl) {
+      return;
+    }
+    if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
+      try {
+        window.CSCS_NAV_LIST.fadeOut();
+      } catch (_e) {}
+    }
+    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
+      window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
+    } else {
+      location.href = nextUrl;
+    }
+  }
+
+  // 遷移後のページで必要ならフェードイン（共通フェードモジュール連携）
+  function runFadeInIfNeeded() {
+    if (window.CSCS_FADE && typeof window.CSCS_FADE.runFadeInIfNeeded === "function") {
+      window.CSCS_FADE.runFadeInIfNeeded("a_auto_next");
+    }
+    if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeIn === "function") {
+      try {
+        window.CSCS_NAV_LIST.fadeIn();
+      } catch (_e) {}
+    }
+  }
+
+  // HEAD で存在確認してからフェード遷移
+  function goNextIfExists(nextUrl) {
+    if (!nextUrl) {
+      return;
+    }
+    try {
+      fetch(nextUrl, { method: "HEAD" }).then(function (res) {
+        if (res && res.ok) {
+          fadeOutAndNavigate(nextUrl);
+        }
+      }).catch(function (_err) {
+        // 404 やネットワークエラー時は静かに何もしない
+      });
+    } catch (_e) {
+      // fetch が使えない環境では、そのまま遷移
+      fadeOutAndNavigate(nextUrl);
+    }
+  }
+
+  function cancelAutoAdvanceCountdown(updateText) {
+    if (counterTimerId) {
+      window.clearInterval(counterTimerId);
+      counterTimerId = null;
+    }
+    if (autoTimeoutId) {
+      window.clearTimeout(autoTimeoutId);
+      autoTimeoutId = null;
+    }
+    if (updateText) {
+      if (!counterEl) {
+        counterEl = createAutoNextCounterElement();
+      }
+      counterEl.textContent = "自動送りは OFF です";
+    }
+  }
+
+  function startAutoAdvanceCountdown() {
+    cancelAutoAdvanceCountdown(false);
+
+    if (!NEXT_URL) {
+      return;
+    }
+
+    if (!autoEnabled) {
+      if (!counterEl) {
+        counterEl = createAutoNextCounterElement();
+      }
+      counterEl.textContent = "自動送りは OFF です";
+      return;
+    }
+
+    startTime = Date.now();
+    endTime = startTime + AUTO_ADVANCE_MS;
+    if (!counterEl) {
+      counterEl = createAutoNextCounterElement();
+    }
+
+    function updateCounter() {
+      var now = Date.now();
+      var remainingMs = endTime - now;
+
+      if (remainingMs <= 0) {
+        counterEl.textContent = "まもなく次へ…";
+        window.clearInterval(counterTimerId);
+        counterTimerId = null;
+        return;
+      }
+
+      var remainingSec = Math.ceil(remainingMs / 1000);
+      counterEl.textContent = "次の問題まで " + remainingSec + " 秒";
+    }
+
+    // 初期表示
+    updateCounter();
+    // 1秒ごとにカウンタ更新
+    counterTimerId = window.setInterval(updateCounter, COUNTER_INTERVAL_MS);
+
+    // 一定時間後にフェード付きで次へ
+    autoTimeoutId = window.setTimeout(function () {
+      if (counterTimerId) {
+        window.clearInterval(counterTimerId);
+        counterTimerId = null;
+      }
+      goNextIfExists(NEXT_URL);
+    }, AUTO_ADVANCE_MS);
+  }
+
+  function onReady() {
+    // 次URL決定
+    NEXT_URL = buildNextUrl();
+    if (!NEXT_URL) {
+      runFadeInIfNeeded();
+      return;
+    }
+
+    // トグルボタン生成
+    createAutoNextToggleButton();
+
+    // 自動送りの状態に応じて挙動
+    if (autoEnabled) {
+      startAutoAdvanceCountdown();
+    } else {
+      cancelAutoAdvanceCountdown(true);
+    }
+
+    runFadeInIfNeeded();
+  }
+
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    onReady();
+  } else {
+    document.addEventListener("DOMContentLoaded", onReady);
+  }
+})();
