@@ -1117,7 +1117,7 @@
       if (!panel) {
         return;
       }
-      panel.style.opacity = "0.2";
+      panel.style.opacity = "0.1"; // フェードアウト時の最大透明設定
       panel.style.pointerEvents = "none";
     }catch(_){}
   }
