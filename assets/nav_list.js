@@ -534,6 +534,7 @@
         fontSize: "13px",
         fontWeight: "300",
         lineHeight: "1.4",
+        textAlign: "right",
         opacity: "0.45"
       });
     }catch(_){}
