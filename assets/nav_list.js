@@ -568,6 +568,8 @@
       var d = String(nowDate.getDate()).padStart(2, "0");
       var wdList = ["日","月","火","水","木","金","土"];
       var wd = wdList[nowDate.getDay()];
+      // 時刻部分（hh:mm am/pm）は削除し、日付のみを表示
+      var dateStr = y + "." + m + "." + d + "(" + wd + ")";
 
       var examRaw = "";
       try{
