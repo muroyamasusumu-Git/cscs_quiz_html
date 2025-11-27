@@ -267,7 +267,8 @@
     function buildListByCounts(counts){
       const { sim, diff, untried, rev, limit } = counts;
 
-      // まず類似を確定→以降は重複排除しながら抽出
+      // まず「別分野」「類似」「未着手」「要復習」の候補を取得し、
+      // 以降は重複を避けながらリストを構成する
       const pickSimilar = sample(similarPool, sim);
       const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`));
 
@@ -280,9 +281,10 @@
       const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), rev);
       pickReview.forEach(r => used.add(`${r.day}-${r.n3}`));
 
+      // 表示順を「別分野 → 類似 → 未着手 → 要復習」に固定
       let combined = [
-        ...pickSimilar.map(r => ({ tag:"類似",   cls:"sim",  row:r })),
         ...pickDiff.map(r    => ({ tag:"別分野", cls:"diff", row:r })),
+        ...pickSimilar.map(r => ({ tag:"類似",   cls:"sim",  row:r })),
         ...pickUntried.map(r => ({ tag:"未着手", cls:"new",  row:r })),
         ...pickReview.map(r  => ({ tag:"要復習", cls:"rev",  row:r })),
       ];
@@ -305,15 +307,21 @@
         });
       }
 
-      return shuffle(combined).slice(0, limit);
+      // 展開時（limit>4）は従来どおりシャッフル、
+      // 初期4件表示時（limit<=4）はカテゴリ順を維持
+      if (limit > 4) {
+        return shuffle(combined).slice(0, limit);
+      }
+      return combined.slice(0, limit);
     }
 
-    // 既定（折りたたみ）: 各2件×4カテゴリ=8件
-    const countsCollapsed = { sim:2, diff:2, untried:2, rev:2, limit:8 };
-    // 展開: 各4件×4カテゴリ=16件
+    // 既定（折りたたみ）:
+    //   別分野2件 / 類似1件 / 未着手1件 / 要復習0件 = 計4件
+    const countsCollapsed = { sim:1, diff:2, untried:1, rev:0, limit:4 };
+    // 展開: 各4件×4カテゴリ=16件（従来どおり）
     const countsExpanded  = { sim:4, diff:4, untried:4, rev:4, limit:16 };
 
-    // 初期状態は折りたたみ（8件）
+    // 初期状態は折りたたみ（4件）
     let expanded = false;
     let finalList = buildListByCounts(countsCollapsed);
 
