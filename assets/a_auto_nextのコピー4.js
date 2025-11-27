@@ -175,11 +175,6 @@
     if (!nextUrl) {
       return;
     }
-    if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
-      try {
-        window.CSCS_NAV_LIST.fadeOut();
-      } catch (_e) {}
-    }
     if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
       window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
     } else {
@@ -191,11 +186,6 @@
   function runFadeInIfNeeded() {
     if (window.CSCS_FADE && typeof window.CSCS_FADE.runFadeInIfNeeded === "function") {
       window.CSCS_FADE.runFadeInIfNeeded("a_auto_next");
-    }
-    if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeIn === "function") {
-      try {
-        window.CSCS_NAV_LIST.fadeIn();
-      } catch (_e) {}
     }
   }
 
@@ -290,7 +280,6 @@
     // 次URL決定
     NEXT_URL = buildNextUrl();
     if (!NEXT_URL) {
-      runFadeInIfNeeded();
       return;
     }
 
@@ -303,8 +292,6 @@
     } else {
       cancelAutoAdvanceCountdown(true);
     }
-
-    runFadeInIfNeeded();
   }
 
   if (document.readyState === "complete" || document.readyState === "interactive") {
