@@ -316,12 +316,12 @@
     }
 
     // 既定（折りたたみ）:
-    //   別分野2件 / 類似1件 / 未着手1件 / 要復習0件 = 計4件
-    const countsCollapsed = { sim:1, diff:2, untried:1, rev:0, limit:4 };
+    //   別分野1件 / 類似1件 / 未着手1件 / 要復習0件 = 計3件
+    const countsCollapsed = { sim:1, diff:1, untried:1, rev:0, limit:3 };
     // 展開: 各4件×4カテゴリ=16件（従来どおり）
     const countsExpanded  = { sim:4, diff:4, untried:4, rev:4, limit:16 };
 
-    // 初期状態は折りたたみ（4件）
+    // 初期状態は折りたたみ（3件）
     let expanded = false;
     let finalList = buildListByCounts(countsCollapsed);
 
@@ -419,7 +419,7 @@
 
       host.innerHTML = html;
 
-      // クリックで 8 ⇔ 16 にトグル
+      // クリックで 折りたたみ ⇔ 展開 にトグル
       const toggle = host.querySelector(".sl-toggle");
       if (toggle) {
         toggle.addEventListener("click", (e)=>{
