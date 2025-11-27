@@ -361,7 +361,7 @@
       top: "12px",
       bottom: "66px",
       overflow: "hidden",
-      background: "rgba(0, 0, 0, 0.7)",
+      background: "rgba(0, 0, 0, 0.5)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
       padding: "14px 16px 0px",
