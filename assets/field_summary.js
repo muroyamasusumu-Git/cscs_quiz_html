@@ -3,6 +3,24 @@
 (function () {
   "use strict";
 
+  // ★ ここで CSS を自動注入
+  var style = document.createElement("style");
+  style.textContent = `
+    #cscs-field-star-summary {
+        font-size: 13px;
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: rgba(255, 255, 255, 0.3);
+        color: rgb(255, 255, 255);
+        opacity: 0.55;
+        width: 69%;
+        font-weight: 300;
+    }
+  `;
+  document.head.appendChild(style);
+
   var DUMMY_TOTAL = 2700;
   var DUMMY_STAR_DONE = 500;
   var DUMMY_DAYS_LEFT = 120;
@@ -31,35 +49,29 @@
   var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
 
   function renderFieldStarSummary() {
-    var similar = document.querySelector(".similar-list") || document.getElementById("similar-list");
-    if (!similar) {
-      console.warn("similar-list が見つからないため表示されませんでした。");
+    var wrapContainer = document.querySelector(".wrap");
+    if (!wrapContainer) {
+      console.warn(".wrap が見つからないため field_summary を表示できませんでした。");
       return;
     }
 
     if (document.getElementById("cscs-field-star-summary")) return;
 
-    var wrap = document.createElement("div");
-    wrap.id = "cscs-field-star-summary";
-    wrap.style.fontSize = "11px";
-    wrap.style.marginTop = "8px";
-    wrap.style.padding = "8px 10px";
-    wrap.style.borderTop = "1px solid rgba(255,255,255,0.3)";
-    wrap.style.color = "#fff";
-    wrap.style.opacity = "0.95";
+    var panel = document.createElement("div");
+    panel.id = "cscs-field-star-summary";
 
     var needLine = document.createElement("div");
     needLine.textContent =
       "試験まで残り " + DUMMY_DAYS_LEFT + " 日 → 1日あたり必要 ⭐️: " + needPerDay + " 個（ダミー）";
     needLine.style.marginBottom = "6px";
     needLine.style.fontWeight = "bold";
-    wrap.appendChild(needLine);
+    panel.appendChild(needLine);
 
     var title = document.createElement("div");
     title.textContent = "分野別 ⭐️ 獲得状況（ダミー）";
     title.style.fontWeight = "bold";
     title.style.marginBottom = "6px";
-    wrap.appendChild(title);
+    panel.appendChild(title);
 
     var grid = document.createElement("div");
     grid.style.display = "grid";
@@ -77,8 +89,8 @@
       grid.appendChild(box);
     });
 
-    wrap.appendChild(grid);
-    similar.parentNode.insertBefore(wrap, similar.nextSibling);
+    panel.appendChild(grid);
+    wrapContainer.appendChild(panel);
   }
 
   if (document.readyState === "loading") {
@@ -86,4 +98,5 @@
   } else {
     renderFieldStarSummary();
   }
+
 })();
