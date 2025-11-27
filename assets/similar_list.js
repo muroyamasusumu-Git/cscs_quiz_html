@@ -341,7 +341,7 @@
       const st = document.createElement("style");
       st.id = styleId;
       st.textContent = `
-#similar-list{ line-height:1.5; color:#fff; border-top:1px solid #555; }
+#similar-list{ line-height:1.5; color:#fff; border-top: 0 solid #555; }
 #similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:16px; }
 #similar-list .sl-head .sl-toggle{
   color:#cfe8ff;
