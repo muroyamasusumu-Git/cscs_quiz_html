@@ -170,23 +170,87 @@
     return btn;
   }
 
-  // フェードアウトしてから遷移する（共通フェードモジュール連携）
+  // フェード用オーバーレイ生成（共通）
+  function getOrCreateFadeOverlay() {
+    var overlay = document.getElementById("auto-next-fade-overlay");
+    if (overlay) {
+      return overlay;
+    }
+    overlay = document.createElement("div");
+    overlay.id = "auto-next-fade-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.left = "0";
+    overlay.style.top = "0";
+    overlay.style.right = "0";
+    overlay.style.bottom = "0";
+    overlay.style.backgroundColor = "#000000";
+    overlay.style.opacity = "0";
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "9998";
+    overlay.style.transition = "opacity 800ms ease-in-out";
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  // 画面をふわっと暗転させてから遷移する（フェードアウト側）
   function fadeOutAndNavigate(nextUrl) {
     if (!nextUrl) {
       return;
     }
-    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
-      window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
-    } else {
+
+    var overlay = getOrCreateFadeOverlay();
+    overlay.style.opacity = "0";
+    overlay.style.pointerEvents = "auto";
+    overlay.style.transition = "opacity 800ms ease-in-out";
+
+    // 少し遅らせてからフェード開始（レイアウト確定のため）
+    window.setTimeout(function () {
+      overlay.style.opacity = "0.7";
+    }, 20);
+
+    // フェード完了後にページ遷移
+    window.setTimeout(function () {
+      try {
+        sessionStorage.setItem("cscs_auto_next_fade", "1");
+      } catch (_e) {
+        // sessionStorage が使えない場合は何もしない
+      }
       location.href = nextUrl;
-    }
+    }, 860);
   }
 
-  // 遷移後のページで必要ならフェードイン（共通フェードモジュール連携）
+  // 遷移後のページで、黒からフェードインする
   function runFadeInIfNeeded() {
-    if (window.CSCS_FADE && typeof window.CSCS_FADE.runFadeInIfNeeded === "function") {
-      window.CSCS_FADE.runFadeInIfNeeded("a_auto_next");
+    var needFade = false;
+    try {
+      if (sessionStorage.getItem("cscs_auto_next_fade") === "1") {
+        needFade = true;
+        sessionStorage.removeItem("cscs_auto_next_fade");
+      }
+    } catch (_e) {
+      needFade = false;
     }
+
+    if (!needFade) {
+      return;
+    }
+
+    var overlay = getOrCreateFadeOverlay();
+    overlay.style.opacity = "0.7";
+    overlay.style.pointerEvents = "none";
+    overlay.style.transition = "opacity 1500ms ease-in-out";
+
+    // 少し遅らせてからフェードイン開始
+    window.setTimeout(function () {
+      overlay.style.opacity = "0";
+    }, 20);
+
+    // 完全に透明になったあとでDOMから取り除く（任意）
+    window.setTimeout(function () {
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }, 1560);
   }
 
   // HEAD で存在確認してからフェード遷移
@@ -277,6 +341,9 @@
   }
 
   function onReady() {
+    // 必要ならフェードイン
+    runFadeInIfNeeded();
+
     // 次URL決定
     NEXT_URL = buildNextUrl();
     if (!NEXT_URL) {

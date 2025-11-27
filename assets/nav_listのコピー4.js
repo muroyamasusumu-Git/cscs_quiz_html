@@ -281,17 +281,6 @@
       link.style.display = "block";
       link.style.textDecoration = "none";
 
-      link.addEventListener("click", function(ev){
-        try{
-          if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function"){
-            ev.preventDefault();
-            ev.stopPropagation();
-            window.CSCS_FADE.fadeOutTo(link.href, "nav_list_day");
-            return;
-          }
-        }catch(_){}
-      });
-
       var titleRow = document.createElement("div");
       titleRow.className = "nl-day-title";
       titleRow.textContent = "DAY-" + pad2(idx + 1) + daySuffix;
@@ -1022,18 +1011,6 @@
       a.href = url;
       a.setAttribute("data-nl-allow", "1");
       a.textContent = line1Text;
-
-      a.addEventListener("click", function(ev){
-        try{
-          if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function"){
-            ev.preventDefault();
-            ev.stopPropagation();
-            window.CSCS_FADE.fadeOutTo(a.href, "nav_list_question");
-            return;
-          }
-        }catch(_){}
-      });
-
       l1.appendChild(a);
 
       const l2 = document.createElement("div");

@@ -277,6 +277,9 @@
   }
 
   function onReady() {
+    // 必要ならフェードイン
+    runFadeInIfNeeded();
+
     // 次URL決定
     NEXT_URL = buildNextUrl();
     if (!NEXT_URL) {
