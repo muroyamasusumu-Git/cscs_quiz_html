@@ -533,7 +533,7 @@
         borderBottomColor: "rgb(42, 42, 42)",
         fontSize: "12px",
         fontWeight: "300",
-        lineHeight: "1.4",
+        lineHeight: "1.3",
         textAlign: "right",
         opacity: "0.45"
       });
