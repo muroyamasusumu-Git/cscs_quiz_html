@@ -76,7 +76,7 @@
     var grid = document.createElement("div");
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = "repeat(3, 1fr)";
-    grid.style.gap = "4px 0px";
+    grid.style.gap = "4px 12px";
 
     dummyFieldStats.forEach(function (row) {
       var rate = (row.total > 0)
@@ -90,6 +90,7 @@
     });
 
     panel.appendChild(grid);
+    wrapContainer.insertAdjacentElement("afterend", panel);
   }
 
   if (document.readyState === "loading") {
