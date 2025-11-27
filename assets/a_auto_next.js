@@ -269,7 +269,7 @@
     btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番]";
     btn.style.cssText =
     "position: fixed;"+
-    "left: 360px;"+
+    "left: 350px;"+
     "bottom: 14px;"+
     "padding: 6px 10px;"+
     "font-size: 13px;"+
