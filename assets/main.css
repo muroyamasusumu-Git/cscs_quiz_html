@@ -112,6 +112,10 @@ margin: 10px 0 10px;
 
 .hint {
 margin-top: 10px;
+font-size: 22px;
+opacity: 0.4;
+margin-left: 0;
+font-weight: 300;
 }
 
 #similar-list {
