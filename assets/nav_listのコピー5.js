@@ -369,10 +369,7 @@
       display: "none",
       backdropFilter: "blur(8px)",
       WebkitBackdropFilter: "blur(8px)",
-      maxHeight: "calc(100vh - 24px)",
-      opacity: "0",
-      pointerEvents: "none",
-      transition: "opacity 0.25s ease-in-out"
+      maxHeight: "calc(100vh - 24px)"
     });
 
     // ▼ 可能なら #root の中に挿入し、無い場合のみ body 直下に挿入
@@ -1093,8 +1090,6 @@
     // ▼ 一覧パネルを表示状態にしてからレイアウト計測＆スクロール
     panel.style.display = "flex";
     panel.style.flexDirection = "column";
-    panel.style.pointerEvents = "auto";
-    panel.style.opacity = "1";
 
     await renderListInto(panel);
 
@@ -1111,41 +1106,13 @@
     }
   }
 
-  function navListFadeOut(){
-    try{
-      var panel = document.getElementById("nl-panel");
-      if (!panel) {
-        return;
-      }
-      panel.style.opacity = "0";
-      panel.style.pointerEvents = "none";
-    }catch(_){}
-  }
-
-  function navListFadeIn(){
-    try{
-      var panel = document.getElementById("nl-panel");
-      if (!panel) {
-        return;
-      }
-      panel.style.display = "flex";
-      panel.style.flexDirection = "column";
-      panel.style.pointerEvents = "auto";
-      panel.style.opacity = "1";
-    }catch(_){}
-  }
-
-  if (!window.CSCS_NAV_LIST) {
-    window.CSCS_NAV_LIST = {};
-  }
-  window.CSCS_NAV_LIST.fadeOut = navListFadeOut;
-  window.CSCS_NAV_LIST.fadeIn = navListFadeIn;
-
   window.addEventListener("cscs-sync-updated", function(){
     try{
+      // ★ SYNC 側の /api/sync/state 反映にラグがあることがあるので、
+      //   少し待ってから nav_list を再構築する
       setTimeout(function(){
         mountAndOpenPanel();
-      }, 1000);
+      }, 1000); // Cloudflare KV / SYNC 反映ラグ対策のため、1秒待ってから再描画
     }catch(_){}
   });
 
