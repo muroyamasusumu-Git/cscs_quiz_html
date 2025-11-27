@@ -64,7 +64,7 @@
     needLine.textContent =
       "試験まで残り " + DUMMY_DAYS_LEFT + " 日 → 1日あたり必要 ⭐️: " + needPerDay + " 個（ダミー）";
     needLine.style.marginBottom = "6px";
-    needLine.style.fontWeight = "bold";
+    needLine.style.fontWeight = "";
     panel.appendChild(needLine);
 
     var grid = document.createElement("div");
