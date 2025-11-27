@@ -361,7 +361,7 @@
       top: "12px",
       bottom: "66px",
       overflow: "hidden",
-      background: "rgba(0, 0, 0, 0.86)",
+      background: "rgba(0, 0, 0, 0.7)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
       padding: "14px 16px 0px",
@@ -372,7 +372,7 @@
       maxHeight: "calc(100vh - 24px)",
       opacity: "0",
       pointerEvents: "none",
-      transition: "opacity 0.25s ease-in-out"
+      transition: "opacity 0.8s ease-in-out"
     });
 
     // ▼ 可能なら #root の中に挿入し、無い場合のみ body 直下に挿入
