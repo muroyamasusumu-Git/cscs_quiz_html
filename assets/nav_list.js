@@ -754,7 +754,10 @@
         function handleSelectDate(dateStr){
           try{
             localStorage.setItem("cscs_exam_date", dateStr);
-            summaryLine4.textContent = buildExamLineText(new Date());
+            // ★ HTMLとして再描画（<span class="nl-exam-days">～</span> を有効にする）
+            summaryLine4.innerHTML = buildExamLineText(new Date());
+            summaryLine4.appendChild(document.createTextNode("｜"));
+            summaryLine4.appendChild(examButtonSpan);
           }catch(_){}
           closeCalendar();
         }
