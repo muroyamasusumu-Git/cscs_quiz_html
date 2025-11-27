@@ -544,8 +544,6 @@
     var summaryLine3 = document.createElement("div");
     var summaryLine4 = document.createElement("div");
 
-    summaryLine1.style.display = "flex";
-    summaryLine1.style.justifyContent = "flex-start";
     summaryLine1.style.alignItems = "center";
     summaryLine1.style.columnGap = "0";
 
@@ -557,7 +555,7 @@
     var examButtonSpan = document.createElement("span");
     examButtonSpan.textContent = "[試験日設定]";
     examButtonSpan.style.cursor = "pointer";
-    examButtonSpan.style.fontSize = "12px";
+    examButtonSpan.style.fontSize = "13px";
     examButtonSpan.style.marginLeft = "4px";
 
     summaryLine1.appendChild(summaryTitleSpan);
