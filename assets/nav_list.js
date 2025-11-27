@@ -361,7 +361,7 @@
       top: "12px",
       bottom: "66px",
       overflow: "hidden",
-      background: "rgba(0, 0, 0, 0.4)",
+      background: "rgba(0, 0, 0, 0.1)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
       padding: "14px 16px 0px",
@@ -1131,7 +1131,7 @@
       panel.style.display = "flex";
       panel.style.flexDirection = "column";
       panel.style.pointerEvents = "auto";
-      panel.style.opacity = "0.4";
+      panel.style.opacity = "1";
     }catch(_){}
   }
 
