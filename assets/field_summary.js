@@ -7,7 +7,7 @@
   var style = document.createElement("style");
   style.textContent = `
     #cscs-field-star-summary {
-        font-size: 13px;
+        font-size: 12px;
         margin-top: 8px;
         padding: 8px 10px;
         border-top-width: 1px;
