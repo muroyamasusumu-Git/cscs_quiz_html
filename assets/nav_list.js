@@ -1117,7 +1117,6 @@
       if (!panel) {
         return;
       }
-      panel.style.opacity = "0";
       panel.style.pointerEvents = "none";
     }catch(_){}
   }
