@@ -587,7 +587,7 @@
 
     var now = new Date();
 
-    summaryLine2.style.marginTop = "5px";
+    summaryLine2.style.marginTop = "0";
     summaryLine2.textContent =
       "★｜獲得済｜" +
       starQStr +
