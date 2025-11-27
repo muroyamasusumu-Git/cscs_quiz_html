@@ -67,12 +67,6 @@
     needLine.style.fontWeight = "bold";
     panel.appendChild(needLine);
 
-    var title = document.createElement("div");
-    title.textContent = "分野別 ⭐️ 獲得状況（ダミー）";
-    title.style.fontWeight = "bold";
-    title.style.marginBottom = "6px";
-    panel.appendChild(title);
-
     var grid = document.createElement("div");
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = "repeat(3, 1fr)";
