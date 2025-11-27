@@ -549,7 +549,7 @@
     summaryLine1.style.columnGap = "0";
 
     var summaryTitleSpan = document.createElement("span");
-    summaryTitleSpan.textContent = "全体サマリー(総数" + totalQuestionsStr + "問・" + totalDaysStr + "日分)";
+    summaryTitleSpan.textContent = "全体サマリー(総数" + totalQuestionsStr + "問/" + totalDaysStr + "日分)";
     summaryTitleSpan.style.fontSize = "16px";
     summaryTitleSpan.style.fontWeight = "500";
 
