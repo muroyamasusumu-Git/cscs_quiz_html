@@ -542,9 +542,18 @@
       });
     }catch(_){}
 
+    var summaryLine1 = document.createElement("div");
     var summaryLine2 = document.createElement("div");
     var summaryLine3 = document.createElement("div");
     var summaryLine4 = document.createElement("div");
+
+    summaryLine1.style.alignItems = "center";
+    summaryLine1.style.columnGap = "0";
+
+    var summaryTitleSpan = document.createElement("span");
+    summaryTitleSpan.textContent = "全体総数 " + totalQuestionsStr + "問・" + totalDaysStr + "日分";
+    summaryTitleSpan.style.fontSize = "16px";
+    summaryTitleSpan.style.fontWeight = "500";
 
     var examButtonSpan = document.createElement("span");
     examButtonSpan.textContent = "[試験日設定]";
@@ -552,7 +561,18 @@
     examButtonSpan.style.fontSize = "13px";
     examButtonSpan.style.marginLeft = "4px";
 
+    summaryLine1.appendChild(summaryTitleSpan);
+    summaryLine1.appendChild(examButtonSpan);
+
     function buildExamLineText(nowDate){
+      var y = nowDate.getFullYear();
+      var m = String(nowDate.getMonth() + 1).padStart(2, "0");
+      var d = String(nowDate.getDate()).padStart(2, "0");
+      var wdList = ["日","月","火","水","木","金","土"];
+      var wd = wdList[nowDate.getDay()];
+      // 時刻部分（hh:mm am/pm）は削除し、日付のみを表示
+      var dateStr = y + "." + m + "." + d + "(" + wd + ")";
+
       var examRaw = "";
       try{
         examRaw = localStorage.getItem("cscs_exam_date") || "";
@@ -579,10 +599,10 @@
             String(diffDays) +
             "</span>" +
             "日";
-          return examLabel;
+          return examLabel + "｜" + dateStr;
         }
       }
-      return "試験日未設定";
+      return "試験日未設定｜" + dateStr;
     }
 
     var now = new Date();
@@ -616,8 +636,6 @@
     summaryLine3.style.marginBottom = "0";
 
     summaryLine4.innerHTML = buildExamLineText(now);
-    summaryLine4.appendChild(document.createTextNode("｜"));
-    summaryLine4.appendChild(examButtonSpan);
 
     try{
       var style = document.createElement("style");
@@ -859,6 +877,7 @@
       }catch(_){}
     });
 
+    summaryHost.appendChild(summaryLine1);
     summaryHost.appendChild(summaryLine2);
     summaryHost.appendChild(summaryLine3);
     summaryHost.appendChild(summaryLine4);
