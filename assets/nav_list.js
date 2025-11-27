@@ -1131,7 +1131,7 @@
       panel.style.display = "flex";
       panel.style.flexDirection = "column";
       panel.style.pointerEvents = "auto";
-      panel.style.opacity = "0.8";
+      panel.style.opacity = "0.4";
     }catch(_){}
   }
 
