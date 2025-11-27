@@ -568,13 +568,6 @@
       var d = String(nowDate.getDate()).padStart(2, "0");
       var wdList = ["日","月","火","水","木","金","土"];
       var wd = wdList[nowDate.getDay()];
-      var hh = nowDate.getHours();
-      var ap = hh >= 12 ? "pm" : "am";
-      var h12 = hh % 12;
-      if (h12 === 0) h12 = 12;
-      var h12Str = String(h12).padStart(2, "0");
-      var mm = String(nowDate.getMinutes()).padStart(2, "0");
-      var dateStr = y + "." + m + "." + d + "(" + wd + ")" + h12Str + ":" + mm + ap;
 
       var examRaw = "";
       try{
