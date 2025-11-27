@@ -361,7 +361,7 @@
       top: "12px",
       bottom: "66px",
       overflow: "hidden",
-      background: "rgba(0, 0, 0, 0.1)",
+      background: "rgba(0, 0, 0, 0.7)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
       padding: "14px 16px 0px",
@@ -1117,6 +1117,7 @@
       if (!panel) {
         return;
       }
+      panel.style.opacity = "0.5";
       panel.style.pointerEvents = "none";
     }catch(_){}
   }
