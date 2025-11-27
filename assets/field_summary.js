@@ -90,7 +90,7 @@
     });
 
     panel.appendChild(grid);
-    wrapContainer.appendChild(panel);
+    wrapContainer.insertAdjacentElement("afterend", panel);
   }
 
   if (document.readyState === "loading") {
