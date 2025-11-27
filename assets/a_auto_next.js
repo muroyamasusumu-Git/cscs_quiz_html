@@ -37,7 +37,7 @@
 
   function parseSlideInfo() {
     var path = String(location.pathname || "");
-    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_[ab](?:\.html)?$/);
     if (!m) {
       return null;
     }
