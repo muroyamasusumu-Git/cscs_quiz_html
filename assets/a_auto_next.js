@@ -5,9 +5,11 @@
   var AUTO_ADVANCE_MS = 30000;
   var COUNTER_INTERVAL_MS = 1000;
   var AUTO_ENABLED_KEY = "cscs_auto_next_enabled";
+  var RANDOM_MODE_KEY = "cscs_auto_next_random_enabled";
 
   // グローバル状態
   var autoEnabled = loadAutoAdvanceEnabled();
+  var randomModeEnabled = loadRandomModeEnabled();
   var NEXT_URL = null;
   var counterEl = null;
   var counterTimerId = null;
@@ -30,6 +32,26 @@
   function saveAutoAdvanceEnabled(flag) {
     try {
       localStorage.setItem(AUTO_ENABLED_KEY, flag ? "1" : "0");
+    } catch (_e) {
+      // 失敗しても無視
+    }
+  }
+
+  function loadRandomModeEnabled() {
+    try {
+      var v = localStorage.getItem(RANDOM_MODE_KEY);
+      if (v === null) {
+        return false; // デフォルトは「順番モード」
+      }
+      return v === "1";
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  function saveRandomModeEnabled(flag) {
+    try {
+      localStorage.setItem(RANDOM_MODE_KEY, flag ? "1" : "0");
     } catch (_e) {
       // 失敗しても無視
     }
@@ -79,6 +101,14 @@
       return null;
     }
 
+    if (randomModeEnabled) {
+      return buildRandomNextUrl(info);
+    } else {
+      return buildSequentialNextUrl(info);
+    }
+  }
+
+  function buildSequentialNextUrl(info) {
     var path = String(location.pathname || "");
     var day = info.day;
     var idx = info.idx;
@@ -134,6 +164,30 @@
 
     // 想定外（part が a/b 以外など）は何もしない
     return null;
+  }
+
+  function buildRandomNextUrl(info) {
+    var path = String(location.pathname || "");
+    var day = info.day;
+    var currentIdx = info.idx;
+    var part = info.part || "a";
+
+    var minIdx = 1;
+    var maxIdx = 30;
+    var randIdx = currentIdx;
+
+    if (maxIdx > minIdx) {
+      // 現在の問題番号と被らないように、違う番号が出るまで再抽選
+      while (randIdx === currentIdx) {
+        randIdx = Math.floor(Math.random() * maxIdx) + minIdx;
+      }
+    } else {
+      randIdx = currentIdx;
+    }
+
+    var nextNum3 = String(randIdx).padStart(3, "0");
+    var nextPath = path.replace(/q\d{3}_[ab](?:\.html)?$/, "q" + nextNum3 + "_a.html");
+    return nextPath;
   }
 
   // 左下カウンターの生成
@@ -195,6 +249,51 @@
         startAutoAdvanceCountdown();
       } else {
         cancelAutoAdvanceCountdown(true);
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }
+
+  // ランダムモード トグルボタン
+  function createAutoNextModeToggleButton() {
+    var btn = document.getElementById("auto-next-mode-toggle");
+    if (btn) {
+      return btn;
+    }
+
+    btn = document.createElement("button");
+    btn.id = "auto-next-mode-toggle";
+    btn.type = "button";
+    btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番]";
+    btn.style.cssText =
+    "position: fixed;"+
+    "left: 360px;"+
+    "bottom: 14px;"+
+    "padding: 6px 10px;"+
+    "font-size: 13px;"+
+    "color: rgb(150, 150, 150);"+
+    "border-radius: 0px;"+
+    "z-index: 10000;"+
+    "cursor: pointer;"+
+    "background: none;"+
+    "border: none;";
+
+    btn.addEventListener("click", function () {
+      randomModeEnabled = !randomModeEnabled;
+      saveRandomModeEnabled(randomModeEnabled);
+      btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番]";
+
+      cancelAutoAdvanceCountdown(false);
+
+      if (autoEnabled) {
+        NEXT_URL = buildNextUrl();
+        if (NEXT_URL) {
+          startAutoAdvanceCountdown();
+        } else {
+          cancelAutoAdvanceCountdown(true);
+        }
       }
     });
 
@@ -270,6 +369,8 @@
   function startAutoAdvanceCountdown() {
     cancelAutoAdvanceCountdown(false);
 
+    NEXT_URL = buildNextUrl();
+
     if (!NEXT_URL) {
       return;
     }
@@ -328,6 +429,7 @@
 
     // トグルボタン生成
     createAutoNextToggleButton();
+    createAutoNextModeToggleButton();
 
     // 自動送りの状態に応じて挙動
     if (autoEnabled) {

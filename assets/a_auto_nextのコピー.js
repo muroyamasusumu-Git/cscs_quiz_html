@@ -37,19 +37,21 @@
 
   function parseSlideInfo() {
     var path = String(location.pathname || "");
-    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_[ab](?:\.html)?$/);
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_([ab])(?:\.html)?$/);
     if (!m) {
       return null;
     }
     var day = m[1];           // "20250926"
     var num3 = m[2];          // "001"〜"030"
     var idx = parseInt(num3, 10);
+    var part = m[3];          // "a" または "b"
     if (!idx || idx < 1 || idx > 999) {
       return null;
     }
     return {
       day: day,
-      idx: idx
+      idx: idx,
+      part: part
     };
   }
 
@@ -80,27 +82,57 @@
     var path = String(location.pathname || "");
     var day = info.day;
     var idx = info.idx;
+    var part = info.part || "a";
 
-    // 1〜29問目：同じ日付の次のAパートへ
-    if (idx < 30) {
-      var nextIdx = idx + 1;
-      var nextNum3 = String(nextIdx).padStart(3, "0");
-      var nextPath = path.replace(/q\d{3}_a(?:\.html)?$/, "q" + nextNum3 + "_a.html");
-      return nextPath;
-    }
-
-    // 30問目：翌日の 1問目 (q001_a.html) へ
-    if (idx === 30) {
-      var nextDay = addDaysToDayString(day, 1);
-      if (!nextDay) {
-        return null;
+    if (part === "a") {
+      // 1〜29問目：同じ日付の次のAパートへ
+      if (idx < 30) {
+        var nextIdx = idx + 1;
+        var nextNum3 = String(nextIdx).padStart(3, "0");
+        var nextPath = path.replace(/q\d{3}_a(?:\.html)?$/, "q" + nextNum3 + "_a.html");
+        return nextPath;
       }
-      var prefix = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
-      var nextPath2 = prefix + "_build_cscs_" + nextDay + "/slides/q001_a.html";
-      return nextPath2;
+
+      // 30問目：翌日の 1問目 (q001_a.html) へ
+      if (idx === 30) {
+        var nextDay = addDaysToDayString(day, 1);
+        if (!nextDay) {
+          return null;
+        }
+        var prefix = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
+        var nextPath2 = prefix + "_build_cscs_" + nextDay + "/slides/q001_a.html";
+        return nextPath2;
+      }
+
+      // 想定外（31問目以降など）は何もしない
+      return null;
     }
 
-    // 想定外（31問目以降など）は何もしない
+    if (part === "b") {
+      // Bパート：次の問題のAパートへ
+      if (idx < 30) {
+        var nextIdxB = idx + 1;
+        var nextNum3B = String(nextIdxB).padStart(3, "0");
+        var nextPathB = path.replace(/q\d{3}_b(?:\.html)?$/, "q" + nextNum3B + "_a.html");
+        return nextPathB;
+      }
+
+      // 30問目のB：翌日の 1問目Aへ
+      if (idx === 30) {
+        var nextDayB = addDaysToDayString(day, 1);
+        if (!nextDayB) {
+          return null;
+        }
+        var prefixB = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_b(?:\.html)?$/, "");
+        var nextPath2B = prefixB + "_build_cscs_" + nextDayB + "/slides/q001_a.html";
+        return nextPath2B;
+      }
+
+      // 想定外（31問目以降など）は何もしない
+      return null;
+    }
+
+    // 想定外（part が a/b 以外など）は何もしない
     return null;
   }
 
