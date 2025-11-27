@@ -6,6 +6,8 @@
   var COUNTER_INTERVAL_MS = 1000;
   var AUTO_ENABLED_KEY = "cscs_auto_next_enabled";
   var RANDOM_MODE_KEY = "cscs_auto_next_random_enabled";
+  var RANDOM_MIN_DAY = "20250926";
+  var RANDOM_MAX_DAY = "20251224";
 
   // グローバル状態
   var autoEnabled = loadAutoAdvanceEnabled();
@@ -95,6 +97,47 @@
     return String(yy) + String(mm) + String(dd);
   }
 
+  function dayStringToDate(dayStr) {
+    var y = parseInt(dayStr.slice(0, 4), 10);
+    var m = parseInt(dayStr.slice(4, 6), 10);
+    var d = parseInt(dayStr.slice(6, 8), 10);
+    if (!y || !m || !d) {
+      return null;
+    }
+    var date = new Date(Date.UTC(y, m - 1, d));
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return null;
+    }
+    return date;
+  }
+
+  function getRandomDayStringBetween(minDayStr, maxDayStr) {
+    var minDate = dayStringToDate(minDayStr);
+    var maxDate = dayStringToDate(maxDayStr);
+    if (!minDate || !maxDate) {
+      return null;
+    }
+    var minTime = minDate.getTime();
+    var maxTime = maxDate.getTime();
+    if (maxTime < minTime) {
+      var tmp = minTime;
+      minTime = maxTime;
+      maxTime = tmp;
+    }
+    var diffMs = maxTime - minTime;
+    var diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    var offset = 0;
+    if (diffDays > 0) {
+      offset = Math.floor(Math.random() * (diffDays + 1));
+    }
+    var randDate = new Date(minTime);
+    randDate.setUTCDate(randDate.getUTCDate() + offset);
+    var yy = randDate.getUTCFullYear();
+    var mm = String(randDate.getUTCMonth() + 1).padStart(2, "0");
+    var dd = String(randDate.getUTCDate()).padStart(2, "0");
+    return String(yy) + String(mm) + String(dd);
+  }
+
   function buildNextUrl() {
     var info = parseSlideInfo();
     if (!info) {
@@ -168,26 +211,27 @@
 
   function buildRandomNextUrl(info) {
     var path = String(location.pathname || "");
-    var day = info.day;
-    var currentIdx = info.idx;
-    var part = info.part || "a";
+    var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
+    var prefix = prefixMatch ? prefixMatch[1] : "";
+    var currentPath = path;
+    var candidatePath = currentPath;
+    var safety = 0;
 
-    var minIdx = 1;
-    var maxIdx = 30;
-    var randIdx = currentIdx;
-
-    if (maxIdx > minIdx) {
-      // 現在の問題番号と被らないように、違う番号が出るまで再抽選
-      while (randIdx === currentIdx) {
-        randIdx = Math.floor(Math.random() * maxIdx) + minIdx;
+    while (candidatePath === currentPath && safety < 100) {
+      var randDay = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
+      if (!randDay) {
+        break;
       }
-    } else {
-      randIdx = currentIdx;
+      var randIdx = Math.floor(Math.random() * 30) + 1;
+      var randNum3 = String(randIdx).padStart(3, "0");
+      candidatePath = prefix + "_build_cscs_" + randDay + "/slides/q" + randNum3 + "_a.html";
+      safety++;
     }
 
-    var nextNum3 = String(randIdx).padStart(3, "0");
-    var nextPath = path.replace(/q\d{3}_[ab](?:\.html)?$/, "q" + nextNum3 + "_a.html");
-    return nextPath;
+    if (candidatePath === currentPath) {
+      return null;
+    }
+    return candidatePath;
   }
 
   // 左下カウンターの生成
