@@ -104,12 +104,38 @@
 
       var box = document.createElement("div");
 
-      // ★ 100% のものだけ頭に ⭐️ を付ける
-      var headStar = (rate === "100.0") ? "⭐️" : "";
+      // 100% 達成した分野を事前に抽出しておき、最大4つに制限
+      if (!window.__cscsStarListPrepared__) {
+        window.__cscsStarListPrepared__ = true;
+        window.__cscsPerfectFields__ = dummyFieldStats
+          .filter(function(r){ return ((r.star / r.total) * 100).toFixed(1) === "100.0"; })
+          .map(function(r){ return r.field });
 
-      // ★ 進捗表記は「star/total（rate%）」に統一（中に ⭐️ を入れない）
+        // 最大4つまでに制限
+        window.__cscsPerfectFields__ = window.__cscsPerfectFields__.slice(0, 4);
+
+        // 1つだけ 🌟 にする
+        if (window.__cscsPerfectFields__.length > 0) {
+          var randomIndex = Math.floor(Math.random() * window.__cscsPerfectFields__.length);
+          window.__cscsPerfectSpecial__ = window.__cscsPerfectFields__[randomIndex];
+        } else {
+          window.__cscsPerfectSpecial__ = null;
+        }
+      }
+
+      var headMark;
+      if (((row.star / row.total) * 100).toFixed(1) === "100.0") {
+        if (row.field === window.__cscsPerfectSpecial__) {
+          headMark = "🌟";
+        } else {
+          headMark = "⭐️";
+        }
+      } else {
+        headMark = "・";
+      }
+
       box.textContent =
-        headStar +
+        headMark +
         row.field +
         ": " +
         row.star + " / " + row.total +
