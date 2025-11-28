@@ -80,9 +80,7 @@
 
     var needLine = document.createElement("div");
     needLine.textContent =
-      "試験まで残り " + DUMMY_DAYS_LEFT +
-      " 日 → 必要⭐️" + needPerDay + "個/日" +
-      "（基準" + basePerDay + "との差: " + diff + "｜" + mood + "）";
+      "目標⭐️19/日（基準比 -11｜順調）｜全体42%［■■■■■■■□□□□□□］｜差分+19%［■■■■■□□□□□□］";
     needLine.style.marginBottom = "10px";
     needLine.style.fontWeight = "500";
     needLine.style.fontSize = "15px";
