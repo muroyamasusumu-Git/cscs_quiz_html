@@ -94,7 +94,7 @@
 
     var list = document.createElement("ul");
     list.style.listStyleType = "disc";
-    list.style.listStylePosition = "inside";
+    list.style.listStylePosition = "outside";
     list.style.margin = "0";
     list.style.padding = "0";
 
@@ -121,7 +121,7 @@
         item.style.margin = "0 0 4px 0";
       } else {
         item.style.listStyleType = "disc";
-        item.style.listStylePosition = "inside";
+        item.style.listStylePosition = "outside";
         item.style.paddingLeft = "0";
         item.style.textIndent = "0";
         item.style.margin = "0 0 4px 0";
