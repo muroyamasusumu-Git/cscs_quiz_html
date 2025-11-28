@@ -113,18 +113,21 @@
       // 100% 達成 → bullet を消す
       var isPerfect = (rate === "100.0");
 
-      if (isPerfect) {
+        if (isPerfect) {
         item.style.listStyleType = "none";
         item.style.paddingLeft = "0.9em";
         item.style.textIndent = "-0.9em";
-        item.style.margin = "0px 0px 2px -4px";  // ⭐️/🌟 行に適用
-      } else {
+
+        item.style.justifySelf = "start";
+        item.style.transform = "translateX(-4px)";
+        item.style.margin = "0 0 2px 0";
+        } else {
         item.style.listStyleType = "disc";
         item.style.listStylePosition = "inside";
         item.style.paddingLeft = "0";
         item.style.textIndent = "0";
-        item.style.margin = "0 0 2px 0";         // 通常行
-      }
+        item.style.margin = "0 0 2px 0";
+        }
 
       // 100% 達成した分野を事前に抽出しておき、最大4つに制限
       if (!window.__cscsStarListPrepared__) {
