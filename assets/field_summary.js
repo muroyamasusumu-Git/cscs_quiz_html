@@ -117,6 +117,7 @@
         item.style.listStyleType = "none";     // ● を消す
         item.style.paddingLeft = "0.9em";      // bullet の幅ぶん揃える
         item.style.textIndent = "-0.9em";      // ⭐ が頭に来るように調整
+        item.style.marginLeft = "-3px";        // ⭐️/🌟 行だけ少し左に寄せる
       } else {
         item.style.listStyleType = "disc";     // ● を表示
         item.style.listStylePosition = "inside";
