@@ -87,12 +87,13 @@ margin-right: 0 !important;
     display: block !important;
     font-size: 23px !important;
     opacity: 0.6 !important;
+    font-size: 20px !important;
 }
 
 .topmeta-left {
     display: flex ;
     flex-wrap: wrap;
-    gap: 5px !important;
+    gap: 9px !important;
     align-items: center;
 }
 
