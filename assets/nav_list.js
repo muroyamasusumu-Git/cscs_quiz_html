@@ -530,7 +530,7 @@
         top: "0px",
         zIndex: "100000",
         background: "rgb(17, 17, 17)",
-        padding: "6px 10px 10px",
+        padding: "0px 10px 10px",
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
         borderBottomColor: "rgb(42, 42, 42)",
