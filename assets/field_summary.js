@@ -50,6 +50,12 @@
 
   var dummyFieldStats = fieldNames.map(makeStats);
 
+  // ★ ダミーで2つを100%達成状態にする
+  if (dummyFieldStats.length >= 2) {
+    dummyFieldStats[1].star = dummyFieldStats[1].total;
+    dummyFieldStats[4].star = dummyFieldStats[4].total;
+  }
+
   var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
   var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
 
@@ -97,7 +103,18 @@
         : "0.0";
 
       var box = document.createElement("div");
-      box.textContent = row.field + ": ⭐️ " + row.star + " / " + row.total + "（" + rate + "%）";
+
+      // ★ 100% のものだけ頭に ⭐️ を付ける
+      var headStar = (rate === "100.0") ? "⭐️" : "";
+
+      // ★ 進捗表記は「star/total（rate%）」に統一（中に ⭐️ を入れない）
+      box.textContent =
+        headStar +
+        row.field +
+        ": " +
+        row.star + " / " + row.total +
+        "（" + rate + "%）";
+
       box.style.marginBottom = "2px";
       grid.appendChild(box);
     });
