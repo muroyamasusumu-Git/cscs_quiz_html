@@ -164,14 +164,14 @@
       barOuter.style.width = "100%";               // ← li幅に依存させず
       barOuter.style.maxWidth = "150px";           // ← 全行で同じ実寸に固定
       barOuter.style.height = "3px";
-      barOuter.style.background = "rgba(255, 255, 255, 0.15)";
+      barOuter.style.background = "rgba(255, 255, 255, 0.30)";
       barOuter.style.borderRadius = "999px";
       barOuter.style.overflow = "hidden";
 
       var barInner = document.createElement("div");
       barInner.style.height = "100%";
       barInner.style.width = rate + "%";
-      barInner.style.background = "rgba(255, 255, 255, 0.75)";
+      barInner.style.background = "rgba(255, 255, 255, 0.55)";
       barInner.style.borderRadius = "999px";
 
       barOuter.appendChild(barInner);
