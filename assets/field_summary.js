@@ -26,24 +26,32 @@
   var DUMMY_DAYS_LEFT = 120;
 
   // ★ merged_all.csv から抽出した正式な 16分野
-  var dummyFieldStats = [
-    { field: "エクササイズテクニック", star: 0, total: 0 },
-    { field: "スポーツ心理学", star: 0, total: 0 },
-    { field: "テストと評価", star: 0, total: 0 },
-    { field: "テスト評価・測定", star: 0, total: 0 },
-    { field: "バイオメカニクス", star: 0, total: 0 },
-    { field: "パフォーマンス向上物質", star: 0, total: 0 },
-    { field: "プログラムデザイン", star: 0, total: 0 },
-    { field: "プログラム実施", star: 0, total: 0 },
-    { field: "リハビリテーションと再調整", star: 0, total: 0 },
-    { field: "指導・安全管理", star: 0, total: 0 },
-    { field: "指導実施", star: 0, total: 0 },
-    { field: "施設管理と運営", star: 0, total: 0 },
-    { field: "栄養学", star: 0, total: 0 },
-    { field: "特殊集団の考慮", star: 0, total: 0 },
-    { field: "運動生理学", star: 0, total: 0 },
-    { field: "運営管理", star: 0, total: 0 }
+  var fieldNames = [
+    "エクササイズテクニック",
+    "スポーツ心理学",
+    "テストと評価",
+    "テスト評価・測定",
+    "バイオメカニクス",
+    "パフォーマンス向上物質",
+    "プログラムデザイン",
+    "プログラム実施",
+    "リハビリテーションと再調整",
+    "指導・安全管理",
+    "指導実施",
+    "施設管理と運営",
+    "栄養学",
+    "特殊集団の考慮",
+    "運動生理学",
+    "運営管理"
   ];
+
+  function makeStats(name) {
+    var total = Math.floor(Math.random() * 140) + 60;      // 60〜199
+    var star  = Math.floor(total * (Math.random() * 0.8)); // total の 0〜80%
+    return { field: name, star: star, total: total };
+  }
+
+  var dummyFieldStats = fieldNames.map(makeStats);
 
   var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
   var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
