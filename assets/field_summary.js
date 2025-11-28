@@ -60,11 +60,27 @@
     var panel = document.createElement("div");
     panel.id = "cscs-field-star-summary";
 
+    var basePerDay = 30;
+    var diff = needPerDay - basePerDay;
+    var mood = "";
+    if (needPerDay <= basePerDay * 0.8) {
+      mood = "余裕";
+    } else if (needPerDay <= basePerDay * 1.1) {
+      mood = "順調";
+    } else if (needPerDay <= basePerDay * 1.4) {
+      mood = "巻き返し";
+    } else {
+      mood = "要注意";
+    }
+
     var needLine = document.createElement("div");
     needLine.textContent =
-      "試験まで残り " + DUMMY_DAYS_LEFT + " 日 → 1日あたり必要 ⭐️: " + needPerDay + " 個（ダミー）";
+      "試験まで残り " + DUMMY_DAYS_LEFT +
+      " 日 → 必要⭐️" + needPerDay + "個/日" +
+      "（基準" + basePerDay + "との差: " + diff + "｜" + mood + "）";
     needLine.style.marginBottom = "6px";
-    needLine.style.fontWeight = "";
+    needLine.style.fontWeight = "600";
+    needLine.style.fontSize = "11px";
     panel.appendChild(needLine);
 
     var grid = document.createElement("div");
