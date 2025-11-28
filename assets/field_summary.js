@@ -106,7 +106,7 @@
 
     dummyFieldStats.forEach(function (row) {
       var rate = (row.total > 0)
-        ? ((row.star / row.total) * 100).toFixed(1)
+        ? ((row.star / row.total) * 100).toFixed(0)
         : "0";
 
       var item = document.createElement("li");
@@ -129,7 +129,7 @@
       if (!window.__cscsStarListPrepared__) {
         window.__cscsStarListPrepared__ = true;
         window.__cscsPerfectFields__ = dummyFieldStats
-          .filter(function (r) { return ((r.star / r.total) * 100).toFixed(1) === "100"; })
+          .filter(function (r) { return ((r.star / r.total) * 100).toFixed(0) === "100"; })
           .map(function (r) { return r.field; });
         window.__cscsPerfectFields__ = window.__cscsPerfectFields__.slice(0, 4);
         if (window.__cscsPerfectFields__.length > 0) {
@@ -141,7 +141,7 @@
       }
 
       var headMark;
-      if (((row.star / row.total) * 100).toFixed(1) === "100") {
+      if (((row.star / row.total) * 100).toFixed(0) === "100") {
         if (row.field === window.__cscsPerfectSpecial__) {
           headMark = "🌟";
         } else {
