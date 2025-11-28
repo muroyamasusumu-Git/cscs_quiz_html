@@ -86,7 +86,7 @@
 
     var needLine = document.createElement("div");
     needLine.textContent =
-      "⭐️目標19/日(基準比:順調)｜今日獲得 +5［■■■■■■□□□□］19%｜全体［■■■■■■□□□□］42%";
+      "⭐️目標19/日(基準比:順調)｜今日獲得 +5［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
     needLine.style.marginBottom = "10px";
     needLine.style.fontWeight = "500";
     needLine.style.fontSize = "15px";
