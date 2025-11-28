@@ -156,11 +156,21 @@
         headMark +
         row.field +
         ": " +
-        row.star + " / " + row.total +
-        "(" + rate + "%)";
+        row.star + " / " + row.total;
+
+      var barRow = document.createElement("div");
+      barRow.style.display = "flex";
+      barRow.style.alignItems = "center";
+      barRow.style.gap = "4px";
+      barRow.style.marginTop = "2px";
+
+      var rateText = document.createElement("span");
+      rateText.textContent = rate + "%";
+      rateText.style.minWidth = "3.0em";
+      rateText.style.fontSize = "10px";
+      rateText.style.opacity = "0.8";
 
       var barOuter = document.createElement("div");
-      barOuter.style.marginTop = "2px";
       barOuter.style.width = "100%";               // ← li幅に依存させず
       barOuter.style.maxWidth = "150px";           // ← 全行で同じ実寸に固定
       barOuter.style.height = "3px";
@@ -175,9 +185,11 @@
       barInner.style.borderRadius = "999px";
 
       barOuter.appendChild(barInner);
+      barRow.appendChild(rateText);
+      barRow.appendChild(barOuter);
 
       item.appendChild(label);
-      item.appendChild(barOuter);
+      item.appendChild(barRow);
 
       list.appendChild(item);
     });
