@@ -88,6 +88,7 @@
     needLine.textContent =
       "⭐️本日の目標19/日(基準比:順調)｜獲得数+5［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
     needLine.style.marginBottom = "10px";
+    needLine.style.marginLeft = "-8px";
     needLine.style.fontWeight = "500";
     needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
