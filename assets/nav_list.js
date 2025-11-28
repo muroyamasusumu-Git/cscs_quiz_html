@@ -1078,7 +1078,7 @@
     panel.style.display = "flex";
     panel.style.flexDirection = "column";
     panel.style.pointerEvents = "auto";
-    panel.style.opacity = "1";
+    panel.style.opacity = "0.7";
 
     await renderListInto(panel);
 
@@ -1115,7 +1115,7 @@
       panel.style.display = "flex";
       panel.style.flexDirection = "column";
       panel.style.pointerEvents = "auto";
-      panel.style.opacity = "1";
+      panel.style.opacity = "0.7";
     }catch(_){}
   }
 
