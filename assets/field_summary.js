@@ -161,8 +161,8 @@
 
       var barOuter = document.createElement("div");
       barOuter.style.marginTop = "2px";
-      barOuter.style.width = "100%";               // ← li幅に依存させず
-      barOuter.style.maxWidth = "170px";           // ← 全行で同じ実寸に固定
+      barOuter.style.width = "170px";
+      barOuter.style.maxWidth = "170px";
       barOuter.style.height = "3px";
       barOuter.style.background = "rgba(255, 255, 255, 0.30)";
       barOuter.style.borderRadius = "999px";
