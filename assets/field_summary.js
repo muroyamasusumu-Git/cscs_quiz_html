@@ -119,7 +119,7 @@
         item.style.textIndent = "-0.9em";
 
         item.style.justifySelf = "start";
-        item.style.transform = "translateX(-4px)";
+        item.style.transform = "translateX(-5px)";
         item.style.margin = "0 0 2px 0";
         } else {
         item.style.listStyleType = "disc";
