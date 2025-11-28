@@ -94,8 +94,14 @@
 
     var list = document.createElement("ul");
     list.style.listStyleType = "disc";
-    list.style.paddingLeft = "1.2em";
+    list.style.listStylePosition = "inside";
     list.style.margin = "0";
+    list.style.padding = "0";
+
+    list.style.display = "grid";
+    list.style.gridTemplateColumns = "repeat(3, 1fr)";
+    list.style.columnGap = "12px";
+    list.style.rowGap = "4px";
 
     dummyFieldStats.forEach(function (row) {
       var rate = (row.total > 0)
@@ -141,7 +147,7 @@
         row.star + " / " + row.total +
         "（" + rate + "%）";
 
-      item.style.marginBottom = "2px";
+      item.style.margin = "0 0 2px 0";
       list.appendChild(item);
     });
 
