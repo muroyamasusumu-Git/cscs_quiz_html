@@ -342,7 +342,7 @@
       st.id = styleId;
       st.textContent = `
 #similar-list{ line-height:1.5; color:#fff; border-top: 0 solid #555; }
-#similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:16px; }
+#similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:15px; }
 #similar-list .sl-head .sl-toggle{
   color:#cfe8ff;
   text-decoration:underline;   /* テキストリンク風 */
@@ -363,7 +363,7 @@
   align-items:center;
   justify-content:center;
   min-width:58px;
-  padding:2px 0px;
+  padding:0px 0px;
   margin-right:8px;
   border:1px solid #444;
   border-radius:6px;
