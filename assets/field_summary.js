@@ -162,7 +162,7 @@
 
       var barOuter = document.createElement("div");
       barOuter.style.marginTop = "2px";
-      barOuter.style.width = "100%";
+      barOuter.style.width = "66%";
       barOuter.style.height = "3px";
       barOuter.style.background = "rgba(255, 255, 255, 0.15)";
       barOuter.style.borderRadius = "999px";
