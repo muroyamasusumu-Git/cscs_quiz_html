@@ -2,7 +2,7 @@
   "use strict";
 
   // Aパート自動遷移までの待ち時間（ミリ秒）
-  var AUTO_ADVANCE_MS = 30000;
+  var AUTO_ADVANCE_MS = 20000;
   var COUNTER_INTERVAL_MS = 1000;
   var AUTO_ENABLED_KEY = "cscs_auto_next_enabled";
   var RANDOM_MODE_KEY = "cscs_auto_next_random_enabled";
