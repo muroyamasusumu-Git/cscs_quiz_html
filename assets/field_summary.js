@@ -8,7 +8,7 @@
   style.textContent = `
     #cscs-field-star-summary {
         font-size: 11px;
-        margin-top: 15px;
+        margin-top: 5px;
         padding: 10px 10px 10px 5px;
         color: rgb(255, 255, 255);
         opacity: 0.55;
