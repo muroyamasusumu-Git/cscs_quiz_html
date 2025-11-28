@@ -78,9 +78,9 @@
       "試験まで残り " + DUMMY_DAYS_LEFT +
       " 日 → 必要⭐️" + needPerDay + "個/日" +
       "（基準" + basePerDay + "との差: " + diff + "｜" + mood + "）";
-    needLine.style.marginBottom = "6px";
-    needLine.style.fontWeight = "600";
-    needLine.style.fontSize = "11px";
+    needLine.style.marginBottom = "10px";
+    needLine.style.fontWeight = "500";
+    needLine.style.fontSize = "14px";
     panel.appendChild(needLine);
 
     var grid = document.createElement("div");
