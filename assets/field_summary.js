@@ -115,13 +115,13 @@
 
       if (isPerfect) {
         item.style.listStyleType = "none";
-        item.style.paddingLeft = "0.9em";
-        item.style.textIndent = "-0.9em";
+        item.style.textIndent = "-1.5em";
+        item.style.paddingLeft = "0px";
         item.style.justifySelf = "start";
-        item.style.margin = "0 0 4px 0";
+        item.style.margin = "0px 0px 4px";
       } else {
-        item.style.listStyleType = "none";     // ← 点を消す
-        item.style.paddingLeft = "0";          // ← シンプルに
+        item.style.listStyleType = "none";
+        item.style.paddingLeft = "0";
         item.style.textIndent = "0";
         item.style.margin = "0 0 4px 0";
       }
