@@ -362,12 +362,12 @@
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-width:58px;
+  min-width:52px;
   padding:0px 0px;
   margin-right:8px;
   border:1px solid #444;
   border-radius:6px;
-  font-size:12px;
+  font-size:11px;
   vertical-align:middle;
   color:#e0e0e0;
   background:#2b2b2b;
