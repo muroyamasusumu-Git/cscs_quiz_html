@@ -106,12 +106,14 @@
 
     dummyFieldStats.forEach(function (row) {
       var rate = (row.total > 0)
-        ? ((row.star / row.total) * 100).toFixed(1)
-        : "0.0";
+        ? ((row.star / row.total) * 100)
+        : 0;
+
+      var rateStr = String(Math.round(rate));
 
       var item = document.createElement("li");
 
-      var isPerfect = (rate === "100.0");
+      var isPerfect = (rateStr === "100");
 
       if (isPerfect) {
         item.style.listStyleType = "none";
@@ -129,7 +131,10 @@
       if (!window.__cscsStarListPrepared__) {
         window.__cscsStarListPrepared__ = true;
         window.__cscsPerfectFields__ = dummyFieldStats
-          .filter(function (r) { return ((r.star / r.total) * 100).toFixed(1) === "100.0"; })
+          .filter(function (r) {
+            var rRate = (r.total > 0) ? ((r.star / r.total) * 100) : 0;
+            return Math.round(rRate) === 100;
+          })
           .map(function (r) { return r.field; });
         window.__cscsPerfectFields__ = window.__cscsPerfectFields__.slice(0, 4);
         if (window.__cscsPerfectFields__.length > 0) {
@@ -141,7 +146,7 @@
       }
 
       var headMark;
-      if (((row.star / row.total) * 100).toFixed(1) === "100.0") {
+      if (rateStr === "100") {
         if (row.field === window.__cscsPerfectSpecial__) {
           headMark = "🌟";
         } else {
@@ -158,21 +163,20 @@
         ": " +
         row.star + " / " + row.total;
 
-      var barRow = document.createElement("div");
-      barRow.style.display = "flex";
-      barRow.style.alignItems = "center";
-      barRow.style.gap = "4px";
-      barRow.style.marginTop = "2px";
+      var progressRow = document.createElement("div");
+      progressRow.style.display = "flex";
+      progressRow.style.alignItems = "center";
+      progressRow.style.gap = "4px";
+      progressRow.style.marginTop = "2px";
 
-      var rateText = document.createElement("span");
-      rateText.textContent = rate + "%";
-      rateText.style.minWidth = "3.0em";
-      rateText.style.fontSize = "10px";
-      rateText.style.opacity = "0.8";
+      var percentLabel = document.createElement("span");
+      percentLabel.textContent = rateStr + "%";
+      percentLabel.style.minWidth = "28px";
+      percentLabel.style.fontSize = "10px";
 
       var barOuter = document.createElement("div");
-      barOuter.style.width = "100%";               // ← li幅に依存させず
-      barOuter.style.maxWidth = "150px";           // ← 全行で同じ実寸に固定
+      barOuter.style.width = "100%";
+      barOuter.style.maxWidth = "150px";
       barOuter.style.height = "3px";
       barOuter.style.background = "rgba(255, 255, 255, 0.30)";
       barOuter.style.borderRadius = "999px";
@@ -180,16 +184,17 @@
 
       var barInner = document.createElement("div");
       barInner.style.height = "100%";
-      barInner.style.width = rate + "%";
+      barInner.style.width = rateStr + "%";
       barInner.style.background = "rgba(255, 255, 255, 0.55)";
       barInner.style.borderRadius = "999px";
 
       barOuter.appendChild(barInner);
-      barRow.appendChild(rateText);
-      barRow.appendChild(barOuter);
+
+      progressRow.appendChild(percentLabel);
+      progressRow.appendChild(barOuter);
 
       item.appendChild(label);
-      item.appendChild(barRow);
+      item.appendChild(progressRow);
 
       list.appendChild(item);
     });
