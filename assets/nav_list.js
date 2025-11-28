@@ -534,7 +534,7 @@
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
         borderBottomColor: "rgb(42, 42, 42)",
-        fontSize: "12px",
+        fontSize: "13px",
         fontWeight: "300",
         lineHeight: "1.3",
         textAlign: "right",
