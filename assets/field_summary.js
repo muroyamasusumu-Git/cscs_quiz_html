@@ -92,24 +92,24 @@
     needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
 
-    var grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "repeat(3, 1fr)";
-    grid.style.gap = "4px 0";
+    var list = document.createElement("ul");
+    list.style.listStyleType = "disc";
+    list.style.paddingLeft = "1.2em";
+    list.style.margin = "0";
 
     dummyFieldStats.forEach(function (row) {
       var rate = (row.total > 0)
         ? ((row.star / row.total) * 100).toFixed(1)
         : "0.0";
 
-      var box = document.createElement("div");
+      var item = document.createElement("li");
 
       // 100% 達成した分野を事前に抽出しておき、最大4つに制限
       if (!window.__cscsStarListPrepared__) {
         window.__cscsStarListPrepared__ = true;
         window.__cscsPerfectFields__ = dummyFieldStats
-          .filter(function(r){ return ((r.star / r.total) * 100).toFixed(1) === "100.0"; })
-          .map(function(r){ return r.field });
+          .filter(function (r) { return ((r.star / r.total) * 100).toFixed(1) === "100.0"; })
+          .map(function (r) { return r.field; });
 
         // 最大4つまでに制限
         window.__cscsPerfectFields__ = window.__cscsPerfectFields__.slice(0, 4);
@@ -131,21 +131,21 @@
           headMark = "⭐️";
         }
       } else {
-        headMark = "・";
+        headMark = "";
       }
 
-      box.textContent =
+      item.textContent =
         headMark +
         row.field +
         ": " +
         row.star + " / " + row.total +
         "（" + rate + "%）";
 
-      box.style.marginBottom = "2px";
-      grid.appendChild(box);
+      item.style.marginBottom = "2px";
+      list.appendChild(item);
     });
 
-    panel.appendChild(grid);
+    panel.appendChild(list);
     wrapContainer.insertAdjacentElement("afterend", panel);
   }
 
