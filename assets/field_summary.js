@@ -110,6 +110,20 @@
 
       var item = document.createElement("li");
 
+      // 100% 達成 → bullet を消す
+      var isPerfect = (rate === "100.0");
+
+      if (isPerfect) {
+        item.style.listStyleType = "none";     // ● を消す
+        item.style.paddingLeft = "0.9em";      // bullet の幅ぶん揃える
+        item.style.textIndent = "-0.9em";      // ⭐ が頭に来るように調整
+      } else {
+        item.style.listStyleType = "disc";     // ● を表示
+        item.style.listStylePosition = "inside";
+        item.style.paddingLeft = "0";          // bullet の位置を標準に
+        item.style.textIndent = "0";
+      }
+
       // 100% 達成した分野を事前に抽出しておき、最大4つに制限
       if (!window.__cscsStarListPrepared__) {
         window.__cscsStarListPrepared__ = true;
