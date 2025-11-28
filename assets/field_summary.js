@@ -118,12 +118,12 @@
         item.style.textIndent = "-1.5em";
         item.style.paddingLeft = "0px";
         item.style.justifySelf = "start";
-        item.style.margin = "0px 0px 4px";
+        item.style.margin = "0px 0px 6px";
       } else {
         item.style.listStyleType = "none";
         item.style.paddingLeft = "0";
         item.style.textIndent = "0";
-        item.style.margin = "0 0 4px 0";
+        item.style.margin = "0 0 6px 0";
       }
 
       if (!window.__cscsStarListPrepared__) {
