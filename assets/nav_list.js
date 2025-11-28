@@ -372,7 +372,7 @@
       maxHeight: "calc(100vh - 24px)",
       opacity: "0",
       pointerEvents: "none",
-      transition: "opacity 0.8s ease-in-out"
+      transition: "opacity 0.7s ease-in-out"
     });
 
     // ▼ 可能なら #root の中に挿入し、無い場合のみ body 直下に挿入
