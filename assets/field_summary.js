@@ -157,7 +157,7 @@
         row.field +
         ": " +
         row.star + " / " + row.total +
-        "（" + rate + "%）";
+        "(" + rate + "%)";
 
       var barOuter = document.createElement("div");
       barOuter.style.marginTop = "2px";
