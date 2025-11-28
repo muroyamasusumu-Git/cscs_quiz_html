@@ -120,9 +120,8 @@
         item.style.justifySelf = "start";
         item.style.margin = "0 0 4px 0";
       } else {
-        item.style.listStyleType = "disc";
-        item.style.listStylePosition = "outside";
-        item.style.paddingLeft = "0";
+        item.style.listStyleType = "none";     // ← 点を消す
+        item.style.paddingLeft = "0";          // ← シンプルに
         item.style.textIndent = "0";
         item.style.margin = "0 0 4px 0";
       }
