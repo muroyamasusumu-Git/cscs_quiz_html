@@ -678,13 +678,17 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 .top-date {
     color: #a8b0b8;
     opacity: .95;
-    font-size: 22px;
+    font-size: 20px;
     width: auto;
     margin: 0 10px 0 0;
 }
 .crumb-field {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 400;
+}
+.crumb-theme {
+    font-size: 20px;
+    opacity: .85;
 }
 .correct_star {
     display: none;
