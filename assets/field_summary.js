@@ -117,7 +117,6 @@
         item.style.paddingLeft = "0.9em";
         item.style.textIndent = "-0.9em";
         item.style.justifySelf = "start";
-        item.style.transform = "translateX(0)";
         item.style.margin = "0 0 4px 0";
       } else {
         item.style.listStyleType = "disc";
@@ -163,7 +162,7 @@
       var barOuter = document.createElement("div");
       barOuter.style.marginTop = "2px";
       barOuter.style.width = "100%";               // ← li幅に依存させず
-      barOuter.style.maxWidth = "120px";           // ← 全行で同じ実寸に固定
+      barOuter.style.maxWidth = "150px";           // ← 全行で同じ実寸に固定
       barOuter.style.height = "3px";
       barOuter.style.background = "rgba(255, 255, 255, 0.15)";
       barOuter.style.borderRadius = "999px";
