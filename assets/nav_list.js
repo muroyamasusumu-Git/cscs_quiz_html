@@ -538,7 +538,7 @@
         fontWeight: "300",
         lineHeight: "1.3",
         textAlign: "right",
-        opacity: "0.45"
+        opacity: "0.55"
       });
     }catch(_){}
 
