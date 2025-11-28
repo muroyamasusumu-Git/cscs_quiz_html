@@ -10,9 +10,6 @@
         font-size: 11px;
         margin-top: 10px;
         padding: 10px 10px;
-        border-top-width: 1px;
-        border-top-style: solid;
-        border-top-color: rgba(255, 255, 255, 0.3);
         color: rgb(255, 255, 255);
         opacity: 0.55;
         width: 69%;
@@ -88,7 +85,7 @@
       "（基準" + basePerDay + "との差: " + diff + "｜" + mood + "）";
     needLine.style.marginBottom = "10px";
     needLine.style.fontWeight = "500";
-    needLine.style.fontSize = "14px";
+    needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
 
     var grid = document.createElement("div");
