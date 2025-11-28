@@ -35,7 +35,7 @@
   position: fixed;
   inset: 0 16px 20px !important;
   margin-left: 67%;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   width: auto !important;
   height: auto !important;
   overflow: auto;
@@ -77,7 +77,7 @@
   overflow-y: auto;
   height: 100%;
   border-left: 1px solid #2a2a2a;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.4;
   margin-left: -1px !important;
 }
