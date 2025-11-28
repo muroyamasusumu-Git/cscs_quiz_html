@@ -110,36 +110,29 @@
 
       var item = document.createElement("li");
 
-      // 100% 達成 → bullet を消す
       var isPerfect = (rate === "100.0");
 
-        if (isPerfect) {
+      if (isPerfect) {
         item.style.listStyleType = "none";
         item.style.paddingLeft = "0.9em";
         item.style.textIndent = "-0.9em";
-
         item.style.justifySelf = "start";
         item.style.transform = "translateX(-5px)";
-        item.style.margin = "0 0 2px 0";
-        } else {
+        item.style.margin = "0 0 4px 0";
+      } else {
         item.style.listStyleType = "disc";
         item.style.listStylePosition = "inside";
         item.style.paddingLeft = "0";
         item.style.textIndent = "0";
-        item.style.margin = "0 0 2px 0";
-        }
+        item.style.margin = "0 0 4px 0";
+      }
 
-      // 100% 達成した分野を事前に抽出しておき、最大4つに制限
       if (!window.__cscsStarListPrepared__) {
         window.__cscsStarListPrepared__ = true;
         window.__cscsPerfectFields__ = dummyFieldStats
           .filter(function (r) { return ((r.star / r.total) * 100).toFixed(1) === "100.0"; })
           .map(function (r) { return r.field; });
-
-        // 最大4つまでに制限
         window.__cscsPerfectFields__ = window.__cscsPerfectFields__.slice(0, 4);
-
-        // 1つだけ 🌟 にする
         if (window.__cscsPerfectFields__.length > 0) {
           var randomIndex = Math.floor(Math.random() * window.__cscsPerfectFields__.length);
           window.__cscsPerfectSpecial__ = window.__cscsPerfectFields__[randomIndex];
@@ -159,14 +152,33 @@
         headMark = "";
       }
 
-      item.textContent =
+      var label = document.createElement("div");
+      label.textContent =
         headMark +
         row.field +
         ": " +
         row.star + " / " + row.total +
         "（" + rate + "%）";
 
-      item.style.margin = "0 0 2px 0";
+      var barOuter = document.createElement("div");
+      barOuter.style.marginTop = "2px";
+      barOuter.style.width = "100%";
+      barOuter.style.height = "3px";
+      barOuter.style.background = "rgba(255, 255, 255, 0.15)";
+      barOuter.style.borderRadius = "999px";
+      barOuter.style.overflow = "hidden";
+
+      var barInner = document.createElement("div");
+      barInner.style.height = "100%";
+      barInner.style.width = rate + "%";
+      barInner.style.background = "rgba(255, 255, 255, 0.75)";
+      barInner.style.borderRadius = "999px";
+
+      barOuter.appendChild(barInner);
+
+      item.appendChild(label);
+      item.appendChild(barOuter);
+
       list.appendChild(item);
     });
 
