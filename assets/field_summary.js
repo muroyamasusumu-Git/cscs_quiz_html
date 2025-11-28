@@ -114,15 +114,16 @@
       var isPerfect = (rate === "100.0");
 
       if (isPerfect) {
-        item.style.listStyleType = "none";     // ● を消す
-        item.style.paddingLeft = "0.9em";      // bullet の幅ぶん揃える
-        item.style.textIndent = "-0.9em";      // ⭐ が頭に来るように調整
-        item.style.marginLeft = "0";        // ⭐️/🌟 行だけ少し左に寄せる
+        item.style.listStyleType = "none";
+        item.style.paddingLeft = "0.9em";
+        item.style.textIndent = "-0.9em";
+        item.style.margin = "0px 0px 2px -4px";  // ⭐️/🌟 行に適用
       } else {
-        item.style.listStyleType = "disc";     // ● を表示
+        item.style.listStyleType = "disc";
         item.style.listStylePosition = "inside";
-        item.style.paddingLeft = "0";          // bullet の位置を標準に
+        item.style.paddingLeft = "0";
         item.style.textIndent = "0";
+        item.style.margin = "0 0 2px 0";         // 通常行
       }
 
       // 100% 達成した分野を事前に抽出しておき、最大4つに制限
