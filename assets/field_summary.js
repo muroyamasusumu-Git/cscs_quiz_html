@@ -141,7 +141,7 @@
       }
 
       var headMark;
-      if (((row.star / row.total) * 100).toFixed(1) === "100.0") {
+      if (((row.star / row.total) * 100).toFixed(1) === "100") {
         if (row.field === window.__cscsPerfectSpecial__) {
           headMark = "🌟";
         } else {
