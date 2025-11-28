@@ -100,7 +100,7 @@
 
     list.style.display = "grid";
     list.style.gridTemplateColumns = "repeat(3, 1fr)";
-    list.style.columnGap = "12px";
+    list.style.columnGap = "0";
     list.style.rowGap = "4px";
 
     dummyFieldStats.forEach(function (row) {
