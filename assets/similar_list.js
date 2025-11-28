@@ -355,7 +355,7 @@
   padding-left:0;
   list-style:none;   /* ← ドット削除 */
 }
-#similar-list li{ margin:4px 0; font-size:14px; font-weight:300; }
+#similar-list li{ margin:4px 0; font-size:13px; font-weight:300; }
 #similar-list a{ color:#fff; text-decoration:none; }
 #similar-list a:hover{ text-decoration:underline; }
 #similar-list .tag{
