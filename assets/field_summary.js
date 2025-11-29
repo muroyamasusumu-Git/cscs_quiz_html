@@ -320,7 +320,7 @@
     list.style.display = "grid";
     list.style.gridTemplateColumns = "repeat(3, 1fr)";
     list.style.columnGap = "0";
-    list.style.rowGap = "4px";
+    list.style.rowGap = "3px";
 
     dummyFieldStats.forEach(function (row) {
       var rate = (row.total > 0)
