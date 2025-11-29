@@ -361,7 +361,7 @@
       top: "12px",
       bottom: "66px",
       overflow: "hidden",
-      background: "rgba(0, 0, 0, 0.7)",
+      background: "rgba(0, 0, 0, 0.6)",
       border: "1px solid rgb(51, 51, 51)",
       borderRadius: "12px",
       padding: "14px 16px 0px",
@@ -372,7 +372,7 @@
       maxHeight: "calc(100vh - 24px)",
       opacity: "0",
       pointerEvents: "none",
-      transition: "opacity 0.65s ease-in-out"
+      transition: "opacity 0.6s ease-in-out"
     });
 
     // ▼ 可能なら #root の中に挿入し、無い場合のみ body 直下に挿入
@@ -538,7 +538,7 @@
         fontWeight: "300",
         lineHeight: "1.3",
         textAlign: "right",
-        opacity: "0.65"
+        opacity: "0.6"
       });
     }catch(_){}
 
@@ -1126,7 +1126,7 @@
     panel.style.display = "flex";
     panel.style.flexDirection = "column";
     panel.style.pointerEvents = "auto";
-    panel.style.opacity = "0.7";
+    panel.style.opacity = "0.6";
 
     await renderListInto(panel);
 

@@ -1,3 +1,4 @@
+// functions/api/sync/reset.ts
 export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
