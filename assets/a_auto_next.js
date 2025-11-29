@@ -405,7 +405,7 @@
     btn.textContent = "[" + sec + "秒]";
     btn.style.cssText =
     "position: fixed;"+
-    "left: 440px;"+
+    "left: 416px;"+
     "bottom: 14px;"+
     "padding: 6px 10px;"+
     "font-size: 13px;"+
