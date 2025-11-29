@@ -625,7 +625,7 @@
 
     try{
       var style = document.createElement("style");
-      style.textContent = ".nl-exam-days { font-size: 20px; font-weight: 600; padding: 0 2px; }";
+      style.textContent = ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; }";
       document.head.appendChild(style);
     }catch(_){}
 
