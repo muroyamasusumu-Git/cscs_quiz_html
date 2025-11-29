@@ -22,34 +22,44 @@
   var DUMMY_STAR_DONE = 500;
   var DUMMY_DAYS_LEFT = 120;
 
-  // ★ 分野名は localStorage.cscs_field_names から取得する（フォールバック無し）
-  function loadFieldNamesFromLocalStorageStrict() {
+  async function loadFieldNamesFromManifest() {
     try {
-      var raw = localStorage.getItem("cscs_field_names");
-      if (!raw) {
-        console.error("field_summary.js: localStorage.cscs_field_names が存在しません");
+      const res = await fetch("nav_manifest.json", { cache: "no-store" });
+      const manifest = await res.json();
+
+      if (!manifest || !Array.isArray(manifest.questions)) {
+        console.error("field_summary.js: nav_manifest.json の questions が不正です");
         return null;
       }
-      var parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        console.error("field_summary.js: cscs_field_names が配列ではありません");
+
+      const fields = manifest.questions
+        .map(function (q) {
+          return (q && typeof q.Field === "string") ? q.Field.trim() : "";
+        })
+        .filter(function (v) {
+          return v !== "";
+        });
+
+      if (fields.length === 0) {
+        console.error("field_summary.js: nav_manifest.json に Field がありません");
         return null;
       }
-      var filtered = parsed.filter(function (v) {
-        return typeof v === "string" && v.trim() !== "";
-      });
-      if (filtered.length === 0) {
-        console.error("field_summary.js: cscs_field_names に有効な分野名がありません");
+
+      const unique = Array.from(new Set(fields));
+
+      if (unique.length === 0) {
+        console.error("field_summary.js: Field がユニーク化後に空です");
         return null;
       }
-      return filtered;
+
+      return unique;
     } catch (e) {
-      console.error("field_summary.js: cscs_field_names の読み込みに失敗しました", e);
+      console.error("field_summary.js: nav_manifest.json の読み込みに失敗しました", e);
       return null;
     }
   }
 
-  var fieldNames = loadFieldNamesFromLocalStorageStrict();
+  var fieldNames = null;
 
   function makeStats(name) {
     var total = Math.floor(Math.random() * 140) + 60;      // 60〜199
@@ -68,7 +78,7 @@
   var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
   var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
 
-  function renderFieldStarSummary() {
+  async function renderFieldStarSummary() {
     var wrapContainer = document.querySelector(".wrap");
     if (!wrapContainer) {
       console.warn(".wrap が見つからないため field_summary を表示できませんでした。");
@@ -77,11 +87,14 @@
 
     if (document.getElementById("cscs-field-star-summary")) return;
 
-    // ★ 分野名が正しく取得できなかった場合は、その旨だけ表示して終了（フォールバック無し）
+    if (!fieldNames) {
+      fieldNames = await loadFieldNamesFromManifest();
+    }
+
     if (!fieldNames || !Array.isArray(fieldNames) || fieldNames.length === 0) {
       var errorPanel = document.createElement("div");
       errorPanel.id = "cscs-field-star-summary";
-      errorPanel.textContent = "field_summary: localStorage.cscs_field_names が見つからないか不正です。";
+      errorPanel.textContent = "field_summary: nav_manifest.json から Field を取得できませんでした。";
       errorPanel.style.fontSize = "11px";
       errorPanel.style.opacity = "0.7";
       wrapContainer.insertAdjacentElement("afterend", errorPanel);
