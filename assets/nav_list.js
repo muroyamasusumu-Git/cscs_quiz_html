@@ -530,7 +530,7 @@
         top: "0px",
         zIndex: "100000",
         background: "rgb(17, 17, 17)",
-        padding: "0px 10px 10px",
+        padding: "0px 10px 5px",
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
         borderBottomColor: "rgb(42, 42, 42)",
@@ -625,7 +625,7 @@
 
     try{
       var style = document.createElement("style");
-      style.textContent = ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; line-height: 1; display: inline-block; vertical-align: middle; }";
+      style.textContent = ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; line-height: 0.9; display: inline-block; }";
       document.head.appendChild(style);
     }catch(_){}
 
