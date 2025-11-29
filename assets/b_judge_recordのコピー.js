@@ -10,7 +10,7 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2025-11-30
+ * 最終更新: 2025-11-24
  *
  * === SPEC CONTENT ===
  */
@@ -115,15 +115,6 @@
 // ・streakLen 更新直後に UI 連動用 CustomEvent
 //     window.dispatchEvent(new CustomEvent("cscs-sync-updated"))
 //   を発火し、ナビリスト等から SYNC 状態の再読込をトリガーできるようにした。
-// 🆕 2025-11-30 追加
-// ・「今日、新規に⭐️を獲得した問題数（0→1となった qid の個数）」を計測。
-// ・対象は、問題別3連正解回数 cscs_q_correct_streak3_total:{qid} が 0→1 となる瞬間のみ。
-// ・JSTの日付ごとに、localStorage 上で以下のキーを管理：
-//     cscs_streak3_today_day
-//     cscs_streak3_today_qids
-//     cscs_streak3_today_unique_count
-// ・値は CSCS_SYNC.recordStreak3TodayUnique() を通じて /api/sync/merge の streak3Today に同期し、
-//   「今日⭐️を新規獲得したユニーク問題数」の進捗として利用する。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -329,46 +320,11 @@
           var sLenQ = getIntLS(sKeyQ);
           sLenQ += 1;
           if(sLenQ >= 3){
-            var streak3KeyQ = "cscs_q_correct_streak3_total:" + qid;
-            var beforeStreak3TotalQ = getIntLS(streak3KeyQ);
-            incIntLS(streak3KeyQ, 1);
-
+            incIntLS("cscs_q_correct_streak3_total:" + qid, 1);
             var sLogKeyQ = "cscs_q_correct_streak3_log:" + qid;
             var sLogQ = []; try{ sLogQ = JSON.parse(localStorage.getItem(sLogKeyQ)||"[]"); }catch(_){ sLogQ = []; }
             sLogQ.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(sLogKeyQ, JSON.stringify(sLogQ));
-
-            // ⭐️0→1 になった問題だけ「今日の新規⭐️」としてカウント
-            if(beforeStreak3TotalQ === 0){
-              var todayDayKey = "cscs_streak3_today_day";
-              var todayQidsKey = "cscs_streak3_today_qids";
-              var todayCountKey = "cscs_streak3_today_unique_count";
-
-              var storedDay = null;
-              try{ storedDay = localStorage.getItem(todayDayKey); }catch(_){}
-
-              // 日付が変わっていたら、その日の集計としてリセット
-              if(storedDay !== dayPlay){
-                try{ localStorage.setItem(todayDayKey, dayPlay); }catch(_){}
-                try{ localStorage.removeItem(todayQidsKey); }catch(_){}
-                try{ localStorage.setItem(todayCountKey, "0"); }catch(_){}
-              }
-
-              var todayQids = [];
-              try{ todayQids = JSON.parse(localStorage.getItem(todayQidsKey)||"[]"); }catch(_){ todayQids = []; }
-              if(!Array.isArray(todayQids)){ todayQids = []; }
-
-              if(todayQids.indexOf(qid) === -1){
-                todayQids.push(qid);
-                try{ localStorage.setItem(todayQidsKey, JSON.stringify(todayQids)); }catch(_){}
-                incIntLS(todayCountKey, 1);
-              }
-
-              if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
-                window.CSCS_SYNC.recordStreak3TodayUnique();
-              }
-            }
-
             sLenQ = 0;
           }
           setIntLS(sKeyQ, sLenQ);
