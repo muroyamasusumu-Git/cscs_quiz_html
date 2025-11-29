@@ -94,17 +94,8 @@
       const serverProgress = sl % 3;
       const localProgress  = ll % 3;
 
-      const streak3Today = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today)
-        ? window.__cscs_sync_state.streak3Today
-        : { day: "", unique_q_count: 0 };
-
       if (box) {
         const qEl  = box.querySelector(".sync-qid");
-
-        const s3tDayEl = box.querySelector(".sync-streak3today-day");
-        const s3tValEl = box.querySelector(".sync-streak3today-val");
-        if (s3tDayEl) s3tDayEl.textContent = streak3Today.day || "-";
-        if (s3tValEl) s3tValEl.textContent = String(streak3Today.unique_q_count || 0);
         const lEl  = box.querySelector(".sync-local");
         const qdEl = box.querySelector(".sync-queue");
         const stEl = box.querySelector(".sync-status");
@@ -245,8 +236,6 @@
       const s3 = (s.streak3   && s.streak3[QID])   || 0;
       const sl = (s.streakLen && s.streakLen[QID]) || 0;
 
-      window.__cscs_sync_state = s;
-
       setServerTotalsForQid(c, i, s3, sl);
 
       try{
@@ -286,19 +275,11 @@
           SYNC <span class="sync-streaklen-server">0</span> (<span class="sync-streaklen-server-progress">0</span>/3) /
           local <span class="sync-streaklen-val">0</span> (<span class="sync-streaklen-local-progress">0</span>/3)
         </div>
-
-        <div class="sync-line sync-streak3today">
-          今日の 3連続正解ユニーク数:<br>
-          day: <span class="sync-streak3today-day">-</span><br>
-          unique: <span class="sync-streak3today-val">0</span>
-        </div>
-
-        <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
+        <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>          
         
         <div class="sync-reset-row">            
           <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
           <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
-          <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
         </div>
       `;
       const wrap = document.querySelector("div.wrap");
@@ -398,26 +379,6 @@
           alert("この問題の星データをリセットしました。");
         }catch(e){
           alert("星データのリセットに失敗しました: " + e);
-        }
-      });
-
-      const btnStreakTodayReset = document.getElementById("cscs_sync_streak3today_reset");
-      if (btnStreakTodayReset) btnStreakTodayReset.addEventListener("click", async () => {
-        try{
-          await fetch("/api/sync/reset_streak3_today", {
-            method:"POST",
-            headers:{ "content-type":"application/json" }
-          });
-
-          alert("今日の 3連続正解ユニーク数をリセットしました。");
-
-          try{
-            const s = await CSCS_SYNC.fetchServer();
-            window.__cscs_sync_state = s;
-            updateMonitor();
-          }catch(_){}
-        }catch(e){
-          alert("reset_streak3_today 失敗: " + e);
         }
       });
 
