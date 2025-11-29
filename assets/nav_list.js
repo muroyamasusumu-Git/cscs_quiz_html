@@ -784,6 +784,10 @@
                     }catch(_){}
                   }
                 }catch(_){}
+                // ★ 試験日が更新されたので、画面全体をリロードする
+                try{
+                  window.location.reload();
+                }catch(_){}
               })
               .catch(function(_){});
           }catch(_){}
