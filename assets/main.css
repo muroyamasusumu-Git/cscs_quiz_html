@@ -738,3 +738,15 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   opacity: 0.9;
 }
 
+/* ===============================
+   audio_fallback.css 
+   =============================== */
+.audio-fallback-btn {
+  font-size: 16px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #444;
+  color: white;
+  border: none;
+  margin-top: 10px;
+}

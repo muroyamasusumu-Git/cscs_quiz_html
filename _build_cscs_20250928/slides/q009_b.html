@@ -152,28 +152,7 @@ ol.opts {
 <script src="../../assets/b_judge.js" data-stem="q009" data-audio-base="/_build_cscs_20250928/audio" data-ext=".wav"></script>
 
 
-<script>
-// CSCS backfill 抑止シム（TTL内のみ backfill を無効化。リアルタイム記録は稼働）
-(() => {
-  const epoch = Number(localStorage.getItem('cscs_reset_epoch') || 0);
-  const ttl   = Number(localStorage.getItem('cscs_reset_ttl_ms') || 0);
-  const suppressed = (Date.now() - epoch) < ttl;
-  window.__CSCS_BACKFILL_SUPPRESSED__ = suppressed;
-
-  // b_judge_record.js が定義する backfill 関数を NOOP に差し替え
-  function patch(){
-    if (!suppressed) return;                  // 抑止期間外なら何もしない
-    const f1 = window.cscsBackfillIfNeeded;
-    const f2 = window.cscs_backfill_if_needed;
-    if (!f1 && !f2) { setTimeout(patch, 0); return; }  // 本体未読込なら次のtickで再試行
-    const noop = () => console.info('🚫 backfill suppressed (TTL)');
-    if (typeof f1 === 'function') window.cscsBackfillIfNeeded    = noop;
-    if (typeof f2 === 'function') window.cscs_backfill_if_needed = noop;
-  }
-  setTimeout(patch, 0);
-})();
-</script>
-
+<script src="../../assets/backfill_suppress.js"></script>
 <script src="../../assets/b_judge_record.js" defer></script>
 
 
@@ -968,30 +947,6 @@ h1 { font-size: var(--h1-fs, inherit); }
 </script>
 
 
-<script>
-(function(){
-  function moveIntoWrap(id){
-    try{
-      var el = document.getElementById(id);
-      if (!el) return;
-      var wrap = document.querySelector("div.wrap");
-      if (!wrap) return;
-      if (el.parentNode === wrap) return;
-      wrap.appendChild(el);
-    }catch(_){}
-  }
-  function relocateAll(){
-    moveIntoWrap("cscs_sync_monitor_a");
-    moveIntoWrap("cscs_sync_view_b");
-    moveIntoWrap("cc-check-wrapper");
-  }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", relocateAll);
-  } else {
-    relocateAll();
-  }
-})();
-</script>
-
+<script src="../../assets/relocate_panels.js" defer></script>
 </body>
 </html>
