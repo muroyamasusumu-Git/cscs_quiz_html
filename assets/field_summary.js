@@ -322,7 +322,7 @@
         "(" + rate + "%)";
 
       var barOuter = document.createElement("div");
-      barOuter.style.marginTop = "2px";
+      barOuter.style.marginTop = "1px";
       barOuter.style.width = "170px";
       barOuter.style.maxWidth = "170px";
       barOuter.style.height = "3px";
