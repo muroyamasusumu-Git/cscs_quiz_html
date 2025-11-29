@@ -329,7 +329,7 @@ h1 { font-size: var(--h1-fs, inherit); }
 
     // ★ 今日ぶんのユニーク⭐️数が更新された場合だけ送る
     if (ds3 > 0 && todayMeta.day) {
-      (payload as any).streak3Today = {
+      payload.streak3Today = {
         day: todayMeta.day,
         unique_q_count: todayMeta.count
       };
