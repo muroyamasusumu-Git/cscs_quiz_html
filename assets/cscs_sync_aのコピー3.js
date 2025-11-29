@@ -267,31 +267,6 @@
 
       window.__cscs_sync_state = s;
 
-      // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
-      const streak3Today = (s && s.streak3Today)
-        ? s.streak3Today
-        : { day: "", unique_q_count: 0, qids: [] };
-
-      try{
-        if (streak3Today.day) {
-          localStorage.setItem("cscs_streak3_today_day", String(streak3Today.day));
-        } else {
-          localStorage.removeItem("cscs_streak3_today_day");
-        }
-        localStorage.setItem(
-          "cscs_streak3_today_unique_q_count",
-          String(streak3Today.unique_q_count || 0)
-        );
-        if (Array.isArray(streak3Today.qids)) {
-          localStorage.setItem(
-            "cscs_streak3_today_qids",
-            JSON.stringify(streak3Today.qids)
-          );
-        } else {
-          localStorage.removeItem("cscs_streak3_today_qids");
-        }
-      }catch(_){}
-
       setServerTotalsForQid(c, i, s3, sl);
 
       try{
