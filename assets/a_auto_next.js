@@ -2,7 +2,9 @@
   "use strict";
 
   // Aパート自動遷移までの待ち時間（ミリ秒）
-  var AUTO_ADVANCE_MS = 20000;
+  var AUTO_ADVANCE_MS_CANDIDATES = [20000, 30000, 60000];
+  var AUTO_ADVANCE_MS_KEY = "cscs_auto_next_ms";
+  var AUTO_ADVANCE_MS = loadAutoAdvanceMs();
   var COUNTER_INTERVAL_MS = 1000;
   var AUTO_ENABLED_KEY = "cscs_auto_next_enabled";
   var RANDOM_MODE_KEY = "cscs_auto_next_random_enabled";
@@ -57,6 +59,50 @@
     } catch (_e) {
       // 失敗しても無視
     }
+  }
+
+  function loadAutoAdvanceMs() {
+    try {
+      var v = localStorage.getItem(AUTO_ADVANCE_MS_KEY);
+      var ms = parseInt(v, 10);
+      if (!ms || ms <= 0) {
+        return AUTO_ADVANCE_MS_CANDIDATES[0];
+      }
+      for (var i = 0; i < AUTO_ADVANCE_MS_CANDIDATES.length; i++) {
+        if (AUTO_ADVANCE_MS_CANDIDATES[i] === ms) {
+          return ms;
+        }
+      }
+      return AUTO_ADVANCE_MS_CANDIDATES[0];
+    } catch (_e) {
+      return AUTO_ADVANCE_MS_CANDIDATES[0];
+    }
+  }
+
+  function saveAutoAdvanceMs(ms) {
+    try {
+      localStorage.setItem(AUTO_ADVANCE_MS_KEY, String(ms));
+    } catch (_e) {
+      // 失敗しても無視
+    }
+  }
+
+  function getCurrentDurationIndex() {
+    for (var i = 0; i < AUTO_ADVANCE_MS_CANDIDATES.length; i++) {
+      if (AUTO_ADVANCE_MS_CANDIDATES[i] === AUTO_ADVANCE_MS) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  function getNextDurationValue() {
+    var idx = getCurrentDurationIndex();
+    var nextIdx = idx + 1;
+    if (nextIdx >= AUTO_ADVANCE_MS_CANDIDATES.length) {
+      nextIdx = 0;
+    }
+    return AUTO_ADVANCE_MS_CANDIDATES[nextIdx];
   }
 
   function parseSlideInfo() {
@@ -345,6 +391,46 @@
     return btn;
   }
 
+  // 自動送り時間 切り替えボタン
+  function createAutoNextDurationButton() {
+    var btn = document.getElementById("auto-next-duration-toggle");
+    if (btn) {
+      return btn;
+    }
+
+    btn = document.createElement("button");
+    btn.id = "auto-next-duration-toggle";
+    btn.type = "button";
+    var sec = Math.round(AUTO_ADVANCE_MS / 1000);
+    btn.textContent = "[" + sec + "秒]";
+    btn.style.cssText =
+    "position: fixed;"+
+    "left: 440px;"+
+    "bottom: 14px;"+
+    "padding: 6px 10px;"+
+    "font-size: 13px;"+
+    "color: rgb(150, 150, 150);"+
+    "border-radius: 0px;"+
+    "z-index: 10000;"+
+    "cursor: pointer;"+
+    "background: none;"+
+    "border: none;";
+
+    btn.addEventListener("click", function () {
+      var nextMs = getNextDurationValue();
+      AUTO_ADVANCE_MS = nextMs;
+      saveAutoAdvanceMs(AUTO_ADVANCE_MS);
+      var secNow = Math.round(AUTO_ADVANCE_MS / 1000);
+      btn.textContent = "[" + secNow + "秒]";
+      if (autoEnabled) {
+        startAutoAdvanceCountdown();
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }
+
   // フェードアウトしてから遷移する（共通フェードモジュール連携）
   function fadeOutAndNavigate(nextUrl) {
     if (!nextUrl) {
@@ -474,6 +560,7 @@
     // トグルボタン生成
     createAutoNextToggleButton();
     createAutoNextModeToggleButton();
+    createAutoNextDurationButton();
 
     // 自動送りの状態に応じて挙動
     if (autoEnabled) {
