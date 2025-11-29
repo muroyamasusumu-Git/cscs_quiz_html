@@ -22,25 +22,34 @@
   var DUMMY_STAR_DONE = 500;
   var DUMMY_DAYS_LEFT = 120;
 
-  // ★ merged_all.csv から抽出した正式な 16分野
-  var fieldNames = [
-    "エクササイズテクニック",
-    "スポーツ心理学",
-    "テストと評価",
-    "テスト評価・測定",
-    "バイオメカニクス",
-    "パフォーマンス向上物質",
-    "プログラムデザイン",
-    "プログラム実施",
-    "リハビリテーションと再調整",
-    "指導・安全管理",
-    "指導実施",
-    "施設管理と運営",
-    "栄養学",
-    "特殊集団の考慮",
-    "運動生理学",
-    "運営管理"
-  ];
+  // ★ 分野名は localStorage.cscs_field_names から取得する（フォールバック無し）
+  function loadFieldNamesFromLocalStorageStrict() {
+    try {
+      var raw = localStorage.getItem("cscs_field_names");
+      if (!raw) {
+        console.error("field_summary.js: localStorage.cscs_field_names が存在しません");
+        return null;
+      }
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        console.error("field_summary.js: cscs_field_names が配列ではありません");
+        return null;
+      }
+      var filtered = parsed.filter(function (v) {
+        return typeof v === "string" && v.trim() !== "";
+      });
+      if (filtered.length === 0) {
+        console.error("field_summary.js: cscs_field_names に有効な分野名がありません");
+        return null;
+      }
+      return filtered;
+    } catch (e) {
+      console.error("field_summary.js: cscs_field_names の読み込みに失敗しました", e);
+      return null;
+    }
+  }
+
+  var fieldNames = loadFieldNamesFromLocalStorageStrict();
 
   function makeStats(name) {
     var total = Math.floor(Math.random() * 140) + 60;      // 60〜199
@@ -67,6 +76,17 @@
     }
 
     if (document.getElementById("cscs-field-star-summary")) return;
+
+    // ★ 分野名が正しく取得できなかった場合は、その旨だけ表示して終了（フォールバック無し）
+    if (!fieldNames || !Array.isArray(fieldNames) || fieldNames.length === 0) {
+      var errorPanel = document.createElement("div");
+      errorPanel.id = "cscs-field-star-summary";
+      errorPanel.textContent = "field_summary: localStorage.cscs_field_names が見つからないか不正です。";
+      errorPanel.style.fontSize = "11px";
+      errorPanel.style.opacity = "0.7";
+      wrapContainer.insertAdjacentElement("afterend", errorPanel);
+      return;
+    }
 
     var panel = document.createElement("div");
     panel.id = "cscs-field-star-summary";
