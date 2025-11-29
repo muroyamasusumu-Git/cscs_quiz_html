@@ -315,15 +315,23 @@ h1 { font-size: var(--h1-fs, inherit); }
     if (!dc && !dw && !ds3 && streakLenNow === 0) return;
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
+    const todayMeta = loadStreak3TodayMeta();
+
     const payload = {
-      correctDelta:       dc  > 0 ? { [info.qid]: dc  } : {},
-      incorrectDelta:     dw  > 0 ? { [info.qid]: dw  } : {},
-      streak3Delta:       ds3 > 0 ? { [info.qid]: ds3 } : {},
-      // ★ 追加: 3連続正解「本日ぶん」の delta も同時に送る
-      streak3TodayDelta:  ds3 > 0 ? { [info.qid]: ds3 } : {},
-      streakLenDelta:     { [info.qid]: streakLenNow },
+      correctDelta:   dc  > 0 ? { [info.qid]: dc  } : {},
+      incorrectDelta: dw  > 0 ? { [info.qid]: dw  } : {},
+      streak3Delta:   ds3 > 0 ? { [info.qid]: ds3 } : {},
+      streakLenDelta: { [info.qid]: streakLenNow },
       updatedAt: Date.now()
     };
+
+    // ★ 今日ぶんのユニーク⭐️数が更新された場合だけ送る
+    if (ds3 > 0 && todayMeta.day) {
+      (payload as any).streak3Today = {
+        day: todayMeta.day,
+        unique_q_count: todayMeta.count
+      };
+    }
 
     console.log("[SYNC/B] streak3 merge payload", {
       qid: info.qid,
