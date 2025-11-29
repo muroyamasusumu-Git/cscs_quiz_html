@@ -98,13 +98,27 @@
         ? window.__cscs_sync_state.streak3Today
         : { day: "", unique_q_count: 0 };
 
+      let localStreakDay = "";
+      let localStreakCount = 0;
+      try{
+        localStreakDay = localStorage.getItem("cscs_streak3_today_day") || "";
+        const rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_q_count");
+        const parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
+        if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
+          localStreakCount = parsedLocalCnt;
+        }
+      }catch(_){}
+
       if (box) {
         const qEl  = box.querySelector(".sync-qid");
 
-        const s3tDayEl = box.querySelector(".sync-streak3today-day");
-        const s3tValEl = box.querySelector(".sync-streak3today-val");
-        if (s3tDayEl) s3tDayEl.textContent = streak3Today.day || "-";
-        if (s3tValEl) s3tValEl.textContent = String(streak3Today.unique_q_count || 0);
+        const s3tDayEl   = box.querySelector(".sync-streak3today-day");
+        const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
+        const s3tLocalEl = box.querySelector(".sync-streak3today-local");
+        if (s3tDayEl)   s3tDayEl.textContent   = streak3Today.day || "-";
+        if (s3tSyncEl)  s3tSyncEl.textContent  = String(streak3Today.unique_q_count || 0);
+        if (s3tLocalEl) s3tLocalEl.textContent = String(localStreakCount);
+
         const lEl  = box.querySelector(".sync-local");
         const qdEl = box.querySelector(".sync-queue");
         const stEl = box.querySelector(".sync-status");
@@ -290,7 +304,7 @@
         <div class="sync-line sync-streak3today">
           今日の 3連続正解ユニーク数:<br>
           day: <span class="sync-streak3today-day">-</span><br>
-          unique: <span class="sync-streak3today-val">0</span>
+          unique: sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span>
         </div>
 
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
@@ -409,7 +423,13 @@
             headers:{ "content-type":"application/json" }
           });
 
-          alert("今日の 3連続正解ユニーク数をリセットしました。");
+          try{
+            localStorage.removeItem("cscs_streak3_today_day");
+            localStorage.removeItem("cscs_streak3_today_unique_q_count");
+            localStorage.removeItem("cscs_streak3_today_qids");
+          }catch(_){}
+
+          alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
 
           try{
             const s = await CSCS_SYNC.fetchServer();
