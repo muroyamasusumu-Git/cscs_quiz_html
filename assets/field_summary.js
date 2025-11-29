@@ -141,6 +141,7 @@
       }
       var streak3 = root.streak3;
       var counts = Object.create(null);
+      var totalStarQ = 0;
 
       Object.keys(streak3).forEach(function (qid) {
         var cnt = Number(streak3[qid] || 0);
@@ -159,9 +160,57 @@
         } else {
           counts[field] += 1;
         }
+        totalStarQ += 1;
       });
 
+      var examDate = null;
+      if (typeof root.exam_date === "string") {
+        var m = root.exam_date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+          var y = Number(m[1]);
+          var mo = Number(m[2]) - 1;
+          var d = Number(m[3]);
+          var dt = new Date(y, mo, d);
+          if (
+            !Number.isNaN(dt.getTime()) &&
+            dt.getFullYear() === y &&
+            dt.getMonth() === mo &&
+            dt.getDate() === d
+          ) {
+            examDate = dt;
+          }
+        }
+      }
+
+      var remainingDays = 0;
+      if (examDate) {
+        var now = new Date();
+        var todayBase = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        var deadline = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+        deadline.setDate(deadline.getDate() - 14);
+        var diffMs = deadline.getTime() - todayBase.getTime();
+        remainingDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (!Number.isFinite(remainingDays) || remainingDays < 0) {
+          remainingDays = 0;
+        }
+      }
+
+      var targetPerDay = 0;
+      var TOTAL_Q = 2700;
+      if (remainingDays > 0) {
+        var remainingStar = TOTAL_Q - totalStarQ;
+        if (remainingStar < 0) {
+          remainingStar = 0;
+        }
+        targetPerDay = Math.ceil(remainingStar / remainingDays);
+      } else {
+        targetPerDay = 0;
+      }
+
       starFieldCounts = counts;
+      starTotalSolvedQuestions = totalStarQ;
+      starRemainingDays = remainingDays;
+      starTargetPerDay = targetPerDay;
       return counts;
     } catch (e) {
       console.error("field_summary.js: SYNC 読み込み失敗", e);
@@ -173,6 +222,9 @@
   var fieldTotals = null;
   var qidToField = null;
   var starFieldCounts = null;
+  var starTotalSolvedQuestions = 0;
+  var starRemainingDays = 0;
+  var starTargetPerDay = 0;
 
   function makeStats(name) {
     var total = 0;
@@ -247,8 +299,12 @@
     }
 
     var needLine = document.createElement("div");
+    var targetNum = Number(starTargetPerDay);
+    if (!Number.isFinite(targetNum) || targetNum < 0) {
+      targetNum = 0;
+    }
     needLine.textContent =
-      "⭐️本日の目標19/日(基準比:順調)｜獲得数+5［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
+      "⭐️本日の目標" + String(targetNum) + "/日(基準比:順調)｜獲得数+5［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
     needLine.style.marginBottom = "10px";
     needLine.style.marginLeft = "-8px";
     needLine.style.fontWeight = "500";
