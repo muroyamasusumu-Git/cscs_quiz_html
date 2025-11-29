@@ -22,7 +22,7 @@
   var DUMMY_STAR_DONE = 500;
   var DUMMY_DAYS_LEFT = 120;
 
-  // ★ cscs_meta_all.json から Field 名一覧を取得（similar_list.js と同系統の正規化）
+  // ★ cscs_meta_all.json から Field 名一覧＋各 Field の総問題数を取得（similar_list.js と同系統の正規化）
   function normalizeMetaForFields(meta) {
     var rows = [];
     if (meta && Array.isArray(meta.items)) {
@@ -32,18 +32,29 @@
     } else if (Array.isArray(meta)) {
       rows = meta;
     } else {
-      return [];
+      return { names: [], totals: {} };
     }
 
     var set = new Set();
+    var totals = Object.create(null);
+
     rows.forEach(function (x) {
       var f = x.Field || x.field || "";
       f = String(f).trim();
       if (f) {
         set.add(f);
+        if (totals[f] == null) {
+          totals[f] = 1;
+        } else {
+          totals[f] += 1;
+        }
       }
     });
-    return Array.from(set);
+
+    return {
+      names: Array.from(set),
+      totals: totals
+    };
   }
 
   async function loadFieldNamesFromMetaStrict() {
@@ -69,12 +80,13 @@
         return null;
       }
       var meta = await res.json();
-      var names = normalizeMetaForFields(meta);
-      if (!names || !names.length) {
+      var info = normalizeMetaForFields(meta);
+      if (!info || !info.names || !info.names.length) {
         console.error("field_summary.js: meta に有効な Field がありません");
         return null;
       }
-      return names;
+      fieldTotals = info.totals || {};
+      return info.names;
     } catch (e) {
       console.error("field_summary.js: meta 読み込み失敗", e);
       return null;
@@ -82,10 +94,17 @@
   }
 
   var fieldNames = null;
+  var fieldTotals = null;
 
   function makeStats(name) {
-    var total = Math.floor(Math.random() * 140) + 60;      // 60〜199
-    var star  = Math.floor(total * (Math.random() * 0.8)); // total の 0〜80%
+    var total = 0;
+    if (fieldTotals && Object.prototype.hasOwnProperty.call(fieldTotals, name)) {
+      total = Number(fieldTotals[name]) || 0;
+    }
+    var star = 0;
+    if (total > 0) {
+      star = Math.floor(total * (Math.random() * 0.8)); // total の 0〜80% をダミー達成数として使用
+    }
     return { field: name, star: star, total: total };
   }
 
