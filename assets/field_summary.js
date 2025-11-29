@@ -22,39 +22,61 @@
   var DUMMY_STAR_DONE = 500;
   var DUMMY_DAYS_LEFT = 120;
 
-  async function loadFieldNamesFromManifest() {
+  // ★ cscs_meta_all.json から Field 名一覧を取得（similar_list.js と同系統の正規化）
+  function normalizeMetaForFields(meta) {
+    var rows = [];
+    if (meta && Array.isArray(meta.items)) {
+      rows = meta.items;
+    } else if (meta && Array.isArray(meta.questions)) {
+      rows = meta.questions;
+    } else if (Array.isArray(meta)) {
+      rows = meta;
+    } else {
+      return [];
+    }
+
+    var set = new Set();
+    rows.forEach(function (x) {
+      var f = x.Field || x.field || "";
+      f = String(f).trim();
+      if (f) {
+        set.add(f);
+      }
+    });
+    return Array.from(set);
+  }
+
+  async function loadFieldNamesFromMetaStrict() {
     try {
-      const res = await fetch("nav_manifest.json", { cache: "no-store" });
-      const manifest = await res.json();
+      // デフォルトは similar_list.js と同じ assets/cscs_meta_all.json
+      var src = "../../assets/cscs_meta_all.json";
+      // <script src="...field_summary.js" data-src="..."> があればそちらを優先
+      (function () {
+        var scripts = document.scripts;
+        for (var i = 0; i < scripts.length; i++) {
+          var s = scripts[i];
+          if ((s.src || "").indexOf("field_summary.js") !== -1 && s.dataset && s.dataset.src) {
+            src = s.dataset.src;
+            break;
+          }
+        }
+      })();
 
-      if (!manifest || !Array.isArray(manifest.questions)) {
-        console.error("field_summary.js: nav_manifest.json の questions が不正です");
+      var url = new URL(src, location.href).href;
+      var res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) {
+        console.error("field_summary.js: meta JSON fetch failed: " + res.status);
         return null;
       }
-
-      const fields = manifest.questions
-        .map(function (q) {
-          return (q && typeof q.Field === "string") ? q.Field.trim() : "";
-        })
-        .filter(function (v) {
-          return v !== "";
-        });
-
-      if (fields.length === 0) {
-        console.error("field_summary.js: nav_manifest.json に Field がありません");
+      var meta = await res.json();
+      var names = normalizeMetaForFields(meta);
+      if (!names || !names.length) {
+        console.error("field_summary.js: meta に有効な Field がありません");
         return null;
       }
-
-      const unique = Array.from(new Set(fields));
-
-      if (unique.length === 0) {
-        console.error("field_summary.js: Field がユニーク化後に空です");
-        return null;
-      }
-
-      return unique;
+      return names;
     } catch (e) {
-      console.error("field_summary.js: nav_manifest.json の読み込みに失敗しました", e);
+      console.error("field_summary.js: meta 読み込み失敗", e);
       return null;
     }
   }
@@ -67,13 +89,7 @@
     return { field: name, star: star, total: total };
   }
 
-  var dummyFieldStats = fieldNames.map(makeStats);
-
-  // ★ ダミーで2つを100%達成状態にする
-  if (dummyFieldStats.length >= 2) {
-    dummyFieldStats[1].star = dummyFieldStats[1].total;
-    dummyFieldStats[4].star = dummyFieldStats[4].total;
-  }
+  var dummyFieldStats = null;
 
   var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
   var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
@@ -87,18 +103,29 @@
 
     if (document.getElementById("cscs-field-star-summary")) return;
 
+    // ★ 分野名がまだ無ければ cscs_meta_all.json から取得（フォールバック無し）
     if (!fieldNames) {
-      fieldNames = await loadFieldNamesFromManifest();
+      fieldNames = await loadFieldNamesFromMetaStrict();
+      if (!fieldNames || !Array.isArray(fieldNames) || !fieldNames.length) {
+        var errorPanel = document.createElement("div");
+        errorPanel.id = "cscs-field-star-summary";
+        errorPanel.textContent = "field_summary: /assets/cscs_meta_all.json から分野一覧を取得できませんでした。";
+        errorPanel.style.fontSize = "11px";
+        errorPanel.style.opacity = "0.7";
+        wrapContainer.insertAdjacentElement("afterend", errorPanel);
+        return;
+      }
     }
 
-    if (!fieldNames || !Array.isArray(fieldNames) || fieldNames.length === 0) {
-      var errorPanel = document.createElement("div");
-      errorPanel.id = "cscs-field-star-summary";
-      errorPanel.textContent = "field_summary: nav_manifest.json から Field を取得できませんでした。";
-      errorPanel.style.fontSize = "11px";
-      errorPanel.style.opacity = "0.7";
-      wrapContainer.insertAdjacentElement("afterend", errorPanel);
-      return;
+    // ★ ダミー統計は「取得した分野名」ベースで一度だけ作成
+    if (!dummyFieldStats) {
+      dummyFieldStats = fieldNames.map(makeStats);
+      if (dummyFieldStats.length >= 2) {
+        dummyFieldStats[1].star = dummyFieldStats[1].total;
+        if (dummyFieldStats.length >= 5) {
+          dummyFieldStats[4].star = dummyFieldStats[4].total;
+        }
+      }
     }
 
     var panel = document.createElement("div");
