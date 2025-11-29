@@ -552,14 +552,10 @@
     examButtonSpan.style.fontSize = "13px";
     examButtonSpan.style.marginLeft = "4px";
 
-    function buildExamLineText(nowDate, syncRoot){
+    function buildExamLineText(nowDate){
       var examRaw = "";
       try{
-        if (syncRoot && typeof syncRoot === "object" && typeof syncRoot.exam_date === "string") {
-          examRaw = syncRoot.exam_date || "";
-        } else {
-          examRaw = "";
-        }
+        examRaw = localStorage.getItem("cscs_exam_date") || "";
       }catch(_){
         examRaw = "";
       }
@@ -619,7 +615,7 @@
       "% 達成";
     summaryLine3.style.marginBottom = "0";
 
-    summaryLine4.innerHTML = buildExamLineText(now, syncRoot);
+    summaryLine4.innerHTML = buildExamLineText(now);
     summaryLine4.appendChild(document.createTextNode("｜"));
     summaryLine4.appendChild(examButtonSpan);
 
@@ -755,31 +751,11 @@
           }catch(_){}
         }
 
-        function sendExamDateToSync(dateStr){
-          try{
-            fetch("/api/sync/merge", {
-              method: "POST",
-              headers: {
-                "content-type": "application/json"
-              },
-              body: JSON.stringify({
-                exam_date_iso: String(dateStr || "")
-              })
-            }).catch(function(_){});
-          }catch(_){}
-        }
-
         function handleSelectDate(dateStr){
           try{
             localStorage.setItem("cscs_exam_date", dateStr);
-          }catch(_){}
-          try{
-            sendExamDateToSync(dateStr);
-          }catch(_){}
-          try{
-            var tmpRoot = { exam_date: dateStr };
-            // ★ SYNC と同じ仕様（exam_date を持つオブジェクト）で表示を更新
-            summaryLine4.innerHTML = buildExamLineText(new Date(), tmpRoot);
+            // ★ HTMLとして再描画（<span class="nl-exam-days">～</span> を有効にする）
+            summaryLine4.innerHTML = buildExamLineText(new Date());
             summaryLine4.appendChild(document.createTextNode("｜"));
             summaryLine4.appendChild(examButtonSpan);
           }catch(_){}

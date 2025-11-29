@@ -59,6 +59,27 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.consistency_status[qid] = payload;
   }
 
+  // exam_date_iso (YYYY-MM-DD) が送られてきた場合だけ exam_date を更新
+  const examDateIsoRaw = typeof delta.exam_date_iso === "string" ? delta.exam_date_iso : null;
+  if (examDateIsoRaw) {
+    const m = examDateIsoRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      const d = Number(m[3]);
+      const dt = new Date(y, mo, d);
+      if (
+        !Number.isNaN(dt.getTime()) &&
+        dt.getFullYear() === y &&
+        dt.getMonth() === mo &&
+        dt.getDate() === d
+      ) {
+        // バリデーションを通った YYYY-MM-DD だけを保存
+        (server as any).exam_date = examDateIsoRaw;
+      }
+    }
+  }
+
   server.updatedAt = Date.now();
   await env.SYNC.put(key, JSON.stringify(server));
   return new Response(JSON.stringify(server), {
