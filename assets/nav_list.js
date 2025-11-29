@@ -765,7 +765,27 @@
               body: JSON.stringify({
                 exam_date_iso: String(dateStr || "")
               })
-            }).catch(function(_){});
+            })
+              .then(function(res){
+                try{
+                  if (!res || !res.ok) return null;
+                  return res.json().catch(function(){ return null; });
+                }catch(_){
+                  return null;
+                }
+              })
+              .then(function(json){
+                try{
+                  if (json && typeof window !== "undefined"){
+                    window.CSCS_SYNC_DATA = json;
+                    try{
+                      var ev = new CustomEvent("cscs-sync-updated", { detail: { source: "nav_list_exam" } });
+                      window.dispatchEvent(ev);
+                    }catch(_){}
+                  }
+                }catch(_){}
+              })
+              .catch(function(_){});
           }catch(_){}
         }
 
