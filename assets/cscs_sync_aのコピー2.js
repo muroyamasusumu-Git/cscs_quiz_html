@@ -194,12 +194,6 @@
       queue.streakLenDelta  = {};
 
       const latest = await res.json();
-
-      // SYNC 全体状態を常に最新に保つ（streak3Today も含めて反映）
-      try{
-        window.__cscs_sync_state = latest;
-      }catch(_){}
-
       if (QID){
         const c   = (latest.correct   && latest.correct[QID])   || 0;
         const i   = (latest.incorrect && latest.incorrect[QID]) || 0;
