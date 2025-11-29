@@ -32,28 +32,56 @@
     } else if (Array.isArray(meta)) {
       rows = meta;
     } else {
-      return { names: [], totals: {} };
+      return { names: [], totals: {}, qidToField: {} };
     }
 
     var set = new Set();
     var totals = Object.create(null);
+    var qidMap = Object.create(null);
 
     rows.forEach(function (x) {
       var f = x.Field || x.field || "";
       f = String(f).trim();
-      if (f) {
-        set.add(f);
-        if (totals[f] == null) {
-          totals[f] = 1;
-        } else {
-          totals[f] += 1;
+      if (!f) {
+        return;
+      }
+      set.add(f);
+      if (totals[f] == null) {
+        totals[f] = 1;
+      } else {
+        totals[f] += 1;
+      }
+
+      var day = x.Date || x.day || "";
+      day = String(day).trim();
+
+      var numRaw = null;
+      if (x.n3 != null) {
+        numRaw = x.n3;
+      } else if (x.Number != null) {
+        numRaw = x.Number;
+      }
+
+      var n3 = "";
+      if (numRaw != null) {
+        n3 = String(numRaw);
+        if (n3.length < 3) {
+          n3 = ("00" + n3).slice(-3);
+        }
+      }
+
+      if (day && n3) {
+        var qid = day + "-" + n3;
+        if (!qidMap[qid]) {
+          qidMap[qid] = f;
         }
       }
     });
 
     return {
       names: Array.from(set),
-      totals: totals
+      totals: totals,
+      qidToField: qidMap
     };
   }
 
@@ -86,6 +114,7 @@
         return null;
       }
       fieldTotals = info.totals || {};
+      qidToField = info.qidToField || {};
       return info.names;
     } catch (e) {
       console.error("field_summary.js: meta 読み込み失敗", e);
@@ -93,8 +122,57 @@
     }
   }
 
+  async function loadStarFieldCountsStrict() {
+    try {
+      var res = await fetch("/api/sync/state", { cache: "no-store" });
+      if (!res.ok) {
+        console.error("field_summary.js: /api/sync/state 取得失敗: " + res.status);
+        return null;
+      }
+      var json = await res.json();
+      if (!json || typeof json !== "object") {
+        console.error("field_summary.js: SYNC データ形式が不正です", json);
+        return null;
+      }
+      var root = json.data || json;
+      if (!root.streak3 || typeof root.streak3 !== "object") {
+        console.error("field_summary.js: SYNC に streak3 がありません", root);
+        return null;
+      }
+      var streak3 = root.streak3;
+      var counts = Object.create(null);
+
+      Object.keys(streak3).forEach(function (qid) {
+        var cnt = Number(streak3[qid] || 0);
+        if (!Number.isFinite(cnt) || cnt <= 0) {
+          return;
+        }
+        if (!qidToField || !Object.prototype.hasOwnProperty.call(qidToField, qid)) {
+          return;
+        }
+        var field = qidToField[qid];
+        if (!field) {
+          return;
+        }
+        if (counts[field] == null) {
+          counts[field] = 1;
+        } else {
+          counts[field] += 1;
+        }
+      });
+
+      starFieldCounts = counts;
+      return counts;
+    } catch (e) {
+      console.error("field_summary.js: SYNC 読み込み失敗", e);
+      return null;
+    }
+  }
+
   var fieldNames = null;
   var fieldTotals = null;
+  var qidToField = null;
+  var starFieldCounts = null;
 
   function makeStats(name) {
     var total = 0;
@@ -102,8 +180,8 @@
       total = Number(fieldTotals[name]) || 0;
     }
     var star = 0;
-    if (total > 0) {
-      star = Math.floor(total * (Math.random() * 0.8)); // total の 0〜80% をダミー達成数として使用
+    if (starFieldCounts && Object.prototype.hasOwnProperty.call(starFieldCounts, name)) {
+      star = Number(starFieldCounts[name]) || 0;
     }
     return { field: name, star: star, total: total };
   }
@@ -122,7 +200,6 @@
 
     if (document.getElementById("cscs-field-star-summary")) return;
 
-    // ★ 分野名がまだ無ければ cscs_meta_all.json から取得（フォールバック無し）
     if (!fieldNames) {
       fieldNames = await loadFieldNamesFromMetaStrict();
       if (!fieldNames || !Array.isArray(fieldNames) || !fieldNames.length) {
@@ -136,15 +213,21 @@
       }
     }
 
-    // ★ ダミー統計は「取得した分野名」ベースで一度だけ作成
+    if (!starFieldCounts) {
+      var counts = await loadStarFieldCountsStrict();
+      if (!counts) {
+        var errorPanelSync = document.createElement("div");
+        errorPanelSync.id = "cscs-field-star-summary";
+        errorPanelSync.textContent = "field_summary: /api/sync/state から streak3 を取得できませんでした。";
+        errorPanelSync.style.fontSize = "11px";
+        errorPanelSync.style.opacity = "0.7";
+        wrapContainer.insertAdjacentElement("afterend", errorPanelSync);
+        return;
+      }
+    }
+
     if (!dummyFieldStats) {
       dummyFieldStats = fieldNames.map(makeStats);
-      if (dummyFieldStats.length >= 2) {
-        dummyFieldStats[1].star = dummyFieldStats[1].total;
-        if (dummyFieldStats.length >= 5) {
-          dummyFieldStats[4].star = dummyFieldStats[4].total;
-        }
-      }
     }
 
     var panel = document.createElement("div");
