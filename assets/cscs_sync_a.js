@@ -312,6 +312,143 @@
     }
   }
 
+  async function resetSyncForThisQid(showAlert, doFetch){
+    if (showAlert === undefined) showAlert = true;
+    if (doFetch === undefined) doFetch = true;
+    if (!QID) return;
+    try{
+      await fetch("/api/sync/reset_qid", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ qid: QID })
+      });
+
+      try{
+        const kCorNow  = "cscs_q_correct_total:" + QID;
+        const kWrgNow  = "cscs_q_wrong_total:"   + QID;
+        const kCorLast = "cscs_sync_last_c:"     + QID;
+        const kWrgLast = "cscs_sync_last_w:"     + QID;
+
+        localStorage.setItem(kCorNow,  "0");
+        localStorage.setItem(kWrgNow,  "0");
+        localStorage.setItem(kCorLast, "0");
+        localStorage.setItem(kWrgLast, "0");
+      }catch(_){}
+
+      if (doFetch) {
+        await initialFetch();
+      }
+      if (showAlert) {
+        alert("この問題のSYNCカウンタをリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("reset 失敗: " + e);
+      } else {
+        console.warn("reset_qid 失敗:", e);
+      }
+    }
+  }
+
+  async function resetStarForThisQid(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    if (!QID) return;
+    try{
+      try{
+        await fetch("/api/sync/reset_streak3_qid", {
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify({ qid: QID })
+        });
+      }catch(_){}
+
+      const kStreakLen    = "cscs_q_correct_streak_len:" + QID;
+      const kStreakTotal  = "cscs_q_correct_streak3_total:" + QID;
+      const kStreakLastS3 = "cscs_sync_last_s3:" + QID;
+      try{
+        localStorage.removeItem(kStreakLen);
+        localStorage.removeItem(kStreakTotal);
+        localStorage.setItem(kStreakLastS3, "0");
+      }catch(_){}
+
+      const logKey = "cscs_correct_streak3_log";
+      try{
+        const raw = localStorage.getItem(logKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(function(entry){
+              if (!entry || typeof entry !== "object") return true;
+              if (!("qid" in entry)) return true;
+              return entry.qid !== QID;
+            });
+            localStorage.setItem(logKey, JSON.stringify(filtered));
+          }
+        }
+      }catch(_){}
+
+      try{
+        const totalsEl = document.getElementById("cscs_sync_totals");
+        if (totalsEl) {
+          const sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+          const si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+          setServerTotalsForQid(sc, si, 0);
+        }
+      }catch(_){}
+
+      try{
+        const stars = document.querySelectorAll(".correct_star");
+        stars.forEach(function(el){
+          el.style.display = "none";
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert("この問題の星データをリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("星データのリセットに失敗しました: " + e);
+      } else {
+        console.warn("reset_streak3_qid 失敗:", e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch("/api/sync/reset_streak3_today", {
+        method:"POST",
+        headers:{ "content-type":"application/json" }
+      });
+
+      try{
+        localStorage.removeItem("cscs_streak3_today_day");
+        localStorage.removeItem("cscs_streak3_today_unique_q_count");
+        localStorage.removeItem("cscs_streak3_today_qids");
+      }catch(_){}
+
+      if (showAlert) {
+        alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
+      }
+
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+        updateMonitor();
+      }catch(_){}
+    }catch(e){
+      if (showAlert) {
+        alert("reset_streak3_today 失敗: " + e);
+      } else {
+        console.warn("reset_streak3_today 失敗:", e);
+      }
+    }
+  }
+
   window.addEventListener("DOMContentLoaded", function(){
     if (!QID) return;
     try{
@@ -344,6 +481,7 @@
           <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
           <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
           <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
+          <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
         </div>
       `;
       const wrap = document.querySelector("div.wrap");
@@ -357,120 +495,39 @@
       const btnNg   = document.getElementById("cscs_sync_test_ng");
       const btnReset  = document.getElementById("cscs_sync_test_reset");
       const btnStarReset = document.getElementById("cscs_sync_star_reset");
-
-      if (btnReset) btnReset.addEventListener("click", async () => {
-        if (!QID) return;
-        try{
-          await fetch("/api/sync/reset_qid", {
-            method:"POST",
-            headers:{ "content-type":"application/json" },
-            body: JSON.stringify({ qid: QID })
-          });
-
-          try{
-            const kCorNow  = "cscs_q_correct_total:" + QID;
-            const kWrgNow  = "cscs_q_wrong_total:"   + QID;
-            const kCorLast = "cscs_sync_last_c:"     + QID;
-            const kWrgLast = "cscs_sync_last_w:"     + QID;
-
-            localStorage.setItem(kCorNow,  "0");
-            localStorage.setItem(kWrgNow,  "0");
-            localStorage.setItem(kCorLast, "0");
-            localStorage.setItem(kWrgLast, "0");
-          }catch(_){}
-
-          alert("この問題のSYNCカウンタをリセットしました。");
-          await initialFetch();
-        }catch(e){
-          alert("reset 失敗: " + e);
-        }
-      });
-
-      if (btnStarReset) btnStarReset.addEventListener("click", async () => {
-        if (!QID) return;
-        try{
-          try{
-            await fetch("/api/sync/reset_streak3_qid", {
-              method:"POST",
-              headers:{ "content-type":"application/json" },
-              body: JSON.stringify({ qid: QID })
-            });
-          }catch(_){}
-
-          const kStreakLen    = "cscs_q_correct_streak_len:" + QID;
-          const kStreakTotal  = "cscs_q_correct_streak3_total:" + QID;
-          const kStreakLastS3 = "cscs_sync_last_s3:" + QID;
-          try{
-            localStorage.removeItem(kStreakLen);
-            localStorage.removeItem(kStreakTotal);
-            localStorage.setItem(kStreakLastS3, "0");
-          }catch(_){}
-
-          const logKey = "cscs_correct_streak3_log";
-          try{
-            const raw = localStorage.getItem(logKey);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) {
-                const filtered = parsed.filter(function(entry){
-                  if (!entry || typeof entry !== "object") return true;
-                  if (!("qid" in entry)) return true;
-                  return entry.qid !== QID;
-                });
-                localStorage.setItem(logKey, JSON.stringify(filtered));
-              }
-            }
-          }catch(_){}
-
-          try{
-            const totalsEl = document.getElementById("cscs_sync_totals");
-            if (totalsEl) {
-              const sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
-              const si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
-              setServerTotalsForQid(sc, si, 0);
-            }
-          }catch(_){}
-
-          try{
-            const stars = document.querySelectorAll(".correct_star");
-            stars.forEach(function(el){
-              el.style.display = "none";
-            });
-          }catch(_){}
-
-          updateMonitor();
-
-          alert("この問題の星データをリセットしました。");
-        }catch(e){
-          alert("星データのリセットに失敗しました: " + e);
-        }
-      });
-
       const btnStreakTodayReset = document.getElementById("cscs_sync_streak3today_reset");
-      if (btnStreakTodayReset) btnStreakTodayReset.addEventListener("click", async () => {
-        try{
-          await fetch("/api/sync/reset_streak3_today", {
-            method:"POST",
-            headers:{ "content-type":"application/json" }
-          });
+      const btnAllReset = document.getElementById("cscs_sync_all_reset");
 
-          try{
-            localStorage.removeItem("cscs_streak3_today_day");
-            localStorage.removeItem("cscs_streak3_today_unique_q_count");
-            localStorage.removeItem("cscs_streak3_today_qids");
-          }catch(_){}
+      if (btnReset) {
+        btnReset.addEventListener("click", function(){
+          resetSyncForThisQid(true, true);
+        });
+      }
 
-          alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
+      if (btnStarReset) {
+        btnStarReset.addEventListener("click", function(){
+          resetStarForThisQid(true);
+        });
+      }
 
-          try{
-            const s = await CSCS_SYNC.fetchServer();
-            window.__cscs_sync_state = s;
-            updateMonitor();
-          }catch(_){}
-        }catch(e){
-          alert("reset_streak3_today 失敗: " + e);
-        }
-      });
+      if (btnStreakTodayReset) {
+        btnStreakTodayReset.addEventListener("click", function(){
+          resetStreak3TodayAll(true);
+        });
+      }
+
+      if (btnAllReset) {
+        btnAllReset.addEventListener("click", async function(){
+          if (!QID) return;
+          const ok = window.confirm("この問題のSYNCカウンタ・星・今日の3連続正解ユニーク数をすべてリセットします。よろしいですか？");
+          if (!ok) return;
+          await resetSyncForThisQid(false, false);
+          await resetStarForThisQid(false);
+          await resetStreak3TodayAll(false);
+          await initialFetch();
+          alert("この問題に関するSYNCカウンタ・星・今日の3連続正解ユニーク数をすべてリセットしました。");
+        });
+      }
 
       if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
       if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
