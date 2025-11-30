@@ -130,8 +130,6 @@
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
     const todayMeta = loadStreak3TodayMeta();
 
-    console.log("[SYNC/B] todayMeta (before payload)", todayMeta);
-
     const payload = {
       correctDelta:   dc  > 0 ? { [info.qid]: dc  } : {},
       incorrectDelta: dw  > 0 ? { [info.qid]: dw  } : {},
@@ -140,12 +138,14 @@
       updatedAt: Date.now()
     };
 
-    // ★ streak3Today は day が空でも必ず送る（Workers 側でバリデーション）
-    payload.streak3Today = {
-      day: todayMeta.day || "",
-      unique_count: todayMeta.count || 0,
-      qids: Array.isArray(todayMeta.qids) ? todayMeta.qids : []
-    };
+    // ★ local streak3Today メタが存在する場合は常に送る
+    if (todayMeta.day) {
+      payload.streak3Today = {
+        day: todayMeta.day,
+        unique_count: todayMeta.count,
+        qids: Array.isArray(todayMeta.qids) ? todayMeta.qids : []
+      };
+    }
 
     console.log("[SYNC/B] streak3 merge payload", {
       qid: info.qid,
