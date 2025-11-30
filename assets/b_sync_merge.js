@@ -124,8 +124,15 @@
       } catch (_e) {}
     }
 
-    // streakLenNow が 0 でも「リセットとして送る」ケースがあるので条件に含めない
-    if (!dc && !dw && !ds3 && streakLenNow === 0) return;
+    // streak3Today に何かしらの変化があるなら必ず送る
+    const todayMeta = loadStreak3TodayMeta();
+    const forceSendStreakToday = todayMeta.count > 0;
+
+    // 以前は ds3==0 && streakLenNow==0 なら return していたが、
+    // streak3Today を送る場合は return しない
+    if (!dc && !dw && !ds3 && streakLenNow === 0 && !forceSendStreakToday) {
+    　return;
+    }
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
     const todayMeta = loadStreak3TodayMeta();
