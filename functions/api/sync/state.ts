@@ -5,6 +5,12 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // データ読み込み（存在しなければ空オブジェクト）
   const data = await env.SYNC.get(key, "json");
 
+  // ★ debug: KV から生で取れたデータをログ出力
+  try {
+    console.log("[SYNC/state] key:", key);
+    console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
+  } catch (_e) {}
+
   // streak3 / consistency_status を必ず返却するため empty に項目を用意
   const empty = {
     correct: {},
@@ -24,6 +30,11 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
   if (!out.streak3Today) out.streak3Today = { day: "", unique_count: 0 };
+
+  // ★ debug: クライアントに返す streak3Today をログ出力
+  try {
+    console.log("[SYNC/state] out.streak3Today:", JSON.stringify(out.streak3Today));
+  } catch (_e) {}
 
   return new Response(JSON.stringify(out), {
     headers: { "content-type": "application/json" },

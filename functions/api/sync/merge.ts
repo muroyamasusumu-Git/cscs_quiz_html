@@ -63,6 +63,18 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.consistency_status[qid] = payload;
   }
 
+  // ★ debug: merge 前の streak3Today の状態をログ出力
+  try {
+    console.log(
+      "[SYNC/merge] BEFORE streak3Today:",
+      JSON.stringify((server as any).streak3Today)
+    );
+    console.log(
+      "[SYNC/merge] delta.streak3Today:",
+      JSON.stringify((delta as any).streak3Today)
+    );
+  } catch (_e) {}
+
   const streak3TodayDelta = delta.streak3Today;
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
     const dayValue = (streak3TodayDelta as any).day;
@@ -96,6 +108,14 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       }
     }
   }
+
+  // ★ debug: merge 後の streak3Today の状態をログ出力
+  try {
+    console.log(
+      "[SYNC/merge] AFTER  streak3Today:",
+      JSON.stringify((server as any).streak3Today)
+    );
+  } catch (_e) {}
 
   // exam_date_iso (YYYY-MM-DD) が送られてきた場合だけ exam_date を更新
   const examDateIsoRaw = typeof delta.exam_date_iso === "string" ? delta.exam_date_iso : null;
