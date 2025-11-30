@@ -96,13 +96,13 @@
 
       const streak3Today = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today)
         ? window.__cscs_sync_state.streak3Today
-        : { day: "", unique_q_count: 0 };
+        : { day: "", unique_count: 0 };
 
       let localStreakDay = "";
       let localStreakCount = 0;
       try{
         localStreakDay = localStorage.getItem("cscs_streak3_today_day") || "";
-        const rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_q_count");
+        const rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_count");
         const parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
         if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
           localStreakCount = parsedLocalCnt;
@@ -116,7 +116,7 @@
         const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
         const s3tLocalEl = box.querySelector(".sync-streak3today-local");
         if (s3tDayEl)   s3tDayEl.textContent   = streak3Today.day || "-";
-        if (s3tSyncEl)  s3tSyncEl.textContent  = String(streak3Today.unique_q_count || 0);
+        if (s3tSyncEl)  s3tSyncEl.textContent  = String(streak3Today.unique_count || 0);
         if (s3tLocalEl) s3tLocalEl.textContent = String(localStreakCount);
 
         const lEl  = box.querySelector(".sync-local");
@@ -270,7 +270,7 @@
       // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
       const streak3Today = (s && s.streak3Today)
         ? s.streak3Today
-        : { day: "", unique_q_count: 0, qids: [] };
+        : { day: "", unique_count: 0, qids: [] };
 
       try{
         if (streak3Today.day) {
@@ -279,8 +279,8 @@
           localStorage.removeItem("cscs_streak3_today_day");
         }
         localStorage.setItem(
-          "cscs_streak3_today_unique_q_count",
-          String(streak3Today.unique_q_count || 0)
+          "cscs_streak3_today_unique_count",
+          String(streak3Today.unique_count || 0)
         );
         if (Array.isArray(streak3Today.qids)) {
           localStorage.setItem(
@@ -427,7 +427,7 @@
 
       try{
         localStorage.removeItem("cscs_streak3_today_day");
-        localStorage.removeItem("cscs_streak3_today_unique_q_count");
+        localStorage.removeItem("cscs_streak3_today_unique_count");
         localStorage.removeItem("cscs_streak3_today_qids");
       }catch(_){}
 

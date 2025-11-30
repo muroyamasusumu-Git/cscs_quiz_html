@@ -41,7 +41,7 @@
   function loadStreak3TodayMeta(){
     var dayKey   = "cscs_streak3_today_day";
     var qidsKey  = "cscs_streak3_today_qids";
-    var countKey = "cscs_streak3_today_unique_q_count";
+    var countKey = "cscs_streak3_today_unique_count";
 
     var day = "";
     try {
@@ -124,7 +124,7 @@
     if (ds3 > 0 && todayMeta.day) {
       payload.streak3Today = {
         day: todayMeta.day,
-        unique_q_count: todayMeta.count
+        unique_count: todayMeta.count
       };
     }
 

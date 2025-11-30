@@ -14,10 +14,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.streak3) server.streak3 = {};
   if (!server.streakLen) server.streakLen = {};
   if (!server.consistency_status) server.consistency_status = {};
-  if (!server.streak3Today) server.streak3Today = { day: "", unique_q_count: 0 };
+  if (!server.streak3Today) server.streak3Today = { day: "", unique_count: 0 };
 
   // ★ 今日の⭐️ユニーク数を「完全リセット」
-  server.streak3Today = { day: "", unique_q_count: 0 };
+  server.streak3Today = { day: "", unique_count: 0 };
 
   server.updatedAt = Date.now();
   await env.SYNC.put(key, JSON.stringify(server));

@@ -6,7 +6,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   const delta = await request.json(); // { correctDelta:{qid:n}, incorrectDelta:{qid:n}, streak3Delta:{qid:n}, streakLenDelta:{qid:n} }
   const server =
     (await env.SYNC.get(key, "json")) ||
-    { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, consistency_status: {}, streak3Today: { day: "", unique_q_count: 0 }, updatedAt: 0 };
+    { correct: {}, incorrect: {}, streak3: {}, streakLen: {}, consistency_status: {}, streak3Today: { day: "", unique_count: 0 }, updatedAt: 0 };
 
   if (!server.correct) {
     server.correct = {};
@@ -24,7 +24,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.consistency_status = {};
   }
   if (!(server as any).streak3Today) {
-    (server as any).streak3Today = { day: "", unique_q_count: 0 };
+    (server as any).streak3Today = { day: "", unique_count: 0 };
   }
 
   for (const [qid, n] of Object.entries(delta.correctDelta || {})) {
@@ -66,7 +66,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   const streak3TodayDelta = delta.streak3Today;
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
     const dayValue = (streak3TodayDelta as any).day;
-    const countRaw = (streak3TodayDelta as any).unique_q_count;
+    const countRaw = (streak3TodayDelta as any).unique_count;
     const day = typeof dayValue === "string" ? dayValue : "";
     const count =
       typeof countRaw === "number" && Number.isFinite(countRaw) && countRaw >= 0
@@ -74,24 +74,24 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         : null;
 
     if (day && count !== null) {
-      const current = (server as any).streak3Today || { day: "", unique_q_count: 0 };
+      const current = (server as any).streak3Today || { day: "", unique_count: 0 };
       const currentDay = typeof current.day === "string" ? current.day : "";
       const currentCount =
-        typeof current.unique_q_count === "number" &&
-        Number.isFinite(current.unique_q_count) &&
-        current.unique_q_count >= 0
-          ? current.unique_q_count
+        typeof current.unique_count === "number" &&
+        Number.isFinite(current.unique_count) &&
+        current.unique_count >= 0
+          ? current.unique_count
           : 0;
 
       if (currentDay === day) {
         (server as any).streak3Today = {
           day,
-          unique_q_count: Math.max(currentCount, count)
+          unique_count: Math.max(currentCount, count)
         };
       } else {
         (server as any).streak3Today = {
           day,
-          unique_q_count: count
+          unique_count: count
         };
       }
     }

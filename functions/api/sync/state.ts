@@ -12,7 +12,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     streak3: {},
     streakLen: {},
     consistency_status: {},
-    streak3Today: { day: "", unique_q_count: 0 },
+    streak3Today: { day: "", unique_count: 0 },
     updatedAt: 0
   };
 
@@ -23,7 +23,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
-  if (!out.streak3Today) out.streak3Today = { day: "", unique_q_count: 0 };
+  if (!out.streak3Today) out.streak3Today = { day: "", unique_count: 0 };
 
   return new Response(JSON.stringify(out), {
     headers: { "content-type": "application/json" },

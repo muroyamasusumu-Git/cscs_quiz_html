@@ -128,14 +128,14 @@
 
       var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
         ? window.__cscs_sync_state.streak3Today.day : "-";
-      var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_q_count) 
-        ? window.__cscs_sync_state.streak3Today.unique_q_count : 0;
+      var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_count) 
+        ? window.__cscs_sync_state.streak3Today.unique_count : 0;
 
       var localS3TodayDay = "";
       var localS3TodayCnt = 0;
       try {
         localS3TodayDay = localStorage.getItem("cscs_streak3_today_day") || "-";
-        var rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_q_count");
+        var rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_count");
         var parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
         if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
           localS3TodayCnt = parsedLocalCnt;
