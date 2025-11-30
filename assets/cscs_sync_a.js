@@ -499,20 +499,23 @@
       const btnAllReset = document.getElementById("cscs_sync_all_reset");
 
       if (btnReset) {
-        btnReset.addEventListener("click", function(){
-          resetSyncForThisQid(true, true);
+        btnReset.addEventListener("click", async function(){
+          await resetSyncForThisQid(true, false);
+          await initialFetch();
         });
       }
 
       if (btnStarReset) {
-        btnStarReset.addEventListener("click", function(){
-          resetStarForThisQid(true);
+        btnStarReset.addEventListener("click", async function(){
+          await resetStarForThisQid(true);
+          await initialFetch();
         });
       }
 
       if (btnStreakTodayReset) {
-        btnStreakTodayReset.addEventListener("click", function(){
-          resetStreak3TodayAll(true);
+        btnStreakTodayReset.addEventListener("click", async function(){
+          await resetStreak3TodayAll(true);
+          await initialFetch();
         });
       }
 
