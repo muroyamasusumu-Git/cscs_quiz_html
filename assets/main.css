@@ -444,7 +444,7 @@ body.mode-a #cc-check-wrapper {
 }
 
 body.mode-b #cc-check-wrapper {
-    top: 190px;
+    top: 130px;
 }
 
 
@@ -496,7 +496,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_monitor_a {
   position: fixed;
   right: 0;
-  bottom: 0;
+  top: 280px;
   z-index: 9999;
   background: transparent;
   color: #eee;
