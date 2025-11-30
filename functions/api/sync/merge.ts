@@ -65,23 +65,42 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   // ★ debug: merge 前の streak3Today の状態をログ出力
   try {
+    const beforeSt3 =
+      (server as any).streak3Today || { day: "", unique_count: 0, qids: [] };
+
+    const deltaSt3 =
+      delta &&
+      typeof delta === "object" &&
+      (delta as any).streak3Today
+        ? (delta as any).streak3Today
+        : null;
+
     console.log(
       "[SYNC/merge] BEFORE streak3Today:",
-      JSON.stringify((server as any).streak3Today)
+      JSON.stringify(beforeSt3)
     );
     console.log(
       "[SYNC/merge] delta.streak3Today:",
-      JSON.stringify((delta as any).streak3Today)
+      JSON.stringify(deltaSt3)
     );
-  } catch (_e) {}
+  } catch (_e) {
+    console.warn("[SYNC/merge] ★logging error(before streak3Today)", _e);
+  }
 
-  const streak3TodayDelta = delta.streak3Today;
+  const streak3TodayDelta =
+    delta && typeof delta === "object"
+      ? (delta as any).streak3Today
+      : undefined;
+
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
     // ★ delta あり（フロントから streak3Today が送られてきた）
     console.log("[SYNC/merge] ★streak3Today: delta あり（更新実施）");
 
     (server as any).streak3Today = {
-      day: typeof streak3TodayDelta.day === "string" ? streak3TodayDelta.day : "",
+      day:
+        typeof streak3TodayDelta.day === "string"
+          ? streak3TodayDelta.day
+          : "",
       unique_count:
         typeof streak3TodayDelta.unique_count === "number" &&
         Number.isFinite(streak3TodayDelta.unique_count) &&
@@ -94,18 +113,19 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     };
   } else {
     // ★ delta なし（今回は streak3Today は更新されない）
-    try {
-      console.log("[SYNC/merge] ★streak3Today: delta なし（更新スキップ）");
-    } catch (_e) {}
+    console.log("[SYNC/merge] ★streak3Today: delta なし（更新スキップ）");
   }
 
   // ★ debug: merge 後の streak3Today の状態をログ出力
   try {
+    const afterSt3 = (server as any).streak3Today || null;
     console.log(
       "[SYNC/merge] AFTER  streak3Today:",
-      JSON.stringify((server as any).streak3Today)
+      JSON.stringify(afterSt3)
     );
-  } catch (_e) {}
+  } catch (_e) {
+    console.warn("[SYNC/merge] ★logging error(after streak3Today)", _e);
+  }
 
   // exam_date_iso (YYYY-MM-DD) が送られてきた場合だけ exam_date を更新
   const examDateIsoRaw = typeof delta.exam_date_iso === "string" ? delta.exam_date_iso : null;
