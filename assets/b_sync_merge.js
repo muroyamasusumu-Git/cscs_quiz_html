@@ -41,7 +41,7 @@
   function loadStreak3TodayMeta(){
     var dayKey   = "cscs_streak3_today_day";
     var qidsKey  = "cscs_streak3_today_qids";
-
+    var countKey = "cscs_streak3_today_unique_q_count";
 
     var day = "";
     try {
