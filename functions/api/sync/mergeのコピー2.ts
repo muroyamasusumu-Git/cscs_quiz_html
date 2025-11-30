@@ -77,18 +77,48 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   const streak3TodayDelta = delta.streak3Today;
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
-    (server as any).streak3Today = {
-      day: typeof streak3TodayDelta.day === "string" ? streak3TodayDelta.day : "",
-      unique_count:
-        typeof streak3TodayDelta.unique_count === "number" &&
-        Number.isFinite(streak3TodayDelta.unique_count) &&
-        streak3TodayDelta.unique_count >= 0
-          ? streak3TodayDelta.unique_count
-          : 0,
-      qids: Array.isArray((streak3TodayDelta as any).qids)
-        ? (streak3TodayDelta as any).qids
-        : []
-    };
+    const dayValue = (streak3TodayDelta as any).day;
+    const countRaw = (streak3TodayDelta as any).unique_count;
+
+    const incomingDay =
+      typeof dayValue === "string"
+        ? dayValue
+        : "";
+    const incomingCount =
+      typeof countRaw === "number" &&
+      Number.isFinite(countRaw) &&
+      countRaw >= 0
+        ? countRaw
+        : null;
+
+    // ★ count が妥当な値なら、day が空でも必ず streak3Today を更新する
+    if (incomingCount !== null) {
+      const current = (server as any).streak3Today || { day: "", unique_count: 0 };
+      const currentDay =
+        typeof current.day === "string"
+          ? current.day
+          : "";
+      const currentCount =
+        typeof current.unique_count === "number" &&
+        Number.isFinite(current.unique_count) &&
+        current.unique_count >= 0
+          ? current.unique_count
+          : 0;
+
+      // incomingDay が空なら、既存の日付を優先する
+      const dayToSave = incomingDay || currentDay;
+
+      // 同じ日付なら「大きい方」を採用、日付が変わるなら新しい count をそのまま採用
+      const uniqueCountToSave =
+        currentDay === dayToSave
+          ? Math.max(currentCount, incomingCount)
+          : incomingCount;
+
+      (server as any).streak3Today = {
+        day: dayToSave,
+        unique_count: uniqueCountToSave
+      };
+    }
   }
 
   // ★ debug: merge 後の streak3Today の状態をログ出力
