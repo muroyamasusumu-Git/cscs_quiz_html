@@ -44,13 +44,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   } catch (_e) {}
   // ★★★ 状態分類ログ ここまで ★★★
 
-  // streak3 / consistency_status を必ず返却するため empty に項目を用意
+  // streak3 / consistency_status / streak3Today を必ず返却するため empty に項目を用意
   const empty = {
     correct: {},
     incorrect: {},
     streak3: {},
     streakLen: {},
     consistency_status: {},
+    streak3Today: { day: "", unique_count: 0 },
     updatedAt: 0
   };
 
@@ -74,16 +75,57 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
 
-  // ★ debug: クライアントに返す streak3Today と out 全体をログ出力
+  // ★ streak3Today の正規化とログ
   try {
-    console.log("[SYNC/state] out.streak3Today:", JSON.stringify(out.streak3Today));
+    if (!out.streak3Today || typeof out.streak3Today !== "object") {
+      console.warn("[SYNC/state] ★streak3Today が存在しないか不正な形式のため、デフォルトを適用します。");
+      out.streak3Today = { day: "", unique_count: 0 };
+    }
+
+    // day は string 以外は空文字に落とす
+    if (typeof out.streak3Today.day !== "string") {
+      console.warn("[SYNC/state] ★streak3Today.day が string ではないため、空文字に補正します。 value:", out.streak3Today.day);
+      out.streak3Today.day = "";
+    }
+
+    // unique_count は 0 以上の number 以外は 0 にする
+    if (
+      typeof out.streak3Today.unique_count !== "number" ||
+      !Number.isFinite(out.streak3Today.unique_count) ||
+      out.streak3Today.unique_count < 0
+    ) {
+      console.warn(
+        "[SYNC/state] ★streak3Today.unique_count が不正なため、0 に補正します。 value:",
+        out.streak3Today.unique_count
+      );
+      out.streak3Today.unique_count = 0;
+    }
+  } catch (_e) {
+    // ここで例外が出ても最後に out.streak3Today が undefined にならないように保険
+    out.streak3Today = { day: "", unique_count: 0 };
+  }
+
+  // ★ debug: クライアントに返す値を “要約して” ログ出力
+  try {
+    const updatedAt = typeof out.updatedAt === "number" ? out.updatedAt : 0;
+    const ageMs = updatedAt ? (Date.now() - updatedAt) : null;
+
+    console.log("[SYNC/state] ★state RESPONSE streak3Today:", {
+      day: out.streak3Today.day,
+      unique_count: out.streak3Today.unique_count
+    });
+
     console.log("[SYNC/state] ★state 応答オブジェクト概要", {
       hasCorrect: !!out.correct,
       hasIncorrect: !!out.incorrect,
       hasStreak3: !!out.streak3,
       hasStreakLen: !!out.streakLen,
-      hasConsistencyStatus: !!out.consistency_status
+      hasConsistencyStatus: !!out.consistency_status,
+      hasStreak3Today: !!out.streak3Today,
+      updatedAt,
+      ageMs
     });
+
     console.log("[SYNC/state] === onRequestGet END ===");
   } catch (_e) {}
 

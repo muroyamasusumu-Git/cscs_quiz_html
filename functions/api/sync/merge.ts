@@ -92,28 +92,44 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       ? (delta as any).streak3Today
       : undefined;
 
+  // === streak3Today Delta 処理 ===
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
-    // ★ delta あり（フロントから streak3Today が送られてきた）
-    console.log("[SYNC/merge] ★streak3Today: delta あり（更新実施）");
+    console.log("[SYNC/merge] ★streak3Today: delta あり（更新開始）");
+    console.log("[SYNC/merge]   delta.day          =", streak3TodayDelta.day);
+    console.log("[SYNC/merge]   delta.unique_count =", streak3TodayDelta.unique_count);
+    console.log("[SYNC/merge]   delta.qids         =", streak3TodayDelta.qids);
+
+    const newDay =
+      typeof streak3TodayDelta.day === "string"
+        ? streak3TodayDelta.day
+        : "";
+
+    const newCnt =
+      typeof streak3TodayDelta.unique_count === "number" &&
+      Number.isFinite(streak3TodayDelta.unique_count) &&
+      streak3TodayDelta.unique_count >= 0
+        ? streak3TodayDelta.unique_count
+        : 0;
+
+    const newQids = Array.isArray((streak3TodayDelta as any).qids)
+      ? (streak3TodayDelta as any).qids
+      : [];
+
+    console.log("[SYNC/merge] ★反映される値:", {
+      day: newDay,
+      unique_count: newCnt,
+      qids: newQids
+    });
 
     (server as any).streak3Today = {
-      day:
-        typeof streak3TodayDelta.day === "string"
-          ? streak3TodayDelta.day
-          : "",
-      unique_count:
-        typeof streak3TodayDelta.unique_count === "number" &&
-        Number.isFinite(streak3TodayDelta.unique_count) &&
-        streak3TodayDelta.unique_count >= 0
-          ? streak3TodayDelta.unique_count
-          : 0,
-      qids: Array.isArray((streak3TodayDelta as any).qids)
-        ? (streak3TodayDelta as any).qids
-        : []
+      day: newDay,
+      unique_count: newCnt,
+      qids: newQids
     };
+
   } else {
-    // ★ delta なし（今回は streak3Today は更新されない）
-    console.log("[SYNC/merge] ★streak3Today: delta なし（更新スキップ）");
+    console.log("[SYNC/merge] ★streak3Today: delta なし（今回更新されません）");
+    console.log("[SYNC/merge]   現在の server.streak3Today =", (server as any).streak3Today);
   }
 
   // ★ debug: merge 後の streak3Today の状態をログ出力
