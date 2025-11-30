@@ -146,6 +146,14 @@
       text += "day: " + s3TodaySyncDay + "\n";
       text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt;
 
+      console.log("[SYNC-B:view] 今日の3連続正解ユニーク数", {
+        qid: info.qid,
+        syncDay: s3TodaySyncDay,
+        syncUniqueCount: s3TodaySyncCnt,
+        localDay: localS3TodayDay,
+        localUniqueCount: localS3TodayCnt
+      });
+
       updateSyncBody(text);
 
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
