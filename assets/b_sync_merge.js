@@ -120,11 +120,11 @@
       updatedAt: Date.now()
     };
 
-    // ★ 今日ぶんのユニーク⭐️数が更新された場合だけ送る
-    if (ds3 > 0 && todayMeta.day) {
+    // ★ local streak3Today メタが存在する場合は常に送る
+    if (todayMeta.day) {
       payload.streak3Today = {
         day: todayMeta.day,
-        unique_count: todayMeta.count
+        unique_q_count: todayMeta.count
       };
     }
 
