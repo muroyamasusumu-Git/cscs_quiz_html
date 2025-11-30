@@ -106,24 +106,6 @@
     const dw  = Math.max(0, wNow  - wLast);
     const ds3 = Math.max(0, s3Now - s3Last);
 
-    // ★ ds3 > 0（新しく⭐️を獲得）した場合は、今日の日付を必ず localStorage に記録
-    if (ds3 > 0) {
-      try {
-        var streakDayKey = "cscs_streak3_today_day";
-        var currentDayVal = localStorage.getItem(streakDayKey) || "";
-        if (!currentDayVal) {
-          var now = new Date();
-          var y = now.getFullYear();
-          var m = now.getMonth() + 1;
-          var d = now.getDate();
-          var mm = m < 10 ? "0" + m : String(m);
-          var dd = d < 10 ? "0" + d : String(d);
-          var todayStr = "" + y + mm + dd;
-          localStorage.setItem(streakDayKey, todayStr);
-        }
-      } catch (_e) {}
-    }
-
     // streakLenNow が 0 でも「リセットとして送る」ケースがあるので条件に含めない
     if (!dc && !dw && !ds3 && streakLenNow === 0) return;
 
