@@ -79,15 +79,25 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
     const dayValue = (streak3TodayDelta as any).day;
     const countRaw = (streak3TodayDelta as any).unique_count;
-    const day = typeof dayValue === "string" ? dayValue : "";
-    const count =
-      typeof countRaw === "number" && Number.isFinite(countRaw) && countRaw >= 0
+
+    const incomingDay =
+      typeof dayValue === "string"
+        ? dayValue
+        : "";
+    const incomingCount =
+      typeof countRaw === "number" &&
+      Number.isFinite(countRaw) &&
+      countRaw >= 0
         ? countRaw
         : null;
 
-    if (day && count !== null) {
+    // ★ count が妥当な値なら、day が空でも必ず streak3Today を更新する
+    if (incomingCount !== null) {
       const current = (server as any).streak3Today || { day: "", unique_count: 0 };
-      const currentDay = typeof current.day === "string" ? current.day : "";
+      const currentDay =
+        typeof current.day === "string"
+          ? current.day
+          : "";
       const currentCount =
         typeof current.unique_count === "number" &&
         Number.isFinite(current.unique_count) &&
@@ -95,17 +105,19 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
           ? current.unique_count
           : 0;
 
-      if (currentDay === day) {
-        (server as any).streak3Today = {
-          day,
-          unique_count: Math.max(currentCount, count)
-        };
-      } else {
-        (server as any).streak3Today = {
-          day,
-          unique_count: count
-        };
-      }
+      // incomingDay が空なら、既存の日付を優先する
+      const dayToSave = incomingDay || currentDay;
+
+      // 同じ日付なら「大きい方」を採用、日付が変わるなら新しい count をそのまま採用
+      const uniqueCountToSave =
+        currentDay === dayToSave
+          ? Math.max(currentCount, incomingCount)
+          : incomingCount;
+
+      (server as any).streak3Today = {
+        day: dayToSave,
+        unique_count: uniqueCountToSave
+      };
     }
   }
 
