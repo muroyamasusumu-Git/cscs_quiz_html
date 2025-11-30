@@ -146,9 +146,6 @@ ol.opts {
 <script src="../../assets/correct_star.js" defer></script>
 
 
-<script src="../../assets/cscs_fade_overlay.js" defer></script>
-
-
 <script src="../../assets/b_judge.js" data-stem="q020" data-audio-base="/_build_cscs_20251023/audio" data-ext=".wav"></script>
 
 
@@ -171,9 +168,6 @@ ol.opts {
 
 
 <script src="../../assets/consistency_check_debug.js" data-part="b" defer></script>
-
-
-<script src="../../assets/a_auto_next.js" defer></script>
 
 <script src="../../assets/next_nav.js" data-next="q021_a.html" defer></script>
 
@@ -269,51 +263,6 @@ h1 { font-size: var(--h1-fs, inherit); }
     localStorage.setItem(key, String(value));
   }
 
-  // 今日の「新規⭐️」メタ情報を localStorage から読み出すヘルパー
-  function loadStreak3TodayMeta(){
-    var dayKey   = "cscs_streak3_today_day";
-    var qidsKey  = "cscs_streak3_today_qids";
-    var countKey = "cscs_streak3_today_unique_count";
-
-    var day = "";
-    try {
-      day = localStorage.getItem(dayKey) || "";
-    } catch (_e) {
-      day = "";
-    }
-
-    var count = 0;
-    try {
-      var rawCount = localStorage.getItem(countKey);
-      var n = parseInt(rawCount || "0", 10);
-      count = Number.isFinite(n) && n >= 0 ? n : 0;
-    } catch (_e) {
-      count = 0;
-    }
-
-    var qids = [];
-    try {
-      var rawQids = localStorage.getItem(qidsKey);
-      qids = JSON.parse(rawQids || "[]");
-      if (!Array.isArray(qids)) {
-        qids = [];
-      }
-    } catch (_e) {
-      qids = [];
-    }
-
-    // count と配列長がズレていたら、配列長を優先
-    if (qids.length > 0 && count !== qids.length) {
-      count = qids.length;
-    }
-
-    return {
-      day: day,
-      count: count,
-      qids: qids
-    };
-  }
-
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
     const cNow        = loadInt(KEY_COR);
@@ -342,8 +291,6 @@ h1 { font-size: var(--h1-fs, inherit); }
     if (!dc && !dw && !ds3 && streakLenNow === 0) return;
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
-    const todayMeta = loadStreak3TodayMeta();
-
     const payload = {
       correctDelta:   dc  > 0 ? { [info.qid]: dc  } : {},
       incorrectDelta: dw  > 0 ? { [info.qid]: dw  } : {},
@@ -351,14 +298,6 @@ h1 { font-size: var(--h1-fs, inherit); }
       streakLenDelta: { [info.qid]: streakLenNow },
       updatedAt: Date.now()
     };
-
-    // ★ 今日ぶんのユニーク⭐️数が更新された場合だけ送る
-    if (ds3 > 0 && todayMeta.day) {
-      payload.streak3Today = {
-        day: todayMeta.day,
-        unique_q_count: todayMeta.count
-      };
-    }
 
     console.log("[SYNC/B] streak3 merge payload", {
       qid: info.qid,
