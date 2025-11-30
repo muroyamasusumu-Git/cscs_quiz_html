@@ -309,11 +309,28 @@
 
         // ---- 3連正解ストリーク（全体＋問題別。非重複：3達成ごとに1加算、達成時に長さを0にリセット）----
         try{
-          // 全体ストリーク
+          // 全体ストリーク（debug 付き）
           var sLen = getIntLS("cscs_correct_streak_len");
+          var beforeGlobalStreak3Total = getIntLS("cscs_correct_streak3_total");
+          console.log("[B:streak3/global] BEFORE", {
+            qid: qid,
+            day: dayPlay,
+            streak_len: sLen,
+            streak3_total: beforeGlobalStreak3Total
+          });
+
           sLen += 1;
           if(sLen >= 3){
             incIntLS("cscs_correct_streak3_total", 1);
+
+            var afterGlobalStreak3Total = getIntLS("cscs_correct_streak3_total");
+            console.log("[B:streak3/global] HIT 3連正解", {
+              qid: qid,
+              day: dayPlay,
+              streak3_total_before: beforeGlobalStreak3Total,
+              streak3_total_after: afterGlobalStreak3Total
+            });
+
             // ログ（いつ/どの問題で3連目に到達したか）
             var sLogKey = "cscs_correct_streak3_log";
             var sLog = []; try{ sLog = JSON.parse(localStorage.getItem(sLogKey)||"[]"); }catch(_){ sLog = []; }
@@ -323,15 +340,38 @@
             sLen = 0;
           }
           setIntLS("cscs_correct_streak_len", sLen);
+          console.log("[B:streak3/global] AFTER", {
+            qid: qid,
+            day: dayPlay,
+            streak_len: sLen,
+            streak3_total: getIntLS("cscs_correct_streak3_total")
+          });
 
-          // 問題別ストリーク
+          // 問題別ストリーク（debug 付き）
           var sKeyQ = "cscs_q_correct_streak_len:" + qid;
           var sLenQ = getIntLS(sKeyQ);
+          var streak3KeyQ = "cscs_q_correct_streak3_total:" + qid;
+          var beforeStreak3TotalQ = getIntLS(streak3KeyQ);
+
+          console.log("[B:streak3/q] BEFORE", {
+            qid: qid,
+            day: dayPlay,
+            streak_len_q: sLenQ,
+            streak3_total_q: beforeStreak3TotalQ
+          });
+
           sLenQ += 1;
           if(sLenQ >= 3){
-            var streak3KeyQ = "cscs_q_correct_streak3_total:" + qid;
-            var beforeStreak3TotalQ = getIntLS(streak3KeyQ);
             incIntLS(streak3KeyQ, 1);
+
+            var afterStreak3TotalQ = getIntLS(streak3KeyQ);
+            console.log("[B:streak3/q] HIT 3連正解", {
+              qid: qid,
+              day: dayPlay,
+              streak_len_q_before: sLenQ,
+              streak3_total_q_before: beforeStreak3TotalQ,
+              streak3_total_q_after: afterStreak3TotalQ
+            });
 
             var sLogKeyQ = "cscs_q_correct_streak3_log:" + qid;
             var sLogQ = []; try{ sLogQ = JSON.parse(localStorage.getItem(sLogKeyQ)||"[]"); }catch(_){ sLogQ = []; }
@@ -364,6 +404,20 @@
                 incIntLS(todayCountKey, 1);
               }
 
+              var todayCountVal = 0;
+              try{
+                todayCountVal = parseInt(localStorage.getItem(todayCountKey)||"0",10);
+                if(!Number.isFinite(todayCountVal)) todayCountVal = 0;
+              }catch(_){ todayCountVal = 0; }
+
+              console.log("[B:streak3/q] TODAY UNIQUE STAR +1", {
+                day: dayPlay,
+                qid: qid,
+                today_day: localStorage.getItem(todayDayKey),
+                today_qids: todayQids,
+                today_count: todayCountVal
+              });
+
               if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
                 window.CSCS_SYNC.recordStreak3TodayUnique();
               }
@@ -372,6 +426,13 @@
             sLenQ = 0;
           }
           setIntLS(sKeyQ, sLenQ);
+
+          console.log("[B:streak3/q] AFTER", {
+            qid: qid,
+            day: dayPlay,
+            streak_len_q: sLenQ,
+            streak3_total_q: getIntLS(streak3KeyQ)
+          });
 
           if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreakLen === "function") {
             window.CSCS_SYNC.recordStreakLen();
