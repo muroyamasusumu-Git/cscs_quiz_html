@@ -75,34 +75,42 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
 
-  // ★ streak3Today の正規化とログ
+  // ★ streak3Today の状態チェックとログ（※ここではデフォルト値を新規生成しない）
   try {
-    if (!out.streak3Today || typeof out.streak3Today !== "object") {
-      console.warn("[SYNC/state] ★streak3Today が存在しないか不正な形式のため、デフォルトを適用します。");
-      out.streak3Today = { day: "", unique_count: 0 };
-    }
+    const hasKvData = !!data; // KV に何かしら入っているかどうか
+    const hasProp =
+      out && Object.prototype.hasOwnProperty.call(out, "streak3Today");
 
-    // day は string 以外は空文字に落とす
-    if (typeof out.streak3Today.day !== "string") {
-      console.warn("[SYNC/state] ★streak3Today.day が string ではないため、空文字に補正します。 value:", out.streak3Today.day);
-      out.streak3Today.day = "";
-    }
+    if (!hasKvData) {
+      // KV ミス → empty テンプレート由来（= まだ一度も保存されていない初期状態）
+      console.log("[SYNC/state] streak3Today source = empty-template (no KV data yet)");
+      // この場合の値は empty 定義に依存（{ day:'', unique_count:0 }）
+    } else if (!hasProp) {
+      console.warn("[SYNC/state] ★KVデータに streak3Today プロパティが存在しません（保存漏れの可能性）");
+    } else if (!out.streak3Today || typeof out.streak3Today !== "object") {
+      console.warn("[SYNC/state] ★KVデータの streak3Today が不正な形式です:", out.streak3Today);
+    } else {
+      const d = (out.streak3Today as any).day;
+      const c = (out.streak3Today as any).unique_count;
 
-    // unique_count は 0 以上の number 以外は 0 にする
-    if (
-      typeof out.streak3Today.unique_count !== "number" ||
-      !Number.isFinite(out.streak3Today.unique_count) ||
-      out.streak3Today.unique_count < 0
-    ) {
-      console.warn(
-        "[SYNC/state] ★streak3Today.unique_count が不正なため、0 に補正します。 value:",
-        out.streak3Today.unique_count
-      );
-      out.streak3Today.unique_count = 0;
+      const dayIsValid = typeof d === "string";
+      const cntIsValid =
+        typeof c === "number" && Number.isFinite(c) && c >= 0;
+
+      if (!dayIsValid || !cntIsValid) {
+        console.warn("[SYNC/state] ★streak3Today の day / unique_count に不正値があります", {
+          day: d,
+          unique_count: c
+        });
+      } else {
+        console.log("[SYNC/state] streak3Today source = kv-valid", {
+          day: d,
+          unique_count: c
+        });
+      }
     }
   } catch (_e) {
-    // ここで例外が出ても最後に out.streak3Today が undefined にならないように保険
-    out.streak3Today = { day: "", unique_count: 0 };
+    console.warn("[SYNC/state] ★streak3Today ログ処理中に例外が発生しました");
   }
 
   // ★ debug: クライアントに返す値を “要約して” ログ出力
