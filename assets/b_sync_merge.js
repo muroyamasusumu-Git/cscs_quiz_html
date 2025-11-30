@@ -131,12 +131,10 @@
     // 以前は ds3==0 && streakLenNow==0 なら return していたが、
     // streak3Today を送る場合は return しない
     if (!dc && !dw && !ds3 && streakLenNow === 0 && !forceSendStreakToday) {
-    　return;
+     return;
     }
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
-    const todayMeta = loadStreak3TodayMeta();
-
     console.log("[SYNC/B] todayMeta (before payload)", todayMeta);
 
     const payload = {
