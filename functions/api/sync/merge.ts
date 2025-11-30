@@ -130,13 +130,30 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   server.updatedAt = Date.now();
 
-  // ★ KV 保存の成否を必ずログに出す
+  // ★ KV 保存の成否＋「実際に入った JSON」を必ずログに出す
   try {
-    await env.SYNC.put(key, JSON.stringify(server));
+    const jsonStr = JSON.stringify(server);
+
+    await env.SYNC.put(key, jsonStr);
     console.log("[SYNC/merge] ★KV保存成功", {
       key,
       streak3Today: (server as any).streak3Today
     });
+
+    // ★ 保存直後に KV から生の文字列を再取得してダンプ
+    try {
+      const raw = await env.SYNC.get(key, "text");
+      console.log("[SYNC/merge] ★KV直後ダンプ(raw):", raw);
+
+      try {
+        const parsed = raw ? JSON.parse(raw) : null;
+        console.log("[SYNC/merge] ★KV直後ダンプ(parsed.streak3Today):", parsed ? (parsed as any).streak3Today : null);
+      } catch (e2) {
+        console.warn("[SYNC/merge] ★KV直後ダンプ(JSON.parse失敗)", e2);
+      }
+    } catch (e1) {
+      console.warn("[SYNC/merge] ★KV直後ダンプ取得失敗", e1);
+    }
   } catch (e) {
     console.error("[SYNC/merge] ★KV保存失敗", e);
     return new Response("KV put failed", {
