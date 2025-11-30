@@ -3,13 +3,25 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
 
-  // データ読み込み（存在しなければ空オブジェクト）
-  const data = await env.SYNC.get(key, "json");
+  // ★★★ ログ強制モード: 開始ログ ★★★
+  try {
+    console.log("[SYNC/state] === onRequestGet START ===");
+    console.log("[SYNC/state] user key:", key);
+  } catch (_e) {}
+
+  // データ読み込み（存在しなければ null）
+  let data: any = null;
+  try {
+    data = await env.SYNC.get(key, "json");
+  } catch (e) {
+    // KV 読み出しで例外が起きても必ずログを出す
+    try {
+      console.error("[SYNC/state] ★KV 読み出し失敗:", e);
+    } catch (_e2) {}
+  }
 
   // ★★★ ここから読み出しの状態分類ログ ★★★
   try {
-    console.log("[SYNC/state] key:", key);
-
     if (data == null) {
       console.warn("[SYNC/state] ★データなし（KVに何も保存されていない可能性）");
     } else {
@@ -74,6 +86,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       hasStreakLen: !!out.streakLen,
       hasConsistencyStatus: !!out.consistency_status
     });
+    console.log("[SYNC/state] === onRequestGet END ===");
   } catch (_e) {}
 
   return new Response(JSON.stringify(out), {
