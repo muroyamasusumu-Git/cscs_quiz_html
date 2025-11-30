@@ -124,7 +124,8 @@
     if (todayMeta.day) {
       payload.streak3Today = {
         day: todayMeta.day,
-        unique_q_count: todayMeta.count
+        unique_count: todayMeta.count,
+        qids: Array.isArray(todayMeta.qids) ? todayMeta.qids : []
       };
     }
 
