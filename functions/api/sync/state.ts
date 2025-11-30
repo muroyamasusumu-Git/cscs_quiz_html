@@ -6,11 +6,31 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // データ読み込み（存在しなければ空オブジェクト）
   const data = await env.SYNC.get(key, "json");
 
-  // ★ debug: KV から生で取れたデータをログ出力
+  // ★★★ ここから読み出しの状態分類ログ ★★★
   try {
     console.log("[SYNC/state] key:", key);
-    console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
+
+    if (data == null) {
+      console.warn("[SYNC/state] ★データなし（KVに何も保存されていない可能性）");
+    } else {
+      console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
+
+      if (typeof data.updatedAt === "number") {
+        const ageMs = Date.now() - data.updatedAt;
+
+        if (ageMs < 1000) {
+          console.log("[SYNC/state] ★最新データ（保存後すぐ反映） age(ms):", ageMs);
+        } else if (ageMs < 5000) {
+          console.log("[SYNC/state] ★比較的新しいデータ age(ms):", ageMs);
+        } else {
+          console.warn("[SYNC/state] ★古いデータを返しています（KV 遅延の可能性大） age(ms):", ageMs);
+        }
+      } else {
+        console.warn("[SYNC/state] ★updatedAt が存在しないデータ（不整合の可能性）");
+      }
+    }
   } catch (_e) {}
+  // ★★★ 状態分類ログ ここまで ★★★
 
   // streak3 / consistency_status を必ず返却するため empty に項目を用意
   const empty = {
