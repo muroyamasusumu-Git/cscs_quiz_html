@@ -501,21 +501,21 @@
       if (btnReset) {
         btnReset.addEventListener("click", async function(){
           await resetSyncForThisQid(true, false);
-          await initialFetch();
+          location.reload();
         });
       }
 
       if (btnStarReset) {
         btnStarReset.addEventListener("click", async function(){
           await resetStarForThisQid(true);
-          await initialFetch();
+          location.reload();
         });
       }
 
       if (btnStreakTodayReset) {
         btnStreakTodayReset.addEventListener("click", async function(){
           await resetStreak3TodayAll(true);
-          await initialFetch();
+          location.reload();
         });
       }
 
@@ -527,8 +527,8 @@
           await resetSyncForThisQid(false, false);
           await resetStarForThisQid(false);
           await resetStreak3TodayAll(false);
-          await initialFetch();
           alert("この問題に関するSYNCカウンタ・星・今日の3連続正解ユニーク数をすべてリセットしました。");
+          location.reload();
         });
       }
 
