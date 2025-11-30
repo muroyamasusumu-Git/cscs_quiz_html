@@ -124,7 +124,27 @@
       text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
       text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
       text += "3連続正解回数 (進捗):\n";
-      text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)";
+      text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)\n";
+
+      var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
+        ? window.__cscs_sync_state.streak3Today.day : "-";
+      var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_q_count) 
+        ? window.__cscs_sync_state.streak3Today.unique_q_count : 0;
+
+      var localS3TodayDay = "";
+      var localS3TodayCnt = 0;
+      try {
+        localS3TodayDay = localStorage.getItem("cscs_streak3_today_day") || "-";
+        var rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_q_count");
+        var parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
+        if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
+          localS3TodayCnt = parsedLocalCnt;
+        }
+      } catch(_e) {}
+
+      text += "\n今日の 3連続正解ユニーク数:\n";
+      text += "day: " + s3TodaySyncDay + " / local " + localS3TodayDay + "\n";
+      text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt;
 
       updateSyncBody(text);
 
