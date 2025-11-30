@@ -1,3 +1,4 @@
+// state.ts
 export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
@@ -23,7 +24,19 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   };
 
   // data が存在しても欠けている項目があれば補完する
-  const out: any = data || empty;
+  let out: any;
+  if (data) {
+    out = data;
+    try {
+      console.log("[SYNC/state] ★KVヒット: 既存データを使用");
+    } catch (_e) {}
+  } else {
+    out = empty;
+    try {
+      console.log("[SYNC/state] ★KVミス: empty テンプレートを使用");
+    } catch (_e) {}
+  }
+
   if (!out.correct) out.correct = {};
   if (!out.incorrect) out.incorrect = {};
   if (!out.streak3) out.streak3 = {};
@@ -31,9 +44,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.consistency_status) out.consistency_status = {};
   if (!out.streak3Today) out.streak3Today = { day: "", unique_count: 0 };
 
-  // ★ debug: クライアントに返す streak3Today をログ出力
+  // ★ debug: クライアントに返す streak3Today と out 全体をログ出力
   try {
     console.log("[SYNC/state] out.streak3Today:", JSON.stringify(out.streak3Today));
+    console.log("[SYNC/state] ★state 応答オブジェクト概要", {
+      hasCorrect: !!out.correct,
+      hasIncorrect: !!out.incorrect,
+      hasStreak3: !!out.streak3,
+      hasStreakLen: !!out.streakLen,
+      hasConsistencyStatus: !!out.consistency_status
+    });
   } catch (_e) {}
 
   return new Response(JSON.stringify(out), {

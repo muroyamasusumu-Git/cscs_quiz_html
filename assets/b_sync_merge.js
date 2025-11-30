@@ -131,7 +131,8 @@
     // 以前は ds3==0 && streakLenNow==0 なら return していたが、
     // streak3Today を送る場合は return しない
     if (!dc && !dw && !ds3 && streakLenNow === 0 && !forceSendStreakToday) {
-     return;
+      console.log("[SYNC/B] ★送信なし（no delta & no streak3Today）");
+      return;
     }
 
     // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
@@ -179,8 +180,13 @@
       if (dc)  saveInt(KEY_LAST_COR, cNow);
       if (dw)  saveInt(KEY_LAST_WRG,  wNow);
       if (ds3) saveInt(KEY_LAST_S3,   s3Now);
+
+      console.log("[SYNC/B] ★送信成功（merge OK）", {
+        qid: info.qid,
+        streak3Today_sent: payload.streak3Today
+      });
     }catch(e){
-      console.warn("[SYNC/B] merge failed", e);
+      console.warn("[SYNC/B] ★送信失敗（merge failed）", e);
     }
   }
 

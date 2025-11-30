@@ -77,6 +77,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   const streak3TodayDelta = delta.streak3Today;
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
+    // ★ delta あり（フロントから streak3Today が送られてきた）
+    console.log("[SYNC/merge] ★streak3Today: delta あり（更新実施）");
+
     (server as any).streak3Today = {
       day: typeof streak3TodayDelta.day === "string" ? streak3TodayDelta.day : "",
       unique_count:
@@ -89,6 +92,11 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         ? (streak3TodayDelta as any).qids
         : []
     };
+  } else {
+    // ★ delta なし（今回は streak3Today は更新されない）
+    try {
+      console.log("[SYNC/merge] ★streak3Today: delta なし（更新スキップ）");
+    } catch (_e) {}
   }
 
   // ★ debug: merge 後の streak3Today の状態をログ出力
@@ -121,7 +129,22 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
 
   server.updatedAt = Date.now();
-  await env.SYNC.put(key, JSON.stringify(server));
+
+  // ★ KV 保存の成否を必ずログに出す
+  try {
+    await env.SYNC.put(key, JSON.stringify(server));
+    console.log("[SYNC/merge] ★KV保存成功", {
+      key,
+      streak3Today: (server as any).streak3Today
+    });
+  } catch (e) {
+    console.error("[SYNC/merge] ★KV保存失敗", e);
+    return new Response("KV put failed", {
+      status: 500,
+      headers: { "content-type": "text/plain" },
+    });
+  }
+
   return new Response(JSON.stringify(server), {
     headers: { "content-type": "application/json" },
   });
