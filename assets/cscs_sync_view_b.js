@@ -659,53 +659,11 @@
         localCount = 0;
       }
 
-      // 2-6) 「streak3Today の送信内容」は、その日の「初回の payload」を固定する
-      //      - localStorage に前回のスナップショットがあればそれを優先
-      //      - 日付が変わったら新しいスナップショットを書き直す
-      var FIRST_PAYLOAD_KEY = "cscs_streak3_today_first_payload";
-      try {
-        var firstRaw = localStorage.getItem(FIRST_PAYLOAD_KEY);
-        var firstPayload = null;
-        if (firstRaw) {
-          try {
-            firstPayload = JSON.parse(firstRaw);
-          } catch (_e4) {
-            firstPayload = null;
-          }
-        }
-
-        if (firstPayload && typeof firstPayload === "object" && firstPayload.day === day) {
-          // すでに同じ日の「初回 payload」が存在する場合は、それで上書きする
-          if (Array.isArray(firstPayload.qids)) {
-            qids = firstPayload.qids.filter(function (x) {
-              return typeof x === "string" && x;
-            });
-          }
-          if (
-            typeof firstPayload.unique_count === "number" &&
-            Number.isFinite(firstPayload.unique_count) &&
-            firstPayload.unique_count >= 0
-          ) {
-            localCount = firstPayload.unique_count;
-          }
-        } else if (day && qids.length > 0) {
-          // まだスナップショットが無い、または日付が変わっている場合は、今回の内容を「初回 payload」として保存する
-          var snapshot = {
-            day: day,
-            qids: qids.slice(),
-            unique_count: localCount
-          };
-          localStorage.setItem(FIRST_PAYLOAD_KEY, JSON.stringify(snapshot));
-        }
-      } catch (_e5) {
-        // この処理で失敗しても、本来の送信ロジックには影響させない
-      }
-
-      // 3) 読み出したローカル状態（実際に送信に使う値）をコンソールにフル出力（デバッグ用）
+      // 3) 読み出したローカル状態をコンソールにフル出力（デバッグ用）
       console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
-      console.log("effective.day =", day);
-      console.log("effective.qids =", qids);
-      console.log("effective.unique_count =", localCount);
+      console.log("local.day =", day);
+      console.log("local.qids =", qids);
+      console.log("local.unique_count =", localCount);
       console.groupEnd();
 
       // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
