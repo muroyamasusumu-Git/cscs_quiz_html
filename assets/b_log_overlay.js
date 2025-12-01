@@ -92,6 +92,7 @@
     var originalLog = console.log;
     console.log = function () {
       try {
+        // 元のログはそのままコンソールにも出す
         originalLog.apply(console, arguments);
 
         if (!enabled) return;
@@ -111,14 +112,8 @@
         }
         var text = parts.join(" ");
 
-        // ★対象ログだけ拾う
-        if (
-          text.indexOf("[B:streak3/global]") === 0 ||
-          text.indexOf("[B:streak3/q]") === 0 ||
-          text.indexOf("[SYNC-B:streak3Today]") === 0
-        ) {
-          appendLogLine(text);
-        }
+        // ★いったん全ての console.log をオーバーレイに流す
+        appendLogLine(text);
       } catch (_e) {
         try { originalLog.apply(console, arguments); } catch (_e2) {}
       }
