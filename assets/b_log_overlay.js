@@ -1,5 +1,5 @@
 // assets/b_log_overlay.js
-// Bパート用：console.log の一部を画面右下に半透明で表示するデバッグ用オーバーレイ
+// Bパート用：console.log の一部を画面全体の“背景テキスト”として表示するデバッグ用オーバーレイ
 (function () {
   "use strict";
 
@@ -8,58 +8,76 @@
   }
   window.CSCS_LOG_OVERLAY_INITIALIZED = true;
 
-  // ---- オーバーレイ本体 ----
+  // ---- 背景オーバーレイ本体 ----
   var overlay = document.createElement("div");
-  overlay.id = "cscs-log-overlay";
+  overlay.id = "cscs-log-bg";
   overlay.style.position = "fixed";
-  overlay.style.right = "8px";
-  overlay.style.bottom = "8px";
-  overlay.style.width = "38vw";
-  overlay.style.maxWidth = "480px";
-  overlay.style.maxHeight = "35vh";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.right = "0";
+  overlay.style.bottom = "0";
+  overlay.style.zIndex = "0";
+  overlay.style.pointerEvents = "none";
+  overlay.style.whiteSpace = "pre-wrap";
   overlay.style.overflow = "hidden";
-  overlay.style.padding = "6px 8px";
+  overlay.style.padding = "40px";
   overlay.style.boxSizing = "border-box";
-  overlay.style.background = "rgba(0, 0, 0, 0.4)";
-  overlay.style.color = "#ffffff";
-  overlay.style.fontSize = "10px";
+  // かなり薄くする（背景的な存在）
+  overlay.style.opacity = "0.12";
+  overlay.style.fontSize = "11px";
   overlay.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
   overlay.style.lineHeight = "1.4";
-  overlay.style.borderRadius = "6px";
-  overlay.style.pointerEvents = "none";
-  overlay.style.zIndex = "9999";
-  overlay.style.opacity = "0.65";
-  overlay.style.backdropFilter = "blur(2px)";
-  overlay.style.webkitBackdropFilter = "blur(2px)";
-  overlay.style.boxShadow = "0 0 8px rgba(0,0,0,0.35)";
+  overlay.style.color = "#888888";
 
+  // 背景に敷くテキストラッパ
   var inner = document.createElement("div");
-  inner.style.maxHeight = "100%";
-  inner.style.overflowY = "auto";
-  inner.style.paddingRight = "2px";
+  inner.id = "cscs-log-bg-inner";
+  inner.style.width = "200%";          // 少し広げて全体に敷き詰める
+  inner.style.height = "200%";
+  inner.style.transform = "translate(-10%, -10%)";
   overlay.appendChild(inner);
 
-  document.body.appendChild(overlay);
-
-  var MAX_LINES = 40;
-
-  function appendLogLine(text) {
-    var line = document.createElement("div");
-    line.textContent = text;
-    inner.appendChild(line);
-
-    while (inner.childNodes.length > MAX_LINES) {
-      inner.removeChild(inner.firstChild);
-    }
-    inner.scrollTop = inner.scrollHeight;
+  // body直下に追加（#root より背面になるよう z-index は 0 に固定）
+  var body = document.body || document.getElementsByTagName("body")[0];
+  if (body.firstChild) {
+    body.insertBefore(overlay, body.firstChild);
+  } else {
+    body.appendChild(overlay);
   }
 
+  // #root を前面に出す（build_quiz.py で id="root" ラップ済み想定）
+  var root = document.getElementById("root");
+  if (root) {
+    if (!root.style.position) {
+      root.style.position = "relative";
+    }
+    root.style.zIndex = "1";
+  }
+
+  // 全体テキストを溜める
+  var MAX_LINES = 80;
+  var lines = [];
+
+  function updateText() {
+    inner.textContent = lines.join("\n");
+  }
+
+  function appendLogLine(text) {
+    lines.push(text);
+    if (lines.length > MAX_LINES) {
+      lines = lines.slice(lines.length - MAX_LINES);
+    }
+    updateText();
+  }
+
+  // ON/OFF 切り替え用フラグ
   var enabled = true;
   window.CSCS_LOG_OVERLAY_ENABLE = function (flag) {
     enabled = !!flag;
     overlay.style.display = enabled ? "block" : "none";
   };
 
+  // console.log をフック
   var originalLog = console.log;
 
   console.log = function () {
@@ -85,7 +103,7 @@
       }
       var text = parts.join(" ");
 
-      // ★ここで「画面に出したいログ」だけをフィルタする
+      // ★ここで「背景に出したいログ」だけをフィルタ
       if (
         text.indexOf("[B:streak3/global]") === 0 ||
         text.indexOf("[B:streak3/q]") === 0 ||
