@@ -84,15 +84,15 @@
 
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
-    const cNow         = loadInt(KEY_COR);
-    const wNow         = loadInt(KEY_WRG);
-    const s3Now        = loadInt(KEY_S3);
+    const cNow        = loadInt(KEY_COR);
+    const wNow        = loadInt(KEY_WRG);
+    const s3Now       = loadInt(KEY_S3);
     const streakLenNow = loadInt(KEY_STREAK_LEN);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
     const cLast  = loadInt(KEY_LAST_COR);
     const wLast  = loadInt(KEY_LAST_WRG);
-    let   s3Last = loadInt(KEY_LAST_S3);
+    let s3Last = loadInt(KEY_LAST_S3);
 
     // local が s3Last より小さい場合 → s3Last を local に強制修正
     if (s3Last > s3Now) {
@@ -106,23 +106,38 @@
     const dw  = Math.max(0, wNow  - wLast);
     const ds3 = Math.max(0, s3Now - s3Last);
 
-    // streak3TodayDelta は cscs_sync_view_b.js 側からのみ送信するため、
-    // ここでは streak3Today 系は一切扱わない
-    if (!dc && !dw && !ds3 && streakLenNow === 0) {
-      console.log("[SYNC/B] ★送信なし（no delta）", {
-        qid: info.qid,
-        cNow,
-        wNow,
-        s3Now,
-        streakLenNow,
-        cLast,
-        wLast,
-        s3Last
-      });
+    // ★ ds3 > 0（新しく⭐️を獲得）した場合は、今日の日付を必ず localStorage に記録
+    if (ds3 > 0) {
+      try {
+        var streakDayKey = "cscs_streak3_today_day";
+        var currentDayVal = localStorage.getItem(streakDayKey) || "";
+        if (!currentDayVal) {
+          var now = new Date();
+          var y = now.getFullYear();
+          var m = now.getMonth() + 1;
+          var d = now.getDate();
+          var mm = m < 10 ? "0" + m : String(m);
+          var dd = d < 10 ? "0" + d : String(d);
+          var todayStr = "" + y + mm + dd;
+          localStorage.setItem(streakDayKey, todayStr);
+        }
+      } catch (_e) {}
+    }
+
+    // streak3Today に何かしらの変化があるなら必ず送る
+    const todayMeta = loadStreak3TodayMeta();
+    const forceSendStreakToday = todayMeta.count > 0;
+
+    // 以前は ds3==0 && streakLenNow==0 なら return していたが、
+    // streak3Today を送る場合は return しない
+    if (!dc && !dw && !ds3 && streakLenNow === 0 && !forceSendStreakToday) {
+      console.log("[SYNC/B] ★送信なし（no delta & no streak3Today）");
       return;
     }
 
-    // 4) /api/sync/merge へ「差分だけ」を送信
+    // 4) /api/sync/merge へ「差分だけ」を送信（Aパートと同じ Delta 形式）
+    console.log("[SYNC/B] todayMeta (before payload)", todayMeta);
+
     const payload = {
       correctDelta:   dc  > 0 ? { [info.qid]: dc  } : {},
       incorrectDelta: dw  > 0 ? { [info.qid]: dw  } : {},
@@ -131,7 +146,14 @@
       updatedAt: Date.now()
     };
 
-    console.log("[SYNC/B] merge payload (no streak3TodayDelta)", {
+    // ★ streak3Today は day が空でも必ず送る（Workers 側でバリデーション）
+    payload.streak3Today = {
+      day: todayMeta.day || "",
+      unique_count: todayMeta.count || 0,
+      qids: Array.isArray(todayMeta.qids) ? todayMeta.qids : []
+    };
+
+    console.log("[SYNC/B] streak3 merge payload", {
       qid: info.qid,
       cNow,
       wNow,
@@ -160,7 +182,8 @@
       if (ds3) saveInt(KEY_LAST_S3,   s3Now);
 
       console.log("[SYNC/B] ★送信成功（merge OK）", {
-        qid: info.qid
+        qid: info.qid,
+        streak3Today_sent: payload.streak3Today
       });
     }catch(e){
       console.warn("[SYNC/B] ★送信失敗（merge failed）", e);
