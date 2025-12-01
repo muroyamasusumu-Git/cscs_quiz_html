@@ -36,8 +36,51 @@
   function saveInt(key, value){
     localStorage.setItem(key, String(value));
   }
-  
-// 置換後（このブロックをまるごと削除して何も置かない）
+
+  // 今日の「新規⭐️」メタ情報を localStorage から読み出すヘルパー
+  function loadStreak3TodayMeta(){
+    var dayKey   = "cscs_streak3_today_day";
+    var qidsKey  = "cscs_streak3_today_qids";
+    var countKey = "cscs_streak3_today_unique_count";
+
+    var day = "";
+    try {
+      day = localStorage.getItem(dayKey) || "";
+    } catch (_e) {
+      day = "";
+    }
+
+    var count = 0;
+    try {
+      var rawCount = localStorage.getItem(countKey);
+      var n = parseInt(rawCount || "0", 10);
+      count = Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch (_e) {
+      count = 0;
+    }
+
+    var qids = [];
+    try {
+      var rawQids = localStorage.getItem(qidsKey);
+      qids = JSON.parse(rawQids || "[]");
+      if (!Array.isArray(qids)) {
+        qids = [];
+      }
+    } catch (_e) {
+      qids = [];
+    }
+
+    // count と配列長がズレていたら、配列長を優先
+    if (qids.length > 0 && count !== qids.length) {
+      count = qids.length;
+    }
+
+    return {
+      day: day,
+      count: count,
+      qids: qids
+    };
+  }
 
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
