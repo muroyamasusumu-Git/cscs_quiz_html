@@ -40,7 +40,7 @@
 
     // 視認性
     overlay.style.opacity = "0.10";
-    overlay.style.fontSize = "11px";
+    overlay.style.fontSize = "10px";
     overlay.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
     overlay.style.lineHeight = "2.0";
     overlay.style.color = "rgb(255,255,255)";
