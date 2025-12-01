@@ -616,10 +616,6 @@
     window.CSCS_SYNC = {};
   }
 
-  // ★ このページロード中に streak3TodayDelta を既に送信したかどうかのフラグ
-  //    - true になった後は同一ロード中の 2回目以降の送信をスキップする
-  var streak3TodaySentOnceThisLoad = false;
-
   window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
     try {
       // 1) オフラインならそもそも送信しない（Bパートからの streak3TodayDelta は「オンライン時だけ」）
@@ -691,13 +687,6 @@
       console.group("[SYNC-B:streak3Today] SEND payload");
       console.log(payload);
       console.groupEnd();
-
-      // 6.5) このページロード中にすでに streak3TodayDelta を送信済みなら、2回目以降は送信しない
-      if (streak3TodaySentOnceThisLoad) {
-        console.warn("[SYNC-B:streak3Today] already sent in this page load → 送信スキップ");
-        return;
-      }
-      streak3TodaySentOnceThisLoad = true;
 
       // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
       var res = await fetch(SYNC_MERGE_ENDPOINT, {
