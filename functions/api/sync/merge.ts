@@ -18,7 +18,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.log("[SYNC/merge] user :", user);
     console.log("[SYNC/merge] key  :", key);
     console.log("[SYNC/merge] (1) delta 全体:", JSON.stringify(delta));
-    console.log("[SYNC/merge] (1-1) delta.streak3Today:", JSON.stringify((delta as any).streak3Today ?? null));
+    console.log("[SYNC/merge] (1-1) delta.streak3TodayDelta:", JSON.stringify((delta as any).streak3TodayDelta ?? null));
   } catch (_e) {}
 
   // (server) 現在のサーバー状態を KV から取得
@@ -43,14 +43,41 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     (server as any).streak3Today = { day: "", unique_count: 0, qids: [] };
   }
 
-  // (1) delta.streak3Today が送られてきたか
+  // (1) delta.streak3TodayDelta が送られてきたか
   const streak3TodayDelta =
     delta && typeof delta === "object"
-      ? (delta as any).streak3Today
+      ? (delta as any).streak3TodayDelta
       : undefined;
 
   try {
-    console.log("[SYNC/merge] (1) delta.streak3Today 受信:", JSON.stringify(streak3TodayDelta ?? null));
+    const hasDelta =
+      streak3TodayDelta && typeof streak3TodayDelta === "object" ? true : false;
+
+    let dayDebug = "";
+    let qidsRawDebug: unknown = undefined;
+    let qidsIsArray = false;
+    let qidsLen = 0;
+
+    if (hasDelta) {
+      dayDebug =
+        typeof (streak3TodayDelta as any).day === "string"
+          ? (streak3TodayDelta as any).day
+          : "";
+      qidsRawDebug = (streak3TodayDelta as any).qids;
+      qidsIsArray = Array.isArray(qidsRawDebug);
+      qidsLen = qidsIsArray ? (qidsRawDebug as any[]).length : 0;
+    }
+
+    console.log(
+      "[SYNC/merge] (1) delta.streak3TodayDelta 受信:",
+      JSON.stringify(streak3TodayDelta ?? null)
+    );
+    console.log("[SYNC/merge] (1-2) streak3TodayDelta 詳細:", {
+      hasDelta,
+      day: dayDebug,
+      qidsIsArray,
+      qidsLength: qidsLen
+    });
   } catch (_e) {}
 
   // (2) BEFORE: merge 前の server.streak3Today の状態をログ
@@ -101,12 +128,11 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.consistency_status[qid] = payload;
   }
 
-  // ---- streak3Today のマージ（差分） ----
+  // ---- streak3Today のマージ（フル上書き） ----
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
     console.log("[SYNC/merge] (2-1) streak3Today: delta あり（更新実施）");
 
     const dayValue = (streak3TodayDelta as any).day;
-    const countRaw = (streak3TodayDelta as any).unique_count;
     const qidsRaw = (streak3TodayDelta as any).qids;
 
     const day =
@@ -114,22 +140,32 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         ? dayValue
         : "";
 
-    const count =
-      typeof countRaw === "number" &&
-      Number.isFinite(countRaw) &&
-      countRaw >= 0
-        ? countRaw
-        : 0;
-
     const qids = Array.isArray(qidsRaw) ? qidsRaw : [];
+
+    try {
+      console.log("[SYNC/merge] (2-1-1) streak3TodayDelta マージ前チェック:", {
+        day,
+        qidsIsArray: Array.isArray(qidsRaw),
+        qidsLength: qids.length
+      });
+    } catch (_e) {}
 
     // day が空なら「無効」とみなして何もしない
     if (day) {
       (server as any).streak3Today = {
         day,
-        unique_count: count,
+        unique_count: qids.length,
         qids
       };
+      try {
+        console.log("[SYNC/merge] (2-1-2) streak3Today マージ後設定:", {
+          day: (server as any).streak3Today.day,
+          unique_count: (server as any).streak3Today.unique_count,
+          qidsLength: Array.isArray((server as any).streak3Today.qids)
+            ? (server as any).streak3Today.qids.length
+            : -1
+        });
+      } catch (_e2) {}
     } else {
       console.warn("[SYNC/merge] (2-2) streak3TodayDelta.day が空のためスキップ");
     }
@@ -180,6 +216,23 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       key,
       streak3Today: (server as any).streak3Today
     });
+
+    try {
+      const s3 = (server as any).streak3Today || null;
+      const qlen =
+        s3 && Array.isArray(s3.qids) ? (s3.qids as any[]).length : -1;
+      console.log("[SYNC/merge] (3-1) streak3Today 整合性チェック:", {
+        day: s3 ? s3.day : null,
+        unique_count: s3 ? s3.unique_count : null,
+        qidsLength: qlen,
+        isConsistent:
+          s3 && Array.isArray(s3.qids)
+            ? s3.unique_count === qlen
+            : false
+      });
+    } catch (_e2) {
+      console.warn("[SYNC/merge] (3-1 err) streak3Today 整合性ログ失敗");
+    }
 
     // (4) 保存直後に KV から再取得 → parsed.streak3Today を確認
     try {
