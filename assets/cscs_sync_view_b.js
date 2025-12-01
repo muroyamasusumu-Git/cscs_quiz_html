@@ -237,7 +237,22 @@
     if (diffStreak3 > 0) {
       streak3DeltaObj[qid] = diffStreak3;
     }
-    streakLenDeltaObj[qid] = localStreakLen;
+    // ★ streakLenDelta は「local と server が違うときだけ」送る
+    //    - 2回目 save などで両者が同じ場合は delta を送らずノイズ同期を防止
+    if (localStreakLen !== serverStreakLen) {
+      streakLenDeltaObj[qid] = localStreakLen;
+      console.log("[SYNC-B] streakLenDelta set (local != server):", {
+        qid: qid,
+        localStreakLen: localStreakLen,
+        serverStreakLen: serverStreakLen
+      });
+    } else {
+      console.log("[SYNC-B] streakLenDelta not set (local == server):", {
+        qid: qid,
+        localStreakLen: localStreakLen,
+        serverStreakLen: serverStreakLen
+      });
+    }
 
     var payload = {
       correctDelta: correctDeltaObj,
