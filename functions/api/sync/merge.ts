@@ -1,4 +1,4 @@
-　// merge.ts
+// merge.ts
 export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
@@ -149,54 +149,104 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
 
   // ---- streak3Today のマージ（フル上書き） ----
+  // ---- streak3Today のマージ（フル上書き） ----
   // - streak3TodayDelta が送られてきた場合のみ処理
-  // - 「今日の qids 一覧」をサーバー側にそのまま上書きし、unique_count は qids.length から再計算する
+  // - 「今日の qids 一覧」をサーバー側にそのまま上書きする前に、
+  //   day / qids / unique_count を徹底検証し、異常があれば 400 を返して処理を中断する
   if (streak3TodayDelta && typeof streak3TodayDelta === "object") {
-    console.log("[SYNC/merge] (2-1) streak3Today: delta あり（更新実施）");
+    console.log("[SYNC/merge] (2-1) streak3Today: delta あり（検証開始）");
 
     const dayValue = (streak3TodayDelta as any).day;
     const qidsRaw = (streak3TodayDelta as any).qids;
+    const uniqueCountRaw = (streak3TodayDelta as any).unique_count;
 
-    // day は文字列以外なら空文字に落とす
-    const day =
-      typeof dayValue === "string"
-        ? dayValue
-        : "";
-
-    // qids は配列でなければ空配列にする
-    const qids = Array.isArray(qidsRaw) ? qidsRaw : [];
-
-    // マージ前の検査ログ（day と qids の構造を確認）
+    // マージ前の構造チェック用ログ
     try {
+      const tmpDay =
+        typeof dayValue === "string"
+          ? dayValue
+          : "";
+      const tmpQids = Array.isArray(qidsRaw) ? qidsRaw : [];
       console.log("[SYNC/merge] (2-1-1) streak3TodayDelta マージ前チェック:", {
-        day,
+        day: tmpDay,
         qidsIsArray: Array.isArray(qidsRaw),
-        qidsLength: qids.length
+        qidsLength: tmpQids.length,
+        uniqueCountRaw
       });
     } catch (_e) {}
 
-    // day が空なら「無効」とみなして何もしない（古い値を消さないため）
-    if (day) {
-      // サーバー側 streak3Today に「今日の qids 一覧」をフル上書きし、
-      // unique_count は qids.length を唯一の正として保存する
-      (server as any).streak3Today = {
-        day,
-        unique_count: qids.length,
-        qids
-      };
-      // マージ後の streak3Today の内容をログで確認
-      try {
-        console.log("[SYNC/merge] (2-1-2) streak3Today マージ後設定:", {
-          day: (server as any).streak3Today.day,
-          unique_count: (server as any).streak3Today.unique_count,
-          qidsLength: Array.isArray((server as any).streak3Today.qids)
-            ? (server as any).streak3Today.qids.length
-            : -1
-        });
-      } catch (_e2) {}
-    } else {
-      console.warn("[SYNC/merge] (2-2) streak3TodayDelta.day が空のためスキップ");
+    // ---- fail-fast 検証 ----
+
+    // day は「非空の文字列」であることを要求する
+    if (typeof dayValue !== "string" || !dayValue) {
+      console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.day が不正のため更新中断:", {
+        dayValue
+      });
+      return new Response("invalid streak3TodayDelta: day", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
     }
+
+    // qids は配列であることを要求する
+    if (!Array.isArray(qidsRaw)) {
+      console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.qids が配列ではないため更新中断:", {
+        qidsRaw
+      });
+      return new Response("invalid streak3TodayDelta: qids", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    // qids の各要素は文字列（qid）であることを要求する
+    for (const q of qidsRaw) {
+      if (typeof q !== "string") {
+        console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.qids 内に文字列以外の要素があるため更新中断:", {
+          invalidElement: q
+        });
+        return new Response("invalid streak3TodayDelta: qids element", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
+      }
+    }
+
+    const qids = qidsRaw as string[];
+    const day = dayValue as string;
+
+    // unique_count が送られてきている場合は、qids.length と完全一致していることを要求する
+    if (uniqueCountRaw !== undefined && uniqueCountRaw !== null) {
+      const ucNum = Number(uniqueCountRaw);
+      if (!Number.isFinite(ucNum) || ucNum < 0 || ucNum !== qids.length) {
+        console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.unique_count が不整合のため更新中断:", {
+          uniqueCountRaw,
+          qidsLength: qids.length
+        });
+        return new Response("invalid streak3TodayDelta: unique_count", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
+      }
+    }
+
+    // ここまで到達したら検証は全て OK → streak3Today をフル上書きする
+    (server as any).streak3Today = {
+      day,
+      unique_count: qids.length,
+      qids
+    };
+
+    // 上書き後の内容を詳細にログ出力して、コンソール上から成功を確認できるようにする
+    try {
+      console.log("[SYNC/merge] (2-1-2) streak3Today バリデーション成功 → 上書き完了:", {
+        day: (server as any).streak3Today.day,
+        unique_count: (server as any).streak3Today.unique_count,
+        qidsLength: Array.isArray((server as any).streak3Today.qids)
+          ? (server as any).streak3Today.qids.length
+          : -1
+      });
+    } catch (_e2) {}
   } else {
     // 今回の delta には streak3TodayDelta が含まれていない場合
     console.log("[SYNC/merge] (2-1) streak3Today: delta なし（更新スキップ）");
