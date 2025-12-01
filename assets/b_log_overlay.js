@@ -32,7 +32,7 @@
   // 背景に敷くテキストラッパ
   var inner = document.createElement("div");
   inner.id = "cscs-log-bg-inner";
-  inner.style.width = "200%";          // 少し広げて全体に敷き詰める
+  inner.style.width = "200%";
   inner.style.height = "200%";
   inner.style.transform = "translate(-10%, -10%)";
   overlay.appendChild(inner);
@@ -103,7 +103,7 @@
       }
       var text = parts.join(" ");
 
-      // ★ここで「背景に出したいログ」だけをフィルタ
+      // ★背景に出したいログだけをフィルタ
       if (
         text.indexOf("[B:streak3/global]") === 0 ||
         text.indexOf("[B:streak3/q]") === 0 ||
@@ -117,4 +117,7 @@
       } catch (_e2) {}
     }
   };
+
+  // ★ページ遷移直後でも必ず何か表示されるよう、起動メッセージを1行だけ足す
+  appendLogLine("[B-LOG] overlay ready. streak logs will appear here.");
 })();
