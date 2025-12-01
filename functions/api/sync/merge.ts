@@ -148,8 +148,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.consistency_status[qid] = payload;
   }
 
-  // ---- streak3Today のマージ（フル上書き） ----
-  // ---- streak3Today のマージ（フル上書き） ----
   // - streak3TodayDelta が送られてきた場合のみ処理
   // - 「今日の qids 一覧」をサーバー側にそのまま上書きする前に、
   //   day / qids / unique_count を徹底検証し、異常があれば 400 を返して処理を中断する
