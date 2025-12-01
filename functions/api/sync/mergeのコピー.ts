@@ -242,47 +242,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   // (3) KV 保存＋ (4) 保存直後の dump
   try {
-
-    // ★ streak3TodayDelta が無い場合の安全ガード
-    //   - delta に streak3TodayDelta が含まれていない場合、
-    //     クライアントが古いスナップショットを読み込んでいても
-    //     streak3Today が巻き戻らないよう、KV 上の最新値を再取得して上書きする
-    // ★ streak3TodayDelta が無い場合の安全ガード
-    //   - delta に streak3TodayDelta が含まれていない場合、
-    //     クライアントが古いスナップショットを読み込んでいても
-    //     streak3Today が巻き戻らないよう、KV 上の最新値を再取得して上書きする
-    if (!streak3TodayDelta || typeof streak3TodayDelta !== "object") {
-      console.log("[SYNC/merge][guard] streak3TodayDelta なし → 巻き戻し防止ガード発動");
-
-      try {
-        const latestSnapshot = await env.SYNC.get(key, "json");
-
-        const before = (server as any).streak3Today
-          ? JSON.stringify((server as any).streak3Today)
-          : "null";
-
-        let applied = false;
-        let latestStr = "null";
-
-        if (latestSnapshot && typeof latestSnapshot === "object") {
-          if ((latestSnapshot as any).streak3Today) {
-            latestStr = JSON.stringify((latestSnapshot as any).streak3Today);
-            (server as any).streak3Today = (latestSnapshot as any).streak3Today;
-            applied = true;
-          }
-        }
-
-        console.log("[SYNC/merge][guard] before =", before);
-        console.log("[SYNC/merge][guard] latest =", latestStr);
-        console.log("[SYNC/merge][guard] applied =", applied);
-
-      } catch (_e) {
-        console.warn("[SYNC/merge][guard] KV 再取得に失敗（ガードは継続）");
-      }
-    } else {
-      console.log("[SYNC/merge][guard] streak3TodayDelta あり → ガード不要");
-    }
-
     const jsonStr = JSON.stringify(server);
 
     // マージ済みの server オブジェクトを KV に保存

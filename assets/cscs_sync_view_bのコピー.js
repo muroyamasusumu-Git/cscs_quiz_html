@@ -565,26 +565,20 @@
 
   window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
     try {
-      // 1) オフラインならそもそも送信しない（Bパートからの streak3TodayDelta は「オンライン時だけ」）
       if (!navigator.onLine) {
         console.warn("[SYNC-B:streak3Today] offline → 送信スキップ");
         return;
       }
 
-      // 2) localStorage に溜まっている「今日の⭐️情報」を読み出すための一時変数
       var day = "";
       var qids = [];
       var localCount = 0;
 
       try {
-        // 2-1) 「今日が何日か」を表す文字列（例: "20251201"）
         day = localStorage.getItem("cscs_streak3_today_day") || "";
-        // 2-2) 今日⭐️を新規獲得した qid の配列をシリアライズした文字列
         var rawQids = localStorage.getItem("cscs_streak3_today_qids");
-        // 2-3) 今日の⭐️ユニーク数（local 側カウンタ）
         var rawCnt = localStorage.getItem("cscs_streak3_today_unique_count");
 
-        // 2-4) qids の JSON をパースして「妥当な文字列だけ」の配列にクリーンアップ
         if (rawQids) {
           var parsed = JSON.parse(rawQids);
           if (Array.isArray(parsed)) {
@@ -594,34 +588,28 @@
           }
         }
 
-        // 2-5) ユニーク数を数値にパース（不正値や負数は 0 扱い）
         var cnt = parseInt(rawCnt || "0", 10);
         if (Number.isFinite(cnt) && cnt >= 0) {
           localCount = cnt;
         }
       } catch (_e) {
-        // localStorage / JSON パースのどこかで失敗した場合は「空データ」として扱う
         day = "";
         qids = [];
         localCount = 0;
       }
 
-      // 3) 読み出したローカル状態をコンソールにフル出力（デバッグ用）
+      // ---- ローカル状態ログ ----
       console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
       console.log("local.day =", day);
       console.log("local.qids =", qids);
       console.log("local.unique_count =", localCount);
       console.groupEnd();
 
-      // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
       if (!day || qids.length === 0) {
         console.warn("[SYNC-B:streak3Today] day 又は qids が空 → 送信中止");
         return;
       }
 
-      // 5) Workers 側の merge.ts に渡す streak3TodayDelta のペイロードを組み立て
-      //    - day: "YYYYMMDD" 形式
-      //    - qids: その日に⭐️を初めて取った問題の qid 配列
       var payload = {
         streak3TodayDelta: {
           day: day,
@@ -630,12 +618,11 @@
         updatedAt: Date.now()
       };
 
-      // 6) 送信直前の payload を丸ごとログに出しておく
+      // ---- 送信前ログ ----
       console.group("[SYNC-B:streak3Today] SEND payload");
       console.log(payload);
       console.groupEnd();
 
-      // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
       var res = await fetch(SYNC_MERGE_ENDPOINT, {
         method: "POST",
         headers: {
@@ -645,13 +632,11 @@
         keepalive: true
       });
 
-      // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
       if (!res.ok) {
         console.error("[SYNC-B:streak3Today] merge FAILED:", res.status);
         return;
       }
 
-      // 9) merge.ts が返してきた最新の SYNC スナップショットを取得（失敗しても致命的ではない）
       var merged = null;
       try {
         merged = await res.json();
@@ -659,33 +644,28 @@
         merged = null;
       }
 
-      // 10) merge のレスポンスをログに残しておく（Workers 側でどう保存されたかの確認用）
+      // ---- merge 結果ログ ----
       console.group("[SYNC-B:streak3Today] MERGE result");
       console.log("mergeResponse =", merged);
       console.groupEnd();
 
-      // 11) さらに /api/sync/state を叩いて、KV に反映された最終形の streak3Today を確認する
+      // ---- /api/sync/state 再取得 ----
       try {
         var stateAfter = await fetchState();
         try {
-          // 11-1) 取得した state 全体をグローバルに保持して、
-          //       Bパート HUD や他のビューからも streak3Today を参照できるようにする
           window.__cscs_sync_state = stateAfter;
         } catch (_e3) {}
 
-        // 11-2) stateAfter.streak3Today の中身をそのままログに出して、
-        //       「day / unique_count / qids がどのように保存されたか」を確認できるようにする
+        // ---- state の streak3Today ログ ----
         console.group("[SYNC-B:streak3Today] UPDATED state.streak3Today");
         console.log(stateAfter && stateAfter.streak3Today);
         console.groupEnd();
 
       } catch (e4) {
-        // state の再取得自体が失敗したケース（merge 自体は成功している可能性あり）
         console.error("[SYNC-B:streak3Today] state refresh ERROR:", e4);
       }
 
     } catch (e) {
-      // 想定外の例外が起きた場合も握りつぶさずログに出す
       console.error("[SYNC-B:streak3Today] fatal error:", e);
     }
   };
