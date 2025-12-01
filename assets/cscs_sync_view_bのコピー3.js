@@ -616,20 +616,8 @@
     window.CSCS_SYNC = {};
   }
 
-  // ★ このページロード中に streak3Today の送信処理を実行済みかどうかを示すフラグ
-  //    - 1アクセス（1ページロード）あたり1回だけ送信するためのガード
-  var streak3TodaySentThisPage = false;
-
   window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
     try {
-      // 0) このページロード中にすでに送信処理を実行していたら 2回目以降はブロック
-      //    - 「1アクセス（1ページロード）あたり確実に1回」送信するためのガード
-      if (streak3TodaySentThisPage) {
-        console.warn("[SYNC-B:streak3Today] already sent in this page → 2回目以降は送信ブロック");
-        return;
-      }
-      streak3TodaySentThisPage = true;
-
       // 1) オフラインならそもそも送信しない（Bパートからの streak3TodayDelta は「オンライン時だけ」）
       if (!navigator.onLine) {
         console.warn("[SYNC-B:streak3Today] offline → 送信スキップ");
