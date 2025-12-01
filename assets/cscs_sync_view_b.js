@@ -290,6 +290,11 @@
       var newServerWrong = serverWrong;
       var newServerStreak3 = serverStreak3;
       var newServerStreakLen = serverStreakLen;
+      var mergedUpdatedAt = 0;
+
+      if (data && typeof data.updatedAt === "number" && Number.isFinite(data.updatedAt)) {
+        mergedUpdatedAt = data.updatedAt;
+      }
 
       if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
         if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
@@ -332,6 +337,37 @@
       var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
       var newDiffStreakLen = Math.max(0, localStreakLen - newServerStreakLen);
 
+      // ★ ここから /api/sync/state を再取得して、
+      //    「保存されたか」「state に反映されたか」を確認する
+      var stateAfter = null;
+      var stateAfterUpdatedAt = 0;
+      var statusText = "merge ok";
+
+      try {
+        stateAfter = await fetchState();
+        try {
+          window.__cscs_sync_state = stateAfter;
+        } catch (_e2) {}
+
+        if (stateAfter && typeof stateAfter.updatedAt === "number" && Number.isFinite(stateAfter.updatedAt)) {
+          stateAfterUpdatedAt = stateAfter.updatedAt;
+        }
+      } catch (eState) {
+        console.error("[SYNC-B] state fetch after merge failed:", eState);
+      }
+
+      if (stateAfter) {
+        if (stateAfterUpdatedAt >= mergedUpdatedAt && mergedUpdatedAt > 0) {
+          statusText = "merge ok / state synced";
+        } else if (mergedUpdatedAt > 0) {
+          statusText = "merge ok / state stale(未反映の可能性)";
+        } else {
+          statusText = "merge ok / updatedAtなし(stateは取得済み)";
+        }
+      } else {
+        statusText = "merge ok / state fetch error(保存済みか要サーバーログ確認)";
+      }
+
       renderPanel(box, {
         serverCorrect: newServerCorrect,
         serverWrong: newServerWrong,
@@ -345,7 +381,7 @@
         serverStreakLen: newServerStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: newDiffStreakLen,
-        statusText: "ok"
+        statusText: statusText
       });
     } catch (e) {
       console.error("[SYNC-B] fetch failed:", e);
