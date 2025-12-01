@@ -760,7 +760,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
 
 #cscs-log-bg {
     position: fixed;
-    bottom: 60px;
+    bottom: 50px;
     left: 20px;
     width: 66%;
     height: 24%;
