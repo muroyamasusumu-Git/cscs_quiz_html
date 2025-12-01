@@ -247,44 +247,6 @@
       updatedAt: Date.now()
     };
 
-    // ★ payload に有効な delta が 1つも無い場合は、
-    //    「2回目 save 由来のノイズ送信」とみなして fetch 自体を行わないガード
-    //    （ここを通らなかった＝実際に送信された、というのがログで確認できる）
-    var hasCorrectDeltaInPayload = Object.prototype.hasOwnProperty.call(correctDeltaObj, qid);
-    var hasIncorrectDeltaInPayload = Object.prototype.hasOwnProperty.call(incorrectDeltaObj, qid);
-    var hasStreak3DeltaInPayload = Object.prototype.hasOwnProperty.call(streak3DeltaObj, qid);
-    var hasStreakLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakLenDeltaObj, qid);
-
-    if (
-      !hasCorrectDeltaInPayload &&
-      !hasIncorrectDeltaInPayload &&
-      !hasStreak3DeltaInPayload &&
-      !hasStreakLenDeltaInPayload
-    ) {
-      console.log("[SYNC-B] ★送信スキップ（payload に有効な delta が無いため）", {
-        qid: qid,
-        payload: payload
-      });
-
-      // パネル側にも「送信していない」ことが分かるようステータスを反映
-      renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
-        statusText: "no delta in payload (送信スキップ)"
-      });
-      return;
-    }
-
     console.log("[SYNC-B] sending diff payload:", payload);
 
     try {
