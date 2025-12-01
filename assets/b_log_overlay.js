@@ -8,43 +8,44 @@
   window.CSCS_LOG_OVERLAY_INITIALIZED = true;
 
   // body が確実に存在してから初期化する
-  function initOverlay() {
     // ---- 背景オーバーレイ本体 ----
     var overlay = document.createElement("div");
     overlay.id = "cscs-log-bg";
+
     overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.right = "0";
-    overlay.style.bottom = "0";
+    overlay.style.top = "580px";      // ★ 位置：下寄り
+    overlay.style.left = "20px";      // ★ 左20px
+    overlay.style.width = "66%";      // ★ 幅66%
+    overlay.style.height = "190px";   // ★ 高さ190px
 
-    // ★ 画面上の一番手前に出す
-    overlay.style.zIndex = "9999";
-
-    // クリックはスルー（元の仕様を維持）
+    overlay.style.zIndex = "9999";    // ★ 最前面
     overlay.style.pointerEvents = "none";
 
-    // ★ 中央寄せ用のレイアウト
+    // レイアウト（中央寄せだが text は左寄せ）
     overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
     overlay.style.justifyContent = "center";
-    overlay.style.textAlign = "center";
-
+    overlay.style.textAlign = "left";
     overlay.style.whiteSpace = "pre-wrap";
+
     overlay.style.overflow = "hidden";
-    overlay.style.padding = "40px";
     overlay.style.boxSizing = "border-box";
 
-    // ★ 一旦ガッツリ見えるように
-    overlay.style.opacity = "0.95";
-    overlay.style.fontSize = "18px";
+    // 視認性
+    overlay.style.opacity = "0.16";
+    overlay.style.fontSize = "11px";
     overlay.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
-    overlay.style.lineHeight = "1.4";
-    overlay.style.color = "#ffffff";
+    overlay.style.lineHeight = "2.0";
+    overlay.style.color = "rgb(255,255,255)";
     overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
 
+    // === inner ===
     var inner = document.createElement("div");
     inner.id = "cscs-log-bg-inner";
+
+    // inner は幅100%でOK
+    inner.style.maxWidth = "100%";
+
+    overlay.appendChild(inner);
 
     // ★ 中央の大きめボックス
     inner.style.maxWidth = "80%";
