@@ -3,65 +3,30 @@
   "use strict";
 
   // 二重初期化防止
-  if (window.CSCS_LOG_OVERLAY_INITIALIZED) {
-    return;
-  }
+  if (window.CSCS_LOG_OVERLAY_INITIALIZED) return;
   window.CSCS_LOG_OVERLAY_INITIALIZED = true;
 
-  // body が確実に存在してから初期化する
   function initOverlay() {
     var body = document.body;
-    if (!body) {
-      console.warn("[B-LOG] body がまだ存在しません。");
-      return;
+    if (!body) return;
+
+    // ---- オーバーレイ要素（CSS に任せる）----
+    var overlay = document.getElementById("cscs-log-bg");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "cscs-log-bg";
+      body.insertBefore(overlay, body.firstChild);
     }
 
-    // ---- 背景オーバーレイ本体 ----
-    var overlay = document.createElement("div");
-    overlay.id = "cscs-log-bg";
-
-    overlay.style.position = "fixed";
-    overlay.style.top = "580px";      // ★ 位置：下寄り
-    overlay.style.left = "20px";      // ★ 左20px
-    overlay.style.width = "66%";      // ★ 幅66%
-    overlay.style.height = "190px";   // ★ 高さ190px
-
-    overlay.style.zIndex = "9999";    // ★ 最前面
-    overlay.style.pointerEvents = "none";
-
-    // レイアウト（中央寄せだが text は左寄せ）
-    overlay.style.display = "flex";
-    overlay.style.justifyContent = "center";
-    overlay.style.textAlign = "left";
-    overlay.style.whiteSpace = "pre-wrap";
-
-    overlay.style.overflow = "hidden";
-    overlay.style.boxSizing = "border-box";
-
-    // 視認性
-    overlay.style.opacity = "0.10";
-    overlay.style.fontSize = "10px";
-    overlay.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
-    overlay.style.lineHeight = "2.0";
-    overlay.style.color = "rgb(255,255,255)";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
-
-    // === inner ===
-    var inner = document.createElement("div");
-    inner.id = "cscs-log-bg-inner";
-    inner.style.maxWidth = "100%";
-
-    overlay.appendChild(inner);
-
-    body.insertBefore(overlay, body.firstChild);
-
-    var root = document.getElementById("root");
-    if (root) {
-      if (!root.style.position) {
-        root.style.position = "relative";
-      }
-      root.style.zIndex = "1";
+    var inner = document.getElementById("cscs-log-bg-inner");
+    if (!inner) {
+      inner = document.createElement("div");
+      inner.id = "cscs-log-bg-inner";
+      overlay.appendChild(inner);
     }
+
+    // ※ここでは overlay.style.xxx を一切しない
+    //   すべて外側の CSS (#cscs-log-bg {...}) が担当する
 
     var MAX_LINES = 80;
     var lines = [];
@@ -85,42 +50,30 @@
       overlay.style.display = enabled ? "block" : "none";
     };
 
-    // console.log フック
+    // ---- console.log フック ----
     var originalLog = console.log;
     console.log = function () {
-      try {
-        // 元のログはそのままコンソールにも出す
-        originalLog.apply(console, arguments);
-      } catch (_e0) {
-        // ここは黙っておく
-      }
+      // 元ログ
+      try { originalLog.apply(console, arguments); } catch (_) {}
 
       if (!enabled) return;
 
+      // 全て文字列化
       var parts = [];
       for (var i = 0; i < arguments.length; i++) {
         var arg = arguments[i];
-        if (typeof arg === "string") {
-          parts.push(arg);
-        } else {
-          try {
-            parts.push(JSON.stringify(arg));
-          } catch (_e) {
-            parts.push(String(arg));
-          }
+        if (typeof arg === "string") parts.push(arg);
+        else {
+          try { parts.push(JSON.stringify(arg)); }
+          catch (_) { parts.push(String(arg)); }
         }
       }
-      var text = parts.join(" ");
-
-      // いったん全ての console.log をオーバーレイに流す
-      appendLogLine(text);
+      appendLogLine(parts.join(" "));
     };
 
-    // ★ページ遷移直後にも背景に文字を出す
-    appendLogLine("[B-LOG] overlay ready. streak logs will appear here.");
+    appendLogLine("[B-LOG] overlay ready. all console.log captured.");
   }
 
-  // すでに body がある → 即実行、なければ DOMContentLoaded 待ち
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initOverlay);
   } else {
