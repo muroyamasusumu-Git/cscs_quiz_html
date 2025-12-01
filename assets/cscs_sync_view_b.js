@@ -1,5 +1,3 @@
-「streak3Today の 送信 は 1アクセス（1ページロード）あたり確実に1回」にする設定をいれて欲しい。2回目の送信が発生する場合は1回目の送信内容に書き換えて欲しい
-
 // assets/cscs_sync_view_b.js
 (function () {
   "use strict";
@@ -618,12 +616,6 @@
     window.CSCS_SYNC = {};
   }
 
-  // ★ streak3Today の送信を「1アクセスあたり確実に1回」に制御するためのフラグ／スナップショット
-  //    - STREAK3_TODAY_SENT_ONCE: ページロード中に HTTP 送信を既に行ったかどうか
-  //    - STREAK3_TODAY_FIRST_SNAPSHOT: 1回目の呼び出し時点の day / qids / localCount を保持
-  var STREAK3_TODAY_SENT_ONCE = false;
-  var STREAK3_TODAY_FIRST_SNAPSHOT = null;
-
   window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
     try {
       // 1) オフラインならそもそも送信しない（Bパートからの streak3TodayDelta は「オンライン時だけ」）
@@ -667,12 +659,54 @@
         localCount = 0;
       }
 
-      // 3) 「今回読み出したスナップショット」を保持しておく
-      var currentSnapshot = {
-        day: day,
-        qids: qids.slice(),
-        localCount: localCount
-      };
+      // 2-6) 「streak3Today の送信内容」は、その日の「初回の payload」を固定する
+      //      - localStorage に前回のスナップショットがあればそれを優先
+      //      - 日付が変わったら新しいスナップショットを書き直す
+      var FIRST_PAYLOAD_KEY = "cscs_streak3_today_first_payload";
+      try {
+        var firstRaw = localStorage.getItem(FIRST_PAYLOAD_KEY);
+        var firstPayload = null;
+        if (firstRaw) {
+          try {
+            firstPayload = JSON.parse(firstRaw);
+          } catch (_e4) {
+            firstPayload = null;
+          }
+        }
+
+        if (firstPayload && typeof firstPayload === "object" && firstPayload.day === day) {
+          // すでに同じ日の「初回 payload」が存在する場合は、それで上書きする
+          if (Array.isArray(firstPayload.qids)) {
+            qids = firstPayload.qids.filter(function (x) {
+              return typeof x === "string" && x;
+            });
+          }
+          if (
+            typeof firstPayload.unique_count === "number" &&
+            Number.isFinite(firstPayload.unique_count) &&
+            firstPayload.unique_count >= 0
+          ) {
+            localCount = firstPayload.unique_count;
+          }
+        } else if (day && qids.length > 0) {
+          // まだスナップショットが無い、または日付が変わっている場合は、今回の内容を「初回 payload」として保存する
+          var snapshot = {
+            day: day,
+            qids: qids.slice(),
+            unique_count: localCount
+          };
+          localStorage.setItem(FIRST_PAYLOAD_KEY, JSON.stringify(snapshot));
+        }
+      } catch (_e5) {
+        // この処理で失敗しても、本来の送信ロジックには影響させない
+      }
+
+      // 3) 読み出したローカル状態（実際に送信に使う値）をコンソールにフル出力（デバッグ用）
+      console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
+      console.log("effective.day =", day);
+      console.log("effective.qids =", qids);
+      console.log("effective.unique_count =", localCount);
+      console.groupEnd();
 
       // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
       if (!day || qids.length === 0) {
@@ -680,47 +714,7 @@
         return;
       }
 
-      // 5) 1回目の呼び出しであれば、そのときのスナップショットを保存する
-      if (STREAK3_TODAY_FIRST_SNAPSHOT === null) {
-        STREAK3_TODAY_FIRST_SNAPSHOT = currentSnapshot;
-      } else {
-        // 2回目以降の呼び出しでは「1回目の内容に書き換え」てから扱う
-        console.group("[SYNC-B:streak3Today] 2回目以降の呼び出し → 1回目のスナップショットに書き換え");
-        console.log("beforeOverride (currentSnapshot) =", currentSnapshot);
-        console.log("firstSnapshot (STREAK3_TODAY_FIRST_SNAPSHOT) =", STREAK3_TODAY_FIRST_SNAPSHOT);
-        console.groupEnd();
-
-        day = STREAK3_TODAY_FIRST_SNAPSHOT.day;
-        qids = STREAK3_TODAY_FIRST_SNAPSHOT.qids.slice();
-        localCount = STREAK3_TODAY_FIRST_SNAPSHOT.localCount;
-      }
-
-      // 6) 読み出した（※2回目以降は 1回目に書き換え済み）ローカル状態をコンソールにフル出力（デバッグ用）
-      console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
-      console.log("effective.day =", day);
-      console.log("effective.qids =", qids);
-      console.log("effective.unique_count =", localCount);
-      console.groupEnd();
-
-      // 7) 既にこのページで streak3Today の HTTP 送信を一度行っている場合は、
-      //    「1回目と同じ内容であることをログだけ出し、HTTP は送らない」
-      if (STREAK3_TODAY_SENT_ONCE) {
-        console.warn("[SYNC-B:streak3Today] 2回目以降の呼び出し検知 → HTTP送信スキップ（1アクセス1回制限）");
-        console.group("[SYNC-B:streak3Today] reused first payload (no HTTP send)");
-        console.log({
-          day: day,
-          qids: qids,
-          localCount: localCount
-        });
-        console.groupEnd();
-        return;
-      }
-
-      // 8) ここに到達するのは「このページでまだ streak3Today を送っていない 1回目の呼び出し」のみ
-      //    → 以降の処理で HTTP 送信を行うのでフラグを立てておく
-      STREAK3_TODAY_SENT_ONCE = true;
-
-      // 9) Workers 側の merge.ts に渡す streak3TodayDelta のペイロードを組み立て
+      // 5) Workers 側の merge.ts に渡す streak3TodayDelta のペイロードを組み立て
       //    - day: "YYYYMMDD" 形式
       //    - qids: その日に⭐️を初めて取った問題の qid 配列
       var payload = {
@@ -731,12 +725,12 @@
         updatedAt: Date.now()
       };
 
-      // 10) 送信直前の payload を丸ごとログに出しておく
+      // 6) 送信直前の payload を丸ごとログに出しておく
       console.group("[SYNC-B:streak3Today] SEND payload");
       console.log(payload);
       console.groupEnd();
 
-      // 11) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
+      // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
       var res = await fetch(SYNC_MERGE_ENDPOINT, {
         method: "POST",
         headers: {
@@ -746,13 +740,13 @@
         keepalive: true
       });
 
-      // 12) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
+      // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
       if (!res.ok) {
         console.error("[SYNC-B:streak3Today] merge FAILED:", res.status);
         return;
       }
 
-      // 13) merge.ts が返してきた最新の SYNC スナップショットを取得（失敗しても致命的ではない）
+      // 9) merge.ts が返してきた最新の SYNC スナップショットを取得（失敗しても致命的ではない）
       var merged = null;
       try {
         merged = await res.json();
@@ -760,21 +754,21 @@
         merged = null;
       }
 
-      // 14) merge のレスポンスをログに残しておく（Workers 側でどう保存されたかの確認用）
+      // 10) merge のレスポンスをログに残しておく（Workers 側でどう保存されたかの確認用）
       console.group("[SYNC-B:streak3Today] MERGE result");
       console.log("mergeResponse =", merged);
       console.groupEnd();
 
-      // 15) さらに /api/sync/state を叩いて、KV に反映された最終形の streak3Today を確認する
+      // 11) さらに /api/sync/state を叩いて、KV に反映された最終形の streak3Today を確認する
       try {
         var stateAfter = await fetchState();
         try {
-          // 15-1) 取得した state 全体をグローバルに保持して、
+          // 11-1) 取得した state 全体をグローバルに保持して、
           //       Bパート HUD や他のビューからも streak3Today を参照できるようにする
           window.__cscs_sync_state = stateAfter;
         } catch (_e3) {}
 
-        // 15-2) stateAfter.streak3Today の中身をそのままログに出して、
+        // 11-2) stateAfter.streak3Today の中身をそのままログに出して、
         //       「day / unique_count / qids がどのように保存されたか」を確認できるようにする
         console.group("[SYNC-B:streak3Today] UPDATED state.streak3Today");
         console.log(stateAfter && stateAfter.streak3Today);
