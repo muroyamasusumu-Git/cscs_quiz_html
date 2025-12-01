@@ -370,6 +370,12 @@
   function refreshAndSend(box) {
     fetchState()
       .then(function (state) {
+        // ★ /api/sync/state の結果をグローバルへ保存して、
+        //    renderPanel から streak3Today を正しく取得できるようにする
+        try {
+          window.__cscs_sync_state = state;
+        } catch (_e) {}
+
         var serverCorrect = 0;
         var serverWrong = 0;
         var serverStreak3 = 0;
