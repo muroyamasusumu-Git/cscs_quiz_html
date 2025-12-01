@@ -184,6 +184,7 @@
     var serverStreak3 = params.serverStreak3 || 0;
     var serverStreakLen = params.serverStreakLen || 0;
 
+    // 差分が無いときは「そもそも送っていない」ことが分かるようにする
     if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0 && localStreakLen === serverStreakLen) {
       renderPanel(box, {
         serverCorrect: serverCorrect,
@@ -198,11 +199,12 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "no diff"
+        statusText: "no diff (送信なし)"
       });
       return;
     }
 
+    // オフラインで送れていないケース
     if (!navigator.onLine) {
       renderPanel(box, {
         serverCorrect: serverCorrect,
@@ -217,7 +219,7 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "offline"
+        statusText: "offline (未送信)"
       });
       return;
     }
@@ -257,6 +259,7 @@
         keepalive: true
       });
 
+      // サーバーまで届かなかった／保存に失敗した可能性
       if (!response.ok) {
         console.error("[SYNC-B] server returned non-ok status:", response.status);
         renderPanel(box, {
@@ -272,7 +275,7 @@
           serverStreakLen: serverStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
-          statusText: "merge " + String(response.status)
+          statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性)"
         });
         return;
       }
@@ -286,15 +289,11 @@
 
       console.log("[SYNC-B] sync success:", data);
 
+      // merge のレスポンスから「サーバーに保存された値」を拾う
       var newServerCorrect = serverCorrect;
       var newServerWrong = serverWrong;
       var newServerStreak3 = serverStreak3;
       var newServerStreakLen = serverStreakLen;
-      var mergedUpdatedAt = 0;
-
-      if (data && typeof data.updatedAt === "number" && Number.isFinite(data.updatedAt)) {
-        mergedUpdatedAt = data.updatedAt;
-      }
 
       if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
         if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
@@ -337,54 +336,86 @@
       var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
       var newDiffStreakLen = Math.max(0, localStreakLen - newServerStreakLen);
 
-      // ★ ここから /api/sync/state を再取得して、
-      //    「保存されたか」「state に反映されたか」を確認する
-      var stateAfter = null;
-      var stateAfterUpdatedAt = 0;
-      var statusText = "merge ok";
-
+      // ★ merge 成功後に /api/sync/state を再取得して、
+      //    「保存されたか」「state に反映されたか」を diff ベースで確認する
       try {
-        stateAfter = await fetchState();
+        var stateAfter = await fetchState();
         try {
           window.__cscs_sync_state = stateAfter;
         } catch (_e2) {}
 
-        if (stateAfter && typeof stateAfter.updatedAt === "number" && Number.isFinite(stateAfter.updatedAt)) {
-          stateAfterUpdatedAt = stateAfter.updatedAt;
-        }
-      } catch (eState) {
-        console.error("[SYNC-B] state fetch after merge failed:", eState);
-      }
+        var refreshedServerCorrect = newServerCorrect;
+        var refreshedServerWrong = newServerWrong;
+        var refreshedServerStreak3 = newServerStreak3;
+        var refreshedServerStreakLen = newServerStreakLen;
 
-      if (stateAfter) {
-        if (stateAfterUpdatedAt >= mergedUpdatedAt && mergedUpdatedAt > 0) {
-          statusText = "merge ok / state synced";
-        } else if (mergedUpdatedAt > 0) {
-          statusText = "merge ok / state stale(未反映の可能性)";
-        } else {
-          statusText = "merge ok / updatedAtなし(stateは取得済み)";
+        if (stateAfter && stateAfter.correct && stateAfter.correct[qid] != null) {
+          refreshedServerCorrect = stateAfter.correct[qid];
         }
-      } else {
-        statusText = "merge ok / state fetch error(保存済みか要サーバーログ確認)";
-      }
+        if (stateAfter && stateAfter.incorrect && stateAfter.incorrect[qid] != null) {
+          refreshedServerWrong = stateAfter.incorrect[qid];
+        }
+        if (stateAfter && stateAfter.streak3 && stateAfter.streak3[qid] != null) {
+          refreshedServerStreak3 = stateAfter.streak3[qid];
+        }
+        if (stateAfter && stateAfter.streakLen && stateAfter.streakLen[qid] != null) {
+          refreshedServerStreakLen = stateAfter.streakLen[qid];
+        }
 
-      renderPanel(box, {
-        serverCorrect: newServerCorrect,
-        serverWrong: newServerWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: newDiffCorrect,
-        diffWrong: newDiffWrong,
-        serverStreak3: newServerStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: newDiffStreak3,
-        serverStreakLen: newServerStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: newDiffStreakLen,
-        statusText: statusText
-      });
+        var refreshedDiffCorrect = Math.max(0, localCorrect - refreshedServerCorrect);
+        var refreshedDiffWrong = Math.max(0, localWrong - refreshedServerWrong);
+        var refreshedDiffStreak3 = Math.max(0, localStreak3 - refreshedServerStreak3);
+        var refreshedDiffStreakLen = Math.max(0, localStreakLen - refreshedServerStreakLen);
+
+        var statusMsg = "merge ok / state synced (保存・反映完了)";
+        if (
+          refreshedDiffCorrect > 0 ||
+          refreshedDiffWrong > 0 ||
+          refreshedDiffStreak3 > 0 ||
+          refreshedDiffStreakLen > 0
+        ) {
+          // サーバー保存までは成功しているが、state の値が追いついていない／何らかの理由で差分が残っている
+          statusMsg = "merge ok / state に未反映の差分あり";
+        }
+
+        renderPanel(box, {
+          serverCorrect: refreshedServerCorrect,
+          serverWrong: refreshedServerWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: refreshedDiffCorrect,
+          diffWrong: refreshedDiffWrong,
+          serverStreak3: refreshedServerStreak3,
+          localStreak3: localStreak3,
+          diffStreak3: refreshedDiffStreak3,
+          serverStreakLen: refreshedServerStreakLen,
+          localStreakLen: localStreakLen,
+          diffStreakLen: refreshedDiffStreakLen,
+          statusText: statusMsg
+        });
+      } catch (e2) {
+        console.error("[SYNC-B] state refresh error after merge:", e2);
+
+        // 保存は成功しているが、state の再取得に失敗したケース
+        renderPanel(box, {
+          serverCorrect: newServerCorrect,
+          serverWrong: newServerWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: newDiffCorrect,
+          diffWrong: newDiffWrong,
+          serverStreak3: newServerStreak3,
+          localStreak3: localStreak3,
+          diffStreak3: newDiffStreak3,
+          serverStreakLen: newServerStreakLen,
+          localStreakLen: localStreakLen,
+          diffStreakLen: newDiffStreakLen,
+          statusText: "merge ok / state 再取得エラー(保存は成功している可能性)"
+        });
+      }
     } catch (e) {
       console.error("[SYNC-B] fetch failed:", e);
+      // ネットワークレベルで送信に失敗したケース
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -398,7 +429,7 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "error"
+        statusText: "network error (送信失敗)"
       });
     }
   }
