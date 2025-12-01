@@ -692,11 +692,14 @@
       console.log(payload);
       console.groupEnd();
 
-      // 6.5) このページロード中にすでに streak3TodayDelta を送信済みなら、2回目以降は送信しない
+      // ★ デバッグ用：このページロードでの送信回数チェック
       if (streak3TodaySentOnceThisLoad) {
-        console.warn("[SYNC-B:streak3Today] already sent in this page load → 送信スキップ");
+        console.warn("[SYNC-B:streak3Today] ★2回目の呼び出し → 送信禁止（1アクセス1回制限OK）");
         return;
       }
+
+      // ★ ここに来たということは「このページロードではまだ送信していない」
+      console.log("[SYNC-B:streak3Today] ★1回目の送信としてマーク（1アクセスあたり1回のルール適用）");
       streak3TodaySentOnceThisLoad = true;
 
       // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
