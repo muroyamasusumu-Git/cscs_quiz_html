@@ -2,12 +2,20 @@
 (function () {
   "use strict";
 
+  // 二重初期化防止
   if (window.CSCS_LOG_OVERLAY_INITIALIZED) {
     return;
   }
   window.CSCS_LOG_OVERLAY_INITIALIZED = true;
 
   // body が確実に存在してから初期化する
+  function initOverlay() {
+    var body = document.body;
+    if (!body) {
+      console.warn("[B-LOG] body がまだ存在しません。");
+      return;
+    }
+
     // ---- 背景オーバーレイ本体 ----
     var overlay = document.createElement("div");
     overlay.id = "cscs-log-bg";
@@ -41,22 +49,10 @@
     // === inner ===
     var inner = document.createElement("div");
     inner.id = "cscs-log-bg-inner";
-
-    // inner は幅100%でOK
     inner.style.maxWidth = "100%";
 
     overlay.appendChild(inner);
 
-    // ★ 中央の大きめボックス
-    inner.style.maxWidth = "80%";
-    inner.style.maxHeight = "80%";
-    inner.style.margin = "0 auto";
-    inner.style.overflow = "auto";
-    inner.style.transform = "none";
-
-    overlay.appendChild(inner);
-
-    var body = document.body;
     body.insertBefore(overlay, body.firstChild);
 
     var root = document.getElementById("root");
@@ -95,40 +91,39 @@
       try {
         // 元のログはそのままコンソールにも出す
         originalLog.apply(console, arguments);
+      } catch (_e0) {
+        // ここは黙っておく
+      }
 
-        if (!enabled) return;
+      if (!enabled) return;
 
-        var parts = [];
-        for (var i = 0; i < arguments.length; i++) {
-          var arg = arguments[i];
-          if (typeof arg === "string") {
-            parts.push(arg);
-          } else {
-            try {
-              parts.push(JSON.stringify(arg));
-            } catch (_e) {
-              parts.push(String(arg));
-            }
+      var parts = [];
+      for (var i = 0; i < arguments.length; i++) {
+        var arg = arguments[i];
+        if (typeof arg === "string") {
+          parts.push(arg);
+        } else {
+          try {
+            parts.push(JSON.stringify(arg));
+          } catch (_e) {
+            parts.push(String(arg));
           }
         }
-        var text = parts.join(" ");
-
-        // ★いったん全ての console.log をオーバーレイに流す
-        appendLogLine(text);
-      } catch (_e) {
-        try { originalLog.apply(console, arguments); } catch (_e2) {}
       }
+      var text = parts.join(" ");
+
+      // いったん全ての console.log をオーバーレイに流す
+      appendLogLine(text);
     };
 
     // ★ページ遷移直後にも背景に文字を出す
     appendLogLine("[B-LOG] overlay ready. streak logs will appear here.");
   }
 
-  // すでに body がある → 即実行
-  if (document.body) {
-    initOverlay();
-  } else {
-    // まだ body が無い → DOMContentLoaded 待ち
+  // すでに body がある → 即実行、なければ DOMContentLoaded 待ち
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initOverlay);
+  } else {
+    initOverlay();
   }
 })();
