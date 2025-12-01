@@ -228,76 +228,23 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       }
     }
 
-    // ここまで到達したら検証は全て OK → streak3Today をフル上書きする…前に
-    // 「同じ day / 同じ qids がすでに保存されている場合」は
-    // 1アクセス内の重複送信とみなし、streak3Today の更新処理だけをブロックする
-    let shouldUpdateStreak3Today = true;
+    // ここまで到達したら検証は全て OK → streak3Today をフル上書きする
+    (server as any).streak3Today = {
+      day,
+      unique_count: qids.length,
+      qids
+    };
 
+    // 上書き後の内容を詳細にログ出力して、コンソール上から成功を確認できるようにする
     try {
-      const prevSt3 = (server as any).streak3Today || null;
-
-      if (prevSt3 && typeof prevSt3 === "object") {
-        const prevDay =
-          typeof (prevSt3 as any).day === "string" ? (prevSt3 as any).day : "";
-        const prevQidsRaw = (prevSt3 as any).qids;
-        const prevQids = Array.isArray(prevQidsRaw)
-          ? (prevQidsRaw as string[])
-          : [];
-
-        if (prevDay === day && prevQids.length === qids.length) {
-          let allEqual = true;
-          for (let i = 0; i < prevQids.length; i++) {
-            if (prevQids[i] !== qids[i]) {
-              allEqual = false;
-              break;
-            }
-          }
-
-          if (allEqual) {
-            shouldUpdateStreak3Today = false;
-            console.log(
-              "[SYNC/merge] (2-1-dup) 同一 day / 同一 qids の streak3TodayDelta を検出 → 更新処理をブロック"
-            );
-          }
-        }
-      }
-    } catch (_eDup) {
-      console.warn(
-        "[SYNC/merge] (2-1-dup) 重複チェック中に例外が発生しましたが処理は継続します"
-      );
-      shouldUpdateStreak3Today = true;
-    }
-
-    if (shouldUpdateStreak3Today) {
-      (server as any).streak3Today = {
-        day,
-        unique_count: qids.length,
-        qids
-      };
-
-      // 上書き後の内容を詳細にログ出力して、コンソール上から成功を確認できるようにする
-      try {
-        console.log(
-          "[SYNC/merge] (2-1-2) streak3Today バリデーション成功 → 上書き完了:",
-          {
-            day: (server as any).streak3Today.day,
-            unique_count: (server as any).streak3Today.unique_count,
-            qidsLength: Array.isArray((server as any).streak3Today.qids)
-              ? (server as any).streak3Today.qids.length
-              : -1
-          }
-        );
-      } catch (_e2) {}
-    } else {
-      // 重複と判定して更新をブロックした場合も、その旨だけログ出力しておく
-      try {
-        const prevSt3 = (server as any).streak3Today || null;
-        console.log(
-          "[SYNC/merge] (2-1-2) streak3Today 重複検出 → 既存値を維持:",
-          prevSt3
-        );
-      } catch (_e3) {}
-    }
+      console.log("[SYNC/merge] (2-1-2) streak3Today バリデーション成功 → 上書き完了:", {
+        day: (server as any).streak3Today.day,
+        unique_count: (server as any).streak3Today.unique_count,
+        qidsLength: Array.isArray((server as any).streak3Today.qids)
+          ? (server as any).streak3Today.qids.length
+          : -1
+      });
+    } catch (_e2) {}
   } else {
     // 今回の delta には streak3TodayDelta が含まれていない場合
     console.log("[SYNC/merge] (2-1) streak3Today: delta なし（更新スキップ）");
