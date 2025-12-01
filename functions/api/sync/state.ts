@@ -71,12 +71,27 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // 5) ログ出力（完全）
   // -----------------------------
   try {
+    const qidsRaw =
+      hasProp && rawSt3 && typeof rawSt3 === "object"
+        ? (rawSt3 as any).qids
+        : undefined;
+    const qidsIsArray = Array.isArray(qidsRaw);
+    const qidsLength = qidsIsArray ? (qidsRaw as any[]).length : 0;
+    const isConsistent =
+      qidsIsArray && parsedCount !== null
+        ? parsedCount === qidsLength
+        : null;
+
     console.log("[SYNC/state] --- streak3Today Check ---");
     console.log("[SYNC/state] hasProp:", hasProp);
     console.log("[SYNC/state] out.streak3Today (raw):", rawSt3);
+    console.log("[SYNC/state] out.streak3Today.qids:", qidsRaw);
     console.log("[SYNC/state] out.streak3Today (parsed):", {
       day: parsedDay,
-      unique_count: parsedCount
+      unique_count: parsedCount,
+      qidsIsArray,
+      qidsLength,
+      isConsistent
     });
 
     console.log("[SYNC/state] --- summary ---");
