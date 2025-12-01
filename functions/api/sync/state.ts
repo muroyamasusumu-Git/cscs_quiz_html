@@ -3,138 +3,92 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
 
-  // ★★★ ログ強制モード: 開始ログ ★★★
   try {
+    console.log("====================================================");
     console.log("[SYNC/state] === onRequestGet START ===");
-    console.log("[SYNC/state] user key:", key);
+    console.log("[SYNC/state] user:", user);
+    console.log("[SYNC/state] key :", key);
   } catch (_e) {}
 
-  // データ読み込み（存在しなければ null）
+  // -----------------------------
+  // 1) KV から読み出し
+  // -----------------------------
   let data: any = null;
   try {
     data = await env.SYNC.get(key, "json");
+    console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
   } catch (e) {
-    // KV 読み出しで例外が起きても必ずログを出す
-    try {
-      console.error("[SYNC/state] ★KV 読み出し失敗:", e);
-    } catch (_e2) {}
+    console.error("[SYNC/state] ★KV 読み出し失敗:", e);
   }
 
-  // ★★★ ここから読み出しの状態分類ログ ★★★
-  try {
-    if (data == null) {
-      console.warn("[SYNC/state] ★データなし（KVに何も保存されていない可能性）");
-    } else {
-      console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
-
-      if (typeof data.updatedAt === "number") {
-        const ageMs = Date.now() - data.updatedAt;
-
-        if (ageMs < 1000) {
-          console.log("[SYNC/state] ★最新データ（保存後すぐ反映） age(ms):", ageMs);
-        } else if (ageMs < 5000) {
-          console.log("[SYNC/state] ★比較的新しいデータ age(ms):", ageMs);
-        } else {
-          console.warn("[SYNC/state] ★古いデータを返しています（KV 遅延の可能性大） age(ms):", ageMs);
-        }
-      } else {
-        console.warn("[SYNC/state] ★updatedAt が存在しないデータ（不整合の可能性）");
-      }
-    }
-  } catch (_e) {}
-  // ★★★ 状態分類ログ ここまで ★★★
-
-  // streak3 / consistency_status / streak3Today を必ず返却するため empty に項目を用意
+  // -----------------------------
+  // 2) empty テンプレ（補完用）
+  // -----------------------------
   const empty = {
     correct: {},
     incorrect: {},
     streak3: {},
     streakLen: {},
     consistency_status: {},
-    streak3Today: { day: "", unique_count: 0 },
+    // ★ここでは streak3Today を追加しない（消失確認のため上書き禁止）
     updatedAt: 0
   };
 
-  // data が存在しても欠けている項目があれば補完する
-  let out: any;
-  if (data) {
-    out = data;
-    try {
-      console.log("[SYNC/state] ★KVヒット: 既存データを使用");
-    } catch (_e) {}
-  } else {
-    out = empty;
-    try {
-      console.log("[SYNC/state] ★KVミス: empty テンプレートを使用");
-    } catch (_e) {}
-  }
+  // -----------------------------
+  // 3) out 生成（補完）
+  // -----------------------------
+  let out: any = data ? data : empty;
 
+  // 欠けている構造だけ補完（streak3Today は絶対に補完しない）
   if (!out.correct) out.correct = {};
   if (!out.incorrect) out.incorrect = {};
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
 
-  // ★ streak3Today の状態チェックとログ（※ここではデフォルト値を新規生成しない）
-  try {
-    const hasKvData = !!data; // KV に何かしら入っているかどうか
-    const hasProp =
-      out && Object.prototype.hasOwnProperty.call(out, "streak3Today");
+  // -----------------------------
+  // 4) streak3Today の存在/内容チェック（上書き禁止）
+  // -----------------------------
+  let hasProp = Object.prototype.hasOwnProperty.call(out, "streak3Today");
+  let rawSt3 = hasProp ? out.streak3Today : undefined;
 
-    if (!hasKvData) {
-      // KV ミス → empty テンプレート由来（= まだ一度も保存されていない初期状態）
-      console.log("[SYNC/state] streak3Today source = empty-template (no KV data yet)");
-      // この場合の値は empty 定義に依存（{ day:'', unique_count:0 }）
-    } else if (!hasProp) {
-      console.warn("[SYNC/state] ★KVデータに streak3Today プロパティが存在しません（保存漏れの可能性）");
-    } else if (!out.streak3Today || typeof out.streak3Today !== "object") {
-      console.warn("[SYNC/state] ★KVデータの streak3Today が不正な形式です:", out.streak3Today);
-    } else {
-      const d = (out.streak3Today as any).day;
-      const c = (out.streak3Today as any).unique_count;
+  let parsedDay: string | null = null;
+  let parsedCount: number | null = null;
 
-      const dayIsValid = typeof d === "string";
-      const cntIsValid =
-        typeof c === "number" && Number.isFinite(c) && c >= 0;
+  if (hasProp && rawSt3 && typeof rawSt3 === "object") {
+    parsedDay =
+      typeof rawSt3.day === "string"
+        ? rawSt3.day
+        : null;
 
-      if (!dayIsValid || !cntIsValid) {
-        console.warn("[SYNC/state] ★streak3Today の day / unique_count に不正値があります", {
-          day: d,
-          unique_count: c
-        });
-      } else {
-        console.log("[SYNC/state] streak3Today source = kv-valid", {
-          day: d,
-          unique_count: c
-        });
-      }
+    if (typeof rawSt3.unique_count === "number") {
+      const n = rawSt3.unique_count;
+      parsedCount = Number.isFinite(n) && n >= 0 ? n : null;
     }
-  } catch (_e) {
-    console.warn("[SYNC/state] ★streak3Today ログ処理中に例外が発生しました");
   }
 
-  // ★ debug: クライアントに返す値を “要約して” ログ出力
+  // -----------------------------
+  // 5) ログ出力（完全）
+  // -----------------------------
   try {
-    const updatedAt = typeof out.updatedAt === "number" ? out.updatedAt : 0;
-    const ageMs = updatedAt ? (Date.now() - updatedAt) : null;
-
-    console.log("[SYNC/state] ★state RESPONSE streak3Today:", {
-      day: out.streak3Today.day,
-      unique_count: out.streak3Today.unique_count
+    console.log("[SYNC/state] --- streak3Today Check ---");
+    console.log("[SYNC/state] hasProp:", hasProp);
+    console.log("[SYNC/state] out.streak3Today (raw):", rawSt3);
+    console.log("[SYNC/state] out.streak3Today (parsed):", {
+      day: parsedDay,
+      unique_count: parsedCount
     });
 
-    console.log("[SYNC/state] ★state 応答オブジェクト概要", {
-      hasCorrect: !!out.correct,
-      hasIncorrect: !!out.incorrect,
-      hasStreak3: !!out.streak3,
-      hasStreakLen: !!out.streakLen,
-      hasConsistencyStatus: !!out.consistency_status,
-      hasStreak3Today: !!out.streak3Today,
-      updatedAt,
-      ageMs
-    });
+    console.log("[SYNC/state] --- summary ---");
+    console.log("[SYNC/state] hasCorrect           :", !!out.correct);
+    console.log("[SYNC/state] hasIncorrect         :", !!out.incorrect);
+    console.log("[SYNC/state] hasStreak3           :", !!out.streak3);
+    console.log("[SYNC/state] hasStreakLen         :", !!out.streakLen);
+    console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
+    console.log("[SYNC/state] hasStreak3Today      :", hasProp);
 
     console.log("[SYNC/state] === onRequestGet END ===");
+    console.log("====================================================");
   } catch (_e) {}
 
   return new Response(JSON.stringify(out), {
@@ -142,6 +96,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   });
 };
 
+// -----------------------------
 async function getUserIdFromAccess(request: Request) {
   const jwt = request.headers.get("CF-Access-Jwt-Assertion");
   if (!jwt) throw new Response("Unauthorized", { status: 401 });
