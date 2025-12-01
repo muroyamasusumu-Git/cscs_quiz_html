@@ -17,23 +17,42 @@
     overlay.style.left = "0";
     overlay.style.right = "0";
     overlay.style.bottom = "0";
-    overlay.style.zIndex = "0";
+
+    // ★ 画面上の一番手前に出す
+    overlay.style.zIndex = "9999";
+
+    // クリックはスルー（元の仕様を維持）
     overlay.style.pointerEvents = "none";
+
+    // ★ 中央寄せ用のレイアウト
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.textAlign = "center";
+
     overlay.style.whiteSpace = "pre-wrap";
     overlay.style.overflow = "hidden";
     overlay.style.padding = "40px";
     overlay.style.boxSizing = "border-box";
-    overlay.style.opacity = "0.12";
-    overlay.style.fontSize = "11px";
+
+    // ★ 一旦ガッツリ見えるように
+    overlay.style.opacity = "0.95";
+    overlay.style.fontSize = "18px";
     overlay.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
     overlay.style.lineHeight = "1.4";
-    overlay.style.color = "#888888";
+    overlay.style.color = "#ffffff";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
 
     var inner = document.createElement("div");
     inner.id = "cscs-log-bg-inner";
-    inner.style.width = "200%";
-    inner.style.height = "200%";
-    inner.style.transform = "translate(-10%, -10%)";
+
+    // ★ 中央の大きめボックス
+    inner.style.maxWidth = "80%";
+    inner.style.maxHeight = "80%";
+    inner.style.margin = "0 auto";
+    inner.style.overflow = "auto";
+    inner.style.transform = "none";
+
     overlay.appendChild(inner);
 
     var body = document.body;
