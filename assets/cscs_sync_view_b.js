@@ -559,6 +559,117 @@
     }
   }
 
+  if (typeof window.CSCS_SYNC === "undefined" || window.CSCS_SYNC === null) {
+    window.CSCS_SYNC = {};
+  }
+
+  window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
+    try {
+      if (!navigator.onLine) {
+        console.warn("[SYNC-B:streak3Today] offline → 送信スキップ");
+        return;
+      }
+
+      var day = "";
+      var qids = [];
+      var localCount = 0;
+
+      try {
+        day = localStorage.getItem("cscs_streak3_today_day") || "";
+        var rawQids = localStorage.getItem("cscs_streak3_today_qids");
+        var rawCnt = localStorage.getItem("cscs_streak3_today_unique_count");
+
+        if (rawQids) {
+          var parsed = JSON.parse(rawQids);
+          if (Array.isArray(parsed)) {
+            qids = parsed.filter(function (x) {
+              return typeof x === "string" && x;
+            });
+          }
+        }
+
+        var cnt = parseInt(rawCnt || "0", 10);
+        if (Number.isFinite(cnt) && cnt >= 0) {
+          localCount = cnt;
+        }
+      } catch (_e) {
+        day = "";
+        qids = [];
+        localCount = 0;
+      }
+
+      // ---- ローカル状態ログ ----
+      console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
+      console.log("local.day =", day);
+      console.log("local.qids =", qids);
+      console.log("local.unique_count =", localCount);
+      console.groupEnd();
+
+      if (!day || qids.length === 0) {
+        console.warn("[SYNC-B:streak3Today] day 又は qids が空 → 送信中止");
+        return;
+      }
+
+      var payload = {
+        streak3TodayDelta: {
+          day: day,
+          qids: qids
+        },
+        updatedAt: Date.now()
+      };
+
+      // ---- 送信前ログ ----
+      console.group("[SYNC-B:streak3Today] SEND payload");
+      console.log(payload);
+      console.groupEnd();
+
+      var res = await fetch(SYNC_MERGE_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+
+      if (!res.ok) {
+        console.error("[SYNC-B:streak3Today] merge FAILED:", res.status);
+        return;
+      }
+
+      var merged = null;
+      try {
+        merged = await res.json();
+      } catch (_e2) {
+        merged = null;
+      }
+
+      // ---- merge 結果ログ ----
+      console.group("[SYNC-B:streak3Today] MERGE result");
+      console.log("mergeResponse =", merged);
+      console.groupEnd();
+
+      // ---- /api/sync/state 再取得 ----
+      try {
+        var stateAfter = await fetchState();
+        try {
+          window.__cscs_sync_state = stateAfter;
+        } catch (_e3) {}
+
+        // ---- state の streak3Today ログ ----
+        console.group("[SYNC-B:streak3Today] UPDATED state.streak3Today");
+        console.log(stateAfter && stateAfter.streak3Today);
+        console.groupEnd();
+
+      } catch (e4) {
+        console.error("[SYNC-B:streak3Today] state refresh ERROR:", e4);
+      }
+
+    } catch (e) {
+      console.error("[SYNC-B:streak3Today] fatal error:", e);
+    }
+  };
+
   window.addEventListener("online", function () {
     var box = document.getElementById("cscs_sync_view_b");
     if (!box) return;
