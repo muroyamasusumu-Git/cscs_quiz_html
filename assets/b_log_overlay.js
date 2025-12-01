@@ -39,7 +39,7 @@
     overlay.style.boxSizing = "border-box";
 
     // 視認性
-    overlay.style.opacity = "0.16";
+    overlay.style.opacity = "0.10";
     overlay.style.fontSize = "11px";
     overlay.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
     overlay.style.lineHeight = "2.0";
