@@ -425,21 +425,37 @@
         headers:{ "content-type":"application/json" }
       });
 
+      // 1) localStorage 側の今日の 3連続正解ユニーク数を削除
       try{
         localStorage.removeItem("cscs_streak3_today_day");
         localStorage.removeItem("cscs_streak3_today_unique_count");
         localStorage.removeItem("cscs_streak3_today_qids");
       }catch(_){}
 
-      if (showAlert) {
-        alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
-      }
+      // 2) クライアント側の SYNC スナップショットも「streak3Today を空」に更新（デバッグ専用）
+      try{
+        if (!window.__cscs_sync_state || typeof window.__cscs_sync_state !== "object") {
+          window.__cscs_sync_state = {};
+        }
+        window.__cscs_sync_state.streak3Today = {
+          day: "",
+          unique_count: 0,
+          qids: []
+        };
+      }catch(_){}
 
+      // 3) サーバー側の最新状態を /api/sync/state から取り直して上書き（streak3Today も含めて確認）
       try{
         const s = await CSCS_SYNC.fetchServer();
         window.__cscs_sync_state = s;
-        updateMonitor();
       }catch(_){}
+
+      // 4) モニタ表示を最新状態で再描画
+      updateMonitor();
+
+      if (showAlert) {
+        alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
+      }
     }catch(e){
       if (showAlert) {
         alert("reset_streak3_today 失敗: " + e);
