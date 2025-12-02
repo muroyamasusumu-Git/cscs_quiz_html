@@ -235,7 +235,7 @@ margin-left: 10px;
 }
 
 #cscs-consistency-panel .cc-panel-header-title {
-  font-size: 1.25em;  /* ベースより少し大きめ */
+  font-size: 14px;  /* ベースより少し大きめ */
   font-weight: 600;
 }
 
