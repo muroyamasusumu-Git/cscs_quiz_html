@@ -142,7 +142,54 @@
 
         const time = lastSyncTime ? lastSyncTime : "-";
         const err  = lastSyncError ? (" err:" + lastSyncError) : "";
-        if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
+
+        // oncePerDayToday の計測状況をステータス文字列に付加する
+        let onceLabel = "";
+        try{
+          const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+
+          let todayYmd = null;
+          try{
+            const now = new Date();
+            const yy = now.getFullYear();
+            const mm = now.getMonth() + 1;
+            const dd = now.getDate();
+            todayYmd = yy * 10000 + mm * 100 + dd;
+          }catch(_eDate){
+            todayYmd = null;
+          }
+
+          const once = state && state.oncePerDayToday && typeof state.oncePerDayToday === "object"
+            ? state.oncePerDayToday
+            : null;
+
+          if (
+            once &&
+            typeof once.day === "number" &&
+            todayYmd !== null &&
+            once.day === todayYmd &&
+            once.results &&
+            typeof once.results === "object"
+          ) {
+            const r = once.results[QID];
+            if (r === "correct" || r === "wrong") {
+              onceLabel = " / oncePerDayToday: 計測済(" + r + ")";
+            } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+              onceLabel = " / oncePerDayToday: 計測済(unknown)";
+            } else {
+              onceLabel = " / oncePerDayToday: 未計測";
+            }
+          } else {
+            onceLabel = " / oncePerDayToday: 未計測";
+          }
+        }catch(_eOnce){
+          // oncePerDayToday 表示に失敗してもステータス自体は出す
+          onceLabel = "";
+        }
+
+        if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err + onceLabel;
       }
     }catch(_){
       // UI更新失敗は握りつぶし
@@ -266,6 +313,60 @@
       const sl = (s.streakLen && s.streakLen[QID]) || 0;
 
       window.__cscs_sync_state = s;
+
+      // oncePerDayToday 情報を参照して、
+      // 「今日この QID が oncePerDay 計測済みかどうか」をコンソールに出す
+      try{
+        var once = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+          ? s.oncePerDayToday
+          : null;
+
+        var todayYmd = null;
+        try{
+          var now = new Date();
+          var yy = now.getFullYear();
+          var mm = now.getMonth() + 1;
+          var dd = now.getDate();
+          todayYmd = yy * 10000 + mm * 100 + dd;  // 例: 20251203
+        }catch(_eDate){
+          todayYmd = null;
+        }
+
+        var onceLogPayload = {
+          qid: QID,
+          todayYmd: todayYmd,
+          onceDay: once && typeof once.day === "number" ? once.day : null,
+          onceResult: null,
+          measuredToday: false
+        };
+
+        if (
+          once &&
+          typeof once.day === "number" &&
+          todayYmd !== null &&
+          once.day === todayYmd &&
+          once.results &&
+          typeof once.results === "object"
+        ) {
+          var r = once.results[QID];
+          if (r === "correct" || r === "wrong") {
+            onceLogPayload.onceResult = r;
+            onceLogPayload.measuredToday = true;
+          } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+            // 値が "correct"/"wrong" 以外でも「何らかの計測済み」として扱う
+            onceLogPayload.onceResult = String(r);
+            onceLogPayload.measuredToday = true;
+          }
+        }
+
+        if (onceLogPayload.measuredToday) {
+          console.log("[SYNC-A:oncePerDay] this qid is ALREADY measured today", onceLogPayload);
+        } else {
+          console.log("[SYNC-A:oncePerDay] this qid is NOT measured today (or oncePerDayToday.day != today)", onceLogPayload);
+        }
+      }catch(_eOnce){
+        console.log("[SYNC-A:oncePerDay] oncePerDayToday check skipped (error)", _eOnce);
+      }
 
       // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
       const streak3Today = (s && s.streak3Today)
