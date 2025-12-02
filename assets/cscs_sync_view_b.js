@@ -639,47 +639,37 @@
           document.body.appendChild(box);
         }
       }
-      // ★ streak3TodayDelta を送信してから HUD を再描画する共通トリガー
-      //    reason で「手動ボタン」「初回ロード」など呼び出し元をログに残す
-      function triggerStreak3TodaySend(reason) {
-        if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
-          console.log("[SYNC-B:HUD] streak3Today SEND start (" + reason + ") (diff POST suppressed)");
-          var p = window.CSCS_SYNC.recordStreak3TodayUnique();
-          if (p && typeof p.then === "function") {
-            p.then(function () {
-              console.log("[SYNC-B:HUD] streak3Today SEND completed (" + reason + ") → HUD 再取得＋再描画（diff POST 抑制）");
-              refreshAndSend(box, { suppressDiffSend: true });
-            }).catch(function (e) {
-              console.error("[SYNC-B:HUD] streak3Today SEND error (" + reason + "):", e);
-            });
-          } else {
-            console.warn("[SYNC-B:HUD] recordStreak3TodayUnique did not return Promise-like (" + reason + ")");
-          }
-        } else {
-          console.warn("[SYNC-B:HUD] recordStreak3TodayUnique is not available (手動送信不可) (" + reason + ")");
-        }
-      }
-
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {
         btn.addEventListener("click", function (ev) {
           ev.preventDefault();
           ev.stopPropagation();
 
-          // ① ボタン押下時: まず diff POST を止めた状態で HUD を更新
+          // ① 手動テスト時は HUD の表示だけ更新し、diff のサーバー送信は抑制する
+          //    → 最初の refreshAndSend では「現在の state」に基づく HUD を表示するだけ
           refreshAndSend(box, { suppressDiffSend: true });
 
-          // ② その後 streak3TodayDelta 専用パケットを送信し、完了後に HUD を再取得
-          triggerStreak3TodaySend("manual button");
+          // ② Local streak3Today 情報を「手動送信」するテスト用トリガー
+          //    - merge 完了後にもう一度 HUD を更新して、
+          //      /api/sync/state に反映された最新の streak3Today を HUD に出す
+          if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
+            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button (diff POST suppressed)");
+            var p = window.CSCS_SYNC.recordStreak3TodayUnique();
+            // recordStreak3TodayUnique は async 関数なので、Promise っぽければ完了を待って HUD 再描画
+            if (p && typeof p.then === "function") {
+              p.then(function () {
+                console.log("[SYNC-B:HUD] streak3Today merge completed → HUD 再取得＋再描画（diff POST 抑制）");
+                refreshAndSend(box, { suppressDiffSend: true });
+              }).catch(function (e) {
+                console.error("[SYNC-B:HUD] streak3Today manual send error:", e);
+              });
+            }
+          } else {
+            console.warn("[SYNC-B:HUD] recordStreak3TodayUnique is not available (手動送信不可)");
+          }
         });
       }
-
-      // ③ 初回ロード時: リロード直後にボタンと同じシーケンスを自動実行する
-      //    - diff POST は抑制したまま HUD を更新
-      //    - 続けて streak3TodayDelta を送信し、完了後に HUD を再取得
-      console.log("[SYNC-B:HUD] initial load → auto streak3Today SEND sequence start");
-      refreshAndSend(box, { suppressDiffSend: true });
-      triggerStreak3TodaySend("initial load");
+      refreshAndSend(box);
     }
 
     if (document.readyState === "loading") {
