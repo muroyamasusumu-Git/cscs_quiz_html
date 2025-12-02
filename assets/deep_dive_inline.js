@@ -413,12 +413,12 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     // 内部すべての要素の余白を完全リセット＋ブロック改行を無効化（#dd-inline 限定）
     const styleReset = document.createElement("style");
     styleReset.textContent = `
-      #dd-inline, #dd-inline * {
-        margin: 12px 0 0 !important;
-        padding: 0 !important;
-        border: 0 !important;
-        line-height: 20px !important;
-      }
+#dd-inline, #dd-inline * {
+    margin: 7px 0 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    line-height: 16px !important;
+}
       /* ブロック要素による改行を排除 */
       #dd-inline section { display: contents !important; }  /* 親ボックスを消して子だけ残す */
       #dd-inline p       { display: inline !important; }    /* 段落改行を消す */
@@ -436,13 +436,13 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       }
 
       /* 見出しリンク */
-      #dd-inline .dd-head {
-        color: #ffffff !important;
-        text-decoration: underline !important;
-        cursor: pointer !important;
-        font-size: 18px !important;
-        font-weight: 300 !important;
-      }
+#dd-inline .dd-head {
+    color: #ffffff !important;
+    text-decoration: underline !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    font-weight: 300 !important;
+}
 
       /* 念のため <strong>/<b> も軽く色付け */
       #dd-inline strong, #dd-inline b { color: #6cc7ff !important; }
