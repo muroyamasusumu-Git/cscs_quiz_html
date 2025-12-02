@@ -867,8 +867,12 @@
       console.groupEnd();
 
       // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
+      //    - 初回起動直後など「まだ streak3Today 情報が無い」ケースは正常なスキップとして扱う
       if (!day || qids.length === 0) {
-        console.warn("[SYNC-B:streak3Today] day 又は qids が空 → 送信中止");
+        console.log("[SYNC-B:streak3Today] day 又は qids が空 → 正常スキップ（まだ送るべきデータがない）", {
+          day: day,
+          qidsLength: qids.length
+        });
         return;
       }
 
