@@ -486,7 +486,7 @@
         </div>
 
         <div class="sync-line sync-streak3today">
-          今日の 3連続正解ユニーク数:<br>
+          Streak3TodayUnique:<br>
           day: <span class="sync-streak3today-day">-</span><br>
           unique: sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span>
         </div>

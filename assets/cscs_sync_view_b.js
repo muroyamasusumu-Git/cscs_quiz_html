@@ -142,7 +142,7 @@
         }
       } catch(_e) {}
 
-      text += "\n今日の 3連続正解ユニーク数:\n";
+      text += "\nStreak3TodayUnique:\n";
       text += "day: " + s3TodaySyncDay + "\n";
       text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt;
 
