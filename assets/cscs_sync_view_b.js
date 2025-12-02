@@ -622,7 +622,23 @@
         btn.addEventListener("click", function (ev) {
           ev.preventDefault();
           ev.stopPropagation();
+
+          // ① 通常の HUD 更新＆差分同期（correct / incorrect / streak3 / streakLen）
           refreshAndSend(box);
+
+          // ② 追加: Local streak3Today 情報を「手動送信」するテスト用トリガー
+          //    - localStorage 内の
+          //        cscs_streak3_today_day
+          //        cscs_streak3_today_qids
+          //        cscs_streak3_today_unique_count
+          //      を読み取り、streak3TodayDelta として /api/sync/merge へ送信する
+          //    - 実際の送信処理は window.CSCS_SYNC.recordStreak3TodayUnique が担当
+          if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
+            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button");
+            window.CSCS_SYNC.recordStreak3TodayUnique();
+          } else {
+            console.warn("[SYNC-B:HUD] recordStreak3TodayUnique is not available (手動送信不可)");
+          }
         });
       }
       refreshAndSend(box);
