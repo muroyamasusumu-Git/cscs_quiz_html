@@ -155,8 +155,9 @@
 
     const tags = {
       cause: $("[data-tag-cause]")?.getAttribute("data-tag-cause") || "",
-      process: $("[data-tag-process]")?.getAttribute("data-tag-process") || "",
-      outcome: $("[data-tag-outcome]")?.getAttribute("data-tag-outcome") || ""
+      process: $("[data-tag-process]")?.getAttribute("data-tag-process") || ""
+     // 一旦一つだけにする 
+     // outcome: $("[data-tag-outcome]")?.getAttribute("data-tag-outcome") || "" 
     };
 
     return { day, number: num, field, theme, level, question, correct, explanation, tags };
