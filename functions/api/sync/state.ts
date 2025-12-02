@@ -47,7 +47,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.consistency_status) out.consistency_status = {};
 
   // -----------------------------
-  // 4) streak3Today の存在/内容チェック（上書き禁止）
+  // 4) streak3Today / oncePerDayToday の存在/内容チェック
+  //    - streak3Today は「存在確認のみ（上書き禁止）」
+  //    - oncePerDayToday は「day / results の簡易整合チェック」を行う
   // -----------------------------
   let hasProp = Object.prototype.hasOwnProperty.call(out, "streak3Today");
   let rawSt3 = hasProp ? out.streak3Today : undefined;
@@ -64,6 +66,22 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     if (typeof rawSt3.unique_count === "number") {
       const n = rawSt3.unique_count;
       parsedCount = Number.isFinite(n) && n >= 0 ? n : null;
+    }
+  }
+
+  // oncePerDayToday 側の簡易チェック
+  const hasOncePerDayProp = Object.prototype.hasOwnProperty.call(out, "oncePerDayToday");
+  const rawOnce: any = hasOncePerDayProp ? (out as any).oncePerDayToday : undefined;
+
+  let onceDayNum: number | null = null;
+  let onceResultsKeysLength = 0;
+
+  if (rawOnce && typeof rawOnce === "object") {
+    if (typeof rawOnce.day === "number" && Number.isFinite(rawOnce.day)) {
+      onceDayNum = rawOnce.day;
+    }
+    if (rawOnce.results && typeof rawOnce.results === "object") {
+      onceResultsKeysLength = Object.keys(rawOnce.results as any).length;
     }
   }
 
@@ -94,6 +112,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       isConsistent
     });
 
+    console.log("[SYNC/state] --- oncePerDayToday Check ---");
+    console.log("[SYNC/state] hasOncePerDayProp:", hasOncePerDayProp);
+    console.log("[SYNC/state] out.oncePerDayToday (raw):", rawOnce);
+    console.log("[SYNC/state] out.oncePerDayToday (parsed):", {
+      day: onceDayNum,
+      resultsKeysLength: onceResultsKeysLength
+    });
+
     console.log("[SYNC/state] --- summary ---");
     console.log("[SYNC/state] hasCorrect           :", !!out.correct);
     console.log("[SYNC/state] hasIncorrect         :", !!out.incorrect);
@@ -101,6 +127,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] hasStreakLen         :", !!out.streakLen);
     console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
+    console.log("[SYNC/state] hasOncePerDayToday   :", hasOncePerDayProp);
 
     console.log("[SYNC/state] === onRequestGet END ===");
     console.log("====================================================");
