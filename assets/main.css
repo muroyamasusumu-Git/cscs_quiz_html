@@ -577,7 +577,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_view_b {
   position: fixed;
   right: 0;                /* 右寄せ */
-  bottom: 0;
+  bottom: 10px;
   opacity: 0.25;           /* 透明度 */
   z-index: 9999;
   background: transparent;
