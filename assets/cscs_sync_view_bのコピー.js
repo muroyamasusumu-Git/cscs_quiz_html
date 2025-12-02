@@ -288,27 +288,16 @@
     var serverStreak3 = params.serverStreak3 || 0;
     var serverStreakLen = params.serverStreakLen || 0;
 
-    // ★ 追加: /api/sync/state の snapshot を受け取り、
-    //    そこから oncePerDayTodayDelta を構築するために利用する
-    var syncState = params.syncState || null;
-
-    // ★ 追加: oncePerDayTodayDelta を事前に構築しておく
-    //   - 差分が無ければ null
-    //   - 何かあれば { day, results } を返す
-    var oncePerDayDelta = buildOncePerDayTodayDelta(syncState);
-
     // ====== ② diff が存在しない場合は SYNC を送らず終了 ======
     // ・diffCorrect / diffWrong / diffStreak3 が 0 以下
     // ・かつ localStreakLen と serverStreakLen が同じ
-    // ・かつ oncePerDayDelta が null
     //
-    // → 「今回は送るべき更新が何もない」ので、
+    // → 「今回は送るべき更新が何もない」なので、
     //    HUD パネルの表示だけ更新して return する。
     if (diffCorrect <= 0 &&
         diffWrong <= 0 &&
         diffStreak3 <= 0 &&
-        localStreakLen === serverStreakLen &&
-        !oncePerDayDelta) {
+        localStreakLen === serverStreakLen) {
 
       // パネルの状態だけ更新し、実際の fetch(SYNC/merge) は実行しない
       renderPanel(box, {
@@ -388,6 +377,8 @@
     }
 
     // ====== ⑥ 上記 delta 群をまとめて payload を構築 ======
+    // ※ streak3TodayDelta はここには含まれない（HUD からは送信されない）
+    //    → これが “巻き戻し” の根本原因の一つ
     var payload = {
       correctDelta:  correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
@@ -395,13 +386,6 @@
       streakLenDelta: streakLenDeltaObj,  // streakLen は上書き
       updatedAt: Date.now()              // クライアント側での更新時刻
     };
-
-    // ★ 追加: oncePerDayTodayDelta がある場合は payload に付与
-    if (oncePerDayDelta) {
-      payload.oncePerDayTodayDelta = oncePerDayDelta;
-      console.log("[SYNC-B] oncePerDayTodayDelta attached to payload:", oncePerDayDelta);
-    }
-
     // ★ payload に有効な delta が 1つも無い場合は、
     //    「2回目 save 由来のノイズ送信」とみなして fetch 自体を行わないガード
     //    （ここを通らなかった＝実際に送信された、というのがログで確認できる）
@@ -409,14 +393,12 @@
     var hasIncorrectDeltaInPayload = Object.prototype.hasOwnProperty.call(incorrectDeltaObj, qid);
     var hasStreak3DeltaInPayload = Object.prototype.hasOwnProperty.call(streak3DeltaObj, qid);
     var hasStreakLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakLenDeltaObj, qid);
-    var hasOncePerDayDeltaInPayload = !!oncePerDayDelta;
 
     if (
       !hasCorrectDeltaInPayload &&
       !hasIncorrectDeltaInPayload &&
       !hasStreak3DeltaInPayload &&
-      !hasStreakLenDeltaInPayload &&
-      !hasOncePerDayDeltaInPayload
+      !hasStreakLenDeltaInPayload
     ) {
       console.log("[SYNC-B] ★送信スキップ（payload に有効な delta が無いため）", {
         qid: qid,
@@ -716,9 +698,7 @@
           diffCorrect: diffCorrect,
           diffWrong: diffWrong,
           diffStreak3: diffStreak3,
-          diffStreakLen: diffStreakLen,
-          // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を渡す
-          syncState: state
+          diffStreakLen: diffStreakLen
         });
       })
       .catch(function (e) {
