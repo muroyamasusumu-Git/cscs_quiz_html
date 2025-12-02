@@ -105,13 +105,15 @@ font-size: 30px;
 padding-bottom: 1px;
 }
 
+body.mode-b ol.opts {
+    margin-bottom: 10px;
+}
 
 body.mode-b .opts li {
 margin-top: 5px !important;
-margin-bottom: 0px;
-font-size: 30px;
-padding-bottom: 1px;
 }
+
+
 
 
 
