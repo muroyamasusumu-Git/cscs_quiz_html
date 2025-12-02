@@ -150,7 +150,7 @@ margin: 0 5px 0 0;
 }
 
 .explain {
-font-size: 20px;
+font-size: 16px;
 margin: 10px 0 0;
 margin-right: 0 !important;
 width: 77% ;
@@ -198,6 +198,14 @@ margin-left: 10px;
 #judge .your-choice {
   font-size: 0.7em !important;  /* ← 好きなサイズに変更 */
   color: #c9c9c9 !important;     /* ついでに色も統一 */
+}
+
+/* ===============================
+   深掘りインラインテキスト
+   =============================== */
+
+#dd-inline, #dd-inline * {
+  font-size: 10px !important;  /* ← 好きなサイズに変更 */
 }
 
 
