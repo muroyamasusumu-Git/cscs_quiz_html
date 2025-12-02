@@ -313,6 +313,7 @@
         localStreakLen === serverStreakLen &&
         !oncePerDayDelta) {
 
+      // oncePerDayTodayDelta も無いので、このケースでは「oncePerDayToday: 計測なし」として扱う
       // パネルの状態だけ更新し、実際の fetch(SYNC/merge) は実行しない
       renderPanel(box, {
         serverCorrect,
@@ -327,13 +328,15 @@
         serverStreakLen,
         localStreakLen,
         diffStreakLen,
-        statusText: "no diff (送信なし)"
+        statusText: "no diff (送信なし) / oncePerDayToday: 計測なし"
       });
       return;
     }
 
     // ====== ③ オフライン時は送れないため「未送信」ステータスで終了 ======
     if (!navigator.onLine) {
+      // oncePerDayTodayDelta が存在するがオフラインで送れない場合は「未計測」、存在しない場合は「計測なし」として扱う
+      var offlineOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 未計測" : "oncePerDayToday: 計測なし";
       renderPanel(box, {
         serverCorrect,
         serverWrong,
@@ -347,7 +350,7 @@
         serverStreakLen,
         localStreakLen,
         diffStreakLen,
-        statusText: "offline (未送信)"
+        statusText: "offline (未送信) / " + offlineOncePerDayStatus
       });
       return;
     }
@@ -426,6 +429,7 @@
         payload: payload
       });
 
+      // oncePerDayToday 用の delta も payload に含まれていないため「oncePerDayToday: 計測なし」として扱う
       // パネル側にも「送信していない」ことが分かるようステータスを反映
       renderPanel(box, {
         serverCorrect: serverCorrect,
@@ -440,7 +444,7 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "no delta in payload (送信スキップ)"
+        statusText: "no delta in payload (送信スキップ) / oncePerDayToday: 計測なし"
       });
       return;
     }
@@ -460,6 +464,8 @@
       // サーバーまで届かなかった／保存に失敗した可能性
       if (!response.ok) {
         console.error("[SYNC-B] server returned non-ok status:", response.status);
+        // oncePerDayTodayDelta が送信対象だったがサーバー側でエラーになった場合、「未計測」とする
+        var mergeErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 未計測" : "oncePerDayToday: 計測なし";
         renderPanel(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
@@ -473,7 +479,7 @@
           serverStreakLen: serverStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
-          statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性)"
+          statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性) / " + mergeErrorOncePerDayStatus
         });
         return;
       }
@@ -572,9 +578,28 @@
           refreshedDiffStreak3 > 0 ||
           refreshedDiffStreakLen > 0
         ) {
-          // サーバー保存までは成功しているが、state の値が追いついていない／何らかの理由で差分が残っている
           statusMsg = "merge ok / state に未反映の差分あり";
         }
+
+        // oncePerDayToday の状態を 3 区分（計測済／未計測／計測なし）で判定してステータスに付与する
+        var oncePerDayStatus = "oncePerDayToday: 計測なし";
+        if (oncePerDayDelta) {
+          var syncedOncePerDay = false;
+          if (stateAfter && stateAfter.oncePerDayToday && typeof stateAfter.oncePerDayToday === "object") {
+            var sOnce = stateAfter.oncePerDayToday;
+            if (typeof sOnce.day === "number" && sOnce.day === oncePerDayDelta.day) {
+              syncedOncePerDay = true;
+            }
+          }
+          if (syncedOncePerDay) {
+            // merge + state まで反映され、A側からも取得可能な状態
+            oncePerDayStatus = "oncePerDayToday: 計測済";
+          } else {
+            // delta はあったが、state への反映確認まで到達していないので「未計測」として扱う
+            oncePerDayStatus = "oncePerDayToday: 未計測";
+          }
+        }
+        statusMsg += " / " + oncePerDayStatus;
 
         renderPanel(box, {
           serverCorrect: refreshedServerCorrect,
@@ -595,6 +620,8 @@
         console.error("[SYNC-B] state refresh error after merge:", e2);
 
         // 保存は成功しているが、state の再取得に失敗したケース
+        // oncePerDayTodayDelta がある場合でも、A側からの取得が保証できないため「未計測」として扱う
+        var stateErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 未計測" : "oncePerDayToday: 計測なし";
         renderPanel(box, {
           serverCorrect: newServerCorrect,
           serverWrong: newServerWrong,
@@ -608,12 +635,14 @@
           serverStreakLen: newServerStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: newDiffStreakLen,
-          statusText: "merge ok / state 再取得エラー(保存は成功している可能性)"
+          statusText: "merge ok / state 再取得エラー(保存は成功している可能性) / " + stateErrorOncePerDayStatus
         });
       }
     } catch (e) {
       console.error("[SYNC-B] fetch failed:", e);
       // ネットワークレベルで送信に失敗したケース
+      // oncePerDayTodayDelta が存在する場合でもサーバーまで届いていないため「未計測」として扱う
+      var networkErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 未計測" : "oncePerDayToday: 計測なし";
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -627,7 +656,7 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "network error (送信失敗)"
+        statusText: "network error (送信失敗) / " + networkErrorOncePerDayStatus
       });
     }
   }
