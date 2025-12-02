@@ -10,14 +10,14 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2025-12-02
+ * 最終更新: 2025-11-30
  *
  * === SPEC CONTENT ===
  */
 // assets/b_judge_record.js
 // -------------------------------------------
 // Bパート：正誤判定＋日替わり集計＋問題別3連正解トラッキング
-// JST対応・問題別総試行／計測済み／未計測・問題別連続正解＋1日1回制限用結果マップ付き
+// JST対応・問題別総試行／計測済み／未計測・問題別連続正解付き
 // -------------------------------------------
 // ===========================================================
 // 📊 CSCS 計測仕様サマリー（b_judge_record.js）
@@ -65,14 +65,6 @@
 // │             │ cscs_q_wrong_counted_total:{qid}      │ “ユニーク採用”不正解（同日に初回のみ +1）                   │
 // │             │ cscs_q_correct_uncounted_total:{qid}  │ 同日2回目以降の正解                                         │
 // │             │ cscs_q_wrong_uncounted_total:{qid}    │ 同日2回目以降の不正解                                       │
-// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
-// │ 一日一回系 │ cscs_once_per_day_today_day       │ JST YYYYMMDD。b_judge_record.js が管理する「1日1回」用の当日識別子。 │
-// │             │ cscs_once_per_day_today_results   │ {qid: "correct"/"wrong"}。当日中に一度でも計測対象となった問題と最終結果。│
-// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
-// │ SYNC連携   │ (SYNC) oncePerDayToday           │ /api/sync/state で返すサーバ状態。{ day, results }。local の once_per_day 系を同期。│
-// │             │ (SYNC) oncePerDayToday.day       │ JST YYYYMMDD（数値）。当日以外の場合は別日の状態として扱う。                     │
-// │             │ (SYNC) oncePerDayToday.results   │ {qid: "correct"/"wrong"}。その日、その qid が計測済みであることを示す。         │
-// │             │ (SYNC) oncePerDayTodayDelta      │ /api/sync/merge に送る差分。{ day, results } の部分更新専用。                  │
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 //
 // ⚙️ カウント条件まとめ
@@ -132,15 +124,6 @@
 //     cscs_streak3_today_unique_count
 // ・値は CSCS_SYNC.recordStreak3TodayUnique() を通じて /api/sync/merge の streak3Today に同期し、
 //   「今日⭐️を新規獲得したユニーク問題数」の進捗として利用する。
-// 🆕 2025-12-02 追加
-// ・「1問題につき,1日1回のみ計測モード」で使用する当日結果マップを b_judge_record.js で一元管理。
-// ・JSTの日付ごとに、localStorage 上で以下のキーを管理：
-//     cscs_once_per_day_today_day        … 当日の JST YYYYMMDD 文字列。
-//     cscs_once_per_day_today_results    … {qid: "correct" | "wrong"} 形式のマップ。
-// ・Bパートで正誤判定が確定したタイミングで、該当 qid の結果を上記マップに反映する。
-// ・このマップをもとに、Aパートや SYNC は「当日すでに計測済みかどうか」を判定できる。
-// ・SYNC Worker 側とは、/api/sync/state の oncePerDayToday（{ day: number, results: {qid: "correct"|"wrong"} }）
-//   および /api/sync/merge の oncePerDayTodayDelta（同構造の差分）を通じて連携する。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -239,63 +222,6 @@
         try{ localStorage.setItem(key, String(val|0)); }catch(_){}
       }
 
-      // ★ 追加: 「1日1回計測モード」用の当日結果マップを管理
-      //   - dayPlay: JST YYYYMMDD（文字列）
-      //   - qid: "YYYYMMDD-NNN"
-      //   - isCorrect: true なら "correct"、false なら "wrong" として記録
-      function updateOncePerDayMap(dayPlay, qid, isCorrect){
-        var onceDayKey = "cscs_once_per_day_today_day";
-        var onceMapKey = "cscs_once_per_day_today_results";
-
-        var storedDay = null;
-        try{
-          storedDay = localStorage.getItem(onceDayKey);
-        }catch(_){
-          storedDay = null;
-        }
-
-        if(storedDay !== dayPlay){
-          try{
-            localStorage.setItem(onceDayKey, dayPlay);
-          }catch(_){}
-          try{
-            localStorage.setItem(onceMapKey, "{}");
-          }catch(_){}
-          try{
-            console.log("[B:oncePerDay] RESET DAY", {
-              prevDay: storedDay,
-              newDay: dayPlay
-            });
-          }catch(_){}
-        }
-
-        var map = {};
-        try{
-          map = JSON.parse(localStorage.getItem(onceMapKey) || "{}");
-        }catch(_){
-          map = {};
-        }
-        if(!map || typeof map !== "object"){
-          map = {};
-        }
-
-        var result = isCorrect ? "correct" : "wrong";
-        map[qid] = result;
-
-        try{
-          localStorage.setItem(onceMapKey, JSON.stringify(map));
-        }catch(_){}
-
-        try{
-          console.log("[B:oncePerDay] UPDATED", {
-            day: dayPlay,
-            qid: qid,
-            result: result,
-            mapSnapshot: map
-          });
-        }catch(_){}
-      }
-
       // ---- 本体 ----
       var dayPath  = getDayFromPath();           // 例 "20250926"（qid用・後方互換）
       var dayPlay  = getTodayYYYYMMDD_JST();     // 例 "20251110"（JSTの実プレイ日ベース）
@@ -345,19 +271,6 @@
       var correct = pickCorrectLetter();         // A/B/C/D
       if(!choice || !correct){ return; }
       var isCorrect = (choice === correct);
-
-      // ★ 「1日1回計測モード」用: 正誤が確定したタイミングで当日マップを更新
-      try{
-        if(dayPlay && dayPlay !== "unknown" && qid && qid !== "unknown"){
-          updateOncePerDayMap(dayPlay, qid, isCorrect);
-        }else{
-          console.log("[B:oncePerDay] SKIP (invalid dayPlay or qid)", {
-            dayPlay: dayPlay,
-            qid: qid,
-            isCorrect: isCorrect
-          });
-        }
-      }catch(_){}
 
       // ---- 正誤どちらも「日替わり1回＋試行回数」へ統一 ----
       // 全体（その日ぶん）
