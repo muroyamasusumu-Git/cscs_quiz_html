@@ -169,65 +169,82 @@
 
   async function sendDiffToServer(box, params) {
     var qid = info.qid;
-    var diffCorrect = params.diffCorrect;
-    var diffWrong = params.diffWrong;
-    var diffStreak3 = params.diffStreak3 || 0;
+
+    // ====== ① 各種 diff / local / server 値を受け取る ======
+    // params は refreshAndSend() 側で作られた「同期前の状態比較」結果
+    var diffCorrect = params.diffCorrect;      // local - server の「正解」増分
+    var diffWrong = params.diffWrong;          // local - server の「不正解」増分
+    var diffStreak3 = params.diffStreak3 || 0; // local streak3 達成の増分（3連続正解の+1）
     var diffStreakLen = params.diffStreakLen || 0;
 
-    var localCorrect = params.localCorrect;
-    var localWrong = params.localWrong;
+    var localCorrect = params.localCorrect;    // localStorage 側の正解累計値
+    var localWrong = params.localWrong;        // localStorage 側の不正解累計値
     var localStreak3 = params.localStreak3 || 0;
     var localStreakLen = params.localStreakLen || 0;
 
-    var serverCorrect = params.serverCorrect;
+    var serverCorrect = params.serverCorrect;  // サーバー側 snapshot の正解累計
     var serverWrong = params.serverWrong;
     var serverStreak3 = params.serverStreak3 || 0;
     var serverStreakLen = params.serverStreakLen || 0;
 
-    // 差分が無いときは「そもそも送っていない」ことが分かるようにする
-    if (diffCorrect <= 0 && diffWrong <= 0 && diffStreak3 <= 0 && localStreakLen === serverStreakLen) {
+    // ====== ② diff が存在しない場合は SYNC を送らず終了 ======
+    // ・diffCorrect / diffWrong / diffStreak3 が 0 以下
+    // ・かつ localStreakLen と serverStreakLen が同じ
+    //
+    // → 「今回は送るべき更新が何もない」なので、
+    //    HUD パネルの表示だけ更新して return する。
+    if (diffCorrect <= 0 &&
+        diffWrong <= 0 &&
+        diffStreak3 <= 0 &&
+        localStreakLen === serverStreakLen) {
+
+      // パネルの状態だけ更新し、実際の fetch(SYNC/merge) は実行しない
       renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
+        serverCorrect,
+        serverWrong,
+        localCorrect,
+        localWrong,
+        diffCorrect,
+        diffWrong,
+        serverStreak3,
+        localStreak3,
+        diffStreak3,
+        serverStreakLen,
+        localStreakLen,
+        diffStreakLen,
         statusText: "no diff (送信なし)"
       });
       return;
     }
 
-    // オフラインで送れていないケース
+    // ====== ③ オフライン時は送れないため「未送信」ステータスで終了 ======
     if (!navigator.onLine) {
       renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
+        serverCorrect,
+        serverWrong,
+        localCorrect,
+        localWrong,
+        diffCorrect,
+        diffWrong,
+        serverStreak3,
+        localStreak3,
+        diffStreak3,
+        serverStreakLen,
+        localStreakLen,
+        diffStreakLen,
         statusText: "offline (未送信)"
       });
       return;
     }
 
+    // ====== ④ 各 delta オブジェクトを作る（送信する差分を構築） ======
+    // * diffCorrect, diffWrong, diffStreak3 等は「増分として送る」
+    // * streakLenDelta は「最新値で上書きする」ため「差分でなく値そのもの」
     var correctDeltaObj = {};
     var incorrectDeltaObj = {};
     var streak3DeltaObj = {};
     var streakLenDeltaObj = {};
+
     if (diffCorrect > 0) {
       correctDeltaObj[qid] = diffCorrect;
     }
@@ -237,31 +254,37 @@
     if (diffStreak3 > 0) {
       streak3DeltaObj[qid] = diffStreak3;
     }
-    // ★ streakLenDelta は「local と server が違うときだけ」送る
-    //    - 2回目 save などで両者が同じ場合は delta を送らずノイズ同期を防止
+
+    // ====== ⑤ streakLenDelta（連続正解長）の扱い ======
+    // ★ local と server が同じ連続正解長なら送らない（ノイズ防止）
+    // ★ local と server が違う場合のみ「値そのもの」を送る
+    //
+    // ※ streakLenDelta は「増分」ではなく「セットする最新値」
     if (localStreakLen !== serverStreakLen) {
       streakLenDeltaObj[qid] = localStreakLen;
       console.log("[SYNC-B] streakLenDelta set (local != server):", {
-        qid: qid,
-        localStreakLen: localStreakLen,
-        serverStreakLen: serverStreakLen
+        qid,
+        localStreakLen,
+        serverStreakLen
       });
     } else {
       console.log("[SYNC-B] streakLenDelta not set (local == server):", {
-        qid: qid,
-        localStreakLen: localStreakLen,
-        serverStreakLen: serverStreakLen
+        qid,
+        localStreakLen,
+        serverStreakLen
       });
     }
 
+    // ====== ⑥ 上記 delta 群をまとめて payload を構築 ======
+    // ※ streak3TodayDelta はここには含まれない（HUD からは送信されない）
+    //    → これが “巻き戻し” の根本原因の一つ
     var payload = {
-      correctDelta: correctDeltaObj,
+      correctDelta:  correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
-      streak3Delta: streak3DeltaObj,
-      streakLenDelta: streakLenDeltaObj,
-      updatedAt: Date.now()
+      streak3Delta:  streak3DeltaObj,
+      streakLenDelta: streakLenDeltaObj,  // streakLen は上書き
+      updatedAt: Date.now()              // クライアント側での更新時刻
     };
-
     // ★ payload に有効な delta が 1つも無い場合は、
     //    「2回目 save 由来のノイズ送信」とみなして fetch 自体を行わないガード
     //    （ここを通らなかった＝実際に送信された、というのがログで確認できる）
@@ -540,6 +563,12 @@
           statusText: "state ok"
         });
 
+        // ★ テスト用：sendDiffToServer() の呼び出しを一時停止
+        //   - HUD は /api/sync/state の取得と表示だけを行い、
+        //     /api/sync/merge への差分送信は一切行わない
+        //   - これにより「HUD からの別 merge を完全に止めた状態」で
+        //     致命的なエラーが発生しないかを検証できる
+        /*
         return sendDiffToServer(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
@@ -554,6 +583,9 @@
           diffStreak3: diffStreak3,
           diffStreakLen: diffStreakLen
         });
+        */
+        console.log("[SYNC-B] (TEST) sendDiffToServer() 呼び出しをスキップ中");
+        return Promise.resolve();
       })
       .catch(function (e) {
         console.error("[SYNC-B] state fetch error:", e);
