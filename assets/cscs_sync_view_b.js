@@ -251,7 +251,10 @@
 
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-        if (statusText) {
+        // statusText === "__keep__" の場合は既存の表示を維持する
+        if (statusText === "__keep__") {
+          // 何も変更しない（最後にセットされたステータスをそのまま表示し続ける）
+        } else if (statusText) {
           statusDiv.textContent = "status: " + statusText;
         } else {
           statusDiv.textContent = "";
@@ -671,6 +674,9 @@
         var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
         var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
 
+        // suppressDiffSend が true のときは、ステータス表示を維持したまま HUD だけ更新する
+        var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
+
         renderPanel(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
@@ -684,7 +690,7 @@
           serverStreakLen: serverStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
-          statusText: "state ok"
+          statusText: statusTextForRender
         });
 
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
