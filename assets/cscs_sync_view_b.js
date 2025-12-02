@@ -629,16 +629,6 @@
     var box = createPanel();
 
     function append() {
-      var wrap = document.querySelector("div.wrap");
-      if (wrap) {
-        if (!wrap.contains(box)) {
-          wrap.appendChild(box);
-        }
-      } else {
-        if (!document.body.contains(box)) {
-          document.body.appendChild(box);
-        }
-      }
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {
         btn.addEventListener("click", function (ev) {
@@ -653,7 +643,7 @@
           //    - merge 完了後にもう一度 HUD を更新して、
           //      /api/sync/state に反映された最新の streak3Today を HUD に出す
           if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
-            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button (diff POST suppressed)");
+            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button (diff POST 抑制)");
             var p = window.CSCS_SYNC.recordStreak3TodayUnique();
             // recordStreak3TodayUnique は async 関数なので、Promise っぽければ完了を待って HUD 再描画
             if (p && typeof p.then === "function") {
@@ -669,7 +659,19 @@
           }
         });
       }
+      // ③ 初期表示時の HUD 更新（diff 送信ありの通常モード）
       refreshAndSend(box);
+
+      // ④ 追加: ページロード後約1秒で「SYNC送信ボタン」を自動クリックして、
+      //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta 送信）を一度だけ実行する
+      if (btn) {
+        setTimeout(function () {
+          console.log("[SYNC-B:auto] 1秒後に SYNC 送信ボタンを自動クリックします");
+          btn.click();
+        }, 1000);
+      } else {
+        console.log("[SYNC-B:auto] SYNC 送信ボタンが見つからないため、自動クリックを行いません");
+      }
     }
 
     if (document.readyState === "loading") {
