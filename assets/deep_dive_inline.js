@@ -155,9 +155,8 @@
 
     const tags = {
       cause: $("[data-tag-cause]")?.getAttribute("data-tag-cause") || "",
-      process: $("[data-tag-process]")?.getAttribute("data-tag-process") || ""
-     // 一旦一つだけにする 
-     // outcome: $("[data-tag-outcome]")?.getAttribute("data-tag-outcome") || "" 
+      process: $("[data-tag-process]")?.getAttribute("data-tag-process") || "",
+      outcome: $("[data-tag-outcome]")?.getAttribute("data-tag-outcome") || ""
     };
 
     return { day, number: num, field, theme, level, question, correct, explanation, tags };
@@ -618,7 +617,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     };
 
     wrap.appendChild(mkRow("cause", "理論深掘り｜上流（原因・原理）"));
-    wrap.appendChild(mkRow("apply", "この問題への当てはめ"));
+    // wrap.appendChild(mkRow("apply", "この問題への当てはめ"));
 
     // .explain が pre-wrap の場合、末尾の改行テキストが空行になるので除去
     (function nukeTrailingWhitespace(node){
