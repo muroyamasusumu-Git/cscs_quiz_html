@@ -672,13 +672,13 @@
       // ③ 初期表示時の HUD 更新（diff 送信ありの通常モード）
       refreshAndSend(box);
 
-      // ④ 追加: ページロード後約1.0秒で「SYNC送信ボタン」を自動クリックして、
+      // ④ 追加: ページロード後約1.5秒で「SYNC送信ボタン」を自動クリックして、
       //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta 送信）を一度だけ実行する
       if (btn) {
         setTimeout(function () {
-          console.log("[SYNC-B:auto] 0.5秒後に SYNC 送信ボタンを自動クリックします");
+          console.log("[SYNC-B:auto] 1.5秒後に SYNC 送信ボタンを自動クリックします");
           btn.click();
-        }, 500);
+        }, 1500);
       } else {
         console.log("[SYNC-B:auto] SYNC 送信ボタンが見つからないため、自動クリックを行いません");
       }
