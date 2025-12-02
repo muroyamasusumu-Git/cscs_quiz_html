@@ -510,7 +510,12 @@
     }
   }
 
-  function refreshAndSend(box) {
+  function refreshAndSend(box, options) {
+    // ★ options.suppressDiffSend === true のときは、
+    //    sendDiffToServer() を呼ばずに HUD の表示更新だけ行うモード
+    options = options || {};
+    var suppressDiffSend = !!options.suppressDiffSend;
+
     fetchState()
       .then(function (state) {
         // ★ /api/sync/state の結果をグローバルへ保存して、
@@ -562,6 +567,23 @@
           diffStreakLen: diffStreakLen,
           statusText: "state ok"
         });
+
+        // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
+        //    HUD 表示のみ更新した状態で終了する（手動 streak3Today テスト用）
+        if (suppressDiffSend) {
+          console.log("[SYNC-B] refreshAndSend: suppressDiffSend=true → diff POST を実行せず HUD 表示のみ更新", {
+            qid: info.qid,
+            serverCorrect: serverCorrect,
+            serverWrong: serverWrong,
+            localCorrect: localCorrect,
+            localWrong: localWrong,
+            diffCorrect: diffCorrect,
+            diffWrong: diffWrong,
+            diffStreak3: diffStreak3,
+            diffStreakLen: diffStreakLen
+          });
+          return;
+        }
 
         return sendDiffToServer(box, {
           serverCorrect: serverCorrect,
@@ -623,10 +645,12 @@
           ev.preventDefault();
           ev.stopPropagation();
 
-          // ① 通常の HUD 更新＆差分同期（correct / incorrect / streak3 / streakLen）
-          refreshAndSend(box);
+          // ① 手動テスト時は HUD の表示だけ更新し、diff のサーバー送信は抑制する
+          //    → refreshAndSend(box, { suppressDiffSend: true }) により、
+          //       sendDiffToServer() は呼ばれない。
+          refreshAndSend(box, { suppressDiffSend: true });
 
-          // ② 追加: Local streak3Today 情報を「手動送信」するテスト用トリガー
+          // ② Local streak3Today 情報を「手動送信」するテスト用トリガー
           //    - localStorage 内の
           //        cscs_streak3_today_day
           //        cscs_streak3_today_qids
@@ -634,7 +658,7 @@
           //      を読み取り、streak3TodayDelta として /api/sync/merge へ送信する
           //    - 実際の送信処理は window.CSCS_SYNC.recordStreak3TodayUnique が担当
           if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
-            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button");
+            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button (diff POST suppressed)");
             window.CSCS_SYNC.recordStreak3TodayUnique();
           } else {
             console.warn("[SYNC-B:HUD] recordStreak3TodayUnique is not available (手動送信不可)");
