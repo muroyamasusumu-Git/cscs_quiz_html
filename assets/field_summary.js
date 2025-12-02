@@ -240,6 +240,23 @@
 
   var dummyFieldStats = null;
 
+  // ★ 追加：今日の 3連続正解ユニーク数（streak3Today）を localStorage から取得
+  var starTodayCount = 0;
+
+  function loadTodayStreak3CountFromLocal() {
+    try {
+      var raw = window.localStorage.getItem("cscs_streak3_today_unique_count");
+      var n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        return 0;
+      }
+      return n;
+    } catch (e) {
+      console.warn("field_summary.js: cscs_streak3_today_unique_count の取得に失敗しました", e);
+      return 0;
+    }
+  }
+
   var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
   var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
 
@@ -303,8 +320,14 @@
     if (!Number.isFinite(targetNum) || targetNum < 0) {
       targetNum = 0;
     }
+
+    // ★ 追加：今日の 3連続正解ユニーク数を localStorage から読み込んで反映
+    starTodayCount = loadTodayStreak3CountFromLocal();
+
     needLine.textContent =
-      "⭐️本日の目標" + String(targetNum) + "/日(基準比:順調)｜獲得数+5［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
+      "⭐️本日の目標" + String(targetNum) +
+      "/日(基準比:順調)｜獲得数+" + String(starTodayCount) +
+      "［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
     needLine.style.marginBottom = "10px";
     needLine.style.marginLeft = "-8px";
     needLine.style.fontWeight = "500";
