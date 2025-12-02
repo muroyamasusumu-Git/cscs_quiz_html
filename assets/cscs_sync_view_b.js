@@ -668,7 +668,7 @@
         setTimeout(function () {
           console.log("[SYNC-B:auto] 1秒後に SYNC 送信ボタンを自動クリックします");
           btn.click();
-        }, 1000);
+        }, 3000);
       } else {
         console.log("[SYNC-B:auto] SYNC 送信ボタンが見つからないため、自動クリックを行いません");
       }
