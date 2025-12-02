@@ -566,6 +566,59 @@
     }
   }
 
+  // oncePerDayToday（1日1問カウント）用の SYNC + local リセット（デバッグ専用）
+  async function resetOncePerDayTodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      console.log("[SYNC-A:oncePerDay] reset_once_per_day_today START");
+
+      // 1) Workers 側の oncePerDayToday をリセット（デバッグ用エンドポイント想定）
+      const res = await fetch("/api/sync/reset_once_per_day_today", {
+        method: "POST",
+        headers: { "content-type": "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(String(res.status));
+      }
+
+      // 2) localStorage 側の oncePerDayToday 情報を削除
+      try{
+        localStorage.removeItem("cscs_once_per_day_today_day");
+        localStorage.removeItem("cscs_once_per_day_today_results");
+      }catch(_){}
+
+      // 3) クライアント側 snapshot の oncePerDayToday を一旦クリア
+      try{
+        if (!window.__cscs_sync_state || typeof window.__cscs_sync_state !== "object") {
+          window.__cscs_sync_state = {};
+        }
+        window.__cscs_sync_state.oncePerDayToday = {
+          day: null,
+          results: {}
+        };
+      }catch(_){}
+
+      // 4) サーバー側の最新状態を取り直して、oncePerDayToday も含めて上書き
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 5) モニタを最新状態で再描画
+      updateMonitor();
+
+      console.log("[SYNC-A:oncePerDay] reset_once_per_day_today completed (SYNC + local cleared)");
+      if (showAlert) {
+        alert("oncePerDayToday（SYNC と local の両方）をリセットしました。");
+      }
+    }catch(e){
+      console.warn("[SYNC-A:oncePerDay] reset_once_per_day_today failed:", e);
+      if (showAlert) {
+        alert("reset_once_per_day_today 失敗: " + e);
+      }
+    }
+  }
+
   window.addEventListener("DOMContentLoaded", function(){
     if (!QID) return;
     try{
@@ -598,6 +651,7 @@
           <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
           <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
           <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
+          <button id="cscs_sync_onceperday_reset" type="button" class="sync-reset-button">reset oncePerDay</button>
           <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
         </div>
       `;
@@ -613,6 +667,7 @@
       const btnReset  = document.getElementById("cscs_sync_test_reset");
       const btnStarReset = document.getElementById("cscs_sync_star_reset");
       const btnStreakTodayReset = document.getElementById("cscs_sync_streak3today_reset");
+      const btnOncePerDayReset = document.getElementById("cscs_sync_onceperday_reset");
       const btnAllReset = document.getElementById("cscs_sync_all_reset");
 
       if (btnReset) {
@@ -636,15 +691,23 @@
         });
       }
 
+      if (btnOncePerDayReset) {
+        btnOncePerDayReset.addEventListener("click", async function(){
+          await resetOncePerDayTodayAll(true);
+          location.reload();
+        });
+      }
+
       if (btnAllReset) {
         btnAllReset.addEventListener("click", async function(){
           if (!QID) return;
-          const ok = window.confirm("この問題のSYNCカウンタ・星・今日の3連続正解ユニーク数をすべてリセットします。よろしいですか？");
+          const ok = window.confirm("この問題のSYNCカウンタ・星・今日の3連続正解ユニーク数・oncePerDayToday をすべてリセットします。よろしいですか？");
           if (!ok) return;
           await resetSyncForThisQid(false, false);
           await resetStarForThisQid(false);
           await resetStreak3TodayAll(false);
-          alert("この問題に関するSYNCカウンタ・星・今日の3連続正解ユニーク数をすべてリセットしました。");
+          await resetOncePerDayTodayAll(false);
+          alert("この問題に関するSYNCカウンタ・星・今日の3連続正解ユニーク数・oncePerDayToday をすべてリセットしました。");
           location.reload();
         });
       }
