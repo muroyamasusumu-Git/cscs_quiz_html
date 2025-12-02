@@ -519,7 +519,7 @@ body.mode-b #cc-check-wrapper {
   font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
   width: 150px;
-  opacity: 0.25;
+  opacity: 0.20;
 }
 
 /* 見出し行： "SYNC(A): <qid>" */
@@ -578,7 +578,7 @@ body.mode-b #cc-check-wrapper {
   position: fixed;
   right: 0;                /* 右寄せ */
   bottom: 10px;
-  opacity: 0.25;           /* 透明度 */
+  opacity: 0.20;           /* 透明度 */
   z-index: 9999;
   background: transparent;
   color: #eee;
