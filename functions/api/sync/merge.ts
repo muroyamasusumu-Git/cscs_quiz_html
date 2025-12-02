@@ -34,8 +34,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streak3: {},
       streakLen: {},
       consistency_status: {},
-      // ここでは初期値として streak3Today を用意する（「無からの初回保存」を許可）
+      // ここでは初期値として streak3Today / oncePerDayToday を用意する（「無からの初回保存」を許可）
       streak3Today: { day: "", unique_count: 0, qids: [] },
+      oncePerDayToday: { day: 0, results: {} },
       updatedAt: 0
     };
 
@@ -48,17 +49,25 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!(server as any).streak3Today) {
     (server as any).streak3Today = { day: "", unique_count: 0, qids: [] };
   }
+  if (!(server as any).oncePerDayToday || typeof (server as any).oncePerDayToday !== "object") {
+    (server as any).oncePerDayToday = { day: 0, results: {} };
+  }
 
-  // (1) delta.streak3TodayDelta が送られてきたか
-  // - クライアント側が「今日の ⭐️ ユニーク一覧」を送信してきているかどうかを確認する
+  // (1) delta.streak3TodayDelta / oncePerDayTodayDelta が送られてきたか
+  // - クライアント側が「今日の ⭐️ ユニーク一覧」と「1日1回までカウント対象 oncePerDayTodayDelta」を送信してきているかどうかを確認する
   const streak3TodayDelta =
     delta && typeof delta === "object"
       ? (delta as any).streak3TodayDelta
       : undefined;
 
-  // streak3TodayDelta の構造検査用ログ
+  const oncePerDayTodayDelta =
+    delta && typeof delta === "object"
+      ? (delta as any).oncePerDayTodayDelta
+      : undefined;
+
+  // streak3TodayDelta / oncePerDayTodayDelta の構造検査用ログ
   try {
-    const hasDelta =
+    const hasStreak3Delta =
       streak3TodayDelta && typeof streak3TodayDelta === "object" ? true : false;
 
     let dayDebug = "";
@@ -66,7 +75,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     let qidsIsArray = false;
     let qidsLen = 0;
 
-    if (hasDelta) {
+    if (hasStreak3Delta) {
       // day が string かどうか
       dayDebug =
         typeof (streak3TodayDelta as any).day === "string"
@@ -83,10 +92,31 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       JSON.stringify(streak3TodayDelta ?? null)
     );
     console.log("[SYNC/merge] (1-2) streak3TodayDelta 詳細:", {
-      hasDelta,
+      hasDelta: hasStreak3Delta,
       day: dayDebug,
       qidsIsArray,
       qidsLength: qidsLen
+    });
+
+    // oncePerDayTodayDelta 側の簡易ログ（day / results の有無だけ確認）
+    const hasOncePerDayDelta =
+      oncePerDayTodayDelta && typeof oncePerDayTodayDelta === "object" ? true : false;
+    let onceDayDebug: number | null = null;
+    let resultsKeysLength = 0;
+    if (hasOncePerDayDelta) {
+      onceDayDebug =
+        typeof (oncePerDayTodayDelta as any).day === "number"
+          ? (oncePerDayTodayDelta as any).day
+          : null;
+      const resultsRaw = (oncePerDayTodayDelta as any).results;
+      if (resultsRaw && typeof resultsRaw === "object") {
+        resultsKeysLength = Object.keys(resultsRaw).length;
+      }
+    }
+    console.log("[SYNC/merge] (1-3) oncePerDayTodayDelta 詳細:", {
+      hasDelta: hasOncePerDayDelta,
+      day: onceDayDebug,
+      resultsKeysLength
     });
   } catch (_e) {}
 
@@ -259,6 +289,124 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.warn("[SYNC/merge] ★logging error (AFTER streak3Today)");
   }
 
+  // ---- oncePerDayTodayDelta のマージ ----
+  // - oncePerDayTodayDelta が送られてきた場合のみ処理
+  // - day / results を検証し、問題がなければ server.oncePerDayToday にマージまたは上書きする
+  if (oncePerDayTodayDelta && typeof oncePerDayTodayDelta === "object") {
+    console.log("[SYNC/merge] (2-4) oncePerDayToday: delta あり（検証開始）");
+
+    const dayRaw = (oncePerDayTodayDelta as any).day;
+    const resultsRaw = (oncePerDayTodayDelta as any).results;
+
+    // マージ前の構造チェック用ログ
+    try {
+      console.log("[SYNC/merge] (2-4-1) oncePerDayTodayDelta マージ前チェック:", {
+        day: dayRaw,
+        resultsType: typeof resultsRaw
+      });
+    } catch (_e) {}
+
+    // ---- fail-fast 検証 ----
+
+    // day は Number（YYYYMMDD 相当の 8桁）であることを要求する
+    if (typeof dayRaw !== "number" || !Number.isFinite(dayRaw)) {
+      console.error("[SYNC/merge] (2-4-err) oncePerDayTodayDelta.day が不正のため更新中断:", {
+        dayRaw
+      });
+      return new Response("invalid oncePerDayTodayDelta: day", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+    const dayStr = String(dayRaw);
+    if (!/^\d{8}$/.test(dayStr)) {
+      console.error("[SYNC/merge] (2-4-err) oncePerDayTodayDelta.day が8桁数値でないため更新中断:", {
+        dayRaw
+      });
+      return new Response("invalid oncePerDayTodayDelta: day format", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    // results はプレーンオブジェクトであることを要求する
+    if (!resultsRaw || typeof resultsRaw !== "object") {
+      console.error("[SYNC/merge] (2-4-err) oncePerDayTodayDelta.results がオブジェクトでないため更新中断:", {
+        resultsRaw
+      });
+      return new Response("invalid oncePerDayTodayDelta: results", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    // results の各要素: key は qid 文字列 / value は "correct" or "wrong"
+    const cleanedResults: any = {};
+    for (const [qid, v] of Object.entries(resultsRaw as any)) {
+      if (typeof qid !== "string" || !qid) {
+        console.error("[SYNC/merge] (2-4-err) oncePerDayTodayDelta.results 内のキーが不正:", {
+          qid,
+          value: v
+        });
+        return new Response("invalid oncePerDayTodayDelta: results key", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
+      }
+      if (v !== "correct" && v !== "wrong") {
+        console.error("[SYNC/merge] (2-4-err) oncePerDayTodayDelta.results 内の値が不正:", {
+          qid,
+          value: v
+        });
+        return new Response("invalid oncePerDayTodayDelta: results value", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
+      }
+      cleanedResults[qid] = v;
+    }
+
+    // ここまで到達したら検証は全て OK
+    // 既存の oncePerDayToday と同じ day なら results をマージ、
+    // day が違う場合は「新しい日」とみなして丸ごと置き換え
+    const prev = (server as any).oncePerDayToday || { day: 0, results: {} };
+
+    let mode: "reset" | "merge" = "reset";
+    let mergedResults: any = {};
+
+    if (prev && typeof prev === "object" && prev.day === dayRaw) {
+      mode = "merge";
+      mergedResults = prev.results && typeof prev.results === "object" ? { ...(prev.results as any) } : {};
+      for (const [qid, v] of Object.entries(cleanedResults)) {
+        mergedResults[qid] = v;
+      }
+    } else {
+      mode = "reset";
+      mergedResults = cleanedResults;
+    }
+
+    (server as any).oncePerDayToday = {
+      day: dayRaw,
+      results: mergedResults
+    };
+
+    // マージ後の結果をログ出力して、コンソールから成功を確認できるようにする
+    try {
+      const snap = (server as any).oncePerDayToday || null;
+      console.log("[SYNC/merge] (2-4-2) oncePerDayToday 更新完了:", {
+        mode,
+        day: snap ? snap.day : null,
+        resultsKeysLength:
+          snap && snap.results && typeof snap.results === "object"
+            ? Object.keys(snap.results).length
+            : 0
+      });
+    } catch (_e2) {}
+  } else {
+    // 今回の delta には oncePerDayTodayDelta が含まれていない場合
+    console.log("[SYNC/merge] (2-4) oncePerDayToday: delta なし（更新スキップ）");
+  }
+
   // exam_date_iso (YYYY-MM-DD) が送られてきた場合だけ exam_date を更新
   // - 「試験日を変更する」用途のためのフィールド
   const examDateIsoRaw =
@@ -299,13 +447,22 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       const hasDeltaForToday =
         streak3TodayDelta && typeof streak3TodayDelta === "object" ? true : false;
 
+      const beforeGuardOnce = (server as any).oncePerDayToday || null;
+      const hasOncePerDayDelta =
+        oncePerDayTodayDelta && typeof oncePerDayTodayDelta === "object" ? true : false;
+
       console.log("[SYNC/merge][guard] streak3TodayDelta 判定:", {
         hasDelta: hasDeltaForToday,
         willUpdate: hasDeltaForToday,
         streak3TodaySnapshot: beforeGuardSt3
       });
+      console.log("[SYNC/merge][guard] oncePerDayTodayDelta 判定:", {
+        hasDelta: hasOncePerDayDelta,
+        willUpdate: hasOncePerDayDelta,
+        oncePerDayTodaySnapshot: beforeGuardOnce
+      });
     } catch (_e) {
-      console.warn("[SYNC/merge][guard] logging error (streak3Today snapshot)");
+      console.warn("[SYNC/merge][guard] logging error (streak3Today / oncePerDayToday snapshot)");
     }
 
     const jsonStr = JSON.stringify(server);
