@@ -676,9 +676,9 @@
       //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta 送信）を一度だけ実行する
       if (btn) {
         setTimeout(function () {
-          console.log("[SYNC-B:auto] 1秒後に SYNC 送信ボタンを自動クリックします");
+          console.log("[SYNC-B:auto] 0.5秒後に SYNC 送信ボタンを自動クリックします");
           btn.click();
-        }, 1000);
+        }, 500);
       } else {
         console.log("[SYNC-B:auto] SYNC 送信ボタンが見つからないため、自動クリックを行いません");
       }
