@@ -563,12 +563,6 @@
           statusText: "state ok"
         });
 
-        // ★ テスト用：sendDiffToServer() の呼び出しを一時停止
-        //   - HUD は /api/sync/state の取得と表示だけを行い、
-        //     /api/sync/merge への差分送信は一切行わない
-        //   - これにより「HUD からの別 merge を完全に止めた状態」で
-        //     致命的なエラーが発生しないかを検証できる
-        /*
         return sendDiffToServer(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
@@ -583,9 +577,6 @@
           diffStreak3: diffStreak3,
           diffStreakLen: diffStreakLen
         });
-        */
-        console.log("[SYNC-B] (TEST) sendDiffToServer() 呼び出しをスキップ中");
-        return Promise.resolve();
       })
       .catch(function (e) {
         console.error("[SYNC-B] state fetch error:", e);
