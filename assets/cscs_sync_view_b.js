@@ -277,60 +277,26 @@
         } else if (rawMode === "OFF" || rawMode === "off") {
           odoaModeText = "OFF";
         } else if (rawMode === "on ") {
-          // 変な空白が付いているなどの事故対策（念のため）
           odoaModeText = "ON";
         }
       } catch (_ignore) {
         odoaModeText = "OFF";
       }
 
+      // ★ パネルに出す最終文字列（「O.D.O.A Mode : ON correct」など）
+      var odoaStatusText = "";
+      if (payload && typeof payload.odoaStatusText === "string" && payload.odoaStatusText) {
+        odoaStatusText = payload.odoaStatusText;
+      }
+
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-
-        // ★ 1) O.D.O.A の ON/OFF 判定
-        var mode = "OFF";
-        try {
-          var state = window.__cscs_sync_state;
-          if (state && typeof state.odoa_mode === "string" &&
-              (state.odoa_mode === "on" || state.odoa_mode === "ON")) {
-            mode = "ON";
-          }
-        } catch(e) {
-          mode = "OFF";
-        }
-
-        // ★ 2) 今日の oncePerDayToday の結果を見る
-        var resultFlag = "nocount";   // デフォルト
-        try {
-          var st = window.__cscs_sync_state;
-          if (st && st.oncePerDayToday &&
-              typeof st.oncePerDayToday === "object" &&
-              st.oncePerDayToday.results &&
-              typeof st.oncePerDayToday.results === "object") {
-
-            var results = st.oncePerDayToday.results;
-            if (Object.prototype.hasOwnProperty.call(results, info.qid)) {
-              var val = results[info.qid];
-              if (val === "correct") resultFlag = "correct";
-              else if (val === "wrong") resultFlag = "wrong";
-            }
-          }
-        } catch(e2) {
-          // 例外時は nocount のまま
-        }
-
-        // ★ 3) 表示を組み立てる
-        if (mode === "ON") {
-          statusDiv.textContent = "O.D.O.A Mode : ON " + resultFlag;
+        if (odoaStatusText) {
+          statusDiv.textContent = odoaStatusText;
         } else {
-          statusDiv.textContent = "O.D.O.A Mode : OFF";
+          // フォールバック（必ず4パターンのどれかを渡す想定だが、安全のため）
+          statusDiv.textContent = "O.D.O.A Mode : " + odoaModeText;
         }
-
-        // デバッグ用内部ログ（画面には出さない）
-        console.log("[SYNC-B] ODOA HUD:", {
-          mode,
-          resultFlag
-        });
       }
 
       // 内部用の statusText はログとして残すだけ
@@ -396,8 +362,13 @@
         localStreakLen === serverStreakLen &&
         !oncePerDayDelta) {
 
-      // oncePerDayTodayDelta も無いので、このケースでは「oncePerDayToday: 計測なし」として扱う
-      // パネルの状態だけ更新し、実際の fetch(SYNC/merge) は実行しない
+      var odoaStatusTextForPanel;
+      if (odoaModeText === "ON") {
+        odoaStatusTextForPanel = "O.D.O.A Mode : ON nocount";
+      } else {
+        odoaStatusTextForPanel = "O.D.O.A Mode : OFF";
+      }
+
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -412,15 +383,21 @@
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
         statusText: "no diff (送信なし) / oncePerDayToday: 計測なし",
-        odoaModeText: odoaModeText
+        odoaModeText: odoaModeText,
+        odoaStatusText: odoaStatusTextForPanel
       });
       return;
     }
 
     // ====== ③ オフライン時は送れないため「未送信」ステータスで終了 ======
     if (!navigator.onLine) {
-      // oncePerDayTodayDelta が存在するがオフラインで送れない場合は「計測エラー」、存在しない場合は「計測なし」として扱う
       var offlineOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
+      var odoaStatusTextForPanelOffline;
+      if (odoaModeText === "ON") {
+        odoaStatusTextForPanelOffline = "O.D.O.A Mode : ON nocount";
+      } else {
+        odoaStatusTextForPanelOffline = "O.D.O.A Mode : OFF";
+      }
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -435,7 +412,8 @@
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
         statusText: "offline (未送信) / " + offlineOncePerDayStatus,
-        odoaModeText: odoaModeText
+        odoaModeText: odoaModeText,
+        odoaStatusText: odoaStatusTextForPanelOffline
       });
       return;
     }
@@ -550,8 +528,13 @@
       // サーバーまで届かなかった／保存に失敗した可能性
       if (!response.ok) {
         console.error("[SYNC-B] server returned non-ok status:", response.status);
-        // oncePerDayTodayDelta が送信対象だったがサーバー側でエラーになった場合、「計測エラー」とする
         var mergeErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
+        var odoaStatusTextForPanelMergeError;
+        if (odoaModeText === "ON") {
+          odoaStatusTextForPanelMergeError = "O.D.O.A Mode : ON nocount";
+        } else {
+          odoaStatusTextForPanelMergeError = "O.D.O.A Mode : OFF";
+        }
         renderPanel(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
@@ -566,7 +549,8 @@
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
           statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性) / " + mergeErrorOncePerDayStatus,
-          odoaModeText: odoaModeText
+          odoaModeText: odoaModeText,
+          odoaStatusText: odoaStatusTextForPanelMergeError
         });
         return;
       }
@@ -668,25 +652,68 @@
           statusMsg = "merge ok / state に未反映の差分あり";
         }
 
-        // oncePerDayToday の状態を 3 区分（計測済／計測エラー／計測なし）で判定してステータスに付与する
+        // oncePerDayToday の状態（before / after）を見て、
+        // ・first time correct  → ON correct
+        // ・first time wrong    → ON wrong
+        // ・それ以外（すでに回答済み）→ ON nocount
         var oncePerDayStatus = "oncePerDayToday: 計測なし";
-        if (oncePerDayDelta) {
-          var syncedOncePerDay = false;
-          if (stateAfter && stateAfter.oncePerDayToday && typeof stateAfter.oncePerDayToday === "object") {
-            var sOnce = stateAfter.oncePerDayToday;
-            if (typeof sOnce.day === "number" && sOnce.day === oncePerDayDelta.day) {
-              syncedOncePerDay = true;
+        var prevOnceVal = null;
+        var newOnceVal = null;
+        var localOnceDay = null;
+
+        try {
+          var localOnce = readOncePerDayTodayFromLocal();
+          localOnceDay = localOnce && typeof localOnce.day === "number" ? localOnce.day : null;
+
+          if (oncePerDayDelta) {
+            var syncedOncePerDay = false;
+            if (stateAfter && stateAfter.oncePerDayToday && typeof stateAfter.oncePerDayToday === "object") {
+              var sOnceAfter = stateAfter.oncePerDayToday;
+              if (typeof sOnceAfter.day === "number" && (!localOnceDay || sOnceAfter.day === localOnceDay)) {
+                syncedOncePerDay = true;
+                var sResultsAfter = sOnceAfter.results || {};
+                if (sResultsAfter && typeof sResultsAfter === "object" && Object.prototype.hasOwnProperty.call(sResultsAfter, qid)) {
+                  newOnceVal = sResultsAfter[qid];
+                }
+              }
+            }
+            if (syncedOncePerDay) {
+              oncePerDayStatus = "oncePerDayToday: 計測済";
+            } else {
+              oncePerDayStatus = "oncePerDayToday: 計測エラー";
+            }
+          } else {
+            oncePerDayStatus = "oncePerDayToday: 計測なし";
+          }
+
+          if (syncState && syncState.oncePerDayToday && typeof syncState.oncePerDayToday === "object") {
+            var sOnceBefore = syncState.oncePerDayToday;
+            if (typeof sOnceBefore.day === "number" && (!localOnceDay || sOnceBefore.day === localOnceDay)) {
+              var sResultsBefore = sOnceBefore.results || {};
+              if (sResultsBefore && typeof sResultsBefore === "object" && Object.prototype.hasOwnProperty.call(sResultsBefore, qid)) {
+                prevOnceVal = sResultsBefore[qid];
+              }
             }
           }
-          if (syncedOncePerDay) {
-            // merge + state まで反映され、A側からも取得可能な状態
-            oncePerDayStatus = "oncePerDayToday: 計測済";
-          } else {
-            // delta はあったが、state への反映確認まで到達していないので「計測エラー」として扱う
-            oncePerDayStatus = "oncePerDayToday: 計測エラー";
-          }
+        } catch (_eOnce) {
+          oncePerDayStatus = "oncePerDayToday: 計測エラー";
         }
+
         statusMsg += " / " + oncePerDayStatus;
+
+        // ★ O.D.O.A Mode ステータス文字列を確定
+        //   - O.D.O.A Mode : ON correct
+        //   - O.D.O.A Mode : ON wrong
+        //   - O.D.O.A Mode : ON nocount
+        //   - O.D.O.A Mode : OFF
+        var odoaStatusTextForPanelAfter = "O.D.O.A Mode : OFF";
+        if (odoaModeText === "ON") {
+          var suffix = "nocount";
+          if (prevOnceVal == null && (newOnceVal === "correct" || newOnceVal === "wrong")) {
+            suffix = newOnceVal;
+          }
+          odoaStatusTextForPanelAfter = "O.D.O.A Mode : ON " + suffix;
+        }
 
         renderPanel(box, {
           serverCorrect: refreshedServerCorrect,
@@ -702,14 +729,19 @@
           localStreakLen: localStreakLen,
           diffStreakLen: refreshedDiffStreakLen,
           statusText: statusMsg,
-          odoaModeText: odoaModeText
+          odoaModeText: odoaModeText,
+          odoaStatusText: odoaStatusTextForPanelAfter
         });
       } catch (e2) {
         console.error("[SYNC-B] state refresh error after merge:", e2);
 
-        // 保存は成功しているが、state の再取得に失敗したケース
-        // oncePerDayTodayDelta がある場合でも、A側からの取得が保証できないため「計測エラー」として扱う
         var stateErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
+        var odoaStatusTextForPanelStateError;
+        if (odoaModeText === "ON") {
+          odoaStatusTextForPanelStateError = "O.D.O.A Mode : ON nocount";
+        } else {
+          odoaStatusTextForPanelStateError = "O.D.O.A Mode : OFF";
+        }
         renderPanel(box, {
           serverCorrect: newServerCorrect,
           serverWrong: newServerWrong,
@@ -724,14 +756,19 @@
           localStreakLen: localStreakLen,
           diffStreakLen: newDiffStreakLen,
           statusText: "merge ok / state 再取得エラー(保存は成功している可能性) / " + stateErrorOncePerDayStatus,
-          odoaModeText: odoaModeText
+          odoaModeText: odoaModeText,
+          odoaStatusText: odoaStatusTextForPanelStateError
         });
       }
     } catch (e) {
       console.error("[SYNC-B] fetch failed:", e);
-      // ネットワークレベルで送信に失敗したケース
-      // oncePerDayTodayDelta が存在する場合でもサーバーまで届いていないため「計測エラー」として扱う
       var networkErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
+      var odoaStatusTextForPanelNetworkError;
+      if (odoaModeText === "ON") {
+        odoaStatusTextForPanelNetworkError = "O.D.O.A Mode : ON nocount";
+      } else {
+        odoaStatusTextForPanelNetworkError = "O.D.O.A Mode : OFF";
+      }
       renderPanel(box, {
         serverCorrect: serverCorrect,
         serverWrong: serverWrong,
@@ -746,7 +783,8 @@
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
         statusText: "network error (送信失敗) / " + networkErrorOncePerDayStatus,
-        odoaModeText: odoaModeText
+        odoaModeText: odoaModeText,
+        odoaStatusText: odoaStatusTextForPanelNetworkError
       });
     }
   }
@@ -843,8 +881,15 @@
           odoaModeText = "OFF";
         }
 
-        // suppressDiffSend が true のときは、ステータス表示を維持したまま HUD だけ更新する
         var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
+
+        // 初期表示や diff 送信前は「ON nocount」/「OFF」で表示
+        var odoaStatusTextForPanelInit;
+        if (odoaModeText === "ON") {
+          odoaStatusTextForPanelInit = "O.D.O.A Mode : ON nocount";
+        } else {
+          odoaStatusTextForPanelInit = "O.D.O.A Mode : OFF";
+        }
 
         renderPanel(box, {
           serverCorrect: serverCorrect,
@@ -860,8 +905,8 @@
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
           statusText: statusTextForRender,
-          // ★ O.D.O.A Mode 表示用
-          odoaModeText: odoaModeText
+          odoaModeText: odoaModeText,
+          odoaStatusText: odoaStatusTextForPanelInit
         });
 
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
@@ -908,8 +953,9 @@
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
         var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
 
-        // state が取れなかった場合は O.D.O.A Mode は「不明(state error)」として扱う
         var odoaModeText = "不明(state error)";
+        var odoaStatusTextForPanelStateError;
+        odoaStatusTextForPanelStateError = "O.D.O.A Mode : OFF";
 
         renderPanel(box, {
           serverCorrect: 0,
@@ -925,7 +971,8 @@
           localStreakLen: localStreakLen,
           diffStreakLen: 0,
           statusText: "state error",
-          odoaModeText: odoaModeText
+          odoaModeText: odoaModeText,
+          odoaStatusText: odoaStatusTextForPanelStateError
         });
       });
   }
