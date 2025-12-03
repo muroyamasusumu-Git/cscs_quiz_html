@@ -306,8 +306,32 @@
           // - トークンは localStorage に書かず、ナビゲーションガード的には「成功」とみなす
           await loadSyncStateForOdoaIfNeeded();
           if (shouldSkipTokenForThisQuestion()) {
+            const rawHref = a.getAttribute('href') || '';
+            let finalHref = rawHref;
+
+            // ODOA モード時は B へのリンクから choice パラメータを取り除く
+            try{
+              const u = new URL(rawHref, location.href);
+              const before = u.pathname + u.search;
+              u.searchParams.delete('choice');
+              finalHref = u.pathname + u.search;
+              dlog("O.D.O.A: stripped choice param from href.", {
+                qid,
+                mode: window.CSCS_ODOA_MODE,
+                beforeHref: before,
+                afterHref: finalHref
+              });
+            }catch(e){
+              dlog("O.D.O.A: href normalize failed, using raw href.", {
+                qid,
+                mode: window.CSCS_ODOA_MODE,
+                rawHref,
+                error: String(e)
+              });
+            }
+
             SAVE.ok = true;
-            SAVE.lastHref = a.getAttribute('href') || '';
+            SAVE.lastHref = finalHref;
             SAVE.lastChoice = null;
             dlog("O.D.O.A: saveTokenFor skipped token issuing (treated as OK).", {
               qid,
