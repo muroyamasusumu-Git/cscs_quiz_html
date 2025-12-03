@@ -342,12 +342,12 @@
 
       // =========================
       // SYNC の correct / wrong を使って
-      // ・未正解問題数
-      // ・未回答問題数
+      // ・未正解問題数（正解0 & 不正解1以上）
+      // ・未回答問題数（正解0 & 不正解0）
       // を集計する
       // =========================
 
-      // correct_totals / wrong_totals 優先、なければ correct / wrong を見る
+      // correct_totals / wrong_totals を優先し、なければ correct / wrong を見る
       var correctMap = null;
       var wrongMap = null;
 
@@ -363,10 +363,12 @@
         wrongMap = root.wrong;
       }
 
+      // unanswered: 正解も不正解も 0 の「完全未回答」
+      // unsolved  : 正解 0 & 不正解 1以上 の「未正解」
       var unanswered = 0;
+      var unsolved = 0;
 
-      // qidToField に載っている全qidを基準に、SYNCの correct / wrong を見て
-      // 「未回答（正解0 & 不正解0）」だけをカウントする
+      // qidToField に載っている全 qid を基準に、SYNC の correct / wrong をチェックする
       if (qidToField && (correctMap || wrongMap)) {
         var qids = Object.keys(qidToField);
         qids.forEach(function (qid) {
@@ -380,7 +382,7 @@
             wRaw = wrongMap[qid];
           }
 
-          // 値が { total: number } 形式・number 形式のどちらでも扱えるようにする
+          // 値が { total: number } 形式・ number 形式のどちらでも扱えるように正規化
           var c = 0;
           var w = 0;
 
@@ -406,14 +408,11 @@
           if (c === 0 && w === 0) {
             unanswered += 1;
           }
+          // 未正解: 正解0 & 不正解1以上
+          else if (c === 0 && w > 0) {
+            unsolved += 1;
+          }
         });
-      }
-
-      // ★獲得済み数と未回答数から
-      // 「未正解 = 全体 - ★取得済み - 未回答」を逆算する
-      var unsolvedFromFormula = TOTAL_Q - totalStarQ - unanswered;
-      if (!Number.isFinite(unsolvedFromFormula) || unsolvedFromFormula < 0) {
-        unsolvedFromFormula = 0;
       }
 
       // 計算結果をモジュール内グローバルに保存
@@ -421,7 +420,7 @@
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
-      unsolvedCountFromSync = unsolvedFromFormula;
+      unsolvedCountFromSync = unsolved;
       unansweredCountFromSync = unanswered;
 
       console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
