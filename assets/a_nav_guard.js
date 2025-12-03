@@ -151,6 +151,63 @@
           return answered;
         }
 
+        // O.D.O.A Mode の条件を満たしている場合、A→B のリンク href から choice を一括で取り除く
+        // - DOMContentLoaded 後に /api/sync/state が読めたタイミングなどで呼び出す想定
+        function rewriteAnchorsForOdoaIfNeeded(){
+          try{
+            if (!shouldSkipTokenForThisQuestion()) {
+              dlog("O.D.O.A: bulk rewrite skipped (mode is off or not answered today).", {
+                qid,
+                mode: window.CSCS_ODOA_MODE
+              });
+              return;
+            }
+
+            const anchors = Array.prototype.slice.call(document.querySelectorAll("a"));
+            let updatedCount = 0;
+
+            for (let i = 0; i < anchors.length; i++) {
+              const a = anchors[i];
+              if (!isTargetAnchor(a)) continue;
+
+              const rawHref = a.getAttribute("href") || "";
+              if (!rawHref) continue;
+
+              try{
+                const u = new URL(rawHref, location.href);
+                const before = u.pathname + u.search;
+
+                if (!u.searchParams.has("choice")) {
+                  continue;
+                }
+
+                u.searchParams.delete("choice");
+                const finalHref = u.pathname + u.search;
+
+                a.setAttribute("href", finalHref);
+                updatedCount++;
+
+                dlog("O.D.O.A: anchor href stripped by bulk rewrite.", {
+                  beforeHref: before,
+                  afterHref: finalHref
+                });
+              }catch(e){
+                dlog("O.D.O.A: bulk rewrite href normalize failed, keep raw href.", {
+                  rawHref,
+                  error: String(e)
+                });
+              }
+            }
+
+            dlog("O.D.O.A: bulk rewrite finished.", {
+              qid,
+              updatedCount
+            });
+          }catch(e){
+            dlog("O.D.O.A: bulk rewrite exception:", String(e));
+          }
+        }
+
         // O.D.O.A Mode を SYNC に保存するヘルパー
         // - mode は "on" / "off" のみ想定
         function sendOdoaModeToSync(mode){
