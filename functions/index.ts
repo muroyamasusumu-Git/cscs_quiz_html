@@ -4,6 +4,12 @@ export const onRequest: PagesFunction = async (context) => {
   const request = context.request;
   const url = new URL(request.url);
 
+  // ★ 追加：ルート "/" 以外のパスは静的配信や他のルートにそのまま回す
+  //   例: /_build_cscs_20250926/slides/q001_a.html や /assets/... などはここで素通りさせる
+  if (url.pathname !== "/") {
+    return context.next();
+  }
+
   // 1) manifest.json を読み込む（全日一覧）
   const manifestUrl = new URL("/manifest.json", url);
 
