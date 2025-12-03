@@ -1,0 +1,546 @@
+{
+  "version": "v3.0",
+  "updated_at": "2025-12-02T10:46:36Z",
+  "days": [
+    {
+      "date": "20250926",
+      "path": "/_build_cscs_20250926/slides/nav_manifest.json",
+      "approx_bytes": 23894,
+      "hash": "bafbf4077a66371f939e946efe6e46f691c433f73a3fd15db9af2e185453082b"
+    },
+    {
+      "date": "20250927",
+      "path": "/_build_cscs_20250927/slides/nav_manifest.json",
+      "approx_bytes": 24294,
+      "hash": "685fc8e82cc3915bb23def29a015cd444ad7c65cc090115ff543f142f81cbd92"
+    },
+    {
+      "date": "20250928",
+      "path": "/_build_cscs_20250928/slides/nav_manifest.json",
+      "approx_bytes": 25019,
+      "hash": "d3045f603cd1d7e25a3a6a2e02719a646b79375ff116f272ee2696c9a09ca88b"
+    },
+    {
+      "date": "20250929",
+      "path": "/_build_cscs_20250929/slides/nav_manifest.json",
+      "approx_bytes": 24534,
+      "hash": "8d01a764cf6fbb783264a7dd809ae07e71683463da8f462099f29e896e35b46e"
+    },
+    {
+      "date": "20250930",
+      "path": "/_build_cscs_20250930/slides/nav_manifest.json",
+      "approx_bytes": 23955,
+      "hash": "174e6a7ba6e8302b07fe41a597cbedc77d86dc3ff4f887a409298f30cd342fb0"
+    },
+    {
+      "date": "20251001",
+      "path": "/_build_cscs_20251001/slides/nav_manifest.json",
+      "approx_bytes": 23199,
+      "hash": "aad47da9b4e3442e5361ed644177f97aa63afcbf1467dfd6345dccf524156b87"
+    },
+    {
+      "date": "20251002",
+      "path": "/_build_cscs_20251002/slides/nav_manifest.json",
+      "approx_bytes": 23123,
+      "hash": "6287e6454e2f5af19e6008d01b7b729a69971cbe7c3c262c97c705fc0462ac9c"
+    },
+    {
+      "date": "20251003",
+      "path": "/_build_cscs_20251003/slides/nav_manifest.json",
+      "approx_bytes": 22892,
+      "hash": "f54ca2800a620bd6c98e571f71c4f6210d53cb806b2a11657297deaefd75efec"
+    },
+    {
+      "date": "20251004",
+      "path": "/_build_cscs_20251004/slides/nav_manifest.json",
+      "approx_bytes": 23059,
+      "hash": "ed5be4a0ad9ac0dd9a9464a8d7924d439023b021befd71e3af40fc42ab6fee24"
+    },
+    {
+      "date": "20251005",
+      "path": "/_build_cscs_20251005/slides/nav_manifest.json",
+      "approx_bytes": 23380,
+      "hash": "c22616b599958854b6ed9b832aaea72eb3a0c3cf63846d8b02a0e2600f7b0092"
+    },
+    {
+      "date": "20251006",
+      "path": "/_build_cscs_20251006/slides/nav_manifest.json",
+      "approx_bytes": 23951,
+      "hash": "196b6c2c58df5408aa9cca48155030e6739b497c2898d84cbbcfd50214568967"
+    },
+    {
+      "date": "20251007",
+      "path": "/_build_cscs_20251007/slides/nav_manifest.json",
+      "approx_bytes": 24250,
+      "hash": "b4a8acad00fde9956826c628f7ef177753f98ffc20bad06d08ca9f18fa32bb2e"
+    },
+    {
+      "date": "20251008",
+      "path": "/_build_cscs_20251008/slides/nav_manifest.json",
+      "approx_bytes": 23481,
+      "hash": "5cc31af76abc94bf15030be41cec96d2433efb1fe387d93baf1b12baa320de8d"
+    },
+    {
+      "date": "20251009",
+      "path": "/_build_cscs_20251009/slides/nav_manifest.json",
+      "approx_bytes": 25178,
+      "hash": "c6efe136a88de385ee92d861d4def7c8c4ef8ece8b323238f1ccdc95214bfee9"
+    },
+    {
+      "date": "20251010",
+      "path": "/_build_cscs_20251010/slides/nav_manifest.json",
+      "approx_bytes": 23903,
+      "hash": "32d5238e7b89db88c762bc82296122c4d46deca09c0845881d44be79b2c6a748"
+    },
+    {
+      "date": "20251011",
+      "path": "/_build_cscs_20251011/slides/nav_manifest.json",
+      "approx_bytes": 23565,
+      "hash": "9f6443679a4576849575ec256d8097e0ce4c5a90a4240a7419769736dd33066c"
+    },
+    {
+      "date": "20251012",
+      "path": "/_build_cscs_20251012/slides/nav_manifest.json",
+      "approx_bytes": 23557,
+      "hash": "23c38c72db32408eccd6172df246c8f021523332ee629f1a364d4f663f9bf22b"
+    },
+    {
+      "date": "20251013",
+      "path": "/_build_cscs_20251013/slides/nav_manifest.json",
+      "approx_bytes": 23544,
+      "hash": "e49c90dcaee4b3ccc0a16f9e5171c2c947c4739f2a97f5b2fdce9c3201bcc511"
+    },
+    {
+      "date": "20251014",
+      "path": "/_build_cscs_20251014/slides/nav_manifest.json",
+      "approx_bytes": 23843,
+      "hash": "bc11c4208ada1cd28b55e76f273d64ca964f01cc01320f7bbec83d206f51ec9a"
+    },
+    {
+      "date": "20251015",
+      "path": "/_build_cscs_20251015/slides/nav_manifest.json",
+      "approx_bytes": 23629,
+      "hash": "b0ff4fb6ce0a10267b8c0a297289c146ded2ba5b91f2a7a85092aee25b163a7c"
+    },
+    {
+      "date": "20251016",
+      "path": "/_build_cscs_20251016/slides/nav_manifest.json",
+      "approx_bytes": 24495,
+      "hash": "7603b0378a6a23faf727388a8b42ac7dd6c55c4a9cae993618566a50aac1c40a"
+    },
+    {
+      "date": "20251017",
+      "path": "/_build_cscs_20251017/slides/nav_manifest.json",
+      "approx_bytes": 24753,
+      "hash": "106778fbb035cf6852e078e9551e2522c397ef21fb0f62e766b4960f3c962bcc"
+    },
+    {
+      "date": "20251018",
+      "path": "/_build_cscs_20251018/slides/nav_manifest.json",
+      "approx_bytes": 25144,
+      "hash": "6fa3d13f7aca86980884eac5f89c7075c42802622165edf364b3582fa87ed454"
+    },
+    {
+      "date": "20251019",
+      "path": "/_build_cscs_20251019/slides/nav_manifest.json",
+      "approx_bytes": 25071,
+      "hash": "b5c2b8fde91da2559275fe8e19bb4dc1b31559557005b9dd20865e341bac4073"
+    },
+    {
+      "date": "20251020",
+      "path": "/_build_cscs_20251020/slides/nav_manifest.json",
+      "approx_bytes": 24519,
+      "hash": "72d36b91c032564b824ae79415c7105889695046098cac9dfa6d374fe1c5dbe9"
+    },
+    {
+      "date": "20251021",
+      "path": "/_build_cscs_20251021/slides/nav_manifest.json",
+      "approx_bytes": 24788,
+      "hash": "6ff6c221241b47badfde01ede7a0cc85a9d6d36532d58a07fd927d0dca72041d"
+    },
+    {
+      "date": "20251022",
+      "path": "/_build_cscs_20251022/slides/nav_manifest.json",
+      "approx_bytes": 24816,
+      "hash": "166db90427f1b4fddd9cee95167e87f5abe03fe8a9d76a95ff161ed26f77dac5"
+    },
+    {
+      "date": "20251023",
+      "path": "/_build_cscs_20251023/slides/nav_manifest.json",
+      "approx_bytes": 24310,
+      "hash": "920b50a1be8cd09eb73a385243d5d22d3d2c5d9e872134bd373e8b2d5c8920b2"
+    },
+    {
+      "date": "20251024",
+      "path": "/_build_cscs_20251024/slides/nav_manifest.json",
+      "approx_bytes": 23800,
+      "hash": "109835615a8961b0d355893494fa3abbd7180403e281679d27262c0bab099bd7"
+    },
+    {
+      "date": "20251025",
+      "path": "/_build_cscs_20251025/slides/nav_manifest.json",
+      "approx_bytes": 23197,
+      "hash": "5562eff3ddbbdfea0130450e56260c1cb6e990023195067e8538f55acdfa50af"
+    },
+    {
+      "date": "20251026",
+      "path": "/_build_cscs_20251026/slides/nav_manifest.json",
+      "approx_bytes": 23224,
+      "hash": "fd350f253dd89eb3204cd10ca35c4213f74ff775146f5edf5be46c34ee4b8cdc"
+    },
+    {
+      "date": "20251027",
+      "path": "/_build_cscs_20251027/slides/nav_manifest.json",
+      "approx_bytes": 23130,
+      "hash": "cac7fc3a707186ce88cee716f192459cab769a002842d1030586f9d1b80b5231"
+    },
+    {
+      "date": "20251028",
+      "path": "/_build_cscs_20251028/slides/nav_manifest.json",
+      "approx_bytes": 23330,
+      "hash": "bdd13ff386cbaf760cf3b9d454374b9ac3be2d1ef37010601176025b6b064a31"
+    },
+    {
+      "date": "20251029",
+      "path": "/_build_cscs_20251029/slides/nav_manifest.json",
+      "approx_bytes": 23652,
+      "hash": "dd6ea65c52f26b48a1563a6e37609cb2fbe61f9696847b0266c3e7854c8cf7ce"
+    },
+    {
+      "date": "20251030",
+      "path": "/_build_cscs_20251030/slides/nav_manifest.json",
+      "approx_bytes": 25039,
+      "hash": "92a44220f072e33ae40ef863b38ca7d2385a639f5bbe01ba904b6edcc4aed65d"
+    },
+    {
+      "date": "20251031",
+      "path": "/_build_cscs_20251031/slides/nav_manifest.json",
+      "approx_bytes": 24456,
+      "hash": "1cefbe46cbcc2a3c361fd5adedb415d2a47daa51443145162dbdb418deca0fda"
+    },
+    {
+      "date": "20251101",
+      "path": "/_build_cscs_20251101/slides/nav_manifest.json",
+      "approx_bytes": 23800,
+      "hash": "ec808bc4ce60a2981c5686cb74646d478c5b54d556d969c70c727b3dcb6383e0"
+    },
+    {
+      "date": "20251102",
+      "path": "/_build_cscs_20251102/slides/nav_manifest.json",
+      "approx_bytes": 26147,
+      "hash": "d02aff2502a28f24fb13f9a43ae19067b1f1f55bcbdf7fc3f91f11b16bc47ef6"
+    },
+    {
+      "date": "20251103",
+      "path": "/_build_cscs_20251103/slides/nav_manifest.json",
+      "approx_bytes": 26370,
+      "hash": "6f80e7fc7a8cbe68ab1a3c52c2830632f2ccce044bc55ffc09a0f957bb4145b2"
+    },
+    {
+      "date": "20251104",
+      "path": "/_build_cscs_20251104/slides/nav_manifest.json",
+      "approx_bytes": 26090,
+      "hash": "1fbe4e3bb48b9fd32cc0fc362330577bcf6321925cc4b9e1b846b0b032fef0e7"
+    },
+    {
+      "date": "20251105",
+      "path": "/_build_cscs_20251105/slides/nav_manifest.json",
+      "approx_bytes": 26599,
+      "hash": "c827ebceb403f79738be85839f2e5d7f2e9b6c29c2a58f60bc934c1b93a38c01"
+    },
+    {
+      "date": "20251106",
+      "path": "/_build_cscs_20251106/slides/nav_manifest.json",
+      "approx_bytes": 25352,
+      "hash": "ea5502b8f6d0f970c892edc6230c1ddc73fafeda32634ca3bf47c47058b69fa1"
+    },
+    {
+      "date": "20251107",
+      "path": "/_build_cscs_20251107/slides/nav_manifest.json",
+      "approx_bytes": 25733,
+      "hash": "391ec4a1798a31c1f05a02ccc6f00c58f49a6cd73a0ce6312c6e7b92b53cffbe"
+    },
+    {
+      "date": "20251108",
+      "path": "/_build_cscs_20251108/slides/nav_manifest.json",
+      "approx_bytes": 25875,
+      "hash": "63bdc57bf271f83e309fa41908281c7ed956500652ed750feeffb38ac6030d38"
+    },
+    {
+      "date": "20251109",
+      "path": "/_build_cscs_20251109/slides/nav_manifest.json",
+      "approx_bytes": 25872,
+      "hash": "da40e9cac6770b7fc716c63af44cc1113b743f1b1a27511a4de1cff3d8558316"
+    },
+    {
+      "date": "20251110",
+      "path": "/_build_cscs_20251110/slides/nav_manifest.json",
+      "approx_bytes": 27612,
+      "hash": "25f4812da1a24b34fdb4ed2533f6a371341cf22a6d4594806cd28324335086d7"
+    },
+    {
+      "date": "20251111",
+      "path": "/_build_cscs_20251111/slides/nav_manifest.json",
+      "approx_bytes": 25941,
+      "hash": "5194db41f62f322ae670daa681ae9ddc98ce7f1cc76e17e224f88e4896f16a13"
+    },
+    {
+      "date": "20251112",
+      "path": "/_build_cscs_20251112/slides/nav_manifest.json",
+      "approx_bytes": 27517,
+      "hash": "843acf7357e45dd6ced0a24f0460e86ed5ccfdd2d96d7fe2614baac567cf53dc"
+    },
+    {
+      "date": "20251113",
+      "path": "/_build_cscs_20251113/slides/nav_manifest.json",
+      "approx_bytes": 26224,
+      "hash": "12a902528ec6efb108ef072d846b90b5ae2a2e2e7206998660d9e5297222b958"
+    },
+    {
+      "date": "20251114",
+      "path": "/_build_cscs_20251114/slides/nav_manifest.json",
+      "approx_bytes": 25993,
+      "hash": "c16c56cce82a7d8b3cb58ef7950b8fbec83091454d23e4c4e96d488c28ad5ec3"
+    },
+    {
+      "date": "20251115",
+      "path": "/_build_cscs_20251115/slides/nav_manifest.json",
+      "approx_bytes": 25439,
+      "hash": "56a3e8a8b14acb9791e48f23b3e5a655b2ff39aaffff0476f6a1efd705c7fa01"
+    },
+    {
+      "date": "20251116",
+      "path": "/_build_cscs_20251116/slides/nav_manifest.json",
+      "approx_bytes": 26453,
+      "hash": "f309a961156971f8f0071efa636f74bea568e6a3f953c78dc8c976e3e7b2c277"
+    },
+    {
+      "date": "20251117",
+      "path": "/_build_cscs_20251117/slides/nav_manifest.json",
+      "approx_bytes": 25662,
+      "hash": "9caa03ebcd8ff45060039dfe32400e9523578b68484c59e1a8acbed328acc0a2"
+    },
+    {
+      "date": "20251118",
+      "path": "/_build_cscs_20251118/slides/nav_manifest.json",
+      "approx_bytes": 27508,
+      "hash": "83fcd523963c65f2f42c41578596de683c587f19682c0c2b5b5d1c2021e99ee7"
+    },
+    {
+      "date": "20251119",
+      "path": "/_build_cscs_20251119/slides/nav_manifest.json",
+      "approx_bytes": 27432,
+      "hash": "a30d4b6a35568fa886a1b9e60d84cd02951957a58cb4aa5a297755193173e667"
+    },
+    {
+      "date": "20251120",
+      "path": "/_build_cscs_20251120/slides/nav_manifest.json",
+      "approx_bytes": 26598,
+      "hash": "866759d18bd6a7a847bb02bacda5092232aa0d4895cf82f0e251a19525110dbe"
+    },
+    {
+      "date": "20251121",
+      "path": "/_build_cscs_20251121/slides/nav_manifest.json",
+      "approx_bytes": 25900,
+      "hash": "35416716890a1c13c39feb93de7628e4d52b9b6c47066d6adaeaa8451764ef95"
+    },
+    {
+      "date": "20251122",
+      "path": "/_build_cscs_20251122/slides/nav_manifest.json",
+      "approx_bytes": 27720,
+      "hash": "b490101cf2e11772fff701f95f5f879428fe122670a3288e92d3f69a06380803"
+    },
+    {
+      "date": "20251123",
+      "path": "/_build_cscs_20251123/slides/nav_manifest.json",
+      "approx_bytes": 26392,
+      "hash": "bcb2908db6d9124e095365ebf047bc10e174676ed5924b64d568dba81c9cc2a7"
+    },
+    {
+      "date": "20251124",
+      "path": "/_build_cscs_20251124/slides/nav_manifest.json",
+      "approx_bytes": 26502,
+      "hash": "af9d57df04b893256e5383fae118d4cc16aaa86384eebff607e7adbe5887d296"
+    },
+    {
+      "date": "20251125",
+      "path": "/_build_cscs_20251125/slides/nav_manifest.json",
+      "approx_bytes": 25243,
+      "hash": "113f107d5a325c3a2b2912d085b02fe9210ac03168e8148ff9674f2c685c8341"
+    },
+    {
+      "date": "20251126",
+      "path": "/_build_cscs_20251126/slides/nav_manifest.json",
+      "approx_bytes": 26398,
+      "hash": "7bd56505ed9209df85675383bc0dfe0281ede57289b125947a6b203d2435ec61"
+    },
+    {
+      "date": "20251127",
+      "path": "/_build_cscs_20251127/slides/nav_manifest.json",
+      "approx_bytes": 25458,
+      "hash": "619112e4e7df307b73d65e96e17bca617488c62b670cd4f32ec2ef68b6d5d29d"
+    },
+    {
+      "date": "20251128",
+      "path": "/_build_cscs_20251128/slides/nav_manifest.json",
+      "approx_bytes": 25243,
+      "hash": "8eb4bb6d883bb9448dfb181d8086fc9ca7287267c059113e673e87c3e7b51ad5"
+    },
+    {
+      "date": "20251129",
+      "path": "/_build_cscs_20251129/slides/nav_manifest.json",
+      "approx_bytes": 24763,
+      "hash": "b499f20d368ab1631b1e2d85469ae25223e0988e7f90137af9bb87bc551395cd"
+    },
+    {
+      "date": "20251130",
+      "path": "/_build_cscs_20251130/slides/nav_manifest.json",
+      "approx_bytes": 25087,
+      "hash": "89da21d55f476e4c8c70181c868266bf1612bb4938440396188a33279ddb165d"
+    },
+    {
+      "date": "20251201",
+      "path": "/_build_cscs_20251201/slides/nav_manifest.json",
+      "approx_bytes": 24219,
+      "hash": "8b873be6b130132a1bfd639b6d6b10df5a73cc5bb1275aa98ee038edc8b54ce2"
+    },
+    {
+      "date": "20251202",
+      "path": "/_build_cscs_20251202/slides/nav_manifest.json",
+      "approx_bytes": 26903,
+      "hash": "2bbbbea2d4a88e2e4394f72bdf3019d12cb3b21567db54df16bcad5be82a0693"
+    },
+    {
+      "date": "20251203",
+      "path": "/_build_cscs_20251203/slides/nav_manifest.json",
+      "approx_bytes": 25540,
+      "hash": "753ada9f065dcd676ca2e7d470d77b190dddc1252adb9fad6454e7d58204544c"
+    },
+    {
+      "date": "20251204",
+      "path": "/_build_cscs_20251204/slides/nav_manifest.json",
+      "approx_bytes": 24016,
+      "hash": "6c648ec4d23db0a276f5d9a3d64c86f5a40144237acfab8a3004b8a8e2d58d7a"
+    },
+    {
+      "date": "20251205",
+      "path": "/_build_cscs_20251205/slides/nav_manifest.json",
+      "approx_bytes": 26297,
+      "hash": "d16ef465ffcec9ec13910ee37b9801c30f8fbce4e820c8a7c0c03a6d82731981"
+    },
+    {
+      "date": "20251206",
+      "path": "/_build_cscs_20251206/slides/nav_manifest.json",
+      "approx_bytes": 25756,
+      "hash": "e99a3ff4da9c9fc639e59bdb0ffa833786cc2c227c45e2e0f2e3b09a409c6457"
+    },
+    {
+      "date": "20251207",
+      "path": "/_build_cscs_20251207/slides/nav_manifest.json",
+      "approx_bytes": 26249,
+      "hash": "d1a3a81919a68c9c47aeffe6eba2b14d4ec7c7bcf858228d134815c7b9252519"
+    },
+    {
+      "date": "20251208",
+      "path": "/_build_cscs_20251208/slides/nav_manifest.json",
+      "approx_bytes": 24954,
+      "hash": "a61b706710aab7bea18d7140f9464dd4abeb83674aa207d01397ce19b6ce4092"
+    },
+    {
+      "date": "20251209",
+      "path": "/_build_cscs_20251209/slides/nav_manifest.json",
+      "approx_bytes": 26130,
+      "hash": "c8e2b295e77c847acbbdc609cab71674127069d84f251d529f4f25e2bb1a0a69"
+    },
+    {
+      "date": "20251210",
+      "path": "/_build_cscs_20251210/slides/nav_manifest.json",
+      "approx_bytes": 26379,
+      "hash": "2fd430508bf8cb166b38d171b7adeca8e8d2e64f424908682bd2cd6b04b9a710"
+    },
+    {
+      "date": "20251211",
+      "path": "/_build_cscs_20251211/slides/nav_manifest.json",
+      "approx_bytes": 26895,
+      "hash": "b022f21a9366d413e46ca7c90307c5a358677a31aa3828f8ca67bb1cf002c5de"
+    },
+    {
+      "date": "20251212",
+      "path": "/_build_cscs_20251212/slides/nav_manifest.json",
+      "approx_bytes": 27036,
+      "hash": "3cfb4df74895f7fc55993625804114c591968f46b7d5cdbafa76a19f6989849b"
+    },
+    {
+      "date": "20251213",
+      "path": "/_build_cscs_20251213/slides/nav_manifest.json",
+      "approx_bytes": 25799,
+      "hash": "e798a99ce2ed6da6effabfa3bf928781bb20a9fec11a66fc35dce44021ee0174"
+    },
+    {
+      "date": "20251214",
+      "path": "/_build_cscs_20251214/slides/nav_manifest.json",
+      "approx_bytes": 25614,
+      "hash": "c4e3729624c2e40008a0e51c7551133448a7b039aa40a7af608a58225089a4ad"
+    },
+    {
+      "date": "20251215",
+      "path": "/_build_cscs_20251215/slides/nav_manifest.json",
+      "approx_bytes": 25611,
+      "hash": "ef5da0216e708cba8325f900244c252a74d3f2da2d23228b41ab83618c6931de"
+    },
+    {
+      "date": "20251216",
+      "path": "/_build_cscs_20251216/slides/nav_manifest.json",
+      "approx_bytes": 25624,
+      "hash": "a882e98b6ce43038409d112e8b3efa6df51fcf852c6825646ed56eca21a2dca6"
+    },
+    {
+      "date": "20251217",
+      "path": "/_build_cscs_20251217/slides/nav_manifest.json",
+      "approx_bytes": 25910,
+      "hash": "a4fe838a0ff66d23c480e415051649509f9dee38355bce8b0755cc3037dc2f5c"
+    },
+    {
+      "date": "20251218",
+      "path": "/_build_cscs_20251218/slides/nav_manifest.json",
+      "approx_bytes": 24476,
+      "hash": "2e0979b22cab5256a0de7266ab9770c775d4d0a916dc8d3a1c5e627b8f55eabd"
+    },
+    {
+      "date": "20251219",
+      "path": "/_build_cscs_20251219/slides/nav_manifest.json",
+      "approx_bytes": 23044,
+      "hash": "84a018adb03c56db6e776540890d1225eaa3219caaa96fb712f184d035b406ca"
+    },
+    {
+      "date": "20251220",
+      "path": "/_build_cscs_20251220/slides/nav_manifest.json",
+      "approx_bytes": 23211,
+      "hash": "63abcc1345a6e9630898b072c99dc370bd83e661cdce27ef83c3e639913aae82"
+    },
+    {
+      "date": "20251221",
+      "path": "/_build_cscs_20251221/slides/nav_manifest.json",
+      "approx_bytes": 26180,
+      "hash": "7118955db722a6f2343d4d1d9d25d3d287566680560bc730784c341cfc10589f"
+    },
+    {
+      "date": "20251222",
+      "path": "/_build_cscs_20251222/slides/nav_manifest.json",
+      "approx_bytes": 26201,
+      "hash": "17dd0021c592ce24f02290417c22ae535d0c1a097a2d22e223e7eb87aa34d233"
+    },
+    {
+      "date": "20251223",
+      "path": "/_build_cscs_20251223/slides/nav_manifest.json",
+      "approx_bytes": 27657,
+      "hash": "b572cd046f3a88bdc41a1a1596f6aec9ba44dafe0ebcf8fa38c6e5295c4ce4f9"
+    },
+    {
+      "date": "20251224",
+      "path": "/_build_cscs_20251224/slides/nav_manifest.json",
+      "approx_bytes": 28800,
+      "hash": "add25936ae9ab4d313e230523e23d71efd8c623ba0321a7d1529bab9302183be"
+    }
+  ]
+}
