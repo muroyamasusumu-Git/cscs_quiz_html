@@ -687,9 +687,53 @@
       list.appendChild(item);
     });
 
-    // 分野ゲージ描画の完了をログ出力（黄色グラデーション適用確認用）
-    console.log("field_summary.js: field list rendered with yellow gradient bars", {
-      fieldCount: dummyFieldStats.length
+    // 全体の「未正解問題数 / 割合」を計算（★未獲得問題として集計）
+    var unsolvedCount = 0;
+    var unsolvedPercent = 0;
+    if (totalQuestions > 0) {
+      unsolvedCount = totalQuestions - starTotalSolvedQuestions;
+      if (!Number.isFinite(unsolvedCount) || unsolvedCount < 0) {
+        unsolvedCount = 0;
+      }
+      unsolvedPercent = (unsolvedCount / totalQuestions) * 100;
+      if (!Number.isFinite(unsolvedPercent) || unsolvedPercent < 0) {
+        unsolvedPercent = 0;
+      }
+      if (unsolvedPercent > 100) {
+        unsolvedPercent = 100;
+      }
+    }
+    var unsolvedPercentStr = unsolvedPercent.toFixed(2);
+
+    // グリッド末尾セル1: 未正解問題数 / 割合%（テキストのみ）
+    var liUnsolved = document.createElement("li");
+    liUnsolved.style.listStyleType = "none";
+    liUnsolved.style.paddingLeft = "0";
+    liUnsolved.style.textIndent = "0";
+    liUnsolved.style.margin = "0 0 6px 0";
+    liUnsolved.textContent =
+      "未正解問題数: " +
+      unsolvedCount + " / " + totalQuestions +
+      " (" + unsolvedPercentStr + "%)";
+    list.appendChild(liUnsolved);
+
+    // グリッド末尾セル2: 未回答問題数 / 割合%（現時点では値未定のためプレースホルダ）
+    var liUnanswered = document.createElement("li");
+    liUnanswered.style.listStyleType = "none";
+    liUnanswered.style.paddingLeft = "0";
+    liUnanswered.style.textIndent = "0";
+    liUnanswered.style.margin = "0 0 6px 0";
+    liUnanswered.textContent =
+      "未回答問題数: - / " + totalQuestions + " (-%)";
+    list.appendChild(liUnanswered);
+
+    // 分野ゲージ描画と末尾サマリセル追加の完了をログ出力
+    console.log("field_summary.js: field list rendered with yellow gradient bars + extra summary cells", {
+      fieldCount: dummyFieldStats.length,
+      totalQuestions: totalQuestions,
+      starTotalSolvedQuestions: starTotalSolvedQuestions,
+      unsolvedCount: unsolvedCount,
+      unsolvedPercent: unsolvedPercent
     });
 
     // パネルにリストを追加し、.wrap の直後に挿入
