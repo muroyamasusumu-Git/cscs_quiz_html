@@ -512,13 +512,14 @@
     var totalPercent = 0;
     var totalQuestions = DUMMY_TOTAL;
     if (totalQuestions > 0) {
-      totalPercent = Math.floor((starTotalSolvedQuestions / totalQuestions) * 100);
+      totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
       if (!Number.isFinite(totalPercent) || totalPercent < 0) {
         totalPercent = 0;
       }
       if (totalPercent > 100) {
         totalPercent = 100;
       }
+      totalPercent = Number(totalPercent.toFixed(1));
     }
 
     // コンパクトな進捗行を構築（CSSミニバー付き）
