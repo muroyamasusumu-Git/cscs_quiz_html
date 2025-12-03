@@ -340,11 +340,95 @@
         targetPerDay = 0;
       }
 
+      // =========================
+      // SYNC の correct / wrong を使って
+      // ・未正解問題数
+      // ・未回答問題数
+      // を集計する
+      // =========================
+
+      // correct_totals / wrong_totals 優先、なければ correct / wrong を見る
+      var correctMap = null;
+      var wrongMap = null;
+
+      if (root.correct_totals && typeof root.correct_totals === "object") {
+        correctMap = root.correct_totals;
+      } else if (root.correct && typeof root.correct === "object") {
+        correctMap = root.correct;
+      }
+
+      if (root.wrong_totals && typeof root.wrong_totals === "object") {
+        wrongMap = root.wrong_totals;
+      } else if (root.wrong && typeof root.wrong === "object") {
+        wrongMap = root.wrong;
+      }
+
+      var unanswered = 0;
+      var unsolved = 0;
+
+      // qidToField に載っている全qidを基準に、SYNCの correct / wrong を見て分類
+      if (qidToField && (correctMap || wrongMap)) {
+        var qids = Object.keys(qidToField);
+        qids.forEach(function (qid) {
+          var cRaw = 0;
+          var wRaw = 0;
+
+          if (correctMap && Object.prototype.hasOwnProperty.call(correctMap, qid)) {
+            cRaw = correctMap[qid];
+          }
+          if (wrongMap && Object.prototype.hasOwnProperty.call(wrongMap, qid)) {
+            wRaw = wrongMap[qid];
+          }
+
+          // 値が { total: number } 形式・number 形式のどちらでも扱えるようにする
+          var c = 0;
+          var w = 0;
+
+          if (cRaw && typeof cRaw === "object" && Object.prototype.hasOwnProperty.call(cRaw, "total")) {
+            c = Number(cRaw.total);
+          } else {
+            c = Number(cRaw);
+          }
+          if (!Number.isFinite(c) || c < 0) {
+            c = 0;
+          }
+
+          if (wRaw && typeof wRaw === "object" && Object.prototype.hasOwnProperty.call(wRaw, "total")) {
+            w = Number(wRaw.total);
+          } else {
+            w = Number(wRaw);
+          }
+          if (!Number.isFinite(w) || w < 0) {
+            w = 0;
+          }
+
+          // 未回答: 正解0 & 不正解0
+          if (c === 0 && w === 0) {
+            unanswered += 1;
+          }
+          // 未正解: 正解0 & 不正解1以上
+          else if (c === 0 && w > 0) {
+            unsolved += 1;
+          }
+        });
+      }
+
       // 計算結果をモジュール内グローバルに保存
       starFieldCounts = counts;
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
+      unsolvedCountFromSync = unanswered > 0 || unsolved > 0 ? unsolved : 0;
+      unansweredCountFromSync = unanswered > 0 ? unanswered : 0;
+
+      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
+        totalStarQ: totalStarQ,
+        remainingDays: remainingDays,
+        targetPerDay: targetPerDay,
+        unsolvedCountFromSync: unsolvedCountFromSync,
+        unansweredCountFromSync: unansweredCountFromSync
+      });
+
       return counts;
     } catch (e) {
       console.error("field_summary.js: SYNC 読み込み失敗", e);
@@ -362,6 +446,10 @@
   var starTotalSolvedQuestions = 0;    // 全体で★済みの問題数
   var starRemainingDays = 0;           // 締切までの残り日数
   var starTargetPerDay = 0;            // 1日あたりの目標★数（SYNCから計算）
+
+  // SYNC (/api/sync/state) をソースとした「未正解/未回答」の集計結果
+  var unsolvedCountFromSync = 0;       // SYNC上での「未正解問題数」
+  var unansweredCountFromSync = 0;     // SYNC上での「未回答問題数」
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -689,80 +777,61 @@
 
     // =========================
     // 全問題2700件に対して：
-    // ・未正解   = ★獲得済みではなく、かつ wrong > 0 の問題
-    // ・未回答   = correct_total=0 かつ wrong_total=0 の問題
+    // ・未正解   = SYNC上で「正解0件 かつ 不正解1件以上」と判定された問題
+    // ・未回答   = SYNC上で「正解0件 かつ 不正解0件」と判定された問題
     // =========================
 
-    var unsolvedCount = 0;      // ★未獲得（= 正解0件）だが不正解はある
-    var unansweredCount = 0;    // 正解0 & 不正解0 の「完全未回答」
-    var correctKeyBase = "cscs_q_correct_total:";
-    var wrongKeyBase   = "cscs_q_wrong_total:";
+    var unsolvedCount = Number(unsolvedCountFromSync || 0);
+    if (!Number.isFinite(unsolvedCount) || unsolvedCount < 0) {
+      unsolvedCount = 0;
+    }
+    var unansweredCount = Number(unansweredCountFromSync || 0);
+    if (!Number.isFinite(unansweredCount) || unansweredCount < 0) {
+      unansweredCount = 0;
+    }
 
-    // fieldTotals は “全qidが meta から拾える”ため 2700件扱える。
-    // qidToField の key 一覧を使って全qidを走査する。
-    var allQids = Object.keys(qidToField || {});
-    allQids.forEach(function(qid){
-      var correct = Number(localStorage.getItem(correctKeyBase + qid) || "0");
-      var wrong   = Number(localStorage.getItem(wrongKeyBase   + qid) || "0");
-
-      // 未回答（正解も不正解も0）
-      if ((correct === 0) && (wrong === 0)) {
-        unansweredCount += 1;
-      }
-      // 未正解（正解0 かつ 不正解は1以上）
-      else if ((correct === 0) && (wrong > 0)) {
-        unsolvedCount += 1;
-      }
-    });
-
-    var unansweredPercent = (unansweredCount / totalQuestions) * 100;
-    var unsolvedPercent   = (unsolvedCount   / totalQuestions) * 100;
+    var unansweredPercent = 0;
+    var unsolvedPercent = 0;
+    if (totalQuestions > 0) {
+      unansweredPercent = (unansweredCount / totalQuestions) * 100;
+      unsolvedPercent = (unsolvedCount / totalQuestions) * 100;
+    }
 
     var unansweredPercentStr = unansweredPercent.toFixed(2);
-    var unsolvedPercentStr   = unsolvedPercent.toFixed(2);
+    var unsolvedPercentStr = unsolvedPercent.toFixed(2);
 
-    // グリッド末尾セル1: 未正解問題数 / 割合%
+    // グリッド末尾セル1: 未正解問題数 / 割合%（SYNCベース）
     var liUnsolved = document.createElement("li");
     liUnsolved.style.listStyleType = "none";
     liUnsolved.style.paddingLeft = "0";
     liUnsolved.style.textIndent = "0";
     liUnsolved.style.margin = "0 0 6px 0";
     liUnsolved.textContent =
-      "未正解問題数: " +
+      "未正解問題数(SYNC): " +
       unsolvedCount + " / " + totalQuestions +
       " (" + unsolvedPercentStr + "%)";
     list.appendChild(liUnsolved);
 
-    // グリッド末尾セル2: 未回答問題数 / 割合%
+    // グリッド末尾セル2: 未回答問題数 / 割合%（SYNCベース）
     var liUnanswered = document.createElement("li");
     liUnanswered.style.listStyleType = "none";
     liUnanswered.style.paddingLeft = "0";
     liUnanswered.style.textIndent = "0";
     liUnanswered.style.margin = "0 0 6px 0";
     liUnanswered.textContent =
-      "未回答問題数: " +
+      "未回答問題数(SYNC): " +
       unansweredCount + " / " + totalQuestions +
       " (" + unansweredPercentStr + "%)";
     list.appendChild(liUnanswered);
 
-    // ログ
-    console.log("field_summary: unsolved/unanswered summary", {
+    // ログ（SYNCベースのサマリ確認用）
+    console.log("field_summary: unsolved/unanswered summary (from SYNC)", {
       totalQuestions: totalQuestions,
       unsolvedCount: unsolvedCount,
       unsolvedPercent: unsolvedPercent,
       unansweredCount: unansweredCount,
       unansweredPercent: unansweredPercent
     });
-
-    // グリッド末尾セル2: 未回答問題数 / 割合%（現時点では値未定のためプレースホルダ）
-    var liUnanswered = document.createElement("li");
-    liUnanswered.style.listStyleType = "none";
-    liUnanswered.style.paddingLeft = "0";
-    liUnanswered.style.textIndent = "0";
-    liUnanswered.style.margin = "0 0 6px 0";
-    liUnanswered.textContent =
-      "未回答問題数: - / " + totalQuestions + " (-%)";
-    list.appendChild(liUnanswered);
 
     // 分野ゲージ描画と末尾サマリセル追加の完了をログ出力
     console.log("field_summary.js: field list rendered with yellow gradient bars + extra summary cells", {
