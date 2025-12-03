@@ -766,7 +766,7 @@
           <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
           <button id="cscs_sync_onceperday_reset" type="button" class="sync-reset-button">reset oncePerDay</button>
           <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
-          <button id="cscs_sync_all_qid_reset" type="button" class="sync-reset-button">⚠︎reset all qid</button>
+          <!-- <button id="cscs_sync_all_qid_reset" type="button" class="sync-reset-button">⚠︎reset all qid</button> -->
         </div>
       `;
       const wrap = document.querySelector("div.wrap");
