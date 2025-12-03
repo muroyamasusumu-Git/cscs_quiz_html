@@ -368,32 +368,58 @@
 
       // =========================
       // 未正解 / 未回答 を SYNC だけから計算
+      //  - 「未正解」:
+      //      state.correct の全キー数（TOTAL_Q）から
+      //      「一度でも正解したことがある qid 数」を引いたもの
+      //    → 一度でも正解したことがあるかどうかは
+      //       typeof v === "number" && v > 0 で判定（フォールバックなし）
+      //  - 「未回答」:
+      //      state.correct / state.incorrect のキーの和集合サイズを
+      //      「一度でも正解または不正解をしたことがある問題数」とみなし、
+      //      TOTAL_Q からその数を引いたもの
+      //    → こちらもフォールバックなし（/api/sync/state のみをソースとする）
       // =========================
-      var everCorrectCount = 0;
-      var appearedSet = new Set();
+      var everCorrectCount = 0;          // 一度でも正解したことがある問題数
+      var appearedSet = new Set();       // 一度でも正解 or 不正解として登場した qid の集合
 
+      // 「未正解」の定義に基づく集計
+      //   - correctMap[qid] は number を想定
+      //   - v > 0 なら「一度でも正解したことがある」とみなす
       correctQidsAll.forEach(function (qid) {
         var v = correctMap[qid];
-        var n = Number(v && typeof v === "object" && Object.prototype.hasOwnProperty.call(v, "total") ? v.total : v);
+        var n = 0;
+
+        if (typeof v === "number") {
+          n = v;
+        }
+
         if (!Number.isFinite(n) || n < 0) {
           n = 0;
         }
+
         if (n > 0) {
           everCorrectCount += 1;
         }
+
+        // correct に登場した qid は「一度でも登場した」とみなす
         appearedSet.add(qid);
       });
 
+      // 「未回答」の定義に基づく集計
+      //   - incorrect のキーを appearedSet に加えることで
+      //     「一度でも正解または不正解をしたことがある qid」の和集合をつくる
       var incorrectQidsAll = Object.keys(incorrectMap);
       incorrectQidsAll.forEach(function (qid) {
         appearedSet.add(qid);
       });
 
+      // 未正解 = 全問題数(TOTAL_Q) - 「一度でも正解したことがある問題数」
       var unsolved = TOTAL_Q - everCorrectCount;
       if (!Number.isFinite(unsolved) || unsolved < 0) {
         unsolved = 0;
       }
 
+      // 未回答 = 全問題数(TOTAL_Q) - 「一度でも正解または不正解をしたことがある問題数」
       var appearedCount = appearedSet.size;
       var unanswered = TOTAL_Q - appearedCount;
       if (!Number.isFinite(unanswered) || unanswered < 0) {
