@@ -41,13 +41,13 @@
     .cscs-star-section-compact {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 2px;
         flex: 1 1 0;
         white-space: nowrap;
     }
 
     .cscs-star-section-compact .cscs-star-percent {
-        min-width: 32px;
+        min-width: 0;
         text-align: right;
         font-variant-numeric: tabular-nums;
     }
