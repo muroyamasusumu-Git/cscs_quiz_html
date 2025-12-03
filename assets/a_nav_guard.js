@@ -31,6 +31,175 @@
         // lastChoice: 直近で推定した選択肢（A〜E）
         const SAVE = { tried:false, ok:false, lastHref:null, lastChoice:null };
 
+        // O.D.O.A Mode 関連の状態を保持するオブジェクト
+        // loaded : SYNC state の取得が完了したかどうか
+        // loading: 現在取得中かどうか（多重 fetch を防ぐため）
+        // state  : /api/sync/state から取得した JSON 全体
+        const ODOA_STATE = { loaded:false, loading:false, state:null };
+
+        // グローバルな O.D.O.A モード文字列（"on" / "off"）
+        // まだ設定されていなければ "off" を初期値として使う
+        if (typeof window.CSCS_ODOA_MODE !== 'string') {
+          window.CSCS_ODOA_MODE = 'off';
+        }
+
+        // /api/sync/state から SYNC 状態を1回だけ取得するヘルパー
+        // - odoa_mode / oncePerDayToday を含む全体 state を ODOA_STATE.state に格納
+        // - 取得に成功したら window.CSCS_ODOA_MODE を odoa_mode("on"/"off") で更新
+        async function loadSyncStateForOdoaIfNeeded(){
+          if (ODOA_STATE.loaded) {
+            return;
+          }
+          if (ODOA_STATE.loading) {
+            // すでに別の呼び出しが取得中なら、完了を軽く待つ
+            while (ODOA_STATE.loading && !ODOA_STATE.loaded) {
+              await new Promise(function(resolve){ setTimeout(resolve, 10); });
+            }
+            return;
+          }
+          ODOA_STATE.loading = true;
+          try{
+            const res = await fetch("/api/sync/state", { cache: "no-store" });
+            const json = await res.json();
+            ODOA_STATE.state = json;
+            ODOA_STATE.loaded = true;
+
+            // odoa_mode の正規化（"on" / "off" 以外は "off" 扱い）
+            let mode = "off";
+            if (json && typeof json.odoa_mode === "string") {
+              if (json.odoa_mode === "on" || json.odoa_mode === "off") {
+                mode = json.odoa_mode;
+              }
+            }
+            window.CSCS_ODOA_MODE = mode;
+
+            dlog("O.D.O.A SYNC state loaded:", {
+              odoa_mode: window.CSCS_ODOA_MODE,
+              hasOncePerDayToday: !!(json && json.oncePerDayToday)
+            });
+
+            // ボタンラベル更新関数があれば、ここで最新状態を反映
+            if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
+              try{
+                window.__cscsUpdateOdoaBtnLabel();
+              }catch(_){}
+            }
+          }catch(e){
+            dlog("O.D.O.A SYNC state load failed:", String(e));
+          }finally{
+            ODOA_STATE.loading = false;
+          }
+        }
+
+        // oncePerDayToday の情報から「この qid が今日すでに回答済みかどうか」を判定する
+        function isOncePerDayAnsweredForThisQid(){
+          const st = ODOA_STATE.state;
+          if (!st || !st.oncePerDayToday || typeof st.oncePerDayToday !== "object") return false;
+
+          const raw = st.oncePerDayToday;
+          const dayNum = typeof raw.day === "number" && Number.isFinite(raw.day) ? raw.day : null;
+          if (dayNum === null) return false;
+
+          const thisDayNum = Number(day);
+          if (!Number.isFinite(thisDayNum) || thisDayNum !== dayNum) return false;
+
+          const results = raw.results;
+          if (!results || typeof results !== "object") return false;
+
+          const answered = Object.prototype.hasOwnProperty.call(results, qid);
+          return !!answered;
+        }
+
+        // 「O.D.O.A Mode の仕様上、この問題はトークン発行をスキップすべきか？」を判定
+        // - モードが "on" で、かつ oncePerDayToday 上「今日すでに回答済み」であれば true
+        function shouldSkipTokenForThisQuestion(){
+          const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
+          if (mode !== "on") return false;
+          const answered = isOncePerDayAnsweredForThisQid();
+          if (answered) {
+            dlog("O.D.O.A: this qid is already answered today. Will skip token issuing.", { qid, mode });
+          }
+          return answered;
+        }
+
+        // O.D.O.A Mode を SYNC に保存するヘルパー
+        // - mode は "on" / "off" のみ想定
+        function sendOdoaModeToSync(mode){
+          try{
+            const payload = { odoa_mode: mode === "on" ? "on" : "off" };
+            dlog("O.D.O.A: sending mode to SYNC:", payload);
+            fetch("/api/sync/merge", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            }).then(function(res){
+              dlog("O.D.O.A: SYNC merge response status:", res.status);
+            }).catch(function(err){
+              dlog("O.D.O.A: SYNC merge error:", String(err));
+            });
+          }catch(e){
+            dlog("O.D.O.A: sendOdoaModeToSync exception:", String(e));
+          }
+        }
+
+        // O.D.O.A Mode のボタンUIを1回だけ生成する
+        // - window.CSCS_ODOA_MODE の値に応じてラベルを更新
+        // - クリックで on/off をトグルし、SYNC にも送信
+        function setupOdoaModeButtonOnce(){
+          if (window.__cscsOdoaBtnInstalled) return;
+          window.__cscsOdoaBtnInstalled = true;
+
+          const wrapper = document.createElement("div");
+          wrapper.id = "cscs-odoa-toggle-wrapper";
+          wrapper.style.marginTop = "8px";
+
+          const btn = document.createElement("button");
+          btn.id = "cscs-odoa-toggle";
+          btn.style.fontSize = "11px";
+          btn.style.padding = "4px 8px";
+
+          window.__cscsUpdateOdoaBtnLabel = function(){
+            const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
+            if (mode === "on") {
+              btn.textContent = "O.D.O.A Mode：ON（一日一回答モード）";
+            } else {
+              btn.textContent = "O.D.O.A Mode：OFF";
+            }
+          };
+
+          btn.addEventListener("click", function(){
+            const prev = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
+            const next = prev === "on" ? "off" : "on";
+            window.CSCS_ODOA_MODE = next;
+            if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
+              window.__cscsUpdateOdoaBtnLabel();
+            }
+            dlog("O.D.O.A: button clicked, mode changed:", { prev, next });
+            sendOdoaModeToSync(next);
+          });
+
+          wrapper.appendChild(btn);
+
+          document.addEventListener("DOMContentLoaded", function(){
+            // Aパート下部に置くことを意図しつつ、アンカーが無ければ body に配置
+            const anchor =
+              document.getElementById("cscs-a-bottom-controls") ||
+              document.getElementById("cscs-a-bottom") ||
+              document.body;
+            anchor.appendChild(wrapper);
+            if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
+              window.__cscsUpdateOdoaBtnLabel();
+            }
+            dlog("O.D.O.A button mounted to DOM.", {
+              anchorId: anchor.id || "(body)"
+            });
+          });
+        }
+
+        // 起動時にボタン生成処理を登録し、SYNC state の取得もウォームアップしておく
+        setupOdoaModeButtonOnce();
+        loadSyncStateForOdoaIfNeeded();
+
         // トークン生成関数
         // crypto.getRandomValues が使える場合はランダムな 2つの 32bit 値からトークン生成
         // 使えない環境では Date.now + Math.random をフォールバックとして使用
@@ -107,6 +276,20 @@
           if (SAVE.ok) return true;
           SAVE.tried = true;
 
+          // O.D.O.A Mode の仕様上、この問題ではトークン発行をスキップすべき場合
+          // - トークンは localStorage に書かず、ナビゲーションガード的には「成功」とみなす
+          await loadSyncStateForOdoaIfNeeded();
+          if (shouldSkipTokenForThisQuestion()) {
+            SAVE.ok = true;
+            SAVE.lastHref = a.getAttribute('href') || '';
+            SAVE.lastChoice = null;
+            dlog("O.D.O.A: saveTokenFor skipped token issuing (treated as OK).", {
+              qid,
+              mode: window.CSCS_ODOA_MODE
+            });
+            return true;
+          }
+
           const choice = pickChoice(a);
           const token  = makeToken();
           const Kt = `cscs_from_a_token:${qid}`;
@@ -175,6 +358,9 @@
           const a = ev.target && ev.target.closest && ev.target.closest('a');
           if (!isTargetAnchor(a)) return;
           hardBlock(ev);
+
+          await loadSyncStateForOdoaIfNeeded();
+
           const ok = await saveTokenFor(a);
           if (!ok) dlog('pointerdown save NG');
         }, { capture:true });
@@ -184,6 +370,9 @@
           const a = ev.target && ev.target.closest && ev.target.closest('a');
           if (!isTargetAnchor(a)) return;
           hardBlock(ev);
+
+          await loadSyncStateForOdoaIfNeeded();
+
           if (!SAVE.ok) {
             const ok = await saveTokenFor(a);
             if (!ok) dlog('mousedown save NG');
@@ -195,6 +384,9 @@
           const a = ev.target && ev.target.closest && ev.target.closest('a');
           if (!isTargetAnchor(a)) return;
           hardBlock(ev);
+
+          await loadSyncStateForOdoaIfNeeded();
+
           if (!SAVE.ok) {
             const ok = await saveTokenFor(a);
             if (!ok) dlog('mouseup save NG');
@@ -211,19 +403,30 @@
           if (!isTargetAnchor(a)) return;
           hardBlock(ev);
 
+          await loadSyncStateForOdoaIfNeeded();
+
           if (!SAVE.ok) await saveTokenFor(a);
 
-          try {
-            const Kt = `cscs_from_a_token:${qid}`;
-            await Promise.resolve();
-            const rt = localStorage.getItem(Kt);
-            if (!rt) {
-              dlog('click STOP (no token in localStorage)');
+          const skipToken = shouldSkipTokenForThisQuestion();
+
+          if (!skipToken) {
+            try {
+              const Kt = `cscs_from_a_token:${qid}`;
+              await Promise.resolve();
+              const rt = localStorage.getItem(Kt);
+              if (!rt) {
+                dlog('click STOP (no token in localStorage)');
+                return;
+              }
+            } catch (e) {
+              dlog('click STOP (exception on localStorage check):', String(e));
               return;
             }
-          } catch (e) {
-            dlog('click STOP (exception on localStorage check):', String(e));
-            return;
+          } else {
+            dlog("O.D.O.A: click token check skipped (no token required for this qid).", {
+              qid,
+              mode: window.CSCS_ODOA_MODE
+            });
           }
 
           navigateIfSaved(a);
@@ -237,19 +440,30 @@
           if (!isTargetAnchor(a)) return;
           hardBlock(ev);
 
+          await loadSyncStateForOdoaIfNeeded();
+
           if (!SAVE.ok) await saveTokenFor(a);
 
-          try {
-            const Kt = `cscs_from_a_token:${qid}`;
-            await Promise.resolve();
-            const rt = localStorage.getItem(Kt);
-            if (!rt) {
-              dlog('kbd STOP (no token in localStorage)');
+          const skipToken = shouldSkipTokenForThisQuestion();
+
+          if (!skipToken) {
+            try {
+              const Kt = `cscs_from_a_token:${qid}`;
+              await Promise.resolve();
+              const rt = localStorage.getItem(Kt);
+              if (!rt) {
+                dlog('kbd STOP (no token in localStorage)');
+                return;
+              }
+            } catch (e) {
+              dlog('kbd STOP (exception on localStorage check):', String(e));
               return;
             }
-          } catch (e) {
-            dlog('kbd STOP (exception on localStorage check):', String(e));
-            return;
+          } else {
+            dlog("O.D.O.A: keydown token check skipped (no token required for this qid).", {
+              qid,
+              mode: window.CSCS_ODOA_MODE
+            });
           }
 
           navigateIfSaved(a);
