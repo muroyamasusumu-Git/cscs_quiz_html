@@ -5,6 +5,9 @@
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
 
+  // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
+  var LAST_ODOA_STATUS = "";
+
   function detectInfo() {
     var path = window.location.pathname || "";
     var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
@@ -284,19 +287,41 @@
       }
 
       // ★ パネルに出す最終文字列（「O.D.O.A Mode : ON correct」など）
+      //   - payload.odoaStatusText が "__keep__" のときは前回表示を維持
+      //   - それ以外の文字列のときはその文字列で更新
+      //   - 空や未指定のときはモードからデフォルト文字列を組み立てる
       var odoaStatusText = "";
-      if (payload && typeof payload.odoaStatusText === "string" && payload.odoaStatusText) {
-        odoaStatusText = payload.odoaStatusText;
+      var rawStatusFromPayload = "";
+      if (payload && typeof payload.odoaStatusText === "string") {
+        rawStatusFromPayload = payload.odoaStatusText;
+      }
+
+      if (rawStatusFromPayload === "__keep__") {
+        // 前回の HUD 表示をそのまま使う
+        if (LAST_ODOA_STATUS) {
+          odoaStatusText = LAST_ODOA_STATUS;
+          console.log("[SYNC-B] ODOA HUD status kept as-is:", odoaStatusText);
+        } else {
+          // まだ一度も表示していない場合はモードから初期値を作る
+          odoaStatusText = "O.D.O.A Mode : " + odoaModeText;
+          LAST_ODOA_STATUS = odoaStatusText;
+          console.log("[SYNC-B] ODOA HUD status initialized (no previous):", odoaStatusText);
+        }
+      } else if (rawStatusFromPayload) {
+        // 新しいステータス文字列に更新
+        odoaStatusText = rawStatusFromPayload;
+        LAST_ODOA_STATUS = odoaStatusText;
+        console.log("[SYNC-B] ODOA HUD status updated from payload:", odoaStatusText);
+      } else {
+        // 明示指定なし → モードからデフォルトを生成して保存
+        odoaStatusText = "O.D.O.A Mode : " + odoaModeText;
+        LAST_ODOA_STATUS = odoaStatusText;
+        console.log("[SYNC-B] ODOA HUD status set from mode:", odoaStatusText);
       }
 
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-        if (odoaStatusText) {
-          statusDiv.textContent = odoaStatusText;
-        } else {
-          // フォールバック（必ず4パターンのどれかを渡す想定だが、安全のため）
-          statusDiv.textContent = "O.D.O.A Mode : " + odoaModeText;
-        }
+        statusDiv.textContent = odoaStatusText;
       }
 
       // 内部用の statusText はログとして残すだけ
@@ -883,12 +908,20 @@
 
         var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
 
-        // 初期表示や diff 送信前は「ON nocount」/「OFF」で表示
+        // 初期表示や diff 送信前の HUD:
+        //   - suppressDiffSend===true のときは "__keep__" を渡し、既存表示を維持
+        //   - 通常モードでは「ON nocount」/「OFF」で初期表示を行う
         var odoaStatusTextForPanelInit;
-        if (odoaModeText === "ON") {
-          odoaStatusTextForPanelInit = "O.D.O.A Mode : ON nocount";
+        if (suppressDiffSend) {
+          odoaStatusTextForPanelInit = "__keep__";
+          console.log("[SYNC-B] ODOA HUD: suppressDiffSend=true → '__keep__' で再描画要求");
         } else {
-          odoaStatusTextForPanelInit = "O.D.O.A Mode : OFF";
+          if (odoaModeText === "ON") {
+            odoaStatusTextForPanelInit = "O.D.O.A Mode : ON nocount";
+          } else {
+            odoaStatusTextForPanelInit = "O.D.O.A Mode : OFF";
+          }
+          console.log("[SYNC-B] ODOA HUD: initial status set from mode:", odoaStatusTextForPanelInit);
         }
 
         renderPanel(box, {
