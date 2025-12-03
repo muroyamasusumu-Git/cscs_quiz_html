@@ -15,7 +15,7 @@
         padding: 10px 10px 0 5px;
         color: rgb(255, 255, 255);
         opacity: 0.55;
-        width: 100%;
+        width: 69%;
         font-weight: 300;
     }
   `;
@@ -287,33 +287,6 @@
   var starRemainingDays = 0;           // 締切までの残り日数
   var starTargetPerDay = 0;            // 1日あたりの目標★数（SYNCから計算）
 
-  // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
-  function makeProgressBar(percent, segments) {
-    var seg = (segments && Number.isFinite(segments)) ? segments : 10;
-    if (seg <= 0) {
-      seg = 10;
-    }
-
-    var p = Number(percent);
-    if (!Number.isFinite(p) || p < 0) {
-      p = 0;
-    }
-    if (p > 100) {
-      p = 100;
-    }
-
-    var filled = Math.round((p / 100) * seg);
-    if (filled < 0) filled = 0;
-    if (filled > seg) filled = seg;
-
-    var empty = seg - filled;
-    var filledChar = "■";
-    var emptyChar = "□";
-
-    var bar = "［" + filledChar.repeat(filled) + emptyChar.repeat(empty) + "］";
-    return bar;
-  }
-
   // ある Field について
   //   total: 総問題数（metaから）
   //   star : ★獲得済み問題数（SYNCから）
@@ -436,43 +409,12 @@
     // 今日の 3連続正解ユニーク数を localStorage から読み込む
     starTodayCount = loadTodayStreak3CountFromLocal();
 
-    // 今日の達成率（本日の獲得数 / 本日の目標数）
-    var todayPercent = 0;
-    if (targetNum > 0) {
-      todayPercent = Math.floor((starTodayCount / targetNum) * 100);
-      if (!Number.isFinite(todayPercent) || todayPercent < 0) {
-        todayPercent = 0;
-      }
-      if (todayPercent > 100) {
-        todayPercent = 100;
-      }
-    }
-
-    // 全体の達成率（★獲得済み問題数 / 全体問題数）
-    var totalPercent = 0;
-    var totalQuestions = DUMMY_TOTAL; // 2700問を前提とした全体母数
-    if (totalQuestions > 0) {
-      totalPercent = Math.floor((starTotalSolvedQuestions / totalQuestions) * 100);
-      if (!Number.isFinite(totalPercent) || totalPercent < 0) {
-        totalPercent = 0;
-      }
-      if (totalPercent > 100) {
-        totalPercent = 100;
-      }
-    }
-
-    // ゲージ文字列を生成
-    var todayBar = makeProgressBar(todayPercent, 10);
-    var totalBar = makeProgressBar(totalPercent, 10);
-
-    // 実際のテキストを整形
-    // 例:
-    // ⭐️本日の目標数 26個(基準比:順調)｜本日の獲得数+4［■■■■■■□□□□］19%｜全体進捗［■■■■■■■■□□］42%
+    // ここで実際のテキストを整形している
+    // TODO: 進捗バー部分（■■■□□□□）や百分率は今後リアル値に差し替えていく余地あり
     needLine.textContent =
-      "⭐️本日の目標数 " + String(targetNum) + "個(基準比:順調)" +
-      "｜本日の獲得数+" + String(starTodayCount) + " " + todayBar + String(todayPercent) + "%" +
-      "｜全体進捗 " + totalBar + String(totalPercent) + "%";
-
+      "⭐️本日の目標" + String(targetNum) +
+      "/日(基準比:順調)｜獲得数+" + String(starTodayCount) +
+      "［■■■■■■□□□□□］19%｜全体［■■■■■■□□□□□］42%";
     needLine.style.marginBottom = "10px";
     needLine.style.marginLeft = "-8px";
     needLine.style.fontWeight = "500";
