@@ -524,21 +524,25 @@
     var moodText = mood || "順調";
     var html = "";
 
+    // ⭐️本日の目標数 26個(基準比:余裕)
     html += "<span class=\"cscs-star-main-compact\">";
     html += "⭐️本日の目標数 " + String(targetNum) + "個";
     html += "<span class=\"cscs-star-mood\">(基準比:" + moodText + ")</span>";
     html += "</span>";
 
+    // 本日の獲得数 +4：15%
     html += "<span class=\"cscs-star-section-compact\">";
-    html += "本日の獲得数 +" + String(starTodayCount);
+    html += "本日の獲得数 +" + String(starTodayCount) + "：";
     html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
     html += "</span>";
     html += "</span>";
 
+    // 全体進捗：0%
     html += "<span class=\"cscs-star-section-compact\">";
-    html += "全体進捗 " + String(totalPercent) + "%";
+    html += "全体進捗：";
+    html += "<span class=\"cscs-star-percent\">" + String(totalPercent) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + String(totalPercent) + "%;\"></span>";
     html += "</span>";
