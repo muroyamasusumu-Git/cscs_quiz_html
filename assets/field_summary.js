@@ -82,7 +82,8 @@
     }
 
     .cscs-star-meter-fill-total {
-        background: linear-gradient(90deg, rgba(102, 255, 178, 0.95), rgba(255, 255, 255, 0.95));
+        /* ⭐️と同じ黄色グラデーションに統一 */
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
     }
 
     /* 分野ゲージ用 内側バー（黄色グラデーション） */
