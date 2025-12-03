@@ -30,6 +30,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     streak3: {},
     streakLen: {},
     consistency_status: {},
+    // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
+    odoa_mode: "off",
     // ★ここでは streak3Today を追加しない（消失確認のため上書き禁止）
     updatedAt: 0
   };
@@ -45,6 +47,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
+
+  // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
+  const hasOdoaMode = Object.prototype.hasOwnProperty.call(out, "odoa_mode");
+  if (!hasOdoaMode || typeof out.odoa_mode !== "string") {
+    out.odoa_mode = "off";
+    try {
+      // ★ここで "off" で補完したことを明示的にログ出力（初回セットの確認用）
+      console.log("[SYNC/state] odoa_mode が欠落または不正値のため 'off' で補完しました。");
+    } catch (_e) {}
+  }
 
   // -----------------------------
   // 4) streak3Today / oncePerDayToday の存在/内容チェック
@@ -85,6 +97,17 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     }
   }
 
+  // O.D.O.A Mode 側の簡易チェック
+  const hasOdoaModePropForLog = Object.prototype.hasOwnProperty.call(out, "odoa_mode");
+  const rawOdoaMode: any = hasOdoaModePropForLog ? (out as any).odoa_mode : undefined;
+
+  let odModeParsed: "on" | "off" | null = null;
+  if (typeof rawOdoaMode === "string") {
+    if (rawOdoaMode === "on" || rawOdoaMode === "off") {
+      odModeParsed = rawOdoaMode;
+    }
+  }
+
   // -----------------------------
   // 5) ログ出力（完全）
   // -----------------------------
@@ -120,6 +143,13 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       resultsKeysLength: onceResultsKeysLength
     });
 
+    console.log("[SYNC/state] --- O.D.O.A Mode Check ---");
+    console.log("[SYNC/state] hasOdoaModeProp      :", hasOdoaModePropForLog);
+    console.log("[SYNC/state] out.odoa_mode (raw)  :", rawOdoaMode);
+    console.log("[SYNC/state] out.odoa_mode (parsed):", {
+      odoa_mode: odModeParsed
+    });
+
     console.log("[SYNC/state] --- summary ---");
     console.log("[SYNC/state] hasCorrect           :", !!out.correct);
     console.log("[SYNC/state] hasIncorrect         :", !!out.incorrect);
@@ -128,6 +158,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
     console.log("[SYNC/state] hasOncePerDayToday   :", hasOncePerDayProp);
+    console.log("[SYNC/state] hasOdoaMode          :", hasOdoaModePropForLog);
 
     console.log("[SYNC/state] === onRequestGet END ===");
     console.log("====================================================");
