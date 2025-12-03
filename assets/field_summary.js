@@ -58,7 +58,7 @@
         width: 100%;
         min-width: 60px;
         max-width: 220px;
-        height: 6px;
+        height: 8px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.18);
         overflow: hidden;
