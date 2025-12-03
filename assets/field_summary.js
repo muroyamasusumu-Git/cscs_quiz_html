@@ -18,8 +18,61 @@
         width: 100%;
         font-weight: 300;
     }
+
+    .cscs-star-summary-line-compact {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        margin-bottom: 8px;
+        margin-left: -4px;
+    }
+
+    .cscs-star-main-compact {
+        font-weight: 600;
+    }
+
+    .cscs-star-mood {
+        margin-left: 2px;
+        opacity: 0.8;
+    }
+
+    .cscs-star-section-compact {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .cscs-star-section-compact .cscs-star-percent {
+        min-width: 32px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .cscs-star-meter {
+        position: relative;
+        display: inline-block;
+        width: 80px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+    }
+
+    .cscs-star-meter-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
+    }
+
+    .cscs-star-meter-fill-total {
+        background: linear-gradient(90deg, rgba(102, 255, 178, 0.95), rgba(255, 255, 255, 0.95));
+    }
   `;
   document.head.appendChild(style);
+  console.log("field_summary.js: CSS for compact star summary injected");
 
   // 旧ダミー値（現在は実計算に置き換え済みだが、一部計算に名残あり）
   var DUMMY_TOTAL = 2700;
@@ -450,7 +503,7 @@
 
     // 全体の達成率（★獲得済み問題数 / 全体問題数）
     var totalPercent = 0;
-    var totalQuestions = DUMMY_TOTAL; // 2700問を前提とした全体母数
+    var totalQuestions = DUMMY_TOTAL;
     if (totalQuestions > 0) {
       totalPercent = Math.floor((starTotalSolvedQuestions / totalQuestions) * 100);
       if (!Number.isFinite(totalPercent) || totalPercent < 0) {
@@ -461,23 +514,47 @@
       }
     }
 
-    // ゲージ文字列を生成
-    var todayBar = makeProgressBar(todayPercent, 10);
-    var totalBar = makeProgressBar(totalPercent, 10);
+    // コンパクトな進捗行を構築（CSSミニバー付き）
+    needLine.className = "cscs-star-summary-line-compact";
 
-    // 実際のテキストを整形
-    // 例:
-    // ⭐️本日の目標数 26個(基準比:順調)｜本日の獲得数+4［■■■■■■□□□□］19%｜全体進捗［■■■■■■■■□□］42%
-    needLine.textContent =
-      "⭐️本日の目標数 " + String(targetNum) + "個(基準比:順調)" +
-      "｜本日の獲得数+" + String(starTodayCount) + " " + todayBar + String(todayPercent) + "%" +
-      "｜全体進捗 " + totalBar + String(totalPercent) + "%";
+    var moodText = mood || "順調";
+    var html = "";
+
+    html += "<span class=\"cscs-star-main-compact\">";
+    html += "⭐️本日の目標数 " + String(targetNum) + "個";
+    html += "<span class=\"cscs-star-mood\">(基準比:" + moodText + ")</span>";
+    html += "</span>";
+
+    html += "<span class=\"cscs-star-section-compact\">";
+    html += "本日の獲得数 +" + String(starTodayCount);
+    html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
+    html += "<span class=\"cscs-star-meter\">";
+    html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
+    html += "</span>";
+    html += "</span>";
+
+    html += "<span class=\"cscs-star-section-compact\">";
+    html += "全体進捗 " + String(totalPercent) + "%";
+    html += "<span class=\"cscs-star-meter\">";
+    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + String(totalPercent) + "%;\"></span>";
+    html += "</span>";
+    html += "</span>";
+
+    needLine.innerHTML = html;
 
     needLine.style.marginBottom = "10px";
     needLine.style.marginLeft = "-8px";
     needLine.style.fontWeight = "500";
     needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
+
+    // コンソールに現在の目標値と進捗を出力して、値とレンダリング結果を確認できるようにする
+    console.log("field_summary.js: compact star summary rendered", {
+      targetNum: targetNum,
+      starTodayCount: starTodayCount,
+      todayPercent: todayPercent,
+      totalPercent: totalPercent
+    });
 
     // 分野別の一覧を <ul> として作成
     var list = document.createElement("ul");
