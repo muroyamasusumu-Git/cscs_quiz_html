@@ -15,7 +15,7 @@
         padding: 10px 10px 0 5px;
         color: rgb(255, 255, 255);
         opacity: 0.55;
-        width: 100%;
+        width: 69%;
         font-weight: 300;
     }
 
@@ -53,7 +53,7 @@
     .cscs-star-meter {
         position: relative;
         display: inline-block;
-        width: 80px;
+        width: 140px;
         height: 6px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.18);
@@ -521,13 +521,13 @@
     var html = "";
 
     html += "<span class=\"cscs-star-main-compact\">";
-    html += "⭐️本日の目標数 " + String(targetNum) + "個";
+    html += "⭐️本日の目標数： " + String(targetNum) + "個";
     html += "<span class=\"cscs-star-mood\">(基準比:" + moodText + ")</span>";
     html += "</span>";
 
     html += "<span class=\"cscs-star-section-compact\">";
     html += "本日の獲得数 +" + String(starTodayCount);
-    html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
+    html += "<span class=\"cscs-star-percent\">"/ + String(todayPercent) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
     html += "</span>";
