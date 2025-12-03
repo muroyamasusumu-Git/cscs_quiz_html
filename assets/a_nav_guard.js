@@ -167,20 +167,70 @@
           return answered;
         }
 
-        // O.D.O.A Mode の条件を満たしている場合、A→B のリンク href から choice を一括で取り除く
-        // - DOMContentLoaded 後に /api/sync/state が読めたタイミングなどで呼び出す想定
+        // O.D.O.A Mode の条件に応じて、A→B のリンク href を一括で書き換える
+        // - mode === "on" かつ「今日すでに回答済み」のとき: ?choice= を削除
+        // - mode === "off" のとき                   : ?choice= を付け直す（pickChoice で推定）
         function rewriteAnchorsForOdoaIfNeeded(){
           try{
-            if (!shouldSkipTokenForThisQuestion()) {
-              dlog("O.D.O.A: bulk rewrite skipped (mode is off or not answered today).", {
+            const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
+
+            // ▼ mode: "on" の場合 → 既回答の問題だけ ?choice を削る
+            if (mode === "on") {
+              if (!shouldSkipTokenForThisQuestion()) {
+                dlog("O.D.O.A: bulk rewrite skipped (mode=on but not answered today).", {
+                  qid,
+                  mode
+                });
+                return;
+              }
+
+              const anchors = Array.prototype.slice.call(document.querySelectorAll("a"));
+              let removedCount = 0;
+
+              for (let i = 0; i < anchors.length; i++) {
+                const a = anchors[i];
+                if (!isTargetAnchor(a)) continue;
+
+                const rawHref = a.getAttribute("href") || "";
+                if (!rawHref) continue;
+
+                try{
+                  const u = new URL(rawHref, location.href);
+                  const before = u.pathname + u.search;
+
+                  if (!u.searchParams.has("choice")) {
+                    continue;
+                  }
+
+                  u.searchParams.delete("choice");
+                  const finalHref = u.pathname + u.search;
+
+                  a.setAttribute("href", finalHref);
+                  removedCount++;
+
+                  dlog("O.D.O.A: anchor href stripped by bulk rewrite (mode=on).", {
+                    beforeHref: before,
+                    afterHref: finalHref
+                  });
+                }catch(e){
+                  dlog("O.D.O.A: bulk rewrite href normalize failed (mode=on), keep raw href.", {
+                    rawHref,
+                    error: String(e)
+                  });
+                }
+              }
+
+              dlog("O.D.O.A: bulk rewrite finished for mode=on.", {
                 qid,
-                mode: window.CSCS_ODOA_MODE
+                removedCount
               });
               return;
             }
 
+            // ▼ mode: "off" の場合 → Bリンクに ?choice= を復元する
             const anchors = Array.prototype.slice.call(document.querySelectorAll("a"));
-            let updatedCount = 0;
+            let restoredCount = 0;
+            let skippedNoChoiceInfo = 0;
 
             for (let i = 0; i < anchors.length; i++) {
               const a = anchors[i];
@@ -193,31 +243,44 @@
                 const u = new URL(rawHref, location.href);
                 const before = u.pathname + u.search;
 
-                if (!u.searchParams.has("choice")) {
+                // すでに choice パラメータがある場合は何もしない
+                if (u.searchParams.has("choice")) {
                   continue;
                 }
 
-                u.searchParams.delete("choice");
+                // a要素から choice を推定（A/B/C/D...）
+                const choice = pickChoice(a);
+                if (!choice) {
+                  skippedNoChoiceInfo++;
+                  dlog("O.D.O.A: cannot restore choice (no choice info).", {
+                    beforeHref: before
+                  });
+                  continue;
+                }
+
+                u.searchParams.set("choice", choice);
                 const finalHref = u.pathname + u.search;
 
                 a.setAttribute("href", finalHref);
-                updatedCount++;
+                restoredCount++;
 
-                dlog("O.D.O.A: anchor href stripped by bulk rewrite.", {
+                dlog("O.D.O.A: anchor href restored with choice param (mode=off).", {
                   beforeHref: before,
-                  afterHref: finalHref
+                  afterHref: finalHref,
+                  choice
                 });
               }catch(e){
-                dlog("O.D.O.A: bulk rewrite href normalize failed, keep raw href.", {
+                dlog("O.D.O.A: bulk rewrite href normalize failed (mode=off), keep raw href.", {
                   rawHref,
                   error: String(e)
                 });
               }
             }
 
-            dlog("O.D.O.A: bulk rewrite finished.", {
+            dlog("O.D.O.A: bulk rewrite finished for mode=off.", {
               qid,
-              updatedCount
+              restoredCount,
+              skippedNoChoiceInfo
             });
           }catch(e){
             dlog("O.D.O.A: bulk rewrite exception:", String(e));
