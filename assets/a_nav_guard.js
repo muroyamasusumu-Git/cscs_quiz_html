@@ -323,9 +323,9 @@
           window.__cscsUpdateOdoaBtnLabel = function(){
             const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
             if (mode === "on") {
-              btn.textContent = "O.D.O.A Mode：ON";
+              btn.textContent = "O.D.O.A：ON";
             } else {
-              btn.textContent = "O.D.O.A Mode：OFF";
+              btn.textContent = "O.D.O.A：OFF";
             }
           };
 
