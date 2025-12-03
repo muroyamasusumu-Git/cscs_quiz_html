@@ -36,13 +36,14 @@
             style.textContent = `
 #cscs-odoa-toggle {
     font-size: 10px;
-    padding: 4px 10px;
+    padding: 4px 4px;
     position: fixed;
     top: 5px;
     right: 394px;
     opacity: 0.25;
     font-weight: bold;
-    
+    width: 120px;
+    text-align: center;
 }
             `;
             document.head.appendChild(style);
