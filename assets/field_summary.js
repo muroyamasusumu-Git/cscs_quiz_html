@@ -43,6 +43,7 @@
         align-items: center;
         gap: 4px;
         flex: 1 1 0;
+        white-space: nowrap;
     }
 
     .cscs-star-section-compact .cscs-star-percent {
