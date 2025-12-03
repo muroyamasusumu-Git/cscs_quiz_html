@@ -14,15 +14,25 @@
 (function(){
   "use strict";
 
-  // ====== 小物 ======
+  // ====== 小物（ユーティリティ関数群） ======
+
+  // 簡易 querySelector
   function $(sel, root){ return (root||document).querySelector(sel); }
+
+  // 数値変換 + フォールバック
   function toInt(x, def){ x=Number(x); return Number.isFinite(x)?x:def; }
+
+  // 整数を3桁ゼロ埋め（1→"001"）
   function pad3(n){ return String(n).padStart(3,"0"); }
+
+  // HTMLエスケープ（タイトル文字列の安全な埋め込み用）
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => (
       c==="&"?"&amp;":c==="<"?"&lt;":c===">"?"&gt;":c==='"'?"&quot;":"&#39;"
     ));
   }
+
+  // Fisher-Yates シャッフル（元配列は壊さない）
   function shuffle(arr){
     const a = arr.slice();
     for(let i=a.length-1;i>0;i--){
@@ -31,32 +41,37 @@
     }
     return a;
   }
+
+  // 配列からランダムに k件サンプル
   function sample(arr, k){
     if (!arr || !arr.length) return [];
     return shuffle(arr).slice(0, k);
   }
 
-  // 文字列→英数トークン分割
+  // 文字列→英数字トークンに分解（英語系の類似度用）
   function tokenizeLatin(s){
     return String(s||"")
       .toLowerCase()
-      .split(/[^\p{Letter}\p{Number}]+/u)
-      .filter(w => w && w.length >= 3);
+      .split(/[^\p{Letter}\p{Number}]+/u) // 文字・数字以外で区切る
+      .filter(w => w && w.length >= 3);   // 長さ3以上のみ採用
   }
-  // JP向けバイグラム
+
+  // 日本語向けバイグラム（2文字ずつの連続文字列）
   function bigrams(s){
     const t = String(s||"").replace(/\s+/g, "");
     const out = [];
     for (let i=0; i<t.length-1; i++){
       const g = t.slice(i, i+2);
+      // 記号などは除外
       if (!/[^\p{Letter}\p{Number}]/u.test(g)) out.push(g);
     }
     return out;
   }
 
-  // JSON正規化
+  // JSON正規化: cscs_meta_all.json がどの形式でも同じ形に整形する
   function normalizeMeta(meta){
     let rows = [];
+    // パターン1: { items: [...] }
     if (meta && Array.isArray(meta.items)) {
       rows = meta.items.map(x => ({
         q:     String(x.text || ""),
@@ -67,6 +82,7 @@
         day:   x.day || "",
         n3:    x.n3  || ""
       }));
+    // パターン2: { questions: [...] } （CSV由来想定）
     } else if (meta && Array.isArray(meta.questions)) {
       rows = meta.questions.map(x => ({
         q:     String(x.Question || ""),
@@ -79,6 +95,7 @@
         day:   x.Date  || "",
         n3:    pad3(Number(x.Number||0))
       }));
+    // パターン3: 配列そのもの
     } else if (Array.isArray(meta)) {
       rows = meta.map(x => ({
         q:     String(x.Question || x.text || ""),
@@ -90,37 +107,49 @@
         n3:    x.n3 || pad3(Number(x.Number||0))
       }));
     }
+    // 必須項目が揃っていないものは除外
     return rows.filter(r => r.q && r.url && r.day && r.n3);
   }
 
-  // 類似スコア（行＋スコアを返す）
+  // 類似スコア計算: queryText と全 rows の類似度を計算し、score付きで返す
   function scoreAll(queryText, rows, base){
-    const latin = tokenizeLatin(queryText);
-    const jps   = bigrams(queryText);
+    const latin = tokenizeLatin(queryText); // 英語トークン
+    const jps   = bigrams(queryText);       // 日本語バイグラム
     const out   = [];
 
     for (const r of rows){
       const textLower = r.q.toLowerCase();
       let s = 0;
+
+      // 英語トークンが含まれていれば +2
       for (const w of latin){ if (textLower.includes(w)) s += 2; }
+
+      // バイグラムが含まれていれば +1
       for (const bg of jps){ if (r.q.includes(bg)) s += 1; }
+
+      // 現在の問題と同じ Field なら +0.5
       if (base){
         if (base.field && (r.field||"") === base.field) s += 0.5;
+
+        // Level が完全一致なら +0.25
         const lv = (r.level||"").replace(/\s+/g,"").toLowerCase();
         const bl = (base.level||"").replace(/\s+/g,"").toLowerCase();
         if (bl && lv === bl) s += 0.25;
       }
       out.push({row:r, score:s});
     }
-    // 高スコア順
+    // スコア高い順
     out.sort((a,b)=> b.score - a.score);
     return out;
   }
 
-  // 自ページの設問テキスト
+  // 自ページの設問テキストを推定
   function resolveQText(hostEl){
     const ds = hostEl ? hostEl.dataset : {};
+    // data-qtext があればそれを優先
     if (ds && ds.qtext && ds.qtext.trim()) return ds.qtext.trim();
+
+    // 無ければ DOM からそれっぽいテキストを拾う
     const pick = $('.question')?.textContent?.trim()
              || $('h1')?.textContent?.trim()
              || document.body.innerText.trim().split('\n').find(s=>s.length>8)
@@ -128,32 +157,39 @@
     return pick;
   }
 
-  // nav_manifest.json から Field/Level を拾う
+  // nav_manifest.json から現在問題の Field/Theme/Level を取得
   async function tryGetSelfMeta(){
     try{
       const mDay = (location.pathname||"").match(/_build_cscs_(\d{8})/);
       if (!mDay) return null;
       const day = mDay[1];
+
+      // 同日の nav_manifest.json を読み込む
       const navUrl = new URL(`../slides/nav_manifest.json`, location.href).href;
       const res = await fetch(navUrl, {cache:"no-store"});
       if (!res.ok) return null;
       const j = await res.json();
+
+      // 現在の qNNN_a/b から NNN を取得
       const qnum = (location.pathname.match(/q(\d{3})_[ab]/i)||[])[1];
       if (!qnum || !Array.isArray(j.questions)) return null;
+
+      // nav_manifest.questions から該当行を検索
       const row = j.questions.find(x => String(x.Number).padStart(3,'0') === qnum);
       if (!row) return null;
+
       return { field: row.Field||"", theme: row.Theme||"", level: row.Level||"", day, n3: qnum };
     }catch(_){ return null; }
   }
 
-  // 回答履歴を集計（day-n3 単位）
+  // 回答履歴を day-n3 単位に集計（total / correct）
   function readResultsAgg(){
     const KEY="cscs_results";
     let arr=[]; try{ arr = JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(_){ arr=[]; }
     const map = new Map(); // key: "YYYYMMDD-NNN" -> {total, correct}
     arr.forEach(r=>{
       if (!r || !r.day || !r.stem) return;
-      const n3 = String(r.stem||"").slice(1).padStart(3,"0");
+      const n3 = String(r.stem||"").slice(1).padStart(3,"0"); // stem="q013" → "013"
       const key = `${r.day}-${n3}`;
       const o = map.get(key) || { total:0, correct:0 };
       o.total += 1;
@@ -163,27 +199,30 @@
     return map;
   }
 
-  // 不正解ログを読む
+  // 不正解ログ（問題別 wrong 回数）を読む
   function readWrongLog(){
     try { return JSON.parse(localStorage.getItem("cscs_wrong_log") || "{}"); }
     catch (_){ return {}; }
   }
 
+  // メイン処理
   async function run(){
-    // 配置場所
+    // host: similar-list 埋め込み先要素（あれば）
     let host = document.getElementById("similar-list");
     let ds   = host ? host.dataset : null;
+
+    // host が無い場合は、自分自身の <script>タグの data-* を参照する
     if (!host) {
       const me = [...document.scripts].find(s => (s.src||"").includes("similar_list.js"));
       if (me) ds = me.dataset || null;
     }
-    if (!ds) return;
+    if (!ds) return; // data-src等が無ければ何もしない
 
-    const src   = ds.src || "../../assets/cscs_meta_all.json";
+    const src   = ds.src || "../../assets/cscs_meta_all.json"; // メタJSONのパス
     const debug = ds.debug === "1";
-    const qtext = resolveQText(host || document.body);
+    const qtext = resolveQText(host || document.body);         // 自問題テキスト
 
-    // データ読み込み
+    // ===== メタデータ読み込み =====
     let meta = null;
     try{
       const url = new URL(src, location.href);
@@ -196,21 +235,26 @@
     const rows = normalizeMeta(meta);
     if (!rows.length) return;
 
+    // 自身の Field/Level 等を nav_manifest から取得
     const selfMeta = await tryGetSelfMeta();
     const selfKey = selfMeta && selfMeta.day && selfMeta.n3 ? `${selfMeta.day}-${selfMeta.n3}` : null;
     if (debug) console.log("[mix8] selfMeta:", selfMeta);
 
     // ===== カテゴリ用の下準備 =====
-    const scoredAll = scoreAll(qtext, rows, selfMeta);  // 高→低
-    const onlyRows  = scoredAll.map(o => o.row);
 
-    // 1) 類似（上位からランダム2件）— 自分は除外
+    // すべての問題に対して類似スコアを計算（高い順）
+    const scoredAll = scoreAll(qtext, rows, selfMeta);  // 高→低
+    const onlyRows  = scoredAll.map(o => o.row);        // 行だけ取り出し
+
+    // 1) 類似（似ている問題）候補。
+    //    自分自身(selfKey)は除外。
     let similarPool = onlyRows;
     if (selfKey) similarPool = similarPool.filter(r => `${r.day}-${r.n3}` !== selfKey);
 
-    // 2) 未着手（回答0 or ≤1回）— 同分野×同レベル優先
-    const agg = readResultsAgg();
-    const wrongLog = readWrongLog();
+    // 2) 未着手（回答回数 0 or ≤1回）— 同分野×同レベル優先
+    const agg = readResultsAgg();        // { "day-n3": {total, correct} }
+    const wrongLog = readWrongLog();     // { "day-n3": wrongCount }
+
     function attempts(key){
       const o = agg.get(key);
       return o ? o.total : 0;
@@ -220,15 +264,21 @@
       if (!o || !o.total) return 0;
       return o.correct / o.total;
     }
+
+    // 自分と同じ Field & Level の問題リスト
     const sameFieldLevel = rows.filter(r=>{
       if (!selfMeta) return false;
       const sameF = (r.field||"").trim() === (selfMeta.field||"").trim();
       const sameL = (r.level||"").replace(/\s+/g,"").toLowerCase() === (selfMeta.level||"").replace(/\s+/g,"").toLowerCase();
       return sameF && sameL;
     });
+
+    // 未着手候補:
+    //   - 同Field&Levelがあればそれを優先
+    //   - 回答回数 0 or ≤1
     let untriedPool = (sameFieldLevel.length ? sameFieldLevel : rows).filter(r=>{
       const key = `${r.day}-${r.n3}`;
-      if (selfKey && key === selfKey) return false;
+      if (selfKey && key === selfKey) return false;  // 自分自身は除外
       const att = attempts(key);
       return att === 0 || att <= 1;
     });
@@ -238,24 +288,25 @@
       if (!selfMeta) return false;
       return (r.field||"").trim() === (selfMeta.field||"").trim();
     });
+
     let reviewPool = (sameField.length ? sameField : rows).filter(r=>{
       const key = `${r.day}-${r.n3}`;
-      if (selfKey && key === selfKey) return false;
+      if (selfKey && key === selfKey) return false;   // 自分自身は除外
       const wrong = Number(wrongLog[key]||0);
       const acc   = accuracy(key);
-      return wrong >= 2 && acc < 0.6;
+      return wrong >= 2 && acc < 0.6;                 // 不正解2回以上 & 正答率60%未満
     });
 
     // 4) 別分野（低類似）— 分野が異なる & 類似スコアが低い
-    //    まずスコア0 & 別分野を優先、無ければスコア下位10 & 別分野から抽出
+    //    まずスコア0 & 別分野を優先、無ければスコア下位50 & 別分野から
     const baseField = (selfMeta && selfMeta.field) || "";
     const lowSimZero = scoredAll
-      .filter(o => o.score <= 0 && (o.row.field||"") !== baseField && (!selfKey || `${o.row.day}-${o.row.n3}` !== selfKey))
+      .filter(o => o.score <= 0 && (o.row.field||")") !== baseField && (!selfKey || `${o.row.day}-${o.row.n3}` !== selfKey))
       .map(o => o.row);
 
     let diffFieldPool = lowSimZero;
     if (!diffFieldPool.length){
-      const bottom = scoredAll.slice(-Math.min(50, scoredAll.length)); // 下位50から
+      const bottom = scoredAll.slice(-Math.min(50, scoredAll.length)); // スコア下位50件
       diffFieldPool = bottom
         .filter(o => (o.row.field||"") !== baseField && (!selfKey || `${o.row.day}-${o.row.n3}` !== selfKey))
         .map(o => o.row);
@@ -263,21 +314,23 @@
 
     // ===== 抽出（各カテゴリ指定数、重複排除）=====
 
-    // 展開状態に応じた件数セットを受け取り、候補リストを作る関数
+    // カテゴリごとの件数指定から表示リストを組み立てる関数
     function buildListByCounts(counts){
       const { sim, diff, untried, rev, limit } = counts;
 
-      // まず「別分野」「類似」「未着手」「要復習」の候補を取得し、
-      // 以降は重複を避けながらリストを構成する
+      // まず「類似」をピックアップ
       const pickSimilar = sample(similarPool, sim);
-      const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`));
+      const used = new Set(pickSimilar.map(r => `${r.day}-${r.n3}`)); // すでに使ったqID
 
+      // 次に「別分野」から使用済み以外を抽出
       const pickDiff = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), diff);
       pickDiff.forEach(r => used.add(`${r.day}-${r.n3}`));
 
+      // 次に「未着手」から
       const pickUntried = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), untried);
       pickUntried.forEach(r => used.add(`${r.day}-${r.n3}`));
 
+      // 最後に「要復習」から
       const pickReview = sample(reviewPool.filter(r => !used.has(`${r.day}-${r.n3}`)), rev);
       pickReview.forEach(r => used.add(`${r.day}-${r.n3}`));
 
@@ -289,7 +342,7 @@
         ...pickReview.map(r  => ({ tag:"要復習", cls:"rev",  row:r })),
       ];
 
-      // 足りない分は「別分野→未着手」で補充
+      // 件数が足りなければ「別分野」から補充
       if (combined.length < limit) {
         const need = limit - combined.length;
         const filler1 = sample(diffFieldPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
@@ -298,6 +351,7 @@
           combined.push({ tag:"別分野", cls:"diff", row:r });
         });
       }
+      // まだ足りなければ「未着手」で補充
       if (combined.length < limit) {
         const need = limit - combined.length;
         const filler2 = sample(untriedPool.filter(r => !used.has(`${r.day}-${r.n3}`)), need);
@@ -307,35 +361,37 @@
         });
       }
 
-      // 展開時（limit>4）は従来どおりシャッフル、
-      // 初期4件表示時（limit<=4）はカテゴリ順を維持
+      // 展開時（limit>4）は一覧をシャッフルしてから limit 件
+      // 折りたたみ時（limit<=4）はカテゴリ順そのまま
       if (limit > 4) {
         return shuffle(combined).slice(0, limit);
       }
       return combined.slice(0, limit);
     }
 
-    // 既定（折りたたみ）:
-    //   別分野1件 / 類似1件 / 未着手1件 / 要復習0件 = 計3件
+    // 折りたたみ時: 別分野1 / 類似1 / 未着手1 / 要復習0 = 計3件
     const countsCollapsed = { sim:1, diff:1, untried:1, rev:0, limit:3 };
-    // 展開: 各4件×4カテゴリ=16件（従来どおり）
+    // 展開時: 各4件×4カテゴリ = 16件
     const countsExpanded  = { sim:4, diff:4, untried:4, rev:4, limit:16 };
 
-    // 初期状態は折りたたみ（3件）
+    // 初期状態は折りたたみ
     let expanded = false;
     let finalList = buildListByCounts(countsCollapsed);
 
-    // ====== 描画 ======
+    // ====== DOM配置・スタイル ======
     const wrap = document.querySelector(".wrap");
+
+    // 既存 host があれば .wrap の末尾へ移動
     if (host) {
       if (wrap && host.parentElement !== wrap) wrap.appendChild(host);
     } else {
+      // 無ければ新規作成
       host = document.createElement("div");
       host.id = "similar-list";
       (wrap || document.body).appendChild(host);
     }
 
-    // スタイル
+    // スタイルタグを一度だけ挿入
     const styleId = "similar-list-style";
     if (!document.getElementById(styleId)) {
       const st = document.createElement("style");
@@ -372,34 +428,34 @@
   color:#e0e0e0;
   background:#2b2b2b;
 }
-#similar-list .tag.sim{  background:#2b2b2b; color:#e0e0e0; border-color:#444; }   /* 濃いめグレー */
-#similar-list .tag.diff{ background:#3a3a3a; color:#e6e6e6; border-color:#555; }   /* 少し明るい */
-#similar-list .tag.new{  background:#4a4a4a; color:#efefef; border-color:#666; }   /* さらに明るい */
-#similar-list .tag.rev{  background:#5a5a5a; color:#fafafa; border-color:#777; }   /* 最も明るい */
+#similar-list .tag.sim{  background:#2b2b2b; color:#e0e0e0; border-color:#444; }   /* 類似: 濃いめグレー */
+#similar-list .tag.diff{ background:#3a3a3a; color:#e6e6e6; border-color:#555; }   /* 別分野 */
+#similar-list .tag.new{  background:#4a4a4a; color:#efefef; border-color:#666; }   /* 未着手 */
+#similar-list .tag.rev{  background:#5a5a5a; color:#fafafa; border-color:#777; }   /* 要復習 */
 
 #similar-list .sl-clear{
-  margin-top:13px;            /* ← 隙間を完全になくす */
+  margin-top:13px;
   text-align:left;
   line-height:0;
   font-weight:300;
 }
 #similar-list .sl-clear .sl-clear-btn{
-  display:inline;           /* ← テキスト扱い */
+  display:inline;
   font-size:18px;
   font-weight:400;
   color:#ccc;
-  text-decoration:underline; /* ← リンク風 */
+  text-decoration:underline;
   cursor:pointer;
 }
 #similar-list .sl-clear .sl-clear-btn:hover{
-  color:#fff;               /* ← hover時に少し明るく */
+  color:#fff;
   opacity:0.9;
 }
       `.trim();
       document.head.appendChild(st);
     }
 
-    // 描画関数：expanded フラグに応じてヘッダ文言と [× 一覧を消去する] を切替
+    // ====== 描画関数 ======
     function render(){
       const titleText = "類似／別分野／未着手／要復習問題を一覧表示";
       let html = `<div class="sl-head"><a href="#" class="sl-toggle" aria-label="${titleText}">${titleText}</a></div>`;
@@ -412,14 +468,14 @@
         }).join("") + `</ul>`;
       }
 
-      // 展開中のみ、最下部に [× 一覧を消去する] を表示
+      // 展開中のみ、最下部に [× 一覧を消去する] を出す
       if (expanded) {
         html += `<div class="sl-clear"><a href="#" class="sl-clear-btn">[× 一覧を消去する]</a></div>`;
       }
 
       host.innerHTML = html;
 
-      // クリックで 折りたたみ ⇔ 展開 にトグル
+      // 見出しクリックで「折りたたみ ↔ 展開」トグル
       const toggle = host.querySelector(".sl-toggle");
       if (toggle) {
         toggle.addEventListener("click", (e)=>{
@@ -430,7 +486,7 @@
         });
       }
 
-      // [× 一覧を消去する] で折りたたみへ戻す
+      // [× 一覧を消去する] で折りたたみ状態に戻す
       const clearBtn = host.querySelector(".sl-clear-btn");
       if (clearBtn) {
         clearBtn.addEventListener("click", (e)=>{
@@ -446,10 +502,11 @@
     render();
 
     if (debug){
-      // 参考ログ（カテゴリごとの内訳などを見たい場合は buildListByCounts 内に仕込む）
+      // debug=1 のときに、必要ならここに追加ログを書く想定
     }
   }
 
+  // DOM準備ができてから run() を呼ぶ
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", run);
   } else {

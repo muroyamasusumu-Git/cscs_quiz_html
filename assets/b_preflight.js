@@ -1,15 +1,21 @@
+// assets/b_preflight.js
 (function(){
+  // ▼ 二重実行防止フラグ
   if (window.__cscsBPreflightInstalled) return;
   window.__cscsBPreflightInstalled = true;
 
   // === consumedタブなら最優先で Kt を削除（b_judge_record.js 起動前に潰す） ===
   try {
+    // URL から day（YYYYMMDD）を取得
     const mDay = (location.pathname.match(/_build_cscs_(\d{8})/)||[])[1];
+    // URL から qNNN_b の NNN を取得
     const n3   = (location.pathname.match(/q(\d{3})_b/i)||[])[1];
     if (mDay && n3) {
       const qid   = `${mDay}-${n3}`;
-      const gk    = `cscs_ab_consumed:${qid}`;
-      const ktKey = `cscs_from_a_token:${qid}`;
+      const gk    = `cscs_ab_consumed:${qid}`;        // このタブが「消費済み」かどうかのフラグキー（sessionStorage）
+      const ktKey = `cscs_from_a_token:${qid}`;       // A→Bトークン (localStorageキー)
+
+      // consumed フラグが立っているタブでは、Kt を即削除してから先に進む
       if (sessionStorage.getItem(gk) === '1') {
         try { localStorage.removeItem(ktKey); } catch(_){}
         console.debug('[B:preflight] removed Kt before record.js', {qid});
@@ -17,6 +23,7 @@
     }
   } catch(_){}
 
+  // ▼ ここから下は Bページとしての前提（URLから qid を決定）
   // qid = YYYYMMDD-NNN（Bページ限定）
   const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
   const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_b(?:\.html)?(?:\/)?$/i);
@@ -25,39 +32,47 @@
   const num3 = mStem[1].slice(1);
   const qid  = `${day}-${num3}`;
 
-  const Kt  = `cscs_from_a_token:${qid}`;
-  const Kc  = `cscs_from_a:${qid}`;
-  const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorage）
-  const KsC = `cscs_ab_shadow_choice:${qid}`;  // 影choice（sessionStorage）
+  // ▼ A→B連携で利用するキー定義
+  const Kt  = `cscs_from_a_token:${qid}`;       // A→Bトークン (localStorage)
+  const Kc  = `cscs_from_a:${qid}`;            // Aで選んだ choice (localStorage)
+  const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorageに退避）
+  const KsC = `cscs_ab_shadow_choice:${qid}`;  // 影choice（sessionStorageに退避）
 
   // ★ 初回到着フレームで Kt/Kc を「影」に退避 → localStorage からは見えなくする
   try{
-    const hasShadow = sessionStorage.getItem(KsT);
-    const lt = localStorage.getItem(Kt);
-    const lc = localStorage.getItem(Kc);
+    const hasShadow = sessionStorage.getItem(KsT);  // すでに影トークンがあるかどうか
+    const lt = localStorage.getItem(Kt);            // 現在の Kt
+    const lc = localStorage.getItem(Kc);            // 現在の Kc
     if (!hasShadow && (lt || lc)) {
+      // まだ影がなく、Kt/Kc が存在する場合のみ sessionStorage にコピー
       if (lt) { try{ sessionStorage.setItem(KsT, lt); }catch(_){} }
       if (lc) { try{ sessionStorage.setItem(KsC, lc); }catch(_){} }
+      // Kt は b_judge_record.js から見えないよう localStorage から削除
       try{ localStorage.removeItem(Kt); }catch(_){}
-      // Kc は UI 復元に使うので local 側も残す（※消さない）
+      // Kc は UI 復元に使うので localStorage 側も残す（※消さない）
       console.debug('[B:preflight] moved Kt/Kc to session shadow', { qid });
     }
   }catch(_){}
 
-  // 画面左上に診断用パネル（B）
+  // ▼ 画面左上に診断用パネル（B用）を作成
   const diag = document.createElement('div');
   diag.id = 'cscs_token_diag_b';
   diag.style.cssText =
     'position:fixed;z-index:99999;left:8px;top:8px;max-width:46vw;font:12px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;background:rgba(22,22,22,.8);color:#fff;padding:8px 10px;border-radius:6px;white-space:pre-wrap;word-break:break-word;pointer-events:none;';
   diag.textContent = '[B:preflight] init…';
+  // DOM構築後に body にパネルを追加
   document.addEventListener('DOMContentLoaded', () => document.body.appendChild(diag));
 
+  // ▼ コンソールログ用ヘルパー
   const blog = (...a) => { try { console.debug('[B:preflight]', ...a); } catch(_){} };
+
+  // ▼ 診断パネルにオブジェクト内容を表示するヘルパー
   const setPanel = (o) => { try{
     diag.textContent = '[B:preflight] ' + Object.entries(o).map(([k,v]) => `${k}: ${v}`).join(' | ');
   }catch(_){ } };
 
-  // 到着直後：不足なら sessionStorage から即時バックフィル（★リロード時は実行しない＆一度使ったら即消す）
+  // ▼ 到着直後：不足なら sessionStorage から即時バックフィル
+  //   （★ただしリロード時は実行しない＆一度使ったら sessionStorage 側は必ず消す）
   let initLocalToken = null, initLocalChoice = null;
   try {
     // 1) 既存 localStorage を確認
@@ -75,9 +90,9 @@
 
     // 3) token が無く、かつリロードではない場合のみ sessionStorage から一度だけ補填
     if (!initLocalToken && !isReload) {
-      const sq = sessionStorage.getItem('cscs_last_token_qid');
-      const sv = sessionStorage.getItem('cscs_last_token_value');
-      const sc = sessionStorage.getItem('cscs_last_choice');
+      const sq = sessionStorage.getItem('cscs_last_token_qid');    // A側が残した qid
+      const sv = sessionStorage.getItem('cscs_last_token_value'); // A側が残した token
+      const sc = sessionStorage.getItem('cscs_last_choice');      // A側が残した choice
 
       if (sq === qid && sv) {
         // backfill → 直後に sessionStorage を必ず消去（※リロード時の再バックフィル防止）
@@ -90,18 +105,20 @@
           sessionStorage.removeItem('cscs_last_choice');
         } catch(_){}
 
+        // backfill 後に改めて localStorage 側の値を読み直す
         initLocalToken  = localStorage.getItem(Kt);
         initLocalChoice = localStorage.getItem(Kc);
         blog('backfilled from sessionStorage (once, then cleared):', { qid, Kt, Kc });
       }
     } else if (isReload) {
+      // リロードで来た場合は backfill せずスキップ
       blog('skip backfill on reload');
     }
   } catch (e) {
     blog('localStorage get exception:', String(e));
   }
 
-  // A側がデバッグ用に残したセッションミラーも取得（比較用）
+  // ▼ A側がデバッグ用に残したセッションミラーも取得（比較・診断用）
   let sessQid = null, sessToken = null, sessChoice = null;
   try {
     sessQid    = sessionStorage.getItem('cscs_last_token_qid');
@@ -111,8 +128,11 @@
     blog('sessionStorage get exception:', String(e));
   }
 
+  // ▼ 影トークン / 影choice を sessionStorage から取得
   const shadowToken  = (function(){ try{ return sessionStorage.getItem(KsT); }catch(_){ return null; } })();
   const shadowChoice = (function(){ try{ return sessionStorage.getItem(KsC); }catch(_){ return null; } })();
+
+  // ▼ 現時点の到着状態をコンソールに出力
   blog('arrived', {
     qid, Kt, Kc,
     initLocalToken, initLocalChoice,
@@ -122,14 +142,18 @@
   });
 
   // --- ロールアップ（集計）ユーティリティ ---
+  // 日単位（YYYYMMDD）で 30問分の配列を管理する仕組み
+
+  // ▼ dayStr（YYYYMMDD）に対応する rollup 配列を localStorage から用意する
   function ensureDayIndex(dayStr){
-    const dk = `cscs_rollup:${dayStr}`;
+    const dk = `cscs_rollup:${dayStr}`;  // その日の rollup キー
     let arr = [];
     try {
       const raw = localStorage.getItem(dk);
       if (raw) arr = JSON.parse(raw);
     } catch(_){}
     if (!Array.isArray(arr)) arr = [];
+    // 30問分確保（不足分は null で埋める）
     if (arr.length < 30) {
       const need = 30 - arr.length;
       for (let i = 0; i < need; i++) arr.push(null);
@@ -137,6 +161,8 @@
     return { key: dk, arr };
   }
 
+  // ▼ qid から 0〜29 のインデックスを算出
+  //   例: "20250926-013" → 12
   function qIndexFromQid(qidStr){
     // qidStr = "YYYYMMDD-NNN"
     const m = qidStr && qidStr.match(/-(\d{3})$/);
@@ -145,8 +171,9 @@
     return (n >= 1 && n <= 30) ? (n - 1) : -1;
   }
 
+  // ▼ rollup 用に「このBページ到着」を記録する関数
   function recordArrival(qidStr, tokenVal, choiceVal){
-    const dayStr = qidStr.slice(0, 8);
+    const dayStr = qidStr.slice(0, 8);       // 先頭8桁 = YYYYMMDD
     const { key, arr } = ensureDayIndex(dayStr);
     const idx = qIndexFromQid(qidStr);
     if (idx < 0) return false;
@@ -158,6 +185,7 @@
       choice: choiceVal || null,
       ts: now
     };
+    // 対応する問題番号の位置にエントリを格納
     arr[idx] = entry;
 
     try {
@@ -177,16 +205,18 @@
     const gk = `cscs_ab_consumed:${qid}`;
     const alreadyConsumed = sessionStorage.getItem(gk) === '1';
     if (alreadyConsumed) {
+      // すでに消費済みタブ → rollup しない
       blog('rollup skip: already consumed tab', { qid });
     } else if (!alreadyConsumed) {
-      // 初回タブでも、まだ b_judge.js が tally 前の Kt を持つ状態。
-      // ここでは rollup を保留し、b_judge.js 側に任せる。
+      // 初回タブでは、まだ b_judge.js が tally 前の Kt を扱うフェーズなので
+      // ここで rollup せず、b_judge.js 側に任せる方針
       blog('rollup deferred: let b_judge.js handle tally', { qid });
     }
   }catch(e){
     blog('rollup exception:', String(e));
   }
 
+  // ▼ 現在の状態をパネル表示
   setPanel({
     qid,
     localToken:   initLocalToken ? 'set' : 'null',
@@ -198,21 +228,24 @@
     sessChoice:   sessChoice || 'null'
   });
 
-  // 以降、誰が localStorage を書き換えるか監視（stack 付き）
+  // ▼ 以降、誰が localStorage を書き換えるか監視（stack 付きログ）
   try{
     const LS = localStorage;
     const _set    = LS.setItem.bind(LS);
     const _remove = LS.removeItem.bind(LS);
     const _clear  = LS.clear.bind(LS);
 
+    // setItem フック：スタックトレース付きでログ出し
     LS.setItem = function(k, v){
       blog('setItem', {k, v}, 'stack:', new Error().stack);
       return _set(k, v);
     };
+    // removeItem フック
     LS.removeItem = function(k){
       blog('removeItem', {k}, 'stack:', new Error().stack);
       return _remove(k);
     };
+    // clear フック
     LS.clear = function(){
       blog('clear()', 'stack:', new Error().stack);
       return _clear();
@@ -221,6 +254,7 @@
     blog('hook localStorage methods failed:', String(e));
   }
 
+  // ▼ ページ離脱タイミングもログ（beforeunload / unload）
   window.addEventListener('beforeunload', (e)=>{ blog('beforeunload (B)', {trusted:e.isTrusted}); }, {capture:true});
   window.addEventListener('unload',       (e)=>{ blog('unload (B)'      , {trusted:e.isTrusted}); }, {capture:true});
 })();

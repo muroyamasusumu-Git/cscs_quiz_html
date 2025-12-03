@@ -2,14 +2,20 @@
 (function(){
   "use strict";
 
-  // true: A/B 両方で常時表示（開閉ボタンなし）
-  // false: これまで通り、トグルボタンで開閉
+  // ナビパネルを「常時表示」にするかどうか
+  // true  : A/B 両方で常時表示（トグルボタンなし / パネルは自動表示）
+  // false : 画面下部の「📋 問題一覧表示」ボタンで開閉
   const NAV_ALWAYS_OPEN = true;
 
+  // =========================
+  // SYNC状態のロード
+  // =========================
   async function loadSyncDataForNavList(){
     try{
+      // /api/sync/state から最新の SYNC データを取得
       const res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
       const json = await res.json();
+      // 正常なオブジェクトでなければ空にしておく
       if (!json || typeof json !== "object") {
         window.CSCS_SYNC_DATA = {};
       } else {
@@ -22,16 +28,26 @@
     return window.CSCS_SYNC_DATA;
   }
 
+  // =========================
+  // 位置やパスに関するユーティリティ
+  // =========================
+
+  // A/BパートのURLかどうか（qNNN_a.html / qNNN_b.html 判定）
   function isAPart(){
     return /_(a|b)(?:\.html)?(?:\?.*)?(?:#.*)?$/i.test(String(location.href || ""));
   }
+
+  // 現在開いている日付（_build_cscs_YYYYMMDD から YYYYMMDD を抜き出す）
   function getDayFromPath(){
     var m = (window.location.pathname || "").match(/_build_cscs_(\d{8})/);
     return m ? m[1] : "unknown";
   }
+
+  // ゼロ埋めユーティリティ
   function pad2(n){ return String(n).padStart(2, "0"); }
   function pad3(n){ return String(n).padStart(3, "0"); }
 
+  // "YYYYMMDD" + "NNN" → "YYYY年M月D日-NNN" の日本語QID形式に変換
   function toJpDateQid(day, n3){
     var y = day.slice(0, 4);
     var m = String(Number(day.slice(4, 6)));
@@ -39,6 +55,7 @@
     return y + "年" + m + "月" + d + "日-" + n3;
   }
 
+  // SYNCの consistency_status から「◎/○/△/×」などのステータスマークを取り出す
   function getConsistencyInfoFromSync(day, n3, syncRoot){
     var qidJp = toJpDateQid(day, n3);
     var obj = null;
@@ -56,7 +73,7 @@
     return { qidJp: qidJp, statusMark: mark };
   }
 
-  // 現在開いている A/Bパートの問題番号（q013_a.html / q013_b.html → "013"）を取得
+  // 現在開いている A/B の問題番号（q013_a.html / q013_b.html → "013"）を取得
   function getCurrentQuestionNumber3(){
     try{
       var path = window.location.pathname || "";
@@ -67,11 +84,17 @@
     }
   }
 
+  // =========================
+  // 背景スクロールロック制御（モーダル風）
+  // =========================
+
   /* 背景スクロールロック */
   function lockBodyScroll(){
     try{
       var y = window.scrollY || 0;
+      // HTMLに「data-nl-open」を付与（CSS側で状態に使える）
       document.documentElement.setAttribute("data-nl-open", "1");
+      // bodyを固定して、現在位置を top に記憶
       Object.assign(document.body.style, {
         position: "fixed",
         top: "-" + y + "px",
@@ -82,6 +105,8 @@
       document.body.dataset.nlLockY = String(y);
     }catch(_){}
   }
+
+  // ロック解除（元のスクロール位置に戻す）
   function unlockBodyScroll(){
     try{
       var y = Number(document.body.dataset.nlLockY || "0") || 0;
@@ -97,10 +122,15 @@
     }catch(_){}
   }
 
+  // =========================
+  // 成績読み取り（localStorage / cscs_results / cscs_wrong_log）
+  // =========================
+
   /* 成績読み取り（localStorageから） */
   function readStats(day, n3){
     var stem = "q" + n3;
 
+    // 1日の中で「最大の runId（最後にプレイした周回）」を取得
     function getMaxRunIdForDay(day, all){
       var runs = all.filter(function(r){
         return r && r.day === day && Number.isInteger(r.runId);
@@ -112,13 +142,16 @@
     try { all = JSON.parse(localStorage.getItem("cscs_results") || "[]"); } catch(_){ all = []; }
     var latestRun = getMaxRunIdForDay(day, all) || 1;
 
+    // 当日・当該問題・最後の runId に絞った履歴を取得（時系列順）
     var rows = all.filter(function(r){
       return r && r.day === day && r.runId === latestRun && r.stem === stem;
     }).sort(function(a,b){ return a.ts - b.ts; });
 
+    // 正解・不正解の累計回数
     var correct = rows.filter(function(r){ return !!r.correct; }).length;
     var wrong   = rows.filter(function(r){ return !r.correct; }).length;
 
+    // sc/sw: 末尾から見た直近の「連続正/連続誤」の数
     var sc = 0, sw = 0;
     for (var i = rows.length - 1; i >= 0; i--){
       if (rows[i].correct) {
@@ -130,6 +163,7 @@
       }
     }
 
+    // 「この問題は⭐️クリア済みか？」（3連続正解を達成したことがあるか）
     var cleared = false;
     if (rows.length){
       var maxStreak = 0, cur = 0;
@@ -138,6 +172,7 @@
         else { cur = 0; }
       }
       cleared = (maxStreak >= 3);
+      // ただし末尾2回連続で不正解なら「クリア扱いは解除」
       if (cleared && rows.length >= 2){
         var n = rows.length;
         if (!rows[n-1].correct && !rows[n-2].correct){
@@ -146,6 +181,7 @@
       }
     }
 
+    // 不正解回数ログ（day-n3 単位）の参照
     var wrongLogCount = 0;
     try{
       var log = JSON.parse(localStorage.getItem("cscs_wrong_log") || "{}");
@@ -157,12 +193,17 @@
     return { correct: correct, wrong: wrong, sc: sc, sw: sw, cleared: cleared, wrongLog: wrongLogCount };
   }
 
+  // =========================
+  // 右カラム：DAY一覧の描画
+  // =========================
+
   // 日別リスト（DAY-01〜）を右カラムに描画
   function renderDayList(rightCol, currentDay){
     if (!rightCol) {
       return;
     }
 
+    // 開始日〜終了日までの "YYYYMMDD" の配列を作る
     function buildDayArray(startStr, endStr){
       var list = [];
 
@@ -189,10 +230,10 @@
       return list;
     }
 
-    // TODO: セット数や日付レンジを変更したくなったらここを書き換える
+    // ★ CSCS日程（ここを変えればレンジも変えられる）
     var days = buildDayArray("20250926", "20251224");
 
-    // SYNC データから streak3（3連続正解達成回数）を参照するためのルートを取得
+    // SYNC データから streak3（3連続正解総回数）を参照するためのルートを取得
     var syncRoot = {};
     try{
       if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
@@ -213,8 +254,8 @@
       var TOTAL_QUESTIONS = 30;
 
       // その日30問分のスター状況を集計
-      var anyStarCount = 0;   // 「何らかの★（⭐️/🌟/💫）」が付いている問題数
-      var starGe1 = 0;        // ランク1以上（⭐️以上）
+      var anyStarCount = 0;   // 3連続正解を1回以上達成している問題数
+      var starGe1 = 0;        // ランク1以上（⭐️以上）の問題数
       var starGe2 = 0;        // ランク2以上（🌟以上）
       var starGe3 = 0;        // ランク3以上（💫）
 
@@ -224,15 +265,17 @@
         var qid = dayStr + "-" + n3;
         var streakTotal = 0;
 
+        // SYNC上の streak3[qid] が「この問題の3連続正解達成回数」
         if (syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)) {
           streakTotal = Number(syncRoot.streak3[qid] || 0);
         }
 
-        // 3連続正解達成回数が 0 の問題は一切カウントしない
+        // 3連続正解達成回数 0 の問題は「★なし」とみなしてカウントしない
         if (!(streakTotal > 0)) {
           continue;
         }
 
+        // streakTotal から「⭐️/🌟/💫」に変換（関数が無い場合はとりあえず⭐️）
         var symbol = "";
         if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
           symbol = window.cscsGetStarSymbolFromStreakCount(streakTotal) || "⭐️";
@@ -242,7 +285,7 @@
 
         anyStarCount += 1;
 
-        // ランクを判定
+        // ランク別にカウント（⭐️,🌟,💫）
         if (symbol === "⭐️") {
           starGe1 += 1;
         } else if (symbol === "🌟") {
@@ -255,39 +298,45 @@
         }
       }
 
+      // その日の「★付き問題割合」をパーセントで算出
       var ratePercent = TOTAL_QUESTIONS > 0 ? Math.round((anyStarCount / TOTAL_QUESTIONS) * 100) : 0;
 
       // DAY 見出しに付けるシンボル（30/30 の場合のみ）
       var daySuffix = "";
       if (anyStarCount === TOTAL_QUESTIONS) {
         if (starGe3 === TOTAL_QUESTIONS) {
-          // 全 30 問が 💫
+          // 全30問が 💫
           daySuffix = "💫";
         } else if (starGe2 === TOTAL_QUESTIONS) {
-          // 全 30 問が 🌟（または🌟以上）
+          // 全30問が 🌟（以上）
           daySuffix = "🌟";
         } else if (starGe1 === TOTAL_QUESTIONS) {
-          // 全 30 問が ⭐️（または⭐️以上）
+          // 全30問が ⭐️（以上）
           daySuffix = "⭐️";
         }
       }
 
+      // 1日分の表示ブロックをDOM構築
       var item = document.createElement("div");
       item.className = "nl-day-item" + (isCurrent ? " is-current" : "");
 
       var link = document.createElement("a");
+      // その日の1問目Aパートへのリンク（手動ナビモード）
       link.href = "/_build_cscs_" + dayStr + "/slides/q001_a.html?nav=manual";
       link.setAttribute("data-nl-allow", "1");
       link.style.display = "block";
       link.style.textDecoration = "none";
 
+      // 1行目: DAY-XX + 全クリ度シンボル
       var titleRow = document.createElement("div");
       titleRow.className = "nl-day-title";
       titleRow.textContent = "DAY-" + pad2(idx + 1) + daySuffix;
 
+      // 2行目: 実際の日付 YYYYMMDD
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
 
+      // 3行目: ★獲得：X/30 (YY%)
       var rateRow = document.createElement("div");
       rateRow.textContent =
         "★獲得：" +
@@ -307,11 +356,16 @@
     });
   }
 
+  // =========================
+  // 下部の「📋 問題一覧表示」トグルボタン生成
+  // =========================
+
   /* Aパート下部中央のトグルボタンを挿入（開いている間は✖️ 閉じる　に変化） */
   function ensureToggle(){
     // 常時表示モードのときはトグルボタン自体を出さない
     if (NAV_ALWAYS_OPEN) return;
 
+    // A/Bパート以外ではボタン不要
     if (!isAPart()) return;
     if (document.getElementById("nl-toggle")) return;
 
@@ -319,6 +373,7 @@
     btn.id = "nl-toggle";
     btn.textContent = "📋 問題一覧表示";
 
+    // ボタンのラベルを、パネルの開閉状態に合わせて同期
     function syncLabel(){
       const panel = document.getElementById("nl-panel");
       const opened = panel && panel.style.display === "block";
@@ -326,9 +381,11 @@
       btn.setAttribute("aria-pressed", opened ? "true" : "false");
     }
 
+    // hover時に少し明るく
     btn.addEventListener("mouseenter", function(){ try { btn.style.filter = "brightness(1.1)"; } catch(_){ } });
     btn.addEventListener("mouseleave", function(){ try { btn.style.filter = ""; } catch(_){ } });
 
+    // クリックでパネル開閉（必要に応じて mount ）
     btn.addEventListener("click", async function(ev){
       ev.preventDefault();
       ev.stopPropagation();
@@ -346,6 +403,10 @@
     document.body.appendChild(btn);
   }
 
+  // =========================
+  // パネル生成（DOMだけ用意して、中身は別関数で描画）
+  // =========================
+
   /* パネル生成 */
   function ensurePanel(){
     if (document.getElementById("nl-panel")) return;
@@ -353,7 +414,7 @@
     var panel = document.createElement("div");
     panel.id  = "nl-panel";
 
-    // ★ スクロール有効化＋見た目調整
+    // パネルの見た目・位置（画面上部固定 / 半透明 / スクロール領域を中に持つ）
     Object.assign(panel.style, {
       position: "fixed",
       left: "16px",
@@ -375,7 +436,7 @@
       transition: "opacity 0.6s ease-in-out"
     });
 
-    // ▼ 可能なら #root の中に挿入し、無い場合のみ body 直下に挿入
+    // #root があればその中に、それ以外は body 直下に追加
     var root = document.getElementById("root");
     if (root){
       root.appendChild(panel);
@@ -390,14 +451,20 @@
     });
   }
 
+  // =========================
+  // nav_manifest.json からリストを構築してパネルに描画
+  // =========================
+
   /* メイン描画：nav_manifest.json から構築 */
   async function renderListInto(panel){
+    // パネル内を一度クリア
     while (panel.firstChild) panel.removeChild(panel.firstChild);
 
-    const day = getDayFromPath();
-    const currentN3 = getCurrentQuestionNumber3();
+    const day = getDayFromPath();              // このページの日付
+    const currentN3 = getCurrentQuestionNumber3(); // 現在の問題番号 3桁
     let manifest = null;
     try {
+      // 同じフォルダ内の nav_manifest.json を取得
       const res = await fetch("nav_manifest.json", { cache: "no-store" });
       manifest = await res.json();
     } catch (e) {
@@ -406,11 +473,12 @@
       return;
     }
 
+    // nav_manifest 先頭行から「タイトル/分野/テーマ」を拾う
     const title = manifest.questions?.[0]?.Title || "NSCA CSCS 試験対策問題集";
     const field = manifest.questions?.[0]?.Field || "—";
     const theme = manifest.questions?.[0]?.Theme || "—";
 
-    // SYNC ルート取得（streak3 / consistency_status など）
+    // SYNC ルート取得（streak3 / consistency_status / exam_date などをまとめて見る）
     var syncRoot = {};
     try {
       if (window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
@@ -423,6 +491,10 @@
     } catch (_) {
       syncRoot = {};
     }
+
+    // =========================
+    // CSCS 全体サマリー（★／◎）の集計
+    // =========================
 
     // ★ CSCS全体サマリー用：日付配列生成（90日分）
     function buildDayArrayForSummary(startStr, endStr){
@@ -451,13 +523,14 @@
       return list;
     }
 
+    // 全日付リスト（ここも nav_list 内で固定）
     var allDays = buildDayArrayForSummary("20250926", "20251224");
     var TOTAL_QUESTIONS_PER_DAY = 30;
     var totalQuestionsAll = allDays.length * TOTAL_QUESTIONS_PER_DAY;
 
-    // ★ 獲得済（3連続正解1回以上）集計
-    var starQuestionCount = 0;
-    var starFullDayCount = 0;
+    // ★ 獲得済（3連続正解1回以上）の集計（問題単位/日単位）
+    var starQuestionCount = 0;  // 「★付き問題」の総数
+    var starFullDayCount = 0;   // 「その日30問すべて★付き」の日数
 
     allDays.forEach(function(dayStr){
       var dayStarCount = 0;
@@ -481,7 +554,7 @@
       }
     });
 
-    // ◎ 整合性集計（status_mark が「◎」のもの）
+    // ◎ 整合性集計（status_mark が「◎」の問題数 / 日数）
     var consistencyQuestionCount = 0;
     var consistencyFullDayCount = 0;
 
@@ -503,6 +576,7 @@
       }
     });
 
+    // パーセント表示用（小数1桁）
     function formatPercent1(value){
       var n = Number(value) || 0;
       return n.toFixed(1);
@@ -521,7 +595,7 @@
     var consRate = totalQuestionsAll > 0 ? (consistencyQuestionCount / totalQuestionsAll) * 100 : 0;
     var consRateStr = formatPercent1(consRate);
 
-    // ▼ 全体サマリー（固定ヘッダー）DOM構築
+    // ▼ 全体サマリー（画面上部に固定されるヘッダー）DOM構築
     var summaryHost = document.createElement("div");
     summaryHost.id = "nl-summary-header";
     try{
@@ -546,12 +620,14 @@
     var summaryLine3 = document.createElement("div");
     var summaryLine4 = document.createElement("div");
 
+    // 試験日設定ボタン（カレンダーモーダルを開く）
     var examButtonSpan = document.createElement("span");
     examButtonSpan.textContent = "[試験日設定]";
     examButtonSpan.style.cursor = "pointer";
     examButtonSpan.style.fontSize = "13px";
     examButtonSpan.style.marginLeft = "4px";
 
+    // SYNC / localStorage の exam_date から「試験まであと◯日」の表示文を生成
     function buildExamLineText(nowDate, syncRoot){
       var examRaw = "";
       try{
@@ -567,6 +643,7 @@
       if (examRaw){
         var examDate = new Date(examRaw);
         if (!isNaN(examDate.getTime())){
+          // 今日と試験日の日付差分（日単位）を計算
           var todayBase = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
           var examBase = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
           var diffMs = examBase.getTime() - todayBase.getTime();
@@ -586,11 +663,13 @@
           return examLabel;
         }
       }
+      // 未設定時の表示
       return "試験日未設定";
     }
 
     var now = new Date();
 
+    // ★サマリー行2: 「★｜獲得済｜0000／2700｜00／90｜00.0% 達成」
     summaryLine2.style.marginTop = "0";
     summaryLine2.textContent =
       "★｜獲得済｜" +
@@ -605,6 +684,7 @@
       starRateStr +
       "% 達成";
 
+    // ◎サマリー行3: 「◎｜整合性｜0000／2700｜00／90｜00.0% 達成」
     summaryLine3.textContent =
       "◎｜整合性｜" +
       consQStr +
@@ -619,18 +699,25 @@
       "% 達成";
     summaryLine3.style.marginBottom = "0";
 
+    // 試験日表示（＋ [試験日設定] ボタン）
     summaryLine4.innerHTML = buildExamLineText(now, syncRoot);
     summaryLine4.appendChild(document.createTextNode("｜"));
     summaryLine4.appendChild(examButtonSpan);
 
+    // 「残り日数」を少し大きく見せるためのスタイル
     try{
       var style = document.createElement("style");
       style.textContent = ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; line-height: 0.9; display: inline-block; }";
       document.head.appendChild(style);
     }catch(_){}
 
+    // =========================
+    // 試験日カレンダーモーダルの実装
+    // =========================
+
     examButtonSpan.addEventListener("click", function(){
       try{
+        // 現在の試験日（localStorage側）を取得して初期選択に反映
         var currentValue = "";
         try{
           currentValue = localStorage.getItem("cscs_exam_date") || "";
@@ -648,11 +735,13 @@
         var currentYear = baseDate.getFullYear();
         var currentMonth = baseDate.getMonth();
 
+        // 既にモーダルが開いていたら一度除去
         var existingBackdrop = document.getElementById("nl-exam-calendar-backdrop");
         if (existingBackdrop && existingBackdrop.parentNode) {
           existingBackdrop.parentNode.removeChild(existingBackdrop);
         }
 
+        // 背景のオーバーレイ
         var backdrop = document.createElement("div");
         backdrop.id = "nl-exam-calendar-backdrop";
         backdrop.style.position = "fixed";
@@ -666,6 +755,7 @@
         backdrop.style.alignItems = "center";
         backdrop.style.justifyContent = "center";
 
+        // カレンダーパネル本体
         var box = document.createElement("div");
         box.id = "nl-exam-calendar";
         box.style.background = "rgb(17, 17, 17)";
@@ -677,6 +767,7 @@
         box.style.fontSize = "13px";
         box.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.6)";
 
+        // ヘッダー（← 2025年11月 →）
         var headerRow = document.createElement("div");
         headerRow.style.display = "flex";
         headerRow.style.justifyContent = "space-between";
@@ -712,6 +803,7 @@
         headerRow.appendChild(monthLabel);
         headerRow.appendChild(nextBtn);
 
+        // カレンダーのグリッド領域（7列×行）
         var grid = document.createElement("div");
         grid.style.display = "grid";
         grid.style.gridTemplateColumns = "repeat(7, 1fr)";
@@ -719,6 +811,7 @@
         grid.style.rowGap = "4px";
         grid.style.marginBottom = "8px";
 
+        // 曜日ヘッダー（日〜土）
         var weekdays = ["日","月","火","水","木","金","土"];
         for (var w = 0; w < 7; w++) {
           var wdCell = document.createElement("div");
@@ -729,6 +822,7 @@
           grid.appendChild(wdCell);
         }
 
+        // フッター（キャンセルボタンのみ）
         var footerRow = document.createElement("div");
         footerRow.style.display = "flex";
         footerRow.style.justifyContent = "flex-end";
@@ -747,6 +841,7 @@
 
         footerRow.appendChild(cancelBtn);
 
+        // モーダル全体を閉じる共通関数
         function closeCalendar(){
           try{
             if (backdrop && backdrop.parentNode) {
@@ -755,6 +850,7 @@
           }catch(_){}
         }
 
+        // 選択された試験日を SYNC / localStorage に送る
         function sendExamDateToSync(dateStr){
           try{
             fetch("/api/sync/merge", {
@@ -776,6 +872,7 @@
               })
               .then(function(json){
                 try{
+                  // サーバーから返ってきた新しい SYNC 状態を反映
                   if (json && typeof window !== "undefined"){
                     window.CSCS_SYNC_DATA = json;
                     try{
@@ -793,13 +890,17 @@
           }catch(_){}
         }
 
+        // 日付クリック時の処理
         function handleSelectDate(dateStr){
+          // localStorage 側にも exam_date を保存
           try{
             localStorage.setItem("cscs_exam_date", dateStr);
           }catch(_){}
+          // SYNCサーバーに送信 → HUD更新 & reload
           try{
             sendExamDateToSync(dateStr);
           }catch(_){}
+          // サマリー行の「試験まであと◯日」の表示も即時更新（ローカル側）
           try{
             var tmpRoot = { exam_date: dateStr };
             // ★ SYNC と同じ仕様（exam_date を持つオブジェクト）で表示を更新
@@ -814,17 +915,22 @@
           return String(n).padStart(2, "0");
         }
 
+        // カレンダーの月を描画する関数
         function renderCalendar(){
+          // 以前のセル（曜日ヘッダー以降）を削除
           while (grid.childNodes.length > 7) {
             grid.removeChild(grid.lastChild);
           }
 
+          // 「2025年11月」のような見出し
           monthLabel.textContent = String(currentYear) + "年" + String(currentMonth + 1) + "月";
 
+          // 月初の曜日と、その月の日数を取得
           var first = new Date(currentYear, currentMonth, 1);
           var startDow = first.getDay();
           var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
+          // すでに保存されている試験日がこの月なら、その日だけ強調表示
           var selectedDay = null;
           if (currentValue) {
             var sd = new Date(currentValue);
@@ -833,6 +939,7 @@
             }
           }
 
+          // 最初の週の空白セル（1日が水曜なら日月は空白など）
           var i;
           for (i = 0; i < startDow; i++) {
             var emptyCell = document.createElement("div");
@@ -840,6 +947,7 @@
             grid.appendChild(emptyCell);
           }
 
+          // 各日付セル（1〜日数分）をボタンとして配置
           var day;
           for (day = 1; day <= daysInMonth; day++) {
             (function(d){
@@ -855,11 +963,13 @@
               btn.style.borderRadius = "4px";
               btn.style.cursor = "pointer";
 
+              // すでに選択済みの日付は色を変える
               if (selectedDay === d) {
                 btn.style.background = "#3a6fd8";
                 btn.style.borderColor = "#3a6fd8";
               }
 
+              // 日付クリックで exam_date 設定
               btn.addEventListener("click", function(){
                 var monthStr = pad2Int(currentMonth + 1);
                 var dayStr = pad2Int(d);
@@ -872,6 +982,7 @@
           }
         }
 
+        // 月送りボタンのハンドラ
         prevBtn.addEventListener("click", function(){
           currentMonth -= 1;
           if (currentMonth < 0) {
@@ -890,10 +1001,12 @@
           renderCalendar();
         });
 
+        // キャンセルボタンでモーダル閉じる
         cancelBtn.addEventListener("click", function(){
           closeCalendar();
         });
 
+        // オーバーレイ背景クリックでも閉じる（中身クリック時は閉じない）
         backdrop.addEventListener("click", function(ev){
           if (ev.target === backdrop) {
             closeCalendar();
@@ -910,9 +1023,14 @@
       }catch(_){}
     });
 
+    // サマリー行3本をまとめてパネル上部に追加
     summaryHost.appendChild(summaryLine2);
     summaryHost.appendChild(summaryLine3);
     summaryHost.appendChild(summaryLine4);
+
+    // =========================
+    // 左カラム：問題一覧グリッドの準備
+    // =========================
 
     // ▼ 問題リスト（左カラム）用コンテナ
     const gridHost = document.createElement("div");
@@ -936,11 +1054,13 @@
     function getFavTextForQid(qid, qidJp){
       var num = 0;
 
+      // 数値マップがあればそれを最優先
       if (favMap && Object.prototype.hasOwnProperty.call(favMap, qid)) {
         num = Number(favMap[qid] || 0);
       } else if (favMap && qidJp && Object.prototype.hasOwnProperty.call(favMap, qidJp)) {
         num = Number(favMap[qidJp] || 0);
       } else {
+        // 旧形式（文字列）マップから判定
         var v = null;
         if (favObj && Object.prototype.hasOwnProperty.call(favObj, qid)) {
           v = favObj[qid];
@@ -964,17 +1084,23 @@
       return "未設定";
     }
 
+    // =========================
+    // 左カラム：1〜30問ぶんの行を構築
+    // =========================
+
     (manifest.questions || []).forEach((q, idx) => {
       const i = idx + 1;
       const n3 = pad3(i);
       const qid = day + "-" + n3;
       const qidJp = toJpDateQid(day, n3);
 
+      // SYNCから、その問題の「累積3連続正解回数」を取得
       const streakTotalSync =
         syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
 
+      // ランクシンボル（⭐️/🌟/💫） or まだなし
       let streakMark = "—";
       if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
         var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
@@ -983,12 +1109,14 @@
         }
       }
 
+      // SYNCから、その問題の「現在のストリーク長 (0〜3)」を取得
       const streakLenSync =
         syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
           ? Number(syncRoot.streakLen[qid] || 0)
           : 0;
       const streakProgress = "(" + streakLenSync + "/3)";
 
+      // 整合性マーク（◎/○/△/×）を取得
       var consistencyInfo = getConsistencyInfoFromSync(day, n3, syncRoot);
       const consistencyRawSync = consistencyInfo.statusMark;
 
@@ -1004,22 +1132,29 @@
         consistencyMark = "×";
       }
 
+      // ローカルの per-problem 累積回数（b_judge_record.js 仕様）
       const correctTotalRaw = localStorage.getItem("cscs_q_correct_total:" + qid);
       const wrongTotalRaw = localStorage.getItem("cscs_q_wrong_total:" + qid);
       const correctTotal = Number(correctTotalRaw || "0");
       const wrongTotal = Number(wrongTotalRaw || "0");
 
+      // お気に入り（★1〜3 / 未設定）
       const favText = getFavTextForQid(qid, qidJp);
 
+      // Aパートへのリンク
       const url = "q" + n3 + "_a.html?nav=manual";
 
+      // 問題文の冒頭だけを短くスニペットとして表示
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
       const line1Text = snippet;
 
+      // レベル表記（"Level 2" → "Lv2" のように整形）
       let rawLevel = q.Level || "—";
       rawLevel = String(rawLevel).replace(/Level\s*/i, "").trim();
 
       const levelText = "Lv" + rawLevel;
+
+      // 2行目に表示する情報をまとめる
       const line2Text =
         streakMark +
         streakProgress +
@@ -1036,10 +1171,12 @@
         "／" +
         favText;
 
+      // DOM構築
       const item = document.createElement("div");
       const isCurrent = currentN3 && n3 === currentN3;
       item.className = "quiz-item" + (isCurrent ? " is-current" : "");
 
+      // 1行目: 問題文スニペット（リンク）
       const l1 = document.createElement("div");
       l1.className = "line1";
       const a = document.createElement("a");
@@ -1048,6 +1185,7 @@
       a.textContent = line1Text;
       l1.appendChild(a);
 
+      // 2行目: ステータス（⭐️/◎/問題番号/Lv/正誤回数/お気に入り）
       const l2 = document.createElement("div");
       l2.className = "line2";
       l2.textContent = line2Text;
@@ -1057,7 +1195,10 @@
       gridHost.appendChild(item);
     });
 
-    // ▼ パネル本体のレイアウト（上部に全体サマリー、その下に2カラム）
+    // =========================
+    // パネル内レイアウト（上：サマリー / 左：問題 / 右：DAY一覧）
+    // =========================
+
     var bodyHost = document.createElement("div");
     bodyHost.id = "nl-body";
     bodyHost.className = "nl-body-grid";
@@ -1087,6 +1228,7 @@
     leftCol.appendChild(gridHost);
     renderDayList(rightCol, day);
 
+    // 左右カラムのスクロール位置を「現在の問題 / 現在の日付」が見える位置にオートスクロール
     try {
       var quizContainer = panel.querySelector("#nl-left-col");
       var currentItem = quizContainer ? quizContainer.querySelector(".quiz-item.is-current") : null;
@@ -1116,10 +1258,16 @@
     } catch (_){}
   }
 
+  // =========================
+  // パネルのマウント＆表示処理
+  // =========================
+
   async function mountAndOpenPanel(){
+    // パネルDOMを確保
     ensurePanel();
     const panel = document.getElementById("nl-panel");
 
+    // SYNC状態をロード（streak3 / exam_date / consistency など）
     await loadSyncDataForNavList();
 
     // ▼ 一覧パネルを表示状態にしてからレイアウト計測＆スクロール
@@ -1128,6 +1276,7 @@
     panel.style.pointerEvents = "auto";
     panel.style.opacity = "0.6";
 
+    // nav_manifest.json を読み込んで中身を描画
     await renderListInto(panel);
 
     // 常時表示モードでなければ、従来通りスクロールロック＋トグルラベル更新
@@ -1143,12 +1292,17 @@
     }
   }
 
+  // =========================
+  // 他スクリプトから呼べるフェード制御API
+  // =========================
+
   function navListFadeOut(){
     try{
       var panel = document.getElementById("nl-panel");
       if (!panel) {
         return;
       }
+      // 透明度を下げて反応を殺す（裏で動いていてほしい時用）
       panel.style.opacity = "0.2"; // フェードアウト時の最大透明設定
       panel.style.pointerEvents = "none";
     }catch(_){}
@@ -1167,29 +1321,42 @@
     }catch(_){}
   }
 
+  // グローバル名前空間に NAV_LIST の小さなAPIを生やす
   if (!window.CSCS_NAV_LIST) {
     window.CSCS_NAV_LIST = {};
   }
   window.CSCS_NAV_LIST.fadeOut = navListFadeOut;
   window.CSCS_NAV_LIST.fadeIn = navListFadeIn;
 
+  // =========================
+  // SYNC更新イベントを受けて一覧を再構築
+  // =========================
+
   window.addEventListener("cscs-sync-updated", function(){
     try{
+      // 1秒だけ待ってから mount & 再描画（HUD更新などとタイミングをずらす）
       setTimeout(function(){
         mountAndOpenPanel();
       }, 1000);
     }catch(_){}
   });
 
+  // =========================
+  // 初期化（DOMContentLoaded時）
+  // =========================
+
   window.addEventListener("DOMContentLoaded", function(){
     if (!isAPart()) return;
     try {
+      // scriptタグに data-a-nav="0" が付いていたら nav_list 自体を無効化
       const tag = document.currentScript || document.querySelector('script[src*="nav_list.js"]');
       let isEnabled = true;
       if (tag && tag.dataset && tag.dataset.aNav === "0") isEnabled = false;
       if (!isEnabled) return;
     } catch(_){}
+    // トグルボタン生成（NAV_ALWAYS_OPEN=false の場合のみ意味あり）
     ensureToggle();
+    // 常時表示設定なので、ページ読み込み時に即パネルを開く
     mountAndOpenPanel();
   });
 })();
