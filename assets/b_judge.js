@@ -241,13 +241,19 @@
     }catch(_){return null;}
   }
 
-  function updateUI(result,choice,correct){
+  function updateUI(result,choice,correct,options){
     try{
       const host=document.getElementById('judge');
       if(!host){
         wlog('#judge not found');
         return;
       }
+
+      // 追加: O.D.O.A Mode による「計測スキップ」フラグをオプションから受け取る
+      // - noCountByOdoa === true のときは、UIに
+      //   「O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。」という注記を付ける
+      const opts = options || {};
+      const noCountByOdoa = !!opts.noCountByOdoa;
 
       // 表示をクリアしつつベース高さを維持（レイアウトのガタつき防止）
       host.innerHTML='';
@@ -268,10 +274,22 @@
       if(result==='correct'){
         host.style.color='rgb(255,243,77)';
         host.style.fontSize='1.1em';
-        host.textContent='◎ 正解!!';
+
+        if(noCountByOdoa){
+          // 追加: 正解時かつ O.D.O.A Mode で計測スキップされた場合の注記を、
+          //       不正解表示と同じような構造（ラベル + 「 / 」区切り）で表示する
+          host.innerHTML =
+            '<span class="judge-msg judge-msg-correct">◎ 正解!!</span>' +
+            '<span class="odoa-note">' +
+              ' / O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。' +
+            '</span>';
+          dlog('O.D.O.A no-count message rendered (correct)', { qid });
+        }else{
+          host.textContent='◎ 正解!!';
+        }
       }else if(result==='wrong'){
         const text=findChoiceText(choice);
-        host.innerHTML=
+        let html=
           '<span class="judge-msg judge-msg-wrong">× 不正解</span>' +
           '<span class="your-choice">' +
             ' / <span class="your-choice-label">あなたの選択:</span> ' +
@@ -280,6 +298,18 @@
               '<span class="your-choice-text">（'+ESC(text)+'）</span>' +
             '</span>' +
           '</span>';
+
+        if(noCountByOdoa){
+          // 追加: 不正解時かつ O.D.O.A Mode で計測スキップされた場合の注記を追記
+          //       （× 不正解 のテキストスタイルに揃えた一続きのメッセージとして表示）
+          html +=
+            '<span class="odoa-note">' +
+              ' / O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。' +
+            '</span>';
+          dlog('O.D.O.A no-count message rendered (wrong)', { qid });
+        }
+
+        host.innerHTML = html;
       }
 
       // bodyクラスも更新
@@ -343,7 +373,21 @@
     }
 
     const result = (userChoice === correct) ? 'correct' : 'wrong';
-    updateUI(result, userChoice, correct);
+
+    // 追加: O.D.O.A Mode による「ノーカウント判定」フラグを算出
+    // - canTally === false かつ finalChoice が存在するケースを
+    //   「O.D.O.A Mode : ON のため、この問題の正誤計測はされていない」状態として扱う
+    const noCountByOdoa = !canTally && !!finalChoice;
+    dlog('O.D.O.A no-count flag computed', {
+      qid,
+      canTally,
+      hasToken: !!token,
+      hasChoice: !!finalChoice,
+      alreadyConsumed,
+      noCountByOdoa
+    });
+
+    updateUI(result, userChoice, correct, { noCountByOdoa: noCountByOdoa });
 
     // 集計は token があり、かつ未消費タブのときだけ実行
     if (canTally) {
