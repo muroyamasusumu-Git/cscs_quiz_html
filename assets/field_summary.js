@@ -863,6 +863,8 @@
         unansweredCountFromSync: unansweredCountFromSync
       });
 
+      return counts;
+
     // パネルにリストを追加し、.wrap の直後に挿入
     panel.appendChild(list);
     wrapContainer.insertAdjacentElement("afterend", panel);
