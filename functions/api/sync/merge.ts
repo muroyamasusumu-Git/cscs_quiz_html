@@ -34,6 +34,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streak3: {},
       streakLen: {},
       consistency_status: {},
+      // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
+      odoa_mode: "off",
       // ここでは初期値として streak3Today / oncePerDayToday を用意する（「無からの初回保存」を許可）
       streak3Today: { day: "", unique_count: 0, qids: [] },
       oncePerDayToday: { day: 0, results: {} },
@@ -51,6 +53,14 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
   if (!(server as any).oncePerDayToday || typeof (server as any).oncePerDayToday !== "object") {
     (server as any).oncePerDayToday = { day: 0, results: {} };
+  }
+
+  // O.D.O.A Mode が存在しない or 不正な場合は "off" で補完しておく
+  if (!Object.prototype.hasOwnProperty.call(server as any, "odoa_mode") || typeof (server as any).odoa_mode !== "string") {
+    (server as any).odoa_mode = "off";
+    try {
+      console.log("[SYNC/merge] (0-1) server.odoa_mode が欠落または不正値のため 'off' で補完しました。");
+    } catch (_e) {}
   }
 
   // (1) delta.streak3TodayDelta / oncePerDayTodayDelta が送られてきたか
@@ -405,6 +415,33 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   } else {
     // 今回の delta には oncePerDayTodayDelta が含まれていない場合
     console.log("[SYNC/merge] (2-4) oncePerDayToday: delta なし（更新スキップ）");
+  }
+
+  // O.D.O.A Mode (odoa_mode) が送られてきた場合だけモード状態を更新
+  // - delta.odoa_mode は "on" / "off" のいずれかの文字列を期待する
+  const odoaModeRaw =
+    typeof (delta as any).odoa_mode === "string"
+      ? (delta as any).odoa_mode
+      : null;
+
+  if (odoaModeRaw !== null) {
+    const prevMode = (server as any).odoa_mode;
+    if (odoaModeRaw === "on" || odoaModeRaw === "off") {
+      (server as any).odoa_mode = odoaModeRaw;
+      try {
+        console.log("[SYNC/merge] (2-5) O.D.O.A Mode 更新:", {
+          prev: prevMode,
+          next: (server as any).odoa_mode
+        });
+      } catch (_e) {}
+    } else {
+      // 想定外の値が送られてきた場合は無視し、ログだけ残す
+      try {
+        console.warn("[SYNC/merge] (2-5-warn) 不正な odoa_mode が送信されたため無視します:", {
+          recv: odoaModeRaw
+        });
+      } catch (_e2) {}
+    }
   }
 
   // exam_date_iso (YYYY-MM-DD) が送られてきた場合だけ exam_date を更新
