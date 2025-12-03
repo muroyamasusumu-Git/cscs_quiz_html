@@ -55,10 +55,12 @@
     .cscs-star-meter {
         position: relative;
         display: inline-block;
-        width: 100%;
+        flex: 1 1 auto;
+        width: auto;
         min-width: 60px;
         max-width: 220px;
         height: 8px;
+        margin-left: 4px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.18);
         overflow: hidden;
