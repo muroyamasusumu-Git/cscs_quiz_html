@@ -40,7 +40,7 @@
     position: fixed;
     top: 5px;
     right: 394px;
-    opacity: 0.25;
+    opacity: 0.20;
     font-weight: bold;
     width: 120px;
     text-align: center;
