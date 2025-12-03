@@ -538,7 +538,7 @@
       if (totalPercent > 100) {
         totalPercent = 100;
       }
-      totalPercent = Number(totalPercent.toFixed(1));
+      totalPercent = Number(totalPercent.toFixed(2));
     }
 
     // コンパクトな進捗行を構築（CSSミニバー付き）
@@ -562,12 +562,12 @@
     html += "</span>";
     html += "</span>";
 
-    // 全体進捗：0%
+    // 全体進捗：0.00%
     html += "<span class=\"cscs-star-section-compact\">";
     html += "全体進捗：";
-    html += "<span class=\"cscs-star-percent\">" + String(totalPercent) + "%</span>";
+    html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
-    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + String(totalPercent) + "%;\"></span>";
+    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
     html += "</span>";
     html += "</span>";
 
