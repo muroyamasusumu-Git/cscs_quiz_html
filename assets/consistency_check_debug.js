@@ -1070,10 +1070,10 @@
 
     var lines = [];
     lines.push("整合性チェック: 未");
-    lines.push("ステータス: —");
-    lines.push("—");
-    lines.push("種別: —");
-    lines.push("最終: —");
+    lines.push("ステータス: (データなし)");
+    lines.push("(データなし)");
+    lines.push("種別: (データなし)");
+    lines.push("最終: (データなし)");
     lines.push("SYNC: 未保存");
 
     (function() {
