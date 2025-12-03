@@ -257,7 +257,8 @@
         } else if (statusText) {
           statusDiv.textContent = "status: " + statusText;
         } else {
-          statusDiv.textContent = "";
+          // 値が無い場合でもレイアウトを保つため、明示的なラベルを表示する
+          statusDiv.textContent = "status: (データなし)\n---";
         }
       }
     } catch (e) {
