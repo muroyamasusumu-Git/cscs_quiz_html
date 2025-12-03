@@ -454,10 +454,12 @@ margin-left: 10px;
 
 body.mode-a #cc-check-wrapper {
     bottom: 330px;
+    opacity: 0.7 !important;
 }
 
 body.mode-b #cc-check-wrapper {
     bottom: 225px;
+    opacity: 0.7 !important;
 }
 
 
