@@ -215,6 +215,9 @@
 
       var statusText = payload.statusText || "";
 
+      // ★ O.D.O.A Mode 表示用（SYNC 側から渡されたテキスト）
+      var odoaModeText = payload.odoaModeText || "";
+
       var serverProgress = serverStreakLen % 3;
       var localProgress = localStreakLen % 3;
 
@@ -226,6 +229,11 @@
       text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
       text += "3連続正解回数 (進捗):\n";
       text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)\n";
+
+      // ★ O.D.O.A Mode(from SYNC) を HUD に表示
+      if (odoaModeText) {
+        text += "\nO.D.O.A Mode(from SYNC): " + odoaModeText + "\n";
+      }
 
       var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
         ? window.__cscs_sync_state.streak3Today.day : "-";
@@ -292,6 +300,9 @@
     var serverStreak3 = params.serverStreak3 || 0;
     var serverStreakLen = params.serverStreakLen || 0;
 
+    // ★ O.D.O.A Mode 表示用テキスト（refreshAndSend から渡される）
+    var odoaModeText = params.odoaModeText || "不明";
+
     // ★ 追加: /api/sync/state の snapshot を受け取り、
     //    そこから oncePerDayTodayDelta を構築するために利用する
     var syncState = params.syncState || null;
@@ -317,19 +328,20 @@
       // oncePerDayTodayDelta も無いので、このケースでは「oncePerDayToday: 計測なし」として扱う
       // パネルの状態だけ更新し、実際の fetch(SYNC/merge) は実行しない
       renderPanel(box, {
-        serverCorrect,
-        serverWrong,
-        localCorrect,
-        localWrong,
-        diffCorrect,
-        diffWrong,
-        serverStreak3,
-        localStreak3,
-        diffStreak3,
-        serverStreakLen,
-        localStreakLen,
-        diffStreakLen,
-        statusText: "no diff (送信なし) / oncePerDayToday: 計測なし"
+        serverCorrect: serverCorrect,
+        serverWrong: serverWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
+        serverStreak3: serverStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3,
+        serverStreakLen: serverStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen,
+        statusText: "no diff (送信なし) / oncePerDayToday: 計測なし",
+        odoaModeText: odoaModeText
       });
       return;
     }
@@ -339,19 +351,20 @@
       // oncePerDayTodayDelta が存在するがオフラインで送れない場合は「計測エラー」、存在しない場合は「計測なし」として扱う
       var offlineOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
       renderPanel(box, {
-        serverCorrect,
-        serverWrong,
-        localCorrect,
-        localWrong,
-        diffCorrect,
-        diffWrong,
-        serverStreak3,
-        localStreak3,
-        diffStreak3,
-        serverStreakLen,
-        localStreakLen,
-        diffStreakLen,
-        statusText: "offline (未送信) / " + offlineOncePerDayStatus
+        serverCorrect: serverCorrect,
+        serverWrong: serverWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
+        serverStreak3: serverStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3,
+        serverStreakLen: serverStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen,
+        statusText: "offline (未送信) / " + offlineOncePerDayStatus,
+        odoaModeText: odoaModeText
       });
       return;
     }
@@ -382,15 +395,15 @@
     if (localStreakLen !== serverStreakLen) {
       streakLenDeltaObj[qid] = localStreakLen;
       console.log("[SYNC-B] streakLenDelta set (local != server):", {
-        qid,
-        localStreakLen,
-        serverStreakLen
+        qid: qid,
+        localStreakLen: localStreakLen,
+        serverStreakLen: serverStreakLen
       });
     } else {
       console.log("[SYNC-B] streakLenDelta not set (local == server):", {
-        qid,
-        localStreakLen,
-        serverStreakLen
+        qid: qid,
+        localStreakLen: localStreakLen,
+        serverStreakLen: serverStreakLen
       });
     }
 
@@ -445,7 +458,8 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "no delta in payload (送信スキップ) / oncePerDayToday: 計測なし"
+        statusText: "no delta in payload (送信スキップ) / oncePerDayToday: 計測なし",
+        odoaModeText: odoaModeText
       });
       return;
     }
@@ -480,7 +494,8 @@
           serverStreakLen: serverStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
-          statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性) / " + mergeErrorOncePerDayStatus
+          statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性) / " + mergeErrorOncePerDayStatus,
+          odoaModeText: odoaModeText
         });
         return;
       }
@@ -615,7 +630,8 @@
           serverStreakLen: refreshedServerStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: refreshedDiffStreakLen,
-          statusText: statusMsg
+          statusText: statusMsg,
+          odoaModeText: odoaModeText
         });
       } catch (e2) {
         console.error("[SYNC-B] state refresh error after merge:", e2);
@@ -636,7 +652,8 @@
           serverStreakLen: newServerStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: newDiffStreakLen,
-          statusText: "merge ok / state 再取得エラー(保存は成功している可能性) / " + stateErrorOncePerDayStatus
+          statusText: "merge ok / state 再取得エラー(保存は成功している可能性) / " + stateErrorOncePerDayStatus,
+          odoaModeText: odoaModeText
         });
       }
     } catch (e) {
@@ -657,7 +674,8 @@
         serverStreakLen: serverStreakLen,
         localStreakLen: localStreakLen,
         diffStreakLen: diffStreakLen,
-        statusText: "network error (送信失敗) / " + networkErrorOncePerDayStatus
+        statusText: "network error (送信失敗) / " + networkErrorOncePerDayStatus,
+        odoaModeText: odoaModeText
       });
     }
   }
@@ -704,6 +722,24 @@
         var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
         var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
 
+        // ★ O.D.O.A Mode の状態を SYNC state から読み取る
+        //   - Workers 側で実際にどこに保存しているかに合わせてここを書き換えること
+        var odoaModeRaw = null;
+        if (state && Object.prototype.hasOwnProperty.call(state, "odoaMode")) {
+          // 例: { oDOA: "ON" } / { oDOA: true } のように保存している場合を想定
+          odoaModeRaw = state.odoaMode;
+        } else if (state && state.debug && Object.prototype.hasOwnProperty.call(state.debug, "odoaMode")) {
+          // 例: { debug: { oDOA: "ON" } } といった構造を想定
+          odoaModeRaw = state.debug.odoaMode;
+        }
+
+        var odoaModeText = "不明";
+        if (odoaModeRaw === true || odoaModeRaw === "ON" || odoaModeRaw === "on") {
+          odoaModeText = "ON";
+        } else if (odoaModeRaw === false || odoaModeRaw === "OFF" || odoaModeRaw === "off") {
+          odoaModeText = "OFF";
+        }
+
         // suppressDiffSend が true のときは、ステータス表示を維持したまま HUD だけ更新する
         var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
 
@@ -720,7 +756,9 @@
           serverStreakLen: serverStreakLen,
           localStreakLen: localStreakLen,
           diffStreakLen: diffStreakLen,
-          statusText: statusTextForRender
+          statusText: statusTextForRender,
+          // ★ O.D.O.A Mode 表示用
+          odoaModeText: odoaModeText
         });
 
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
@@ -735,7 +773,8 @@
             diffCorrect: diffCorrect,
             diffWrong: diffWrong,
             diffStreak3: diffStreak3,
-            diffStreakLen: diffStreakLen
+            diffStreakLen: diffStreakLen,
+            odoaModeText: odoaModeText
           });
           return;
         }
@@ -754,7 +793,9 @@
           diffStreak3: diffStreak3,
           diffStreakLen: diffStreakLen,
           // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を渡す
-          syncState: state
+          syncState: state,
+          // ★ O.D.O.A Mode 表示用テキストも sendDiffToServer に引き継ぎ
+          odoaModeText: odoaModeText
         });
       })
       .catch(function (e) {
@@ -763,6 +804,9 @@
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
         var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
+
+        // state が取れなかった場合は O.D.O.A Mode は「不明(state error)」として扱う
+        var odoaModeText = "不明(state error)";
 
         renderPanel(box, {
           serverCorrect: 0,
@@ -777,7 +821,8 @@
           serverStreakLen: 0,
           localStreakLen: localStreakLen,
           diffStreakLen: 0,
-          statusText: "state error"
+          statusText: "state error",
+          odoaModeText: odoaModeText
         });
       });
   }
