@@ -2,7 +2,7 @@
 // Aパート（＆Bパート）で、一定時間後に次の問題へ自動遷移するためのスクリプト。
 // ・自動送り ON/OFF
 // ・順番モード／ランダムモード
-// ・待ち時間（20 / 30 / 60 秒）の切り替え
+// ・待ち時間（10 / 20 / 30 / 60 秒）の切り替え
 // ・左下のカウンター表示
 // ・nav_list / フェード演出との連携
 // をまとめて面倒見ている。
@@ -15,7 +15,7 @@
   // =========================
 
   // 自動遷移までの候補時間（ミリ秒）
-  var AUTO_ADVANCE_MS_CANDIDATES = [20000, 30000, 60000];
+  var AUTO_ADVANCE_MS_CANDIDATES = [20000, 30000, 60000, 10000];
   // 待ち時間の保存キー
   var AUTO_ADVANCE_MS_KEY = "cscs_auto_next_ms";
   // 現在採用されている待ち時間（localStorage から読み出し）
@@ -487,7 +487,7 @@
   }
 
   // =========================
-  // 自動送り時間（20/30/60秒）切り替えボタンの生成
+  // 自動送り時間（10/20/30/60秒）切り替えボタンの生成
   // =========================
   function createAutoNextDurationButton() {
     var btn = document.getElementById("auto-next-duration-toggle");
@@ -513,7 +513,7 @@
       "background: none;" +
       "border: none;";
 
-    // クリックごとに 20 → 30 → 60 → 20…とローテーション
+    // クリックごとに 20 → 30 → 60 → 10 → 20…とローテーション
     btn.addEventListener("click", function () {
       var nextMs = getNextDurationValue();
       AUTO_ADVANCE_MS = nextMs;
