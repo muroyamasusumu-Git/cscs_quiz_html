@@ -341,51 +341,51 @@
       }
 
       // =========================
-      // SYNC の correct / wrong を使って
-      // ・未正解問題数（正解0 & 不正解1以上）
-      // ・未回答問題数（正解0 & 不正解0）
+      // SYNC の correct / wrong / incorrect を使って
+      // ・未正解問題数（neverCorrect = 一度も正解していない）
+      // ・未回答問題数（SYNCに一度も記録が出てこない）
       // を集計する
       // =========================
 
-      // correct_totals / wrong_totals を優先し、なければ correct / wrong を見る
+      // 1) correct 系マップ（合計値があればそれを優先）
       var correctMap = null;
-      var wrongMap = null;
-
       if (root.correct_totals && typeof root.correct_totals === "object") {
         correctMap = root.correct_totals;
       } else if (root.correct && typeof root.correct === "object") {
         correctMap = root.correct;
       }
 
+      // 2) wrong / incorrect 系マップ（命名揺れを吸収）
+      var wrongMap = null;
       if (root.wrong_totals && typeof root.wrong_totals === "object") {
         wrongMap = root.wrong_totals;
       } else if (root.wrong && typeof root.wrong === "object") {
         wrongMap = root.wrong;
+      } else if (root.incorrect_totals && typeof root.incorrect_totals === "object") {
+        wrongMap = root.incorrect_totals;
+      } else if (root.incorrect && typeof root.incorrect === "object") {
+        wrongMap = root.incorrect;
       }
 
-      // unanswered: 正解も不正解も 0 の「完全未回答」
-      // unsolved  : 正解 0 & 不正解 1以上 の「未正解」
-      var unanswered = 0;
-      var unsolved = 0;
+      // 3) SYNC 内で一度でも「正解 or 不正解」の記録に登場した qid の集合（= allQids 相当）
+      var touchedSet = new Set();
+      if (correctMap) {
+        Object.keys(correctMap).forEach(function (qid) {
+          touchedSet.add(qid);
+        });
+      }
+      if (wrongMap) {
+        Object.keys(wrongMap).forEach(function (qid) {
+          touchedSet.add(qid);
+        });
+      }
 
-      // qidToField に載っている全 qid を基準に、SYNC の correct / wrong をチェックする
-      if (qidToField && (correctMap || wrongMap)) {
-        var qids = Object.keys(qidToField);
-        qids.forEach(function (qid) {
-          var cRaw = 0;
-          var wRaw = 0;
-
-          if (correctMap && Object.prototype.hasOwnProperty.call(correctMap, qid)) {
-            cRaw = correctMap[qid];
-          }
-          if (wrongMap && Object.prototype.hasOwnProperty.call(wrongMap, qid)) {
-            wRaw = wrongMap[qid];
-          }
-
-          // 値が { total: number } 形式・ number 形式のどちらでも扱えるように正規化
+      // 4) 「一度でも正解したことがある qid」の集合（= solvedQids 相当）
+      var solvedSet = new Set();
+      if (correctMap) {
+        Object.keys(correctMap).forEach(function (qid) {
+          var cRaw = correctMap[qid];
           var c = 0;
-          var w = 0;
-
           if (cRaw && typeof cRaw === "object" && Object.prototype.hasOwnProperty.call(cRaw, "total")) {
             c = Number(cRaw.total);
           } else {
@@ -394,26 +394,33 @@
           if (!Number.isFinite(c) || c < 0) {
             c = 0;
           }
-
-          if (wRaw && typeof wRaw === "object" && Object.prototype.hasOwnProperty.call(wRaw, "total")) {
-            w = Number(wRaw.total);
-          } else {
-            w = Number(wRaw);
-          }
-          if (!Number.isFinite(w) || w < 0) {
-            w = 0;
-          }
-
-          // 未回答: 正解0 & 不正解0
-          if (c === 0 && w === 0) {
-            unanswered += 1;
-          }
-          // 未正解: 正解0 & 不正解1以上
-          else if (c === 0 && w > 0) {
-            unsolved += 1;
+          if (c > 0) {
+            solvedSet.add(qid);
           }
         });
       }
+
+      // 5) neverCorrect = 「記録には出てきているが、一度も正解していない qid」
+      var neverCorrectSet = new Set();
+      touchedSet.forEach(function (qid) {
+        if (!solvedSet.has(qid)) {
+          neverCorrectSet.add(qid);
+        }
+      });
+
+      // 6) 未回答 = 「meta に存在する全 qid のうち、SYNC の touchedSet に一度も出てこない qid」
+      var unanswered = 0;
+      if (qidToField) {
+        var metaQids = Object.keys(qidToField);
+        metaQids.forEach(function (qid) {
+          if (!touchedSet.has(qid)) {
+            unanswered += 1;
+          }
+        });
+      }
+
+      // 7) 未正解問題数 = neverCorrectSet のサイズ
+      var unsolved = neverCorrectSet.size;
 
       // 計算結果をモジュール内グローバルに保存
       starFieldCounts = counts;
@@ -423,11 +430,14 @@
       unsolvedCountFromSync = unsolved;
       unansweredCountFromSync = unanswered;
 
-      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
+      console.log("field_summary.js: SYNC-based unsolved/unanswered computed via neverCorrect logic", {
         TOTAL_Q: TOTAL_Q,
         totalStarQ: totalStarQ,
         remainingDays: remainingDays,
         targetPerDay: targetPerDay,
+        touchedCount: touchedSet.size,
+        solvedCount: solvedSet.size,
+        neverCorrectCount: neverCorrectSet.size,
         unsolvedCountFromSync: unsolvedCountFromSync,
         unansweredCountFromSync: unansweredCountFromSync
       });
