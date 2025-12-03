@@ -619,6 +619,93 @@
     }
   }
 
+  // ★ デバッグ専用: 全ての qid の計測系 SYNC + local 記録を一括リセットする
+  //   - 本仕様のユーザー機能ではなく、開発・検証用のみに使用することを想定
+  async function resetAllQidSyncAndLocal(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      console.log("[SYNC-A:debug] reset_all_qid START");
+
+      // 1) Workers 側で全qidの計測系データをリセットする（デバッグ用エンドポイント想定）
+      const res = await fetch("/api/sync/reset_all_qid", {
+        method: "POST",
+        headers: { "content-type": "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(String(res.status));
+      }
+
+      // 2) localStorage 側の計測系キーを全て削除
+      let removedKeys = 0;
+      try{
+        const prefixes = [
+          "cscs_q_correct_total:",
+          "cscs_q_wrong_total:",
+          "cscs_q_correct_streak3_total:",
+          "cscs_q_correct_streak_len:",
+          "cscs_sync_last_c:",
+          "cscs_sync_last_w:",
+          "cscs_sync_last_s3:"
+        ];
+
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          for (let j = 0; j < prefixes.length; j++) {
+            if (key.indexOf(prefixes[j]) === 0) {
+              localStorage.removeItem(key);
+              removedKeys++;
+              break;
+            }
+          }
+        }
+
+        const globalKeys = [
+          "cscs_streak3_today_day",
+          "cscs_streak3_today_unique_count",
+          "cscs_streak3_today_qids",
+          "cscs_once_per_day_today_day",
+          "cscs_once_per_day_today_results",
+          "cscs_correct_streak3_log"
+        ];
+        for (let g = 0; g < globalKeys.length; g++) {
+          try{
+            if (localStorage.getItem(globalKeys[g]) !== null) {
+              localStorage.removeItem(globalKeys[g]);
+              removedKeys++;
+            }
+          }catch(_){}
+        }
+      }catch(_){}
+
+      // 3) クライアント側 snapshot を一旦クリアしてから /api/sync/state を取り直す
+      try{
+        window.__cscs_sync_state = {};
+      }catch(_){}
+
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 4) モニタを最新状態で再描画
+      updateMonitor();
+
+      console.log("[SYNC-A:debug] reset_all_qid COMPLETED", {
+        removedLocalKeys: removedKeys
+      });
+
+      if (showAlert) {
+        alert("全ての問題(qid)の計測系 SYNC と local 記録をリセットしました（デバッグ専用）。");
+      }
+    }catch(e){
+      console.warn("[SYNC-A:debug] reset_all_qid FAILED:", e);
+      if (showAlert) {
+        alert("reset_all_qid 失敗: " + e);
+      }
+    }
+  }
+
   window.addEventListener("DOMContentLoaded", function(){
     if (!QID) return;
     try{
@@ -653,6 +740,7 @@
           <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
           <button id="cscs_sync_onceperday_reset" type="button" class="sync-reset-button">reset oncePerDay</button>
           <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
+          <button id="cscs_sync_all_qid_reset" type="button" class="sync-reset-button">⚠︎reset all qid</button>
         </div>
       `;
       const wrap = document.querySelector("div.wrap");
@@ -669,6 +757,7 @@
       const btnStreakTodayReset = document.getElementById("cscs_sync_streak3today_reset");
       const btnOncePerDayReset = document.getElementById("cscs_sync_onceperday_reset");
       const btnAllReset = document.getElementById("cscs_sync_all_reset");
+      const btnAllQidReset = document.getElementById("cscs_sync_all_qid_reset");
 
       if (btnReset) {
         btnReset.addEventListener("click", async function(){
@@ -708,6 +797,15 @@
           await resetStreak3TodayAll(false);
           await resetOncePerDayTodayAll(false);
           alert("この問題に関するSYNCカウンタ・星・今日の3連続正解ユニーク数・oncePerDayToday をすべてリセットしました。");
+          location.reload();
+        });
+      }
+
+      if (btnAllQidReset) {
+        btnAllQidReset.addEventListener("click", async function(){
+          const ok = window.confirm("⚠︎本当に、全ての問題(qid)の計測系 SYNC と local 記録をリセットしますか？\n\nこの操作はデバッグ専用であり、本番利用は想定していません。");
+          if (!ok) return;
+          await resetAllQidSyncAndLocal(true);
           location.reload();
         });
       }
