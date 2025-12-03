@@ -113,6 +113,13 @@
                 window.__cscsUpdateOdoaBtnLabel();
               }catch(_){}
             }
+
+            // SYNC state 読み込み後に、必要であれば href を一括書き換え
+            try{
+              rewriteAnchorsForOdoaIfNeeded();
+            }catch(e){
+              dlog("O.D.O.A: bulk rewrite after state load failed:", String(e));
+            }
           }catch(e){
             dlog("O.D.O.A SYNC state load failed:", String(e));
           }finally{
@@ -258,6 +265,14 @@
               window.__cscsUpdateOdoaBtnLabel();
             }
             dlog("O.D.O.A: button clicked, mode changed:", { prev, next });
+
+            // モード変更直後に、一括書き換えを試みる
+            try{
+              rewriteAnchorsForOdoaIfNeeded();
+            }catch(e){
+              dlog("O.D.O.A: bulk rewrite after button click failed:", String(e));
+            }
+
             sendOdoaModeToSync(next);
           });
 
