@@ -177,12 +177,9 @@
 
           const wrapper = document.createElement("div");
           wrapper.id = "cscs-odoa-toggle-wrapper";
-          wrapper.style.marginTop = "8px";
 
           const btn = document.createElement("button");
           btn.id = "cscs-odoa-toggle";
-          btn.style.fontSize = "11px";
-          btn.style.padding = "4px 8px";
 
           window.__cscsUpdateOdoaBtnLabel = function(){
             const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
