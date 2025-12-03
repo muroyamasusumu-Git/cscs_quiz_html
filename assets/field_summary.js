@@ -773,97 +773,69 @@
       list.appendChild(item);
     });
 
-      // =========================
-      // SYNC の state.correct / state.incorrect を使って
-      // ・未正解問題数
-      // ・未回答問題数
-      // を集計する（フォールバックなし）
-      // =========================
+    // =========================
+    // SYNCベースの「未正解 / 未回答」サマリ行を末尾に追加
+    //  - 計算自体は loadStarFieldCountsStrict() 内で実施済み
+    //  - ここでは unsolvedCountFromSync / unansweredCountFromSync /
+    //    totalQuestionsFromSync の値を表示用に使うだけ
+    // =========================
+    var totalQuestions = Number(totalQuestionsFromSync || 0);
+    if (!Number.isFinite(totalQuestions) || totalQuestions < 0) {
+      totalQuestions = 0;
+    }
 
-      // 正解マップ: state.correct
-      var correctMap = null;
-      if (root.correct && typeof root.correct === "object") {
-        correctMap = root.correct;
-      }
+    var unsolvedCount = Number(unsolvedCountFromSync || 0);
+    if (!Number.isFinite(unsolvedCount) || unsolvedCount < 0) {
+      unsolvedCount = 0;
+    }
 
-      // 不正解マップ: state.incorrect
-      var incorrectMap = null;
-      if (root.incorrect && typeof root.incorrect === "object") {
-        incorrectMap = root.incorrect;
-      }
+    var unansweredCount = Number(unansweredCountFromSync || 0);
+    if (!Number.isFinite(unansweredCount) || unansweredCount < 0) {
+      unansweredCount = 0;
+    }
 
-      var everCorrectCount = 0;               // 一度でも正解したことがある問題数
-      var appearedSet = new Set();           // 一度でも正解 or 不正解として登場した qid の集合
+    var unansweredPercent = 0;
+    var unsolvedPercent = 0;
+    if (totalQuestions > 0) {
+      unansweredPercent = (unansweredCount / totalQuestions) * 100;
+      unsolvedPercent = (unsolvedCount / totalQuestions) * 100;
+    }
 
-      // correctMap から：
-      //   - 「一度でも正解したことがある問題数」を数える
-      //   - correct のキーは「登場した qid」として appearedSet に追加
-      if (correctMap) {
-        var correctQids = Object.keys(correctMap);
-        correctQids.forEach(function (qid) {
-          var v = correctMap[qid];
-          var n;
+    var unansweredPercentStr = unansweredPercent.toFixed(2);
+    var unsolvedPercentStr = unsolvedPercent.toFixed(2);
 
-          // number / { total: number } 両対応で total 回数を取り出す
-          if (v && typeof v === "object" && Object.prototype.hasOwnProperty.call(v, "total")) {
-            n = Number(v.total);
-          } else {
-            n = Number(v);
-          }
-          if (!Number.isFinite(n) || n < 0) {
-            n = 0;
-          }
+    // グリッド末尾セル1: 未正解問題数 / 割合%（SYNCベース）
+    var liUnsolved = document.createElement("li");
+    liUnsolved.style.listStyleType = "none";
+    liUnsolved.style.paddingLeft = "0";
+    liUnsolved.style.textIndent = "0";
+    liUnsolved.style.margin = "0 0 6px 0";
+    liUnsolved.textContent =
+      "未正解問題数(SYNC): " +
+      unsolvedCount + " / " + totalQuestions +
+      " (" + unsolvedPercentStr + "%)";
+    list.appendChild(liUnsolved);
 
-          if (n > 0) {
-            everCorrectCount += 1;
-          }
+    // グリッド末尾セル2: 未回答問題数 / 割合%（SYNCベース）
+    var liUnanswered = document.createElement("li");
+    liUnanswered.style.listStyleType = "none";
+    liUnanswered.style.paddingLeft = "0";
+    liUnanswered.style.textIndent = "0";
+    liUnanswered.style.margin = "0 0 6px 0";
+    liUnanswered.textContent =
+      "未回答問題数(SYNC): " +
+      unansweredCount + " / " + totalQuestions +
+      " (" + unansweredPercentStr + "%)";
+    list.appendChild(liUnanswered);
 
-          appearedSet.add(qid);
-        });
-      }
-
-      // incorrectMap から：
-      //   - 「一度でも正解または不正解をしたことがある問題」の集合に qid を追加
-      if (incorrectMap) {
-        var incorrectQids = Object.keys(incorrectMap);
-        incorrectQids.forEach(function (qid) {
-          appearedSet.add(qid);
-        });
-      }
-
-      // 未正解 = 全問題数 - 「一度でも正解したことがある問題数」
-      var unsolved = TOTAL_Q - everCorrectCount;
-      if (!Number.isFinite(unsolved) || unsolved < 0) {
-        unsolved = 0;
-      }
-
-      // 未回答 = 全問題数 - 「一度でも正解または不正解をしたことがある問題数」
-      var appearedCount = appearedSet.size;
-      var unanswered = TOTAL_Q - appearedCount;
-      if (!Number.isFinite(unanswered) || unanswered < 0) {
-        unanswered = 0;
-      }
-
-      // 計算結果をモジュール内グローバルに保存
-      starFieldCounts = counts;
-      starTotalSolvedQuestions = totalStarQ;
-      starRemainingDays = remainingDays;
-      starTargetPerDay = targetPerDay;
-      unsolvedCountFromSync = unsolved;
-      unansweredCountFromSync = unanswered;
-
-      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
-        TOTAL_Q: TOTAL_Q,
-        totalStarQ: totalStarQ,
-        remainingDays: remainingDays,
-        targetPerDay: targetPerDay,
-        everCorrectCount: everCorrectCount,
-        appearedCount: appearedCount,
-        unsolvedCountFromSync: unsolvedCountFromSync,
-        unansweredCountFromSync: unansweredCountFromSync
-      });
-
-      return counts;
+    // ログ（SYNCベースのサマリ確認用）
+    console.log("field_summary: unsolved/unanswered summary (from SYNC)", {
+      totalQuestions: totalQuestions,
+      unsolvedCount: unsolvedCount,
+      unsolvedPercent: unsolvedPercent,
+      unansweredCount: unansweredCount,
+      unansweredPercent: unansweredPercent
+    });
 
     // パネルにリストを追加し、.wrap の直後に挿入
     panel.appendChild(list);
