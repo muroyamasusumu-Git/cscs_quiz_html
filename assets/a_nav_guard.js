@@ -24,6 +24,32 @@
           }catch(_){}
         }
 
+        // O.D.O.A Mode トグルボタン用の CSS を動的に注入する
+        // - 位置やサイズなどの見た目をここで一括管理する
+        (function injectOdoaToggleStyle(){
+          try{
+            if (document.getElementById("cscs-odoa-toggle-style")) {
+              return;
+            }
+            const style = document.createElement("style");
+            style.id = "cscs-odoa-toggle-style";
+            style.textContent = `
+#cscs-odoa-toggle {
+    font-size: 10px;
+    padding: 4px 10px;
+    position: fixed;
+    top: 5px;
+    right: 394px;
+    opacity: 0.25;
+}
+            `;
+            document.head.appendChild(style);
+            dlog("O.D.O.A toggle style injected.");
+          }catch(e){
+            dlog("O.D.O.A toggle style injection failed:", String(e));
+          }
+        })();
+
         // 保存状態を保持するオブジェクト
         // tried: 保存処理を試したかどうか
         // ok:    保存処理が成功したかどうか
