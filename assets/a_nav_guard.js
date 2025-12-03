@@ -35,14 +35,14 @@
             style.id = "cscs-odoa-toggle-style";
             style.textContent = `
 #cscs-odoa-toggle {
-    font-size: 10px;
-    padding: 4px 4px;
+    font-size: 12px;
+    padding: 2px 0px;
     position: fixed;
     top: 5px;
     right: 394px;
-    opacity: 0.20;
+    opacity: 0.15;
     font-weight: bold;
-    width: 120px;
+    width: 100px;
     text-align: center;
 }
             `;
@@ -351,17 +351,30 @@
           wrapper.appendChild(btn);
 
           document.addEventListener("DOMContentLoaded", function(){
-            // Aパート下部に置くことを意図しつつ、アンカーが無ければ body に配置
-            const anchor =
-              document.getElementById("cscs-a-bottom-controls") ||
-              document.getElementById("cscs-a-bottom") ||
-              document.body;
+            // まず <div class="wrap"> が存在すれば、その中にトグルボタンを入れる
+            // 見つからない場合は、従来どおり Aパート下部 or body に配置する
+            let anchor = null;
+            const wrap = document.querySelector("div.wrap");
+            if (wrap) {
+              anchor = wrap;
+            } else {
+              anchor =
+                document.getElementById("cscs-a-bottom-controls") ||
+                document.getElementById("cscs-a-bottom") ||
+                document.body;
+            }
+
             anchor.appendChild(wrapper);
+
             if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
               window.__cscsUpdateOdoaBtnLabel();
             }
+
+            // どの要素の中にマウントされたかを詳細にログ出力して確認できるようにする
             dlog("O.D.O.A button mounted to DOM.", {
-              anchorId: anchor.id || "(body)"
+              anchorTag: anchor && anchor.tagName,
+              anchorId: anchor && anchor.id,
+              anchorClass: anchor && anchor.className
             });
           });
         }
