@@ -6,9 +6,16 @@
   // =========================
   // 1. スタイル（CSS）を自動挿入
   // =========================
-  // 進捗パネル #cscs-field-star-summary 用の見た目をここで定義して <head> に挿入
-  var style = document.createElement("style");
-  style.textContent = `
+  // 進捗パネル #cscs-field-star-summary 用の見た目をここで定義して <head> に挿入するヘルパー
+  function injectFieldSummaryStyles() {
+    // 二重挿入防止
+    if (document.getElementById("cscs-field-star-summary-style")) {
+      return;
+    }
+
+    var style = document.createElement("style");
+    style.id = "cscs-field-star-summary-style";
+    style.textContent = `
     #cscs-field-star-summary {
         font-size: 11px;
         margin-top: 0;
@@ -77,9 +84,18 @@
     .cscs-star-meter-fill-total {
         background: linear-gradient(90deg, rgba(102, 255, 178, 0.95), rgba(255, 255, 255, 0.95));
     }
-  `;
-  document.head.appendChild(style);
-  console.log("field_summary.js: CSS for compact star summary injected");
+
+    /* 分野ゲージ用 内側バー（黄色グラデーション） */
+    .cscs-field-bar-inner {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
+    }
+    `;
+    document.head.appendChild(style);
+    console.log("field_summary.js: CSS for compact star summary injected");
+  }
 
   // 旧ダミー値（現在は実計算に置き換え済みだが、一部計算に名残あり）
   var DUMMY_TOTAL = 2700;
@@ -421,6 +437,9 @@
   // 7. メイン：分野別★サマリーを画面に描画
   // =========================
   async function renderFieldStarSummary() {
+    // このタイミングでスタイルを一度だけ注入
+    injectFieldSummaryStyles();
+
     // A/Bパートのメインコンテナ（.wrap）の直後に挿入する前提
     var wrapContainer = document.querySelector(".wrap");
     if (!wrapContainer) {
@@ -655,12 +674,10 @@
       barOuter.style.borderRadius = "999px";
       barOuter.style.overflow = "hidden";
 
-      // 横棒グラフの中身（白、幅は rate%）
+      // 横棒グラフの中身（分野ゲージ用・黄色グラデーション、幅は rate%）
       var barInner = document.createElement("div");
-      barInner.style.height = "100%";
+      barInner.className = "cscs-field-bar-inner";
       barInner.style.width = rate + "%";
-      barInner.style.background = "rgba(255, 255, 255, 0.55)";
-      barInner.style.borderRadius = "999px";
 
       barOuter.appendChild(barInner);
 
@@ -668,6 +685,11 @@
       item.appendChild(barOuter);
 
       list.appendChild(item);
+    });
+
+    // 分野ゲージ描画の完了をログ出力（黄色グラデーション適用確認用）
+    console.log("field_summary.js: field list rendered with yellow gradient bars", {
+      fieldCount: dummyFieldStats.length
     });
 
     // パネルにリストを追加し、.wrap の直後に挿入
