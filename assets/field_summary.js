@@ -97,10 +97,7 @@
     console.log("field_summary.js: CSS for compact star summary injected");
   }
 
-  // 旧ダミー値（現在は実計算に置き換え済みだが、一部計算に名残あり）
-  var DUMMY_TOTAL = 2700;
-  var DUMMY_STAR_DONE = 500;
-  var DUMMY_DAYS_LEFT = 120;
+  // 旧ダミー値は廃止（問題総数・残り日数などはすべて SYNC から取得する）
 
   // =========================
   // 2. メタ情報（cscs_meta_all.json）から
@@ -234,15 +231,17 @@
   }
 
   // =========================
-  // 4. /api/sync/state から streak3 情報を読み、
+  // 4. /api/sync/state から各種情報を読み、
   //    ・Fieldごとの「★獲得済み問題数」
   //    ・全体の獲得数
   //    ・試験日から逆算した「残り日数」「1日あたり必要★数」
-  //    を計算する
+  //    ・問題総数（total_questions）
+  //    ・今日の 3連続正解ユニーク数（streak3_today）
+  //    ・未正解問題数 / 未回答問題数
+  //    を計算する（フォールバックなし）
   // =========================
   async function loadStarFieldCountsStrict() {
     try {
-      // SYNC状態を取得
       var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
         console.error("field_summary.js: /api/sync/state 取得失敗: " + res.status);
@@ -256,23 +255,43 @@
 
       // SYNCルート（/state の生JSON or { data: {...} } のどちらにも対応）
       var root = json.data || json;
+      if (!root || typeof root !== "object") {
+        console.error("field_summary.js: SYNC root が不正です", root);
+        return null;
+      }
+
+      // ★ 1) 問題総数 total_questions（必須・フォールバックなし）
+      if (!Object.prototype.hasOwnProperty.call(root, "total_questions")) {
+        console.error("field_summary.js: SYNC に total_questions がありません", root);
+        return null;
+      }
+      var totalQuestionsFromSync = Number(root.total_questions);
+      if (!Number.isFinite(totalQuestionsFromSync) || totalQuestionsFromSync <= 0) {
+        console.error("field_summary.js: SYNC total_questions が不正です", {
+          total_questions: root.total_questions
+        });
+        return null;
+      }
+      console.log("field_summary.js: SYNC total_questions 読み込み完了", {
+        total_questions: totalQuestionsFromSync
+      });
+
+      // ★ 2) streak3（問題ごとの 3 連続正解回数マップ）
       if (!root.streak3 || typeof root.streak3 !== "object") {
         console.error("field_summary.js: SYNC に streak3 がありません", root);
         return null;
       }
       var streak3 = root.streak3;
 
-      // 各 Field に対する「★獲得済み問題数」を集計
+      // Field ごとの「★獲得済み問題数」集計
       var counts = Object.create(null);
       var totalStarQ = 0;
 
       Object.keys(streak3).forEach(function (qid) {
         var cnt = Number(streak3[qid] || 0);
-        // streak3[qid] が 0 以下 or 非数ならスキップ
         if (!Number.isFinite(cnt) || cnt <= 0) {
           return;
         }
-        // meta側で qid→Field の対応が取れない場合もスキップ
         if (!qidToField || !Object.prototype.hasOwnProperty.call(qidToField, qid)) {
           return;
         }
@@ -281,17 +300,38 @@
           return;
         }
 
-        // 分野ごとの獲得済み問題数を +1
         if (counts[field] == null) {
           counts[field] = 1;
         } else {
           counts[field] += 1;
         }
-        // 全体の獲得済み問題数カウント
         totalStarQ += 1;
       });
+      console.log("field_summary.js: SYNC streak3 集計完了", {
+        totalStarQ: totalStarQ,
+        fieldCounts: counts
+      });
 
-      // 試験日 (exam_date) を SYNC から取得し、Date にパース
+      // ★ 3) 今日の 3連続正解ユニーク数（streak3_today）を SYNC から取得
+      var todayCountFromSync = 0;
+      var todayDayFromSync = null;
+      if (root.streak3_today && typeof root.streak3_today === "object") {
+        if (typeof root.streak3_today.day === "string") {
+          todayDayFromSync = root.streak3_today.day;
+        }
+        if (Object.prototype.hasOwnProperty.call(root.streak3_today, "count")) {
+          var tmp = Number(root.streak3_today.count);
+          if (Number.isFinite(tmp) && tmp >= 0) {
+            todayCountFromSync = tmp;
+          }
+        }
+      }
+      console.log("field_summary.js: SYNC streak3_today 読み込み完了", {
+        day: todayDayFromSync,
+        count: todayCountFromSync
+      });
+
+      // ★ 4) 試験日 (exam_date) → 残り日数
       var examDate = null;
       if (typeof root.exam_date === "string") {
         var m = root.exam_date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -300,7 +340,6 @@
           var mo = Number(m[2]) - 1;
           var d = Number(m[3]);
           var dt = new Date(y, mo, d);
-          // パース結果の妥当性確認
           if (
             !Number.isNaN(dt.getTime()) &&
             dt.getFullYear() === y &&
@@ -312,13 +351,11 @@
         }
       }
 
-      // 試験日の「14日前」を締切とみなして残り日数を計算
       var remainingDays = 0;
       if (examDate) {
         var now = new Date();
         var todayBase = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         var deadline = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
-        // 試験日の 2週間前を締切とする
         deadline.setDate(deadline.getDate() - 14);
         var diffMs = deadline.getTime() - todayBase.getTime();
         remainingDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -326,52 +363,48 @@
           remainingDays = 0;
         }
       }
+      console.log("field_summary.js: exam_date / remainingDays 計算完了", {
+        exam_date: root.exam_date,
+        remainingDays: remainingDays
+      });
 
-      //「2700問全てを★1回以上とる」ために必要な1日あたりの目標数を計算
+      // ★ 5)「全問題を★1回以上」ための 1日あたり目標数
       var targetPerDay = 0;
-      var TOTAL_Q = 2700;
       if (remainingDays > 0) {
-        var remainingStar = TOTAL_Q - totalStarQ;
-        if (remainingStar < 0) {
+        var remainingStar = totalQuestionsFromSync - totalStarQ;
+        if (!Number.isFinite(remainingStar) || remainingStar < 0) {
           remainingStar = 0;
         }
         targetPerDay = Math.ceil(remainingStar / remainingDays);
       } else {
         targetPerDay = 0;
       }
+      console.log("field_summary.js: 1日あたり目標数 計算完了", {
+        totalQuestions: totalQuestionsFromSync,
+        totalStarQ: totalStarQ,
+        remainingDays: remainingDays,
+        targetPerDay: targetPerDay
+      });
 
-      // =========================
-      // SYNC の state.correct / state.incorrect を使って
-      // ・未正解問題数
-      // ・未回答問題数
-      // を集計する（フォールバックなし）
-      // =========================
-
-      // 正解マップ: state.correct
+      // ★ 6) SYNC の correct / incorrect から「未正解 / 未回答」を計算
       var correctMap = null;
       if (root.correct && typeof root.correct === "object") {
         correctMap = root.correct;
       }
 
-      // 不正解マップ: state.incorrect
       var incorrectMap = null;
       if (root.incorrect && typeof root.incorrect === "object") {
         incorrectMap = root.incorrect;
       }
 
-      var everCorrectCount = 0;               // 一度でも正解したことがある問題数
-      var appearedSet = new Set();           // 一度でも正解 or 不正解として登場した qid の集合
+      var everCorrectCount = 0;
+      var appearedSet = new Set();
 
-      // correctMap から：
-      //   - 「一度でも正解したことがある問題数」を数える
-      //   - correct のキーは「登場した qid」として appearedSet に追加
       if (correctMap) {
         var correctQids = Object.keys(correctMap);
         correctQids.forEach(function (qid) {
           var v = correctMap[qid];
           var n;
-
-          // number / { total: number } 両対応で total 回数を取り出す
           if (v && typeof v === "object" && Object.prototype.hasOwnProperty.call(v, "total")) {
             n = Number(v.total);
           } else {
@@ -380,17 +413,13 @@
           if (!Number.isFinite(n) || n < 0) {
             n = 0;
           }
-
           if (n > 0) {
             everCorrectCount += 1;
           }
-
           appearedSet.add(qid);
         });
       }
 
-      // incorrectMap から：
-      //   - 「一度でも正解または不正解をしたことがある問題」の集合に qid を追加
       if (incorrectMap) {
         var incorrectQids = Object.keys(incorrectMap);
         incorrectQids.forEach(function (qid) {
@@ -398,36 +427,44 @@
         });
       }
 
-      // 未正解 = 全問題数 - 「一度でも正解したことがある問題数」
-      var unsolved = TOTAL_Q - everCorrectCount;
+      var unsolved = totalQuestionsFromSync - everCorrectCount;
       if (!Number.isFinite(unsolved) || unsolved < 0) {
         unsolved = 0;
       }
 
-      // 未回答 = 全問題数 - 「一度でも正解または不正解をしたことがある問題数」
       var appearedCount = appearedSet.size;
-      var unanswered = TOTAL_Q - appearedCount;
+      var unanswered = totalQuestionsFromSync - appearedCount;
       if (!Number.isFinite(unanswered) || unanswered < 0) {
         unanswered = 0;
       }
 
-      // 計算結果をモジュール内グローバルに保存
+      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
+        totalQuestions: totalQuestionsFromSync,
+        everCorrectCount: everCorrectCount,
+        appearedCount: appearedCount,
+        unsolvedCountFromSync: unsolved,
+        unansweredCountFromSync: unanswered
+      });
+
+      // ★ 7) モジュール内共有状態へ反映
       starFieldCounts = counts;
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
+      starTotalQuestions = totalQuestionsFromSync;
+      starTodayCount = todayCountFromSync;
+      starTodayDay = todayDayFromSync;
       unsolvedCountFromSync = unsolved;
       unansweredCountFromSync = unanswered;
 
-      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
-        TOTAL_Q: TOTAL_Q,
-        totalStarQ: totalStarQ,
-        remainingDays: remainingDays,
-        targetPerDay: targetPerDay,
-        everCorrectCount: everCorrectCount,
-        appearedCount: appearedCount,
-        unsolvedCountFromSync: unsolvedCountFromSync,
-        unansweredCountFromSync: unansweredCountFromSync
+      console.log("field_summary.js: SYNC 統合状態を更新しました", {
+        starFieldCounts: starFieldCounts,
+        starTotalSolvedQuestions: starTotalSolvedQuestions,
+        starRemainingDays: starRemainingDays,
+        starTargetPerDay: starTargetPerDay,
+        starTotalQuestions: starTotalQuestions,
+        starTodayCount: starTodayCount,
+        starTodayDay: starTodayDay
       });
 
       return counts;
@@ -440,17 +477,22 @@
   // =========================
   // 5. モジュール内で共有する状態変数
   // =========================
-  var fieldNames = null;               // 分野名一覧
-  var fieldTotals = null;              // 分野別の総問題数
-  var qidToField = null;               // qid→Field
-  var starFieldCounts = null;          // 分野別の「★獲得済み問題数」
-  var starTotalSolvedQuestions = 0;    // 全体で★済みの問題数
-  var starRemainingDays = 0;           // 締切までの残り日数
-  var starTargetPerDay = 0;            // 1日あたりの目標★数（SYNCから計算）
+  var fieldNames = null;               // 分野名一覧（meta 由来）
+  var fieldTotals = null;              // 分野別の総問題数（meta 由来）
+  var qidToField = null;               // qid→Field（meta 由来）
+
+  var starFieldCounts = null;          // 分野別の「★獲得済み問題数」（SYNC.streak3 由来）
+  var starTotalSolvedQuestions = 0;    // 全体で★済みの問題数（SYNC.streak3 由来）
+  var starRemainingDays = 0;           // 締切までの残り日数（SYNC.exam_date 由来）
+  var starTargetPerDay = 0;            // 1日あたりの目標★数（SYNC 由来）
+  var starTotalQuestions = 0;          // 問題総数（SYNC.total_questions 由来）
+
+  var starTodayCount = 0;              // 今日の 3連続正解ユニーク数（SYNC.streak3_today 由来）
+  var starTodayDay = null;             // 上記がどの日付の値なのか（文字列 or null）
 
   // SYNC (/api/sync/state) をソースとした「未正解/未回答」の集計結果
-  var unsolvedCountFromSync = 0;       // SYNC上での「未正解問題数」
-  var unansweredCountFromSync = 0;     // SYNC上での「未回答問題数」
+  var unsolvedCountFromSync = 0;       // SYNC 上での「未正解問題数」
+  var unansweredCountFromSync = 0;     // SYNC 上での「未回答問題数」
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -499,28 +541,10 @@
   var dummyFieldStats = null;
 
   // =========================
-  // 6. 今日の 3連続正解ユニーク数（streak3Today）を localStorage から読む
+  // 6. 今日の 3連続正解ユニーク数（streak3Today）
+  //    → /api/sync/state から取得した starTodayCount / starTodayDay をそのまま利用する
   // =========================
-  var starTodayCount = 0;
-
-  function loadTodayStreak3CountFromLocal() {
-    try {
-      // b_judge_record.js 側が更新している「今日の3連続正解ユニーク数」キー
-      var raw = window.localStorage.getItem("cscs_streak3_today_unique_count");
-      var n = Number(raw);
-      if (!Number.isFinite(n) || n < 0) {
-        return 0;
-      }
-      return n;
-    } catch (e) {
-      console.warn("field_summary.js: cscs_streak3_today_unique_count の取得に失敗しました", e);
-      return 0;
-    }
-  }
-
-  // 旧ダミー計算（現状ほぼ使っていないが変数だけ残っている）
-  var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
-  var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
+  // ※ localStorage からは一切取得しない（フォールバックもしない）
 
   // =========================
   // 7. メイン：分野別★サマリーを画面に描画
@@ -579,14 +603,21 @@
 
     // 1日あたりのベース目標（30問ぐらいを基準にしている）
     var basePerDay = 30;
-    var diff = needPerDay - basePerDay;
+
+    // SYNC から計算された 1日あたり目標数 starTargetPerDay をもとにムードを判定
+    var targetNum = Number(starTargetPerDay);
+    if (!Number.isFinite(targetNum) || targetNum < 0) {
+      targetNum = 0;
+    }
+
     var mood = "";
-    // diff に応じて「余裕 / 順調 / 巻き返し / 要注意」の4段階を決める（現状はテキストに未反映）
-    if (needPerDay <= basePerDay * 0.8) {
+    if (targetNum === 0) {
+      mood = "未設定";
+    } else if (targetNum <= basePerDay * 0.8) {
       mood = "余裕";
-    } else if (needPerDay <= basePerDay * 1.1) {
+    } else if (targetNum <= basePerDay * 1.1) {
       mood = "順調";
-    } else if (needPerDay <= basePerDay * 1.4) {
+    } else if (targetNum <= basePerDay * 1.4) {
       mood = "巻き返し";
     } else {
       mood = "要注意";
@@ -595,19 +626,16 @@
     // 上部に表示する「⭐️本日の目標〜」行を構築
     var needLine = document.createElement("div");
 
-    // SYNCから計算された「本日の目標（★何個/日）」を使用
-    var targetNum = Number(starTargetPerDay);
-    if (!Number.isFinite(targetNum) || targetNum < 0) {
-      targetNum = 0;
+    // 今日の 3連続正解ユニーク数は SYNC から取得済みの starTodayCount を使用する
+    var todayCount = Number(starTodayCount);
+    if (!Number.isFinite(todayCount) || todayCount < 0) {
+      todayCount = 0;
     }
-
-    // 今日の 3連続正解ユニーク数を localStorage から読み込む
-    starTodayCount = loadTodayStreak3CountFromLocal();
 
     // 今日の達成率（本日の獲得数 / 本日の目標数）
     var todayPercent = 0;
     if (targetNum > 0) {
-      todayPercent = Math.floor((starTodayCount / targetNum) * 100);
+      todayPercent = Math.floor((todayCount / targetNum) * 100);
       if (!Number.isFinite(todayPercent) || todayPercent < 0) {
         todayPercent = 0;
       }
@@ -618,7 +646,16 @@
 
     // 全体の達成率（★獲得済み問題数 / 全体問題数）
     var totalPercent = 0;
-    var totalQuestions = DUMMY_TOTAL;
+
+    // 問題総数は SYNC.total_questions → starTotalQuestions から取得（フォールバックなし）
+    var totalQuestions = Number(starTotalQuestions);
+    if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+      console.error("field_summary.js: starTotalQuestions が不正です", {
+        starTotalQuestions: starTotalQuestions
+      });
+      totalQuestions = 0;
+    }
+
     if (totalQuestions > 0) {
       totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
       if (!Number.isFinite(totalPercent) || totalPercent < 0) {
@@ -644,7 +681,7 @@
 
     // 本日の獲得数 +4：15%
     html += "<span class=\"cscs-star-section-compact\">";
-    html += "本日の獲得数 +" + String(starTodayCount) + "：";
+    html += "本日の獲得数 +" + String(todayCount) + "：";
     html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
@@ -777,9 +814,9 @@
     });
 
     // =========================
-    // 全問題2700件に対して：
-    // ・未正解   = SYNC上で「正解0件 かつ 不正解1件以上」と判定された問題
-    // ・未回答   = SYNC上で「正解0件 かつ 不正解0件」と判定された問題
+    // 全問題数（SYNC.total_questions）に対して：
+    // ・未正解   = 「一度も正解したことがない問題」= total_questions - everCorrectCount
+    // ・未回答   = 「一度も正解/不正解として登場していない問題」= total_questions - appearedCount
     // =========================
 
     var unsolvedCount = Number(unsolvedCountFromSync || 0);
