@@ -126,7 +126,7 @@ margin-top: 10px;
   font-size: 0.65em !important;     /* ← 好きな大きさに変更してOK */
   opacity: 0.9;          /* ← 調整しやすいように軽く薄くしておく（変更自由） */
   display: inline-block; /* レイアウト安定用 */
-  margin: 4px 0 4px !important;       /* 微調整 */
+  margin: 0 0 10px !important;       /* 微調整 */
 }
 
 #judge.answer {
