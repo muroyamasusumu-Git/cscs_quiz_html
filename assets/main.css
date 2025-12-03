@@ -122,7 +122,7 @@ margin-top: 10px;
 }
 
 /* O.D.O.A Mode（no choice / no count）専用メッセージ */
-.judge-odoa-nocount {
+#judge.judge-odoa-nocount {
   font-size: 0.65em;     /* ← 好きな大きさに変更してOK */
   opacity: 0.9;          /* ← 調整しやすいように軽く薄くしておく（変更自由） */
   display: inline-block; /* レイアウト安定用 */
