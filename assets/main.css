@@ -121,6 +121,14 @@ margin-top: 15px !important;
 margin-top: 10px;
 }
 
+/* O.D.O.A Mode（no choice / no count）専用メッセージ */
+.judge-odoa-nocount {
+  font-size: 0.65em;     /* ← 好きな大きさに変更してOK */
+  opacity: 0.9;          /* ← 調整しやすいように軽く薄くしておく（変更自由） */
+  display: inline-block; /* レイアウト安定用 */
+  margin: 4px 0 4px;       /* 微調整 */
+}
+
 #judge.answer {
 font-size: 0.9em !important;
 margin: 0 0 5px;

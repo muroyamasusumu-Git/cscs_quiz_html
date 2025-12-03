@@ -345,8 +345,8 @@
 
           // 不正解表示と同じクラス系を流用しつつ、O.D.O.A Mode 用の説明文を出す
           host.innerHTML =
-            '<span class="judge-msg judge-msg-wrong" style="font-size:0.85em;">※O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。</span>';
-  
+            '<span class="judge-msg judge-msg-wrong">※O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。</span>';
+
           // 正解／不正解どちらの状態クラスも外して「判定なし」であることを明示
           document.body.classList.remove('is-correct');
           document.body.classList.remove('is-wrong');
