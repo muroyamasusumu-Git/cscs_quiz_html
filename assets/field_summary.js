@@ -364,9 +364,9 @@
       }
 
       var unanswered = 0;
-      var unsolved = 0;
 
-      // qidToField に載っている全qidを基準に、SYNCの correct / wrong を見て分類
+      // qidToField に載っている全qidを基準に、SYNCの correct / wrong を見て
+      // 「未回答（正解0 & 不正解0）」だけをカウントする
       if (qidToField && (correctMap || wrongMap)) {
         var qids = Object.keys(qidToField);
         qids.forEach(function (qid) {
@@ -406,11 +406,14 @@
           if (c === 0 && w === 0) {
             unanswered += 1;
           }
-          // 未正解: 正解0 & 不正解1以上
-          else if (c === 0 && w > 0) {
-            unsolved += 1;
-          }
         });
+      }
+
+      // ★獲得済み数と未回答数から
+      // 「未正解 = 全体 - ★取得済み - 未回答」を逆算する
+      var unsolvedFromFormula = TOTAL_Q - totalStarQ - unanswered;
+      if (!Number.isFinite(unsolvedFromFormula) || unsolvedFromFormula < 0) {
+        unsolvedFromFormula = 0;
       }
 
       // 計算結果をモジュール内グローバルに保存
@@ -418,10 +421,11 @@
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
-      unsolvedCountFromSync = unanswered > 0 || unsolved > 0 ? unsolved : 0;
-      unansweredCountFromSync = unanswered > 0 ? unanswered : 0;
+      unsolvedCountFromSync = unsolvedFromFormula;
+      unansweredCountFromSync = unanswered;
 
       console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
+        TOTAL_Q: TOTAL_Q,
         totalStarQ: totalStarQ,
         remainingDays: remainingDays,
         targetPerDay: targetPerDay,
