@@ -20,6 +20,19 @@
   let lastSyncTime   = null;     // "HH:MM:SS"
   let lastSyncError  = "";
 
+  // 空欄を「（データなし）」などで埋めるための共通ヘルパー
+  function toDisplayText(value, emptyLabel){
+    const fallback = emptyLabel != null ? String(emptyLabel) : "（データなし）";
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+    const s = String(value);
+    if (s.trim() === "") {
+      return fallback;
+    }
+    return s;
+  }
+
   function readLocalTotalsForQid(qid){
     try{
       const kC = "cscs_q_correct_total:" + qid;
@@ -115,9 +128,22 @@
         const s3tDayEl   = box.querySelector(".sync-streak3today-day");
         const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
         const s3tLocalEl = box.querySelector(".sync-streak3today-local");
-        if (s3tDayEl)   s3tDayEl.textContent   = streak3Today.day || "-";
-        if (s3tSyncEl)  s3tSyncEl.textContent  = String(streak3Today.unique_count || 0);
-        if (s3tLocalEl) s3tLocalEl.textContent = String(localStreakCount);
+        if (s3tDayEl) {
+          s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
+        }
+        if (s3tSyncEl) {
+          // unique_count 自体が欠損している場合のみ「（データなし）」を表示
+          s3tSyncEl.textContent = toDisplayText(
+            typeof streak3Today.unique_count === "number" ? streak3Today.unique_count : "",
+            "（データなし）"
+          );
+        }
+        if (s3tLocalEl) {
+          s3tLocalEl.textContent = toDisplayText(
+            Number.isFinite(localStreakCount) ? localStreakCount : "",
+            "（データなし）"
+          );
+        }
 
         const lEl  = box.querySelector(".sync-local");
         const qdEl = box.querySelector(".sync-queue");
@@ -129,7 +155,7 @@
         const slsProgEl = box.querySelector(".sync-streaklen-server-progress");
         const sllProgEl = box.querySelector(".sync-streaklen-local-progress");
 
-        if (qEl)   qEl.textContent  = QID;
+        if (qEl)   qEl.textContent  = QID ? QID : "（データなし）";
         if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
         if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
         if (s3El)  s3El.textContent = String(ls);
