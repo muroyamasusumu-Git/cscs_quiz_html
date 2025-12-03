@@ -453,16 +453,14 @@ margin-left: 10px;
 }
 
 body.mode-a #cc-check-wrapper {
-    bottom: 330px;
+    top: 25px;
     opacity: 0.6 !important;
 }
 
 body.mode-b #cc-check-wrapper {
-    bottom: 225px;
+    top: 25px;
     opacity: 0.6 !important;
 }
-
-
 
 
 #cc-check-status {
