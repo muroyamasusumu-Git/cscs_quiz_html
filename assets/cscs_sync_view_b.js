@@ -245,8 +245,14 @@
       } catch(_e) {}
 
       text += "\nStreak3TodayUnique:\n";
-      text += "day: " + s3TodaySyncDay + "\n";
-      text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt;
+      if (s3TodaySyncDay === "-" || s3TodaySyncCnt === 0) {
+        // ★ 本日はまだ★獲得なし
+        text += "本日はまだ★獲得なし\n";
+      } else {
+        // ★ 通常の表示
+        text += "day: " + s3TodaySyncDay + "\n";
+        text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
+      }
 
       updateSyncBody(text);
 
