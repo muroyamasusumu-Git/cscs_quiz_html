@@ -342,12 +342,12 @@
 
       // =========================
       // SYNC の correct / wrong を使って
-      // ・未正解問題数（= 全体2700 - 一度でも正解したことがある問題数）
+      // ・未正解問題数（正解0 & 不正解あり）
       // ・未回答問題数（正解0 & 不正解0）
       // を集計する
       // =========================
 
-      // 「一度でも正解したことがあるか」の判定に使う正解マップ
+      // 「正解数」の参照元
       //   - state.correct を優先
       //   - 無ければ correct_totals をフォールバック
       var correctMapEver = null;
@@ -357,7 +357,7 @@
         correctMapEver = root.correct_totals;
       }
 
-      // 「未回答（正解0 & 不正解0）」判定に使う不正解マップ
+      // 「不正解数」の参照元
       //   - state.wrong を優先
       //   - 無ければ wrong_totals をフォールバック
       var wrongMap = null;
@@ -367,35 +367,13 @@
         wrongMap = root.wrong_totals;
       }
 
-      // everCorrectCount: 一度でも正解したことがある問題数
-      var everCorrectCount = 0;
-
-      if (correctMapEver && typeof correctMapEver === "object") {
-        Object.keys(correctMapEver).forEach(function (qid) {
-          var vRaw = correctMapEver[qid];
-          var v = 0;
-
-          // { total: number } 形式と number 形式の両対応
-          if (vRaw && typeof vRaw === "object" && Object.prototype.hasOwnProperty.call(vRaw, "total")) {
-            v = Number(vRaw.total);
-          } else {
-            v = Number(vRaw);
-          }
-          if (!Number.isFinite(v) || v < 0) {
-            v = 0;
-          }
-
-          if (v > 0) {
-            everCorrectCount += 1;
-          }
-        });
-      }
-
-      // unanswered: 正解0 & 不正解0 の「完全未回答」
+      // 未正解: 正解0 & 不正解あり
+      var unsolved = 0;
+      // 未回答: 正解0 & 不正解0
       var unanswered = 0;
 
       // qidToField で持っている全2700問をベースに、
-      // correct / wrong の両方を見て「未回答」を判定する
+      // correct / wrong 両方の値を見て「未正解」と「未回答」を判定する
       if (qidToField && (correctMapEver || wrongMap)) {
         var qids = Object.keys(qidToField);
         qids.forEach(function (qid) {
@@ -412,7 +390,7 @@
           var c = 0;
           var w = 0;
 
-          // 正解数を正規化
+          // 正解数を正規化（number / { total: number } 両対応）
           if (cRaw && typeof cRaw === "object" && Object.prototype.hasOwnProperty.call(cRaw, "total")) {
             c = Number(cRaw.total);
           } else {
@@ -422,7 +400,7 @@
             c = 0;
           }
 
-          // 不正解数を正規化
+          // 不正解数を正規化（number / { total: number } 両対応）
           if (wRaw && typeof wRaw === "object" && Object.prototype.hasOwnProperty.call(wRaw, "total")) {
             w = Number(wRaw.total);
           } else {
@@ -435,15 +413,14 @@
           // 未回答: 正解0 & 不正解0
           if (c === 0 && w === 0) {
             unanswered += 1;
+            return;
+          }
+
+          // 未正解: 正解0 & 不正解あり
+          if (c === 0 && w > 0) {
+            unsolved += 1;
           }
         });
-      }
-
-      // 未正解問題数:
-      //   「全体2700問」から「一度でも正解したことがある問題数」を引いたもの
-      var unsolvedFromSync = TOTAL_Q - everCorrectCount;
-      if (!Number.isFinite(unsolvedFromSync) || unsolvedFromSync < 0) {
-        unsolvedFromSync = 0;
       }
 
       // 計算結果をモジュール内グローバルに保存
@@ -451,7 +428,7 @@
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
-      unsolvedCountFromSync = unsolvedFromSync;
+      unsolvedCountFromSync = unsolved;
       unansweredCountFromSync = unanswered;
 
       console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
@@ -459,7 +436,6 @@
         totalStarQ: totalStarQ,
         remainingDays: remainingDays,
         targetPerDay: targetPerDay,
-        everCorrectCount: everCorrectCount,
         unsolvedCountFromSync: unsolvedCountFromSync,
         unansweredCountFromSync: unansweredCountFromSync
       });
