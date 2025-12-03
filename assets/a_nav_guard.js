@@ -332,7 +332,7 @@
 
             SAVE.ok = true;
 
-            // A→B 遷移用の href を、実際の a 要素にも反映する
+            // A→B 遷移用の href を実際の a 要素にも反映する
             try{
               a.setAttribute("href", finalHref);
               dlog("O.D.O.A: anchor href updated for navigation.", {
