@@ -41,7 +41,7 @@
     .cscs-star-section-compact {
         display: inline-flex;
         align-items: center;
-        gap: 2px;
+        gap: 0px;
         flex: 1 1 0;
         white-space: nowrap;
     }
