@@ -213,10 +213,8 @@
       var localStreakLen = payload.localStreakLen || 0;
       var diffStreakLen = payload.diffStreakLen || 0;
 
+      // statusText は内部状態としてログだけに使う
       var statusText = payload.statusText || "";
-
-      // ★ O.D.O.A Mode 表示用（SYNC 側から渡されたテキスト）
-      var odoaModeText = payload.odoaModeText || "";
 
       var serverProgress = serverStreakLen % 3;
       var localProgress = localStreakLen % 3;
@@ -229,11 +227,6 @@
       text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
       text += "3連続正解回数 (進捗):\n";
       text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)\n";
-
-      // ★ O.D.O.A Mode(from SYNC) を HUD に表示
-      if (odoaModeText) {
-        text += "\nO.D.O.A Mode(from SYNC): " + odoaModeText + "\n";
-      }
 
       var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
         ? window.__cscs_sync_state.streak3Today.day : "-";
@@ -257,17 +250,45 @@
 
       updateSyncBody(text);
 
+      // ★ ここから O.D.O.A Mode 表示専用ロジック
+
+      // デフォルトは OFF とし、/api/sync/state の otoa_mode を参照して上書き
+      var odoaModeText = "OFF";
+      try {
+        var state = window.__cscs_sync_state || null;
+        var rawMode = null;
+
+        // 1) payload 経由の odoaModeText があれば優先
+        if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
+          rawMode = payload.odoaModeText;
+        } else if (state && typeof state.odoa_mode === "string") {
+          // 2) SYNC state のトップレベルキー odoa_mode
+          rawMode = state.odoa_mode;
+        }
+
+        if (rawMode === "ON" || rawMode === "on") {
+          odoaModeText = "ON";
+        } else if (rawMode === "OFF" || rawMode === "off") {
+          odoaModeText = "OFF";
+        } else if (rawMode === "on ") {
+          // 変な空白が付いているなどの事故対策（念のため）
+          odoaModeText = "ON";
+        }
+      } catch (_ignore) {
+        odoaModeText = "OFF";
+      }
+
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-        // statusText === "__keep__" の場合は既存の表示を維持する
-        if (statusText === "__keep__") {
-          // 何も変更しない（最後にセットされたステータスをそのまま表示し続ける）
-        } else if (statusText) {
-          statusDiv.textContent = "status: " + statusText;
-        } else {
-          // 値が無い場合でもレイアウトを保つため、明示的なラベルを表示する
-          statusDiv.textContent = "status: (データなし)\n---";
-        }
+        // ★ ステータスの表記はこの2パターンだけに統一
+        //   O.D.O.A Mode : ON
+        //   O.D.O.A Mode : OFF
+        statusDiv.textContent = "O.D.O.A Mode : " + odoaModeText;
+      }
+
+      // 内部用の statusText はログとして残すだけ
+      if (statusText) {
+        console.log("[SYNC-B] statusText (internal):", statusText);
       }
     } catch (e) {
       var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
@@ -275,8 +296,11 @@
 
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-        statusDiv.textContent = "status: error";
+        // エラー時もフォーマットは崩さず OFF として出す
+        statusDiv.textContent = "O.D.O.A Mode : OFF";
       }
+
+      console.error("[SYNC-B] renderPanel error:", e);
     }
   }
 
