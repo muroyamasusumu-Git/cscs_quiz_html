@@ -128,21 +128,30 @@
         }
 
         // oncePerDayToday の情報から「この qid が今日すでに回答済みかどうか」を判定する
+        // - oncePerDayToday.day は「今日のYYYYMMDD」で管理されている前提なので、
+        //   ここでは day との一致チェックは行わず、results[qid] の有無だけを見る。
         function isOncePerDayAnsweredForThisQid(){
           const st = ODOA_STATE.state;
           if (!st || !st.oncePerDayToday || typeof st.oncePerDayToday !== "object") return false;
 
           const raw = st.oncePerDayToday;
-          const dayNum = typeof raw.day === "number" && Number.isFinite(raw.day) ? raw.day : null;
-          if (dayNum === null) return false;
-
-          const thisDayNum = Number(day);
-          if (!Number.isFinite(thisDayNum) || thisDayNum !== dayNum) return false;
-
           const results = raw.results;
-          if (!results || typeof results !== "object") return false;
+          if (!results || typeof results !== "object") {
+            dlog("O.D.O.A: oncePerDayToday.results is missing or not object.", { qid });
+            return false;
+          }
 
           const answered = Object.prototype.hasOwnProperty.call(results, qid);
+
+          // デバッグ用に、この qid のエントリ有無と全体件数をログする
+          try{
+            dlog("O.D.O.A: oncePerDayToday answered check:", {
+              qid,
+              hasEntry: answered,
+              resultsKeysLength: Object.keys(results).length
+            });
+          }catch(_){}
+
           return !!answered;
         }
 
