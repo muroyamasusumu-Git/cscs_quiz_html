@@ -38,7 +38,7 @@
     font-size: 12px;
     padding: 0px 0px;
     position: fixed;
-    top: 0px;
+    top: 1px;
     right: 50px;
     opacity: 0.15;
     font-weight: bold;
