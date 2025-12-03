@@ -341,56 +341,52 @@
       }
 
       // =========================
-      // SYNC の correct / wrong を使って
-      // ・未正解問題数（正解0 & 不正解あり）
-      // ・未回答問題数（正解0 & 不正解0）
-      // を集計する
+      // SYNC の correct / incorrect を使って
+      // ・一度でも正解したことがある問題数
+      // ・一度でも正解または不正解をしたことがある問題数
+      // を求め、その差分から
+      //   未正解   = 全問題数 - 一度でも正解したことがある問題数
+      //   未回答   = 全問題数 - 一度でも正解または不正解をしたことがある問題数
+      // を算出する
       // =========================
 
-      // 「正解数」の参照元
-      //   - state.correct を優先
-      //   - 無ければ correct_totals をフォールバック
-      var correctMapEver = null;
+      // correct マップ
+      //  - state.correct を最優先
+      //  - なければ correct_totals をフォールバック
+      var correctMap = null;
       if (root.correct && typeof root.correct === "object") {
-        correctMapEver = root.correct;
+        correctMap = root.correct;
       } else if (root.correct_totals && typeof root.correct_totals === "object") {
-        correctMapEver = root.correct_totals;
+        correctMap = root.correct_totals;
       }
 
-      // 「不正解数」の参照元
-      //   - state.wrong を優先
-      //   - 無ければ wrong_totals をフォールバック
-      var wrongMap = null;
-      if (root.wrong && typeof root.wrong === "object") {
-        wrongMap = root.wrong;
+      // incorrect / wrong マップ
+      //  - state.incorrect を最優先
+      //  - なければ wrong_totals / wrong をフォールバック
+      var incorrectMap = null;
+      if (root.incorrect && typeof root.incorrect === "object") {
+        incorrectMap = root.incorrect;
       } else if (root.wrong_totals && typeof root.wrong_totals === "object") {
-        wrongMap = root.wrong_totals;
+        incorrectMap = root.wrong_totals;
+      } else if (root.wrong && typeof root.wrong === "object") {
+        incorrectMap = root.wrong;
       }
 
-      // 未正解: 正解0 & 不正解あり
-      var unsolved = 0;
-      // 未回答: 正解0 & 不正解0
-      var unanswered = 0;
+      var everCorrectCount = 0;   // 一度でも正解したことがある問題数
+      var everAnsweredCount = 0;  // 一度でも正解または不正解をしたことがある問題数
 
-      // qidToField で持っている全2700問をベースに、
-      // correct / wrong 両方の値を見て「未正解」と「未回答」を判定する
-      if (qidToField && (correctMapEver || wrongMap)) {
-        var qids = Object.keys(qidToField);
-        qids.forEach(function (qid) {
+      if (qidToField && (correctMap || incorrectMap)) {
+        var allQidsForSync = Object.keys(qidToField);
+
+        allQidsForSync.forEach(function (qid) {
           var cRaw = 0;
-          var wRaw = 0;
 
-          if (correctMapEver && Object.prototype.hasOwnProperty.call(correctMapEver, qid)) {
-            cRaw = correctMapEver[qid];
-          }
-          if (wrongMap && Object.prototype.hasOwnProperty.call(wrongMap, qid)) {
-            wRaw = wrongMap[qid];
+          if (correctMap && Object.prototype.hasOwnProperty.call(correctMap, qid)) {
+            cRaw = correctMap[qid];
           }
 
+          // correct の値が { total: number } / number どちらでも扱えるように正規化
           var c = 0;
-          var w = 0;
-
-          // 正解数を正規化（number / { total: number } 両対応）
           if (cRaw && typeof cRaw === "object" && Object.prototype.hasOwnProperty.call(cRaw, "total")) {
             c = Number(cRaw.total);
           } else {
@@ -400,27 +396,36 @@
             c = 0;
           }
 
-          // 不正解数を正規化（number / { total: number } 両対応）
-          if (wRaw && typeof wRaw === "object" && Object.prototype.hasOwnProperty.call(wRaw, "total")) {
-            w = Number(wRaw.total);
-          } else {
-            w = Number(wRaw);
-          }
-          if (!Number.isFinite(w) || w < 0) {
-            w = 0;
+          // 「一度でも正解したことがある」判定
+          if (c > 0) {
+            everCorrectCount += 1;
           }
 
-          // 未回答: 正解0 & 不正解0
-          if (c === 0 && w === 0) {
-            unanswered += 1;
-            return;
+          // 「一度でも正解または不正解をしたことがある」判定
+          //   → correctMap / incorrectMap のどちらかにキーが存在すれば「登場した」とみなす
+          var appeared = false;
+          if (correctMap && Object.prototype.hasOwnProperty.call(correctMap, qid)) {
+            appeared = true;
+          }
+          if (incorrectMap && Object.prototype.hasOwnProperty.call(incorrectMap, qid)) {
+            appeared = true;
           }
 
-          // 未正解: 正解0 & 不正解あり
-          if (c === 0 && w > 0) {
-            unsolved += 1;
+          if (appeared) {
+            everAnsweredCount += 1;
           }
         });
+      }
+
+      // 定義に基づく集計
+      var unsolvedByFormula = TOTAL_Q - everCorrectCount;
+      if (!Number.isFinite(unsolvedByFormula) || unsolvedByFormula < 0) {
+        unsolvedByFormula = 0;
+      }
+
+      var unansweredByFormula = TOTAL_Q - everAnsweredCount;
+      if (!Number.isFinite(unansweredByFormula) || unansweredByFormula < 0) {
+        unansweredByFormula = 0;
       }
 
       // 計算結果をモジュール内グローバルに保存
@@ -428,14 +433,16 @@
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
-      unsolvedCountFromSync = unsolved;
-      unansweredCountFromSync = unanswered;
+      unsolvedCountFromSync = unsolvedByFormula;
+      unansweredCountFromSync = unansweredByFormula;
 
-      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
+      console.log("field_summary.js: SYNC-based unsolved/unanswered computed (formula by ever-correct / ever-answered)", {
         TOTAL_Q: TOTAL_Q,
         totalStarQ: totalStarQ,
         remainingDays: remainingDays,
         targetPerDay: targetPerDay,
+        everCorrectCount: everCorrectCount,
+        everAnsweredCount: everAnsweredCount,
         unsolvedCountFromSync: unsolvedCountFromSync,
         unansweredCountFromSync: unansweredCountFromSync
       });
