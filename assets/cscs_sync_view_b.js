@@ -286,10 +286,51 @@
 
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-        // ★ ステータスの表記はこの2パターンだけに統一
-        //   O.D.O.A Mode : ON
-        //   O.D.O.A Mode : OFF
-        statusDiv.textContent = "O.D.O.A Mode : " + odoaModeText;
+
+        // ★ 1) O.D.O.A の ON/OFF 判定
+        var mode = "OFF";
+        try {
+          var state = window.__cscs_sync_state;
+          if (state && typeof state.odoa_mode === "string" &&
+              (state.odoa_mode === "on" || state.odoa_mode === "ON")) {
+            mode = "ON";
+          }
+        } catch(e) {
+          mode = "OFF";
+        }
+
+        // ★ 2) 今日の oncePerDayToday の結果を見る
+        var resultFlag = "nocount";   // デフォルト
+        try {
+          var st = window.__cscs_sync_state;
+          if (st && st.oncePerDayToday &&
+              typeof st.oncePerDayToday === "object" &&
+              st.oncePerDayToday.results &&
+              typeof st.oncePerDayToday.results === "object") {
+
+            var results = st.oncePerDayToday.results;
+            if (Object.prototype.hasOwnProperty.call(results, info.qid)) {
+              var val = results[info.qid];
+              if (val === "correct") resultFlag = "correct";
+              else if (val === "wrong") resultFlag = "wrong";
+            }
+          }
+        } catch(e2) {
+          // 例外時は nocount のまま
+        }
+
+        // ★ 3) 表示を組み立てる
+        if (mode === "ON") {
+          statusDiv.textContent = "O.D.O.A Mode : ON " + resultFlag;
+        } else {
+          statusDiv.textContent = "O.D.O.A Mode : OFF";
+        }
+
+        // デバッグ用内部ログ（画面には出さない）
+        console.log("[SYNC-B] ODOA HUD:", {
+          mode,
+          resultFlag
+        });
       }
 
       // 内部用の statusText はログとして残すだけ
