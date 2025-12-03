@@ -725,18 +725,50 @@
         // ★ O.D.O.A Mode の状態を SYNC state から読み取る
         //   - Workers 側で実際にどこに保存しているかに合わせてここを書き換えること
         var odoaModeRaw = null;
-        if (state && Object.prototype.hasOwnProperty.call(state, "odoaMode")) {
-          // 例: { oDOA: "ON" } / { oDOA: true } のように保存している場合を想定
-          odoaModeRaw = state.odoaMode;
-        } else if (state && state.debug && Object.prototype.hasOwnProperty.call(state.debug, "odoaMode")) {
-          // 例: { debug: { oDOA: "ON" } } といった構造を想定
-          odoaModeRaw = state.debug.odoaMode;
+        if (state) {
+          // トップレベル候補
+          if (Object.prototype.hasOwnProperty.call(state, "odoaMode")) {
+            odoaModeRaw = state.odoaMode;
+          } else if (Object.prototype.hasOwnProperty.call(state, "odoa_mode")) {
+            odoaModeRaw = state.odoa_mode;
+          } else if (Object.prototype.hasOwnProperty.call(state, "ODOA_MODE")) {
+            odoaModeRaw = state.ODOA_MODE;
+          } else if (Object.prototype.hasOwnProperty.call(state, "ODOA")) {
+            odoaModeRaw = state.ODOA;
+          }
+
+          // debug 配下の候補
+          if (odoaModeRaw == null && state.debug && typeof state.debug === "object") {
+            if (Object.prototype.hasOwnProperty.call(state.debug, "odoaMode")) {
+              odoaModeRaw = state.debug.odoaMode;
+            } else if (Object.prototype.hasOwnProperty.call(state.debug, "odoa_mode")) {
+              odoaModeRaw = state.debug.odoa_mode;
+            } else if (Object.prototype.hasOwnProperty.call(state.debug, "ODOA_MODE")) {
+              odoaModeRaw = state.debug.ODOA_MODE;
+            }
+          }
+
+          // navGuard 配下の候補（nav_guard.js が Workers にこう保存している可能性用）
+          if (odoaModeRaw == null && state.navGuard && typeof state.navGuard === "object") {
+            if (Object.prototype.hasOwnProperty.call(state.navGuard, "odoaMode")) {
+              odoaModeRaw = state.navGuard.odoaMode;
+            } else if (Object.prototype.hasOwnProperty.call(state.navGuard, "odoa_mode")) {
+              odoaModeRaw = state.navGuard.odoa_mode;
+            }
+          }
         }
 
+        // デバッグ用に一度ログ出し（騒がしければ後で消してOK）
+        console.log("[SYNC-B] detected O.D.O.A from state:", {
+          odoaModeRaw: odoaModeRaw
+        });
+
         var odoaModeText = "不明";
-        if (odoaModeRaw === true || odoaModeRaw === "ON" || odoaModeRaw === "on") {
+        if (odoaModeRaw === true || odoaModeRaw === "TRUE" || odoaModeRaw === "true" ||
+            odoaModeRaw === "ON" || odoaModeRaw === "on") {
           odoaModeText = "ON";
-        } else if (odoaModeRaw === false || odoaModeRaw === "OFF" || odoaModeRaw === "off") {
+        } else if (odoaModeRaw === false || odoaModeRaw === "FALSE" || odoaModeRaw === "false" ||
+                   odoaModeRaw === "OFF" || odoaModeRaw === "off") {
           odoaModeText = "OFF";
         }
 
