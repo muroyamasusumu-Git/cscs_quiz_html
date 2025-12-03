@@ -341,91 +341,74 @@
       }
 
       // =========================
-      // SYNC の correct / incorrect を使って
-      // ・一度でも正解したことがある問題数
-      // ・一度でも正解または不正解をしたことがある問題数
-      // を求め、その差分から
-      //   未正解   = 全問題数 - 一度でも正解したことがある問題数
-      //   未回答   = 全問題数 - 一度でも正解または不正解をしたことがある問題数
-      // を算出する
+      // SYNC の state.correct / state.incorrect を使って
+      // ・未正解問題数
+      // ・未回答問題数
+      // を集計する（フォールバックなし）
       // =========================
 
-      // correct マップ
-      //  - state.correct を最優先
-      //  - なければ correct_totals をフォールバック
+      // 正解マップ: state.correct
       var correctMap = null;
       if (root.correct && typeof root.correct === "object") {
         correctMap = root.correct;
-      } else if (root.correct_totals && typeof root.correct_totals === "object") {
-        correctMap = root.correct_totals;
       }
 
-      // incorrect / wrong マップ
-      //  - state.incorrect を最優先
-      //  - なければ wrong_totals / wrong をフォールバック
+      // 不正解マップ: state.incorrect
       var incorrectMap = null;
       if (root.incorrect && typeof root.incorrect === "object") {
         incorrectMap = root.incorrect;
-      } else if (root.wrong_totals && typeof root.wrong_totals === "object") {
-        incorrectMap = root.wrong_totals;
-      } else if (root.wrong && typeof root.wrong === "object") {
-        incorrectMap = root.wrong;
       }
 
-      var everCorrectCount = 0;   // 一度でも正解したことがある問題数
-      var everAnsweredCount = 0;  // 一度でも正解または不正解をしたことがある問題数
+      var everCorrectCount = 0;               // 一度でも正解したことがある問題数
+      var appearedSet = new Set();           // 一度でも正解 or 不正解として登場した qid の集合
 
-      if (qidToField && (correctMap || incorrectMap)) {
-        var allQidsForSync = Object.keys(qidToField);
+      // correctMap から：
+      //   - 「一度でも正解したことがある問題数」を数える
+      //   - correct のキーは「登場した qid」として appearedSet に追加
+      if (correctMap) {
+        var correctQids = Object.keys(correctMap);
+        correctQids.forEach(function (qid) {
+          var v = correctMap[qid];
+          var n;
 
-        allQidsForSync.forEach(function (qid) {
-          var cRaw = 0;
-
-          if (correctMap && Object.prototype.hasOwnProperty.call(correctMap, qid)) {
-            cRaw = correctMap[qid];
-          }
-
-          // correct の値が { total: number } / number どちらでも扱えるように正規化
-          var c = 0;
-          if (cRaw && typeof cRaw === "object" && Object.prototype.hasOwnProperty.call(cRaw, "total")) {
-            c = Number(cRaw.total);
+          // number / { total: number } 両対応で total 回数を取り出す
+          if (v && typeof v === "object" && Object.prototype.hasOwnProperty.call(v, "total")) {
+            n = Number(v.total);
           } else {
-            c = Number(cRaw);
+            n = Number(v);
           }
-          if (!Number.isFinite(c) || c < 0) {
-            c = 0;
+          if (!Number.isFinite(n) || n < 0) {
+            n = 0;
           }
 
-          // 「一度でも正解したことがある」判定
-          if (c > 0) {
+          if (n > 0) {
             everCorrectCount += 1;
           }
 
-          // 「一度でも正解または不正解をしたことがある」判定
-          //   → correctMap / incorrectMap のどちらかにキーが存在すれば「登場した」とみなす
-          var appeared = false;
-          if (correctMap && Object.prototype.hasOwnProperty.call(correctMap, qid)) {
-            appeared = true;
-          }
-          if (incorrectMap && Object.prototype.hasOwnProperty.call(incorrectMap, qid)) {
-            appeared = true;
-          }
-
-          if (appeared) {
-            everAnsweredCount += 1;
-          }
+          appearedSet.add(qid);
         });
       }
 
-      // 定義に基づく集計
-      var unsolvedByFormula = TOTAL_Q - everCorrectCount;
-      if (!Number.isFinite(unsolvedByFormula) || unsolvedByFormula < 0) {
-        unsolvedByFormula = 0;
+      // incorrectMap から：
+      //   - 「一度でも正解または不正解をしたことがある問題」の集合に qid を追加
+      if (incorrectMap) {
+        var incorrectQids = Object.keys(incorrectMap);
+        incorrectQids.forEach(function (qid) {
+          appearedSet.add(qid);
+        });
       }
 
-      var unansweredByFormula = TOTAL_Q - everAnsweredCount;
-      if (!Number.isFinite(unansweredByFormula) || unansweredByFormula < 0) {
-        unansweredByFormula = 0;
+      // 未正解 = 全問題数 - 「一度でも正解したことがある問題数」
+      var unsolved = TOTAL_Q - everCorrectCount;
+      if (!Number.isFinite(unsolved) || unsolved < 0) {
+        unsolved = 0;
+      }
+
+      // 未回答 = 全問題数 - 「一度でも正解または不正解をしたことがある問題数」
+      var appearedCount = appearedSet.size;
+      var unanswered = TOTAL_Q - appearedCount;
+      if (!Number.isFinite(unanswered) || unanswered < 0) {
+        unanswered = 0;
       }
 
       // 計算結果をモジュール内グローバルに保存
@@ -433,16 +416,16 @@
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
-      unsolvedCountFromSync = unsolvedByFormula;
-      unansweredCountFromSync = unansweredByFormula;
+      unsolvedCountFromSync = unsolved;
+      unansweredCountFromSync = unanswered;
 
-      console.log("field_summary.js: SYNC-based unsolved/unanswered computed (formula by ever-correct / ever-answered)", {
+      console.log("field_summary.js: SYNC-based unsolved/unanswered computed", {
         TOTAL_Q: TOTAL_Q,
         totalStarQ: totalStarQ,
         remainingDays: remainingDays,
         targetPerDay: targetPerDay,
         everCorrectCount: everCorrectCount,
-        everAnsweredCount: everAnsweredCount,
+        appearedCount: appearedCount,
         unsolvedCountFromSync: unsolvedCountFromSync,
         unansweredCountFromSync: unansweredCountFromSync
       });
