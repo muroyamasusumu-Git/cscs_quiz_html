@@ -453,7 +453,7 @@ margin-left: 10px;
 }
 
 body.mode-a #cc-check-wrapper {
-    top: 23px;
+    top: 33px;
     opacity: 0.6 !important;
 }
 
@@ -509,7 +509,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_monitor_a {
   position: fixed;
   right: 0;
-  top: 105px;
+  top: 115px;
   z-index: 9999;
   background: transparent;
   color: #eee;
