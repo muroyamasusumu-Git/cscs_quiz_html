@@ -15,7 +15,7 @@
         padding: 10px 10px 0 5px;
         color: rgb(255, 255, 255);
         opacity: 0.55;
-        width: 69%;
+        width: 68.5%;
         font-weight: 300;
     }
 
