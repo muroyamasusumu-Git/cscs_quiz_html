@@ -331,8 +331,20 @@
             }
 
             SAVE.ok = true;
+
+            // A→B 遷移用の href を、実際の a 要素にも反映する
+            try{
+              a.setAttribute("href", finalHref);
+              dlog("O.D.O.A: anchor href updated for navigation.", {
+                finalHref
+              });
+            }catch(e){
+              dlog("O.D.O.A: anchor href update failed:", String(e));
+            }
+
             SAVE.lastHref = finalHref;
             SAVE.lastChoice = null;
+
             dlog("O.D.O.A: saveTokenFor skipped token issuing (treated as OK).", {
               qid,
               mode: window.CSCS_ODOA_MODE
