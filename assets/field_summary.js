@@ -687,25 +687,41 @@
       list.appendChild(item);
     });
 
-    // 全体の「未正解問題数 / 割合」を計算（★未獲得問題として集計）
-    var unsolvedCount = 0;
-    var unsolvedPercent = 0;
-    if (totalQuestions > 0) {
-      unsolvedCount = totalQuestions - starTotalSolvedQuestions;
-      if (!Number.isFinite(unsolvedCount) || unsolvedCount < 0) {
-        unsolvedCount = 0;
-      }
-      unsolvedPercent = (unsolvedCount / totalQuestions) * 100;
-      if (!Number.isFinite(unsolvedPercent) || unsolvedPercent < 0) {
-        unsolvedPercent = 0;
-      }
-      if (unsolvedPercent > 100) {
-        unsolvedPercent = 100;
-      }
-    }
-    var unsolvedPercentStr = unsolvedPercent.toFixed(2);
+    // =========================
+    // 全問題2700件に対して：
+    // ・未正解   = ★獲得済みではなく、かつ wrong > 0 の問題
+    // ・未回答   = correct_total=0 かつ wrong_total=0 の問題
+    // =========================
 
-    // グリッド末尾セル1: 未正解問題数 / 割合%（テキストのみ）
+    var unsolvedCount = 0;      // ★未獲得（= 正解0件）だが不正解はある
+    var unansweredCount = 0;    // 正解0 & 不正解0 の「完全未回答」
+    var correctKeyBase = "cscs_q_correct_total:";
+    var wrongKeyBase   = "cscs_q_wrong_total:";
+
+    // fieldTotals は “全qidが meta から拾える”ため 2700件扱える。
+    // qidToField の key 一覧を使って全qidを走査する。
+    var allQids = Object.keys(qidToField || {});
+    allQids.forEach(function(qid){
+      var correct = Number(localStorage.getItem(correctKeyBase + qid) || "0");
+      var wrong   = Number(localStorage.getItem(wrongKeyBase   + qid) || "0");
+
+      // 未回答（正解も不正解も0）
+      if ((correct === 0) && (wrong === 0)) {
+        unansweredCount += 1;
+      }
+      // 未正解（正解0 かつ 不正解は1以上）
+      else if ((correct === 0) && (wrong > 0)) {
+        unsolvedCount += 1;
+      }
+    });
+
+    var unansweredPercent = (unansweredCount / totalQuestions) * 100;
+    var unsolvedPercent   = (unsolvedCount   / totalQuestions) * 100;
+
+    var unansweredPercentStr = unansweredPercent.toFixed(2);
+    var unsolvedPercentStr   = unsolvedPercent.toFixed(2);
+
+    // グリッド末尾セル1: 未正解問題数 / 割合%
     var liUnsolved = document.createElement("li");
     liUnsolved.style.listStyleType = "none";
     liUnsolved.style.paddingLeft = "0";
@@ -716,6 +732,27 @@
       unsolvedCount + " / " + totalQuestions +
       " (" + unsolvedPercentStr + "%)";
     list.appendChild(liUnsolved);
+
+    // グリッド末尾セル2: 未回答問題数 / 割合%
+    var liUnanswered = document.createElement("li");
+    liUnanswered.style.listStyleType = "none";
+    liUnanswered.style.paddingLeft = "0";
+    liUnanswered.style.textIndent = "0";
+    liUnanswered.style.margin = "0 0 6px 0";
+    liUnanswered.textContent =
+      "未回答問題数: " +
+      unansweredCount + " / " + totalQuestions +
+      " (" + unansweredPercentStr + "%)";
+    list.appendChild(liUnanswered);
+
+    // ログ
+    console.log("field_summary: unsolved/unanswered summary", {
+      totalQuestions: totalQuestions,
+      unsolvedCount: unsolvedCount,
+      unsolvedPercent: unsolvedPercent,
+      unansweredCount: unansweredCount,
+      unansweredPercent: unansweredPercent
+    });
 
     // グリッド末尾セル2: 未回答問題数 / 割合%（現時点では値未定のためプレースホルダ）
     var liUnanswered = document.createElement("li");
