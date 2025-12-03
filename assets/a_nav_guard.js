@@ -41,6 +41,8 @@
     top: 5px;
     right: 394px;
     opacity: 0.25;
+    font-weight: bold;
+    
 }
             `;
             document.head.appendChild(style);
@@ -184,7 +186,7 @@
           window.__cscsUpdateOdoaBtnLabel = function(){
             const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
             if (mode === "on") {
-              btn.textContent = "O.D.O.A Mode：ON（一日一回答モード）";
+              btn.textContent = "O.D.O.A Mode：ON";
             } else {
               btn.textContent = "O.D.O.A Mode：OFF";
             }
