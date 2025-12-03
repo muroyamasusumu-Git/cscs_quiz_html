@@ -64,6 +64,7 @@
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.18);
         overflow: hidden;
+        margin-top: 1px;
     }
 
     .cscs-star-meter-fill {
