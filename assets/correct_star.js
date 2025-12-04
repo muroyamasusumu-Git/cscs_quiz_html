@@ -1,3 +1,13 @@
+◆ A案：短いディレイ（最適）
+一旦これで安定的に反映されるようにしたい。
+上記の内容を実現するために
+以下の最新の　「correct_star.js 」　を”必ず”参照し、これに修正を加える形で、
+参照元のコードから「確実に検索できる」ように「インデントあり」「"..."などの省略は絶対無し」の置換前・置換後の正確なコードを出して。フルじゃなくて置換部分のコードのみ。置換前コード内に「本文に無いコメント」は入れないこと。
+フォールバックの設定は基本的に無しで
+追加した処理に対して処理ごとに何をしているか説明する補足コメントと、
+コンソール上でその処理が確実に成功したかどうかを確認できるログが出るようにして欲しい。
+
+
 /* correct_star.js — 3連続正解スター表示制御用スクリプト
  *
  * 役割：
@@ -81,45 +91,42 @@
   }
 
   // ===== 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得 =====
-  function getCurrentStreakLenFromSync(qid) {
+  async function getCurrentStreakLenFromSync(qid) {
     if (!qid) {
       return 0;
     }
 
-    var root = null;
     try {
-      if (typeof window !== "undefined" && window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
-        if (window.CSCS_SYNC_DATA.data && typeof window.CSCS_SYNC_DATA.data === "object") {
-          root = window.CSCS_SYNC_DATA.data;
-        } else {
-          root = window.CSCS_SYNC_DATA;
-        }
+      var res = await fetch("/api/sync/state", { cache: "no-store" });
+      if (!res.ok) {
+        console.error("correct_star.js: /api/sync/state 取得失敗(リーチ判定):", res.status);
+        return 0;
       }
-    } catch (e) {
-      console.error("correct_star.js: CSCS_SYNC_DATA 参照中に例外:", e);
-      root = null;
-    }
 
-    if (!root || !root.streakLen || typeof root.streakLen !== "object") {
-      console.warn("correct_star.js: CSCS_SYNC_DATA から streakLen を取得できませんでした", {
-        hasSyncData: !!root,
-        hasStreakLen: !!(root && root.streakLen)
+      var json = await res.json();
+      var root = json.data || json;
+
+      if (!root.streakLen || typeof root.streakLen !== "object") {
+        console.warn("correct_star.js: SYNC に streakLen がありません(リーチ判定用)");
+        return 0;
+      }
+
+      var lenRaw = root.streakLen[qid];
+      var len = Number(lenRaw || 0);
+      if (!Number.isFinite(len) || len < 0) {
+        len = 0;
+      }
+
+      console.log("correct_star.js: SYNC streakLen 読み取り成功", {
+        qid: qid,
+        streakLen: len
       });
+
+      return len;
+    } catch (e) {
+      console.error("correct_star.js: streakLen SYNC 読み取り中に例外:", e);
       return 0;
     }
-
-    var lenRaw = root.streakLen[qid];
-    var len = Number(lenRaw || 0);
-    if (!Number.isFinite(len) || len < 0) {
-      len = 0;
-    }
-
-    console.log("correct_star.js: CSCS_SYNC_DATA から streakLen を読み取りました", {
-      qid: qid,
-      streakLen: len
-    });
-
-    return len;
   }
 
   // ===== 3連続正解回数 → スター絵文字 変換ヘルパー =====
@@ -150,7 +157,7 @@
   }
 
   // ===== スター表示の更新 =====
-  function updateCorrectStar() {
+  async function updateCorrectStar() {
     var qid = getCurrentQid();
     var starElement = document.querySelector(".qno .correct_star");
 
@@ -168,10 +175,10 @@
     // 3連続正解の累積回数に応じた基本シンボル（⭐️/🌟/💫）
     var symbolFromTotal = getStarSymbolFromStreakCount(count);
 
-    // 現在の連続正解数（1連続 / 2連続 など）を CSCS_SYNC_DATA から取得
+    // 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得
     var currentStreakLen = 0;
     if (count < 1) {
-      currentStreakLen = getCurrentStreakLenFromSync(qid);
+      currentStreakLen = await getCurrentStreakLenFromSync(qid);
     }
 
     var finalSymbol = symbolFromTotal;
@@ -212,49 +219,20 @@
   }
 
   // ===== 初期化 =====
-  // .qno .correct_star が DOM に出現するまで監視し、見つかったタイミングでコールバックを実行する
-  function waitForCorrectStar(callback) {
-    var target = document.body;
-    if (!target) {
-      console.warn("correct_star.js: document.body が存在しないため、スター監視を開始できませんでした");
-      return;
-    }
-
-    var observer = new MutationObserver(function () {
-      var starElement = document.querySelector(".qno .correct_star");
-      if (starElement) {
-        observer.disconnect();
-        console.log("correct_star.js: .qno .correct_star を検出したため updateCorrectStar を実行します");
-        callback();
-      }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      setTimeout(function () {
+        updateCorrectStar();
+        console.log("correct_star.js: 初期スター更新(遅延)を実行しました (DOMContentLoaded)");
+      }, 500);
     });
-
-    observer.observe(target, { childList: true, subtree: true });
-    console.log("correct_star.js: .qno .correct_star の出現を監視開始");
+  } else {
+    setTimeout(function () {
+      updateCorrectStar();
+      console.log("correct_star.js: 初期スター更新(遅延)を実行しました (readyState=" + document.readyState + ")");
+    }, 500);
   }
-
-  function initCorrectStarWatcher() {
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function () {
-        waitForCorrectStar(updateCorrectStar);
-      });
-    } else {
-      waitForCorrectStar(updateCorrectStar);
-    }
-  }
-
-  initCorrectStarWatcher();
 
   // SYNC 後に外部から再評価できるように公開
   window.cscsUpdateCorrectStar = updateCorrectStar;
-
-  // SYNC の state が更新されたタイミングでもスター表示を再評価する
-  window.addEventListener("cscs-sync-updated", function () {
-    try {
-      console.log("correct_star.js: cscs-sync-updated を受信したためスター表示を再評価します");
-      updateCorrectStar();
-    } catch (e) {
-      console.error("correct_star.js: cscs-sync-updated ハンドラ内で例外:", e);
-    }
-  });
 })();
