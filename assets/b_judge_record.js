@@ -10,7 +10,7 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2025-12-02
+ * 最終更新: 2025-12-05
  *
  * === SPEC CONTENT ===
  */
@@ -73,6 +73,8 @@
 // │             │ (SYNC) oncePerDayToday.day       │ JST YYYYMMDD（数値）。当日以外の場合は別日の状態として扱う。                     │
 // │             │ (SYNC) oncePerDayToday.results   │ {qid: "correct"/"wrong"}。その日、その qid が計測済みであることを示す。         │
 // │             │ (SYNC) oncePerDayTodayDelta      │ /api/sync/merge に送る差分。{ day, results } の部分更新専用。                  │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ グローバル │ cscs_total_questions              │ CSCS問題集全体の総問題数。manifest.json の days.length × 30 を唯一のソースとして算出。 │
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 //
 // ⚙️ カウント条件まとめ
@@ -141,6 +143,10 @@
 // ・このマップをもとに、Aパートや SYNC は「当日すでに計測済みかどうか」を判定できる。
 // ・SYNC Worker 側とは、/api/sync/state の oncePerDayToday（{ day: number, results: {qid: "correct"|"wrong"} }）
 //   および /api/sync/merge の oncePerDayTodayDelta（同構造の差分）を通じて連携する。
+// 🆕 2025-12-05 追加
+// ・CSCS問題集全体の総問題数を「cscs_total_questions」として localStorage に一元管理する。
+// ・総問題数は manifest.json の days.length × 30 を唯一のソースとし、b_judge_record.js 起動時に必要に応じて計算・保存する。
+// ・他ファイルや SYNC Worker は、このキーを参照して「全体の分母」として利用し、フォールバック値や別ソースは持たない。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -239,6 +245,72 @@
         try{ localStorage.setItem(key, String(val|0)); }catch(_){}
       }
 
+      // ★ 追加: 総問題数（cscs_total_questions）を manifest.json から一度だけ計算して保存
+      function cscsEnsureTotalQuestions(){
+        var LS_KEY = "cscs_total_questions";
+
+        // すでに有効な値があれば何もしない
+        try{
+          var raw = localStorage.getItem(LS_KEY);
+          if(raw !== null && raw !== undefined){
+            var n = parseInt(raw, 10);
+            if(Number.isFinite(n) && n > 0){
+              return;
+            }
+          }
+        }catch(_){}
+
+        // manifest.json を唯一のソースとして days.length × 30 を計算
+        try{
+          fetch("/manifest.json", { cache: "no-store" })
+            .then(function(res){
+              if(!res || !res.ok){
+                try{
+                  console.log("[B:totalQ] manifest fetch failed", {
+                    status: res ? res.status : "no-response"
+                  });
+                }catch(_){}
+                return null;
+              }
+              return res.json();
+            })
+            .then(function(json){
+              if(!json || !Array.isArray(json.days)){
+                try{
+                  console.log("[B:totalQ] manifest.json invalid structure", {
+                    json: json
+                  });
+                }catch(_){}
+                return;
+              }
+              var total = json.days.length * 30;
+              if(!Number.isFinite(total) || total <= 0){
+                try{
+                  console.log("[B:totalQ] computed invalid total", {
+                    total: total
+                  });
+                }catch(_){}
+                return;
+              }
+              try{
+                localStorage.setItem(LS_KEY, String(total));
+              }catch(_){}
+              try{
+                console.log("[B:totalQ] cscs_total_questions set", {
+                  total: total
+                });
+              }catch(_){}
+            })
+            .catch(function(err){
+              try{
+                console.log("[B:totalQ] manifest fetch error", {
+                  error: String(err)
+                });
+              }catch(_){}
+            });
+        }catch(_){}
+      }
+
       // ★ 追加: 「1日1回計測モード」用の当日結果マップを管理
       //   - dayPlay: JST YYYYMMDD（文字列）
       //   - qid: "YYYYMMDD-NNN"
@@ -302,6 +374,11 @@
       var qnum     = getQNumFromPath();          // 例 "001"
       // ⚙️ 2025-11-12 修正: QID のハイフンを常に ASCII "-" に統一（全角・異体字対策）
       var qid      = (dayPath + "-" + qnum).replace(/[^\x20-\x7E]/g, "-");  // 例 "20250926-001"
+
+      // 総問題数（cscs_total_questions）の計算・保存を一度だけトリガー
+      try{
+        cscsEnsureTotalQuestions();
+      }catch(_){}
 
       // A→Bトークンが無ければ（直叩き・リロード）はノーカウント
       // 後方互換：旧 "cscs_from_a:" と新 "cscs_from_a_token:" の両方を許可
