@@ -966,7 +966,7 @@
 
       console.log("field_summary.js: B-page delayed refresh executing now (reloading SYNC state).");
       renderFieldStarSummary();
-    }, 1500);  // ← ★ ここを 1000 に変更（1秒後に refresh）
+    }, 2000);  // ← ★ ここを 1000 に変更（1秒後に refresh）
   }
 
   // =========================
