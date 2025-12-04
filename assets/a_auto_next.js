@@ -15,8 +15,7 @@
   // =========================
 
   // 自動遷移までの候補時間（ミリ秒）
-  // 追加: 15000ms（15秒）
-  var AUTO_ADVANCE_MS_CANDIDATES = [10000, 15000, 20000, 30000, 60000];
+  var AUTO_ADVANCE_MS_CANDIDATES = [20000, 30000, 60000, 10000];
   // 待ち時間の保存キー
   var AUTO_ADVANCE_MS_KEY = "cscs_auto_next_ms";
   // 現在採用されている待ち時間（localStorage から読み出し）
@@ -218,44 +217,21 @@
   }
 
   // =========================
-  // ODOA 用ヘルパー（qid生成・計測済み判定・ODOAモード判定）
+  // SYNC 状態 / ODOA 判定ヘルパー
   // =========================
 
-  // day(YYYYMMDD) と idx(1〜30) から qid 形式 "YYYYMMDD-NNN" を組み立てる
+  var SYNC_STATE_ENDPOINT = "/api/sync/state";
+  var SYNC_STATE_FOR_AUTO_NEXT = null;
+  var SYNC_STATE_LOADED = false;
+  var SYNC_STATE_LOAD_ERROR = false;
+
+  // day(YYYYMMDD) と idx(1〜30) から qid "YYYYMMDD-NNN" を生成
   function buildQidFromDayAndIdx(dayStr, idx) {
     var num3 = String(idx).padStart(3, "0");
     return dayStr + "-" + num3;
   }
 
-  // b_judge_record.js が書き込むローカルセーブデータを見て「計測済みかどうか」を判定
-  // ・正解数 + 不正解数 が 1 以上なら「計測済み」
-  function isQuestionMeasuredByQid(qid) {
-    try {
-      var correctKey = "cscs_q_correct_total:" + qid;
-      var wrongKey = "cscs_q_wrong_total:" + qid;
-
-      var cRaw = window.localStorage.getItem(correctKey);
-      var wRaw = window.localStorage.getItem(wrongKey);
-
-      var c = cRaw === null ? 0 : parseInt(cRaw, 10);
-      var w = wRaw === null ? 0 : parseInt(wRaw, 10);
-
-      if (!Number.isFinite(c) || c < 0) {
-        c = 0;
-      }
-      if (!Number.isFinite(w) || w < 0) {
-        w = 0;
-      }
-
-      return (c + w) > 0;
-    } catch (_e) {
-      // localStorage が使えない環境では「未計測」とみなす（ODOA のスキップは効かない）
-      return false;
-    }
-  }
-
   // O.D.O.A モードが ON かどうかを判定
-  // window.CSCS_ODOA_MODE の値は真偽値 or "on"/"ON"/"true"/"1" を想定
   function isOdoaModeOn() {
     try {
       var v = window.CSCS_ODOA_MODE;
@@ -273,6 +249,73 @@
     } catch (_e) {
       return false;
     }
+  }
+
+  // /api/sync/state から SYNC 状態を読み込む
+  // 成功/失敗はコンソールにログする
+  function loadSyncStateForAutoNext() {
+    if (SYNC_STATE_LOADED || SYNC_STATE_LOAD_ERROR) {
+      return Promise.resolve(SYNC_STATE_FOR_AUTO_NEXT);
+    }
+    var base = location.origin || "";
+    var url = base + SYNC_STATE_ENDPOINT;
+    console.log("[a_auto_next] request SYNC state for auto-next:", url);
+    return fetch(url, { cache: "no-store" }).then(function (res) {
+      if (!res || !res.ok) {
+        throw new Error("HTTP status " + (res && res.status));
+      }
+      return res.json();
+    }).then(function (json) {
+      if (!json || typeof json !== "object") {
+        throw new Error("invalid SYNC json");
+      }
+      SYNC_STATE_FOR_AUTO_NEXT = json;
+      SYNC_STATE_LOADED = true;
+      var qCount = 0;
+      if (json.q && typeof json.q === "object") {
+        try {
+          qCount = Object.keys(json.q).length;
+        } catch (_e) {
+          qCount = 0;
+        }
+      }
+      console.log("[a_auto_next] SYNC state loaded for auto-next.", {
+        hasQ: !!json.q,
+        qCount: qCount
+      });
+      return SYNC_STATE_FOR_AUTO_NEXT;
+    }).catch(function (err) {
+      SYNC_STATE_LOAD_ERROR = true;
+      SYNC_STATE_FOR_AUTO_NEXT = null;
+      console.log("[a_auto_next] SYNC state load failed for auto-next.", String(err));
+      return null;
+    });
+  }
+
+  // SYNC 情報から「この qid が計測済みかどうか」を判定
+  // SYNC の q[qid].correctTotal / wrongTotal を利用
+  function isQuestionMeasuredOnSync(qid) {
+    if (!SYNC_STATE_LOADED) {
+      return false;
+    }
+    if (!SYNC_STATE_FOR_AUTO_NEXT || !SYNC_STATE_FOR_AUTO_NEXT.q) {
+      return false;
+    }
+    var qMap = SYNC_STATE_FOR_AUTO_NEXT.q;
+    var rec = qMap[qid];
+    if (!rec || typeof rec !== "object") {
+      return false;
+    }
+    var c = rec.correctTotal;
+    var w = rec.wrongTotal;
+    if (!Number.isFinite(c) || c < 0) {
+      c = 0;
+    }
+    if (!Number.isFinite(w) || w < 0) {
+      w = 0;
+    }
+    var measured = (c + w) > 0;
+    return measured;
   }
 
   // =========================
@@ -337,14 +380,18 @@
     var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
     var prefix = prefixMatch ? prefixMatch[1] : "";
 
-    // ---- O.D.O.A モード時：計測済みの問題をスキップして「未計測の Aパート」へ進む ----
-    if (isOdoaModeOn()) {
+    // ---- O.D.O.A モード ON かつ SYNC ロード済みのとき：計測済みを飛ばして「次の未計測Aパート」へ ----
+    if (isOdoaModeOn() && SYNC_STATE_LOADED && SYNC_STATE_FOR_AUTO_NEXT && SYNC_STATE_FOR_AUTO_NEXT.q) {
       var safety = 0;
       var currentDay = day;
       var currentIdx = idx;
 
+      console.log("[a_auto_next] ODOA sequential search start.", {
+        fromDay: currentDay,
+        fromIdx: currentIdx
+      });
+
       // 「現在の次の問題」から順にスキャンして、未計測の qid を探す
-      // ・1日最大30問 × 90日程度を想定して safety 上限は十分大きめ（3000）にしておく
       while (safety < 3000) {
         currentIdx += 1;
         if (currentIdx > 30) {
@@ -361,20 +408,26 @@
         }
 
         var qid = buildQidFromDayAndIdx(currentDay, currentIdx);
-        if (!isQuestionMeasuredByQid(qid)) {
+        var measured = isQuestionMeasuredOnSync(qid);
+
+        if (!measured) {
           var nextNum3Odoa = String(currentIdx).padStart(3, "0");
           var nextPathOdoa = prefix + "_build_cscs_" + currentDay + "/slides/q" + nextNum3Odoa + "_a.html";
+          console.log("[a_auto_next] ODOA sequential: next unmeasured found.", {
+            qid: qid,
+            nextUrl: nextPathOdoa
+          });
           return nextPathOdoa;
         }
 
         safety += 1;
       }
 
-      // 未計測問題が見つからなければ自動送りはしない
+      console.log("[a_auto_next] ODOA sequential: no unmeasured question found. auto-next will stop.");
       return null;
     }
 
-    // ---- 通常モード（ODOA OFF）の挙動は従来通り ----
+    // ---- 通常モード（ODOA OFF または SYNC 未ロード）の挙動：従来通り ----
     if (part === "a") {
       // ---- Aパートの場合 ----
 
@@ -445,9 +498,9 @@
     var candidatePath = currentPath;
     var safety = 0; // 無限ループ防止
 
-    // ---- O.D.O.A モード時：未計測問題だけからランダムに選ぶ ----
-    if (isOdoaModeOn()) {
-      // 最大 3000 回まで試行し、それでも見つからなければあきらめる
+    // ---- O.D.O.A モード時：SYNC 上で未計測の問題だけからランダムに選ぶ ----
+    if (isOdoaModeOn() && SYNC_STATE_LOADED && SYNC_STATE_FOR_AUTO_NEXT && SYNC_STATE_FOR_AUTO_NEXT.q) {
+      console.log("[a_auto_next] ODOA random search start.");
       while (safety < 3000) {
         var randDayOdoa = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
         if (!randDayOdoa) {
@@ -455,9 +508,9 @@
         }
         var randIdxOdoa = Math.floor(Math.random() * 30) + 1; // 1〜30
         var qidOdoa = buildQidFromDayAndIdx(randDayOdoa, randIdxOdoa);
+        var measuredOdoa = isQuestionMeasuredOnSync(qidOdoa);
 
-        // 計測済みはスキップ
-        if (isQuestionMeasuredByQid(qidOdoa)) {
+        if (measuredOdoa) {
           safety += 1;
           continue;
         }
@@ -465,21 +518,25 @@
         var randNum3Odoa = String(randIdxOdoa).padStart(3, "0");
         candidatePath = prefix + "_build_cscs_" + randDayOdoa + "/slides/q" + randNum3Odoa + "_a.html";
 
-        // 現在のURLと同じでなければ採用
         if (candidatePath !== currentPath) {
+          console.log("[a_auto_next] ODOA random: next unmeasured found.", {
+            qid: qidOdoa,
+            nextUrl: candidatePath
+          });
           return candidatePath;
         }
 
         safety += 1;
       }
 
-      // 未計測問題が見つからなければ自動送りしない
+      console.log("[a_auto_next] ODOA random: no unmeasured question found. auto-next will stop.");
       return null;
     }
 
-    // ---- 通常モード（ODOA OFF）：従来通り「今と違うランダムな問題」へ ----
-    safety = 0;
+    // ---- 通常モード（ODOA OFF または SYNC 未ロード）：従来通り ----
+    currentPath = path;
     candidatePath = currentPath;
+    safety = 0;
 
     // 「今の問題と同じ URL にならない」ランダムなパスを、最大100回トライする
     while (candidatePath === currentPath && safety < 100) {
@@ -819,30 +876,42 @@
   // 初期化処理（ページ読み込み完了時）
   // =========================
   function onReady() {
-    // まず「次の URL」を計算
-    NEXT_URL = buildNextUrl();
-    if (!NEXT_URL) {
-      // 次 URL が無ければフェードインだけやって終了
+    // まず SYNC 状態をロードしてから NEXT_URL を計算
+    loadSyncStateForAutoNext().then(function () {
+      // SYNC ロード成功/失敗にかかわらず、現時点の状態で NEXT_URL を組み立てる
+      NEXT_URL = buildNextUrl();
+
+      if (!NEXT_URL) {
+        console.log("[a_auto_next] onReady: NEXT_URL not found. auto-next will not start.");
+        // 次 URL が無ければフェードインだけやって終了
+        runFadeInIfNeeded();
+        return;
+      }
+
+      console.log("[a_auto_next] onReady: NEXT_URL decided.", {
+        nextUrl: NEXT_URL,
+        autoEnabled: autoEnabled,
+        randomModeEnabled: randomModeEnabled,
+        odoaMode: isOdoaModeOn()
+      });
+
+      // 画面左下の制御ボタン類を作成
+      createAutoNextToggleButton();     // 自動送り ON/OFF
+      createAutoNextModeToggleButton(); // 順番／ランダム
+      createAutoNextDurationButton();   // 待ち時間（秒）
+
+      // 自動送りの状態に応じて挙動を分岐
+      if (autoEnabled) {
+        // ON の場合はカウントダウンを開始
+        startAutoAdvanceCountdown();
+      } else {
+        // OFF の場合はカウントダウン停止表示
+        cancelAutoAdvanceCountdown(true);
+      }
+
+      // フェードイン（必要な場合のみ）
       runFadeInIfNeeded();
-      return;
-    }
-
-    // 画面左下の制御ボタン類を作成
-    createAutoNextToggleButton();     // 自動送り ON/OFF
-    createAutoNextModeToggleButton(); // 順番／ランダム
-    createAutoNextDurationButton();   // 待ち時間（秒）
-
-    // 自動送りの状態に応じて挙動を分岐
-    if (autoEnabled) {
-      // ON の場合はカウントダウンを開始
-      startAutoAdvanceCountdown();
-    } else {
-      // OFF の場合はカウントダウン停止表示
-      cancelAutoAdvanceCountdown(true);
-    }
-
-    // フェードイン（必要な場合のみ）
-    runFadeInIfNeeded();
+    });
   }
 
   // =========================
