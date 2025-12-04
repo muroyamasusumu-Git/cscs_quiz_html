@@ -413,26 +413,40 @@
       }
 
       // =========================
-      // リーチ数（⚡️）を集計する：
+      // リーチ数（⚡️）と「あと1回でリーチ（✨）」を集計する：
       //   ・現時点で 3連続正解（★）はしていない
-      //   ・現時点での連続正解数 streakLen[qid] がちょうど 2
+      //   ・streakLen[qid] === 2 → リーチ⚡️
+      //   ・streakLen[qid] === 1 → あと1回正解でリーチ✨
       // =========================
       var reachCount = 0;
+      var preReachCount = 0;
       if (root.streakLen && typeof root.streakLen === "object") {
         Object.keys(root.streakLen).forEach(function (qid) {
           var len = Number(root.streakLen[qid]);
           if (!Number.isFinite(len)) {
             return;
           }
-          // 連続正解数が 2 以外はリーチ対象外
-          if (len !== 2) {
+          var streak3TotalForQid = 0;
+          if (root.streak3 && Object.prototype.hasOwnProperty.call(root.streak3, qid)) {
+            streak3TotalForQid = Number(root.streak3[qid]);
+            if (!Number.isFinite(streak3TotalForQid)) {
+              streak3TotalForQid = 0;
+            }
+          }
+          // すでに 3連続正解（★獲得済み）の問題はどちらのカウントからも除外
+          if (streak3TotalForQid > 0) {
             return;
           }
-          // すでに 3連続正解（★獲得済み）の問題はリーチ対象外
-          if (root.streak3 && Number(root.streak3[qid]) > 0) {
+          // 連続正解数が 2 → リーチ⚡️
+          if (len === 2) {
+            reachCount += 1;
             return;
           }
-          reachCount += 1;
+          // 連続正解数が 1 → あと1回でリーチ✨
+          if (len === 1) {
+            preReachCount += 1;
+            return;
+          }
         });
       }
 
@@ -442,6 +456,7 @@
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
       starReachCountFromSync = reachCount;
+      starPreReachCountFromSync = preReachCount;
       unsolvedCountFromSync = unsolved;
       unansweredCountFromSync = unanswered;
 
@@ -454,11 +469,13 @@
         appearedCount: appearedCount,
         unsolvedCountFromSync: unsolvedCountFromSync,
         unansweredCountFromSync: unansweredCountFromSync,
-        starReachCountFromSync: starReachCountFromSync
+        starReachCountFromSync: starReachCountFromSync,
+        starPreReachCountFromSync: starPreReachCountFromSync
       });
 
-      console.log("field_summary.js: SYNC-based reach(2連続正解) computed", {
-        starReachCountFromSync: starReachCountFromSync
+      console.log("field_summary.js: SYNC-based reach counts computed", {
+        reachCount_2chain: starReachCountFromSync,
+        preReachCount_1chain: starPreReachCountFromSync
       });
 
       return counts;
@@ -479,6 +496,7 @@
   var starRemainingDays = 0;           // 締切までの残り日数
   var starTargetPerDay = 0;            // 1日あたりの目標★数（SYNCから計算）
   var starReachCountFromSync = 0;      // 2連続正解の「リーチ⚡️」問題数（SYNCから取得）
+  var starPreReachCountFromSync = 0;   // 1連続正解中（次の正解で⚡️になる）問題数（SYNCから取得）
 
   // SYNC (/api/sync/state) をソースとした「未正解/未回答」の集計結果
   var unsolvedCountFromSync = 0;       // SYNC上での「未正解問題数」
@@ -691,10 +709,16 @@
       reachCount = 0;
     }
 
-    // ⭐️本日の目標 21個（リーチ⚡️2個）
+    // SYNC から計算された「あと1回でリーチ✨（1連続正解中）」の問題数
+    var preReachCount = Number(starPreReachCountFromSync || 0);
+    if (!Number.isFinite(preReachCount) || preReachCount < 0) {
+      preReachCount = 0;
+    }
+
+    // ⭐️本日の目標 21個（リーチ⚡️2個 ✨1個）
     html += "<span class=\"cscs-star-main-compact\">";
     html += "⭐️本日目標 " + String(targetNum) + "個";
-    html += "<span class=\"cscs-star-main\">（リーチ⚡️" + String(reachCount) + "個）</span>";
+    html += "<span class=\"cscs-star-main\">（リーチ⚡️" + String(reachCount) + "個 ✨" + String(preReachCount) + "個）</span>";
     html += "</span>";
 
     // 本日の獲得 +4：15%
@@ -724,7 +748,7 @@
     needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
 
-    // コンソールに現在の目標値と進捗・リーチ数を出力して、値とレンダリング結果を確認できるようにする
+    // コンソールに現在の目標値と進捗・リーチ数・✨数を出力して、値とレンダリング結果を確認できるようにする
     console.log("field_summary.js: compact star summary rendered", {
       targetNum: targetNum,
       starTodayCount: starTodayCount,
@@ -732,7 +756,9 @@
       totalPercent: totalPercent,
       moodText: moodText,
       starReachCountFromSync: starReachCountFromSync,
-      reachCountUsedForView: reachCount
+      starPreReachCountFromSync: starPreReachCountFromSync,
+      reachCountUsedForView: reachCount,
+      preReachCountUsedForView: preReachCount
     });
 
     // 分野別の一覧を <ul> として作成
