@@ -202,6 +202,11 @@ margin: 0 5px 0 0;
   margin-bottom: 0 !important;
 }
 
+/* 整合性チェックパネルの見出しを非表示にする */
+#cscs-consistency-panel .cc-panel-header-title {
+  display: none !important;
+}
+
 
 .explain {
 font-size: 16px;
