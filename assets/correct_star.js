@@ -81,42 +81,45 @@
   }
 
   // ===== 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得 =====
-  async function getCurrentStreakLenFromSync(qid) {
+  function getCurrentStreakLenFromSync(qid) {
     if (!qid) {
       return 0;
     }
 
+    var root = null;
     try {
-      var res = await fetch("/api/sync/state", { cache: "no-store" });
-      if (!res.ok) {
-        console.error("correct_star.js: /api/sync/state 取得失敗(リーチ判定):", res.status);
-        return 0;
+      if (typeof window !== "undefined" && window.CSCS_SYNC_DATA && typeof window.CSCS_SYNC_DATA === "object") {
+        if (window.CSCS_SYNC_DATA.data && typeof window.CSCS_SYNC_DATA.data === "object") {
+          root = window.CSCS_SYNC_DATA.data;
+        } else {
+          root = window.CSCS_SYNC_DATA;
+        }
       }
-
-      var json = await res.json();
-      var root = json.data || json;
-
-      if (!root.streakLen || typeof root.streakLen !== "object") {
-        console.warn("correct_star.js: SYNC に streakLen がありません(リーチ判定用)");
-        return 0;
-      }
-
-      var lenRaw = root.streakLen[qid];
-      var len = Number(lenRaw || 0);
-      if (!Number.isFinite(len) || len < 0) {
-        len = 0;
-      }
-
-      console.log("correct_star.js: SYNC streakLen 読み取り成功", {
-        qid: qid,
-        streakLen: len
-      });
-
-      return len;
     } catch (e) {
-      console.error("correct_star.js: streakLen SYNC 読み取り中に例外:", e);
+      console.error("correct_star.js: CSCS_SYNC_DATA 参照中に例外:", e);
+      root = null;
+    }
+
+    if (!root || !root.streakLen || typeof root.streakLen !== "object") {
+      console.warn("correct_star.js: CSCS_SYNC_DATA から streakLen を取得できませんでした", {
+        hasSyncData: !!root,
+        hasStreakLen: !!(root && root.streakLen)
+      });
       return 0;
     }
+
+    var lenRaw = root.streakLen[qid];
+    var len = Number(lenRaw || 0);
+    if (!Number.isFinite(len) || len < 0) {
+      len = 0;
+    }
+
+    console.log("correct_star.js: CSCS_SYNC_DATA から streakLen を読み取りました", {
+      qid: qid,
+      streakLen: len
+    });
+
+    return len;
   }
 
   // ===== 3連続正解回数 → スター絵文字 変換ヘルパー =====
@@ -147,7 +150,7 @@
   }
 
   // ===== スター表示の更新 =====
-  async function updateCorrectStar() {
+  function updateCorrectStar() {
     var qid = getCurrentQid();
     var starElement = document.querySelector(".qno .correct_star");
 
@@ -165,10 +168,10 @@
     // 3連続正解の累積回数に応じた基本シンボル（⭐️/🌟/💫）
     var symbolFromTotal = getStarSymbolFromStreakCount(count);
 
-    // 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得
+    // 現在の連続正解数（1連続 / 2連続 など）を CSCS_SYNC_DATA から取得
     var currentStreakLen = 0;
     if (count < 1) {
-      currentStreakLen = await getCurrentStreakLenFromSync(qid);
+      currentStreakLen = getCurrentStreakLenFromSync(qid);
     }
 
     var finalSymbol = symbolFromTotal;
@@ -244,4 +247,14 @@
 
   // SYNC 後に外部から再評価できるように公開
   window.cscsUpdateCorrectStar = updateCorrectStar;
+
+  // SYNC の state が更新されたタイミングでもスター表示を再評価する
+  window.addEventListener("cscs-sync-updated", function () {
+    try {
+      console.log("correct_star.js: cscs-sync-updated を受信したためスター表示を再評価します");
+      updateCorrectStar();
+    } catch (e) {
+      console.error("correct_star.js: cscs-sync-updated ハンドラ内で例外:", e);
+    }
+  });
 })();
