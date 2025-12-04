@@ -619,8 +619,8 @@
       targetNum = 0;
     }
 
-    // 今日の 3連続正解ユニーク数を localStorage から読み込む
-    starTodayCount = loadTodayStreak3CountFromLocal();
+    // 今日の 3連続正解ユニーク数を SYNC から読み込む
+    starTodayCount = await loadTodayStreak3CountFromSync();
 
     // 今日の達成率（本日の獲得数 / 本日の目標数）
     var todayPercent = 0;
