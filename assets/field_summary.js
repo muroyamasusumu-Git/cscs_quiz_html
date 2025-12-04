@@ -933,7 +933,7 @@
     wrapContainer.insertAdjacentElement("afterend", panel);
   }
 
-  // Bパートで表示されたときに、0.5秒後に一度だけ field_summary を再計算・再描画する
+  // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
   function scheduleBPageFieldSummaryRefresh() {
     var path = location.pathname || "";
     var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
@@ -966,7 +966,7 @@
 
       console.log("field_summary.js: B-page delayed refresh executing now (reloading SYNC state).");
       renderFieldStarSummary();
-    }, 1000);  // ← ★ ここを 1000 に変更（1秒後に refresh）
+    }, 1500);  // ← ★ ここを 1000 に変更（1秒後に refresh）
   }
 
   // =========================
