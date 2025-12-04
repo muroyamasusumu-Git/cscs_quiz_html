@@ -170,23 +170,6 @@ margin: 0 5px 0 0;
 }
 
 
-/* explain_menu 内のリンクを横並び化 */
-.explain_menu {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;        /* お好みで調整 */
-  margin-top: 10px;
-}
-
-/* 子要素の div（dd-head-wrapper / consistency-wrapper）を横並び要素として扱う */
-.explain_menu > div {
-  display: inline-block;
-}
-
-/* 中のリンクを白色に */
-.explain_menu a {
-  color: #ffffff !important;
 
 
 .explain {
