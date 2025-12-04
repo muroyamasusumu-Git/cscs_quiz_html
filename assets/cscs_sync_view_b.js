@@ -40,6 +40,26 @@
     }
   }
 
+  // ★ 総問題数 cscs_total_questions を安全に読み出す専用ヘルパー
+  //   - 正の整数として保存されていなければ null を返し、送信しない
+  function readTotalQuestionsFromLocalStorage() {
+    var key = "cscs_total_questions";
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined) {
+        return null;
+      }
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        return null;
+      }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to read cscs_total_questions:", e);
+      return null;
+    }
+  }
+
   // ★ oncePerDay ローカル状態を読み出す
   //   - day: number | null（YYYYMMDD）
   //   - results: { qid: "correct" | "wrong" }
@@ -490,6 +510,20 @@
       updatedAt: Date.now()              // クライアント側での更新時刻
     };
 
+    // ★ 追加: 総問題数（cscs_total_questions）を global.totalQuestions として付与
+    //   - b_judge_record.js が manifest.json から算出・保存した値を唯一のソースとする
+    //   - 正の整数が得られた場合のみ payload に含める
+    var totalQuestions = readTotalQuestionsFromLocalStorage();
+    if (totalQuestions !== null) {
+      if (!payload.global || typeof payload.global !== "object") {
+        payload.global = {};
+      }
+      payload.global.totalQuestions = totalQuestions;
+      console.log("[SYNC-B] attach global.totalQuestions to payload:", {
+        totalQuestions: totalQuestions
+      });
+    }
+
     // ★ 追加: oncePerDayTodayDelta がある場合は payload に付与
     if (oncePerDayDelta) {
       payload.oncePerDayTodayDelta = oncePerDayDelta;
@@ -504,13 +538,18 @@
     var hasStreak3DeltaInPayload = Object.prototype.hasOwnProperty.call(streak3DeltaObj, qid);
     var hasStreakLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakLenDeltaObj, qid);
     var hasOncePerDayDeltaInPayload = !!oncePerDayDelta;
+    var hasGlobalTotalQuestionsInPayload =
+      !!(payload.global &&
+         typeof payload.global === "object" &&
+         Object.prototype.hasOwnProperty.call(payload.global, "totalQuestions"));
 
     if (
       !hasCorrectDeltaInPayload &&
       !hasIncorrectDeltaInPayload &&
       !hasStreak3DeltaInPayload &&
       !hasStreakLenDeltaInPayload &&
-      !hasOncePerDayDeltaInPayload
+      !hasOncePerDayDeltaInPayload &&
+      !hasGlobalTotalQuestionsInPayload
     ) {
       console.log("[SYNC-B] ★送信スキップ（payload に有効な delta が無いため）", {
         qid: qid,
