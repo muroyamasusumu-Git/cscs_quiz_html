@@ -15,7 +15,8 @@
   // =========================
 
   // 自動遷移までの候補時間（ミリ秒）
-  var AUTO_ADVANCE_MS_CANDIDATES = [20000, 30000, 60000, 10000];
+  // 追加: 15000ms（15秒）
+  var AUTO_ADVANCE_MS_CANDIDATES = [10000, 15000, 20000, 30000, 60000];
   // 待ち時間の保存キー
   var AUTO_ADVANCE_MS_KEY = "cscs_auto_next_ms";
   // 現在採用されている待ち時間（localStorage から読み出し）
@@ -217,6 +218,64 @@
   }
 
   // =========================
+  // ODOA 用ヘルパー（qid生成・計測済み判定・ODOAモード判定）
+  // =========================
+
+  // day(YYYYMMDD) と idx(1〜30) から qid 形式 "YYYYMMDD-NNN" を組み立てる
+  function buildQidFromDayAndIdx(dayStr, idx) {
+    var num3 = String(idx).padStart(3, "0");
+    return dayStr + "-" + num3;
+  }
+
+  // b_judge_record.js が書き込むローカルセーブデータを見て「計測済みかどうか」を判定
+  // ・正解数 + 不正解数 が 1 以上なら「計測済み」
+  function isQuestionMeasuredByQid(qid) {
+    try {
+      var correctKey = "cscs_q_correct_total:" + qid;
+      var wrongKey = "cscs_q_wrong_total:" + qid;
+
+      var cRaw = window.localStorage.getItem(correctKey);
+      var wRaw = window.localStorage.getItem(wrongKey);
+
+      var c = cRaw === null ? 0 : parseInt(cRaw, 10);
+      var w = wRaw === null ? 0 : parseInt(wRaw, 10);
+
+      if (!Number.isFinite(c) || c < 0) {
+        c = 0;
+      }
+      if (!Number.isFinite(w) || w < 0) {
+        w = 0;
+      }
+
+      return (c + w) > 0;
+    } catch (_e) {
+      // localStorage が使えない環境では「未計測」とみなす（ODOA のスキップは効かない）
+      return false;
+    }
+  }
+
+  // O.D.O.A モードが ON かどうかを判定
+  // window.CSCS_ODOA_MODE の値は真偽値 or "on"/"ON"/"true"/"1" を想定
+  function isOdoaModeOn() {
+    try {
+      var v = window.CSCS_ODOA_MODE;
+      if (!v) {
+        return false;
+      }
+      if (v === true) {
+        return true;
+      }
+      if (typeof v === "string") {
+        var s = v.toLowerCase();
+        return s === "on" || s === "true" || s === "1";
+      }
+      return false;
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  // =========================
   // 指定された範囲 [minDayStr, maxDayStr] の中からランダムな YYYYMMDD を返す
   // =========================
   function getRandomDayStringBetween(minDayStr, maxDayStr) {
@@ -274,6 +333,48 @@
     var idx = info.idx;
     var part = info.part || "a";
 
+    // パス先頭部分（_build_cscs_ より前）を抽出する
+    var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
+    var prefix = prefixMatch ? prefixMatch[1] : "";
+
+    // ---- O.D.O.A モード時：計測済みの問題をスキップして「未計測の Aパート」へ進む ----
+    if (isOdoaModeOn()) {
+      var safety = 0;
+      var currentDay = day;
+      var currentIdx = idx;
+
+      // 「現在の次の問題」から順にスキャンして、未計測の qid を探す
+      // ・1日最大30問 × 90日程度を想定して safety 上限は十分大きめ（3000）にしておく
+      while (safety < 3000) {
+        currentIdx += 1;
+        if (currentIdx > 30) {
+          currentIdx = 1;
+          currentDay = addDaysToDayString(currentDay, 1);
+          if (!currentDay) {
+            break;
+          }
+        }
+
+        // データセットの最大日を超えたら打ち切り
+        if (currentDay > RANDOM_MAX_DAY) {
+          break;
+        }
+
+        var qid = buildQidFromDayAndIdx(currentDay, currentIdx);
+        if (!isQuestionMeasuredByQid(qid)) {
+          var nextNum3Odoa = String(currentIdx).padStart(3, "0");
+          var nextPathOdoa = prefix + "_build_cscs_" + currentDay + "/slides/q" + nextNum3Odoa + "_a.html";
+          return nextPathOdoa;
+        }
+
+        safety += 1;
+      }
+
+      // 未計測問題が見つからなければ自動送りはしない
+      return null;
+    }
+
+    // ---- 通常モード（ODOA OFF）の挙動は従来通り ----
     if (part === "a") {
       // ---- Aパートの場合 ----
 
@@ -292,8 +393,8 @@
           return null;
         }
         // 先頭部分（ルートパス）を抽出し、次の日付のパスにすげ替え
-        var prefix = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
-        var nextPath2 = prefix + "_build_cscs_" + nextDay + "/slides/q001_a.html";
+        var prefixA = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
+        var nextPath2 = prefixA + "_build_cscs_" + nextDay + "/slides/q001_a.html";
         return nextPath2;
       }
 
@@ -343,6 +444,42 @@
     var currentPath = path;
     var candidatePath = currentPath;
     var safety = 0; // 無限ループ防止
+
+    // ---- O.D.O.A モード時：未計測問題だけからランダムに選ぶ ----
+    if (isOdoaModeOn()) {
+      // 最大 3000 回まで試行し、それでも見つからなければあきらめる
+      while (safety < 3000) {
+        var randDayOdoa = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
+        if (!randDayOdoa) {
+          break;
+        }
+        var randIdxOdoa = Math.floor(Math.random() * 30) + 1; // 1〜30
+        var qidOdoa = buildQidFromDayAndIdx(randDayOdoa, randIdxOdoa);
+
+        // 計測済みはスキップ
+        if (isQuestionMeasuredByQid(qidOdoa)) {
+          safety += 1;
+          continue;
+        }
+
+        var randNum3Odoa = String(randIdxOdoa).padStart(3, "0");
+        candidatePath = prefix + "_build_cscs_" + randDayOdoa + "/slides/q" + randNum3Odoa + "_a.html";
+
+        // 現在のURLと同じでなければ採用
+        if (candidatePath !== currentPath) {
+          return candidatePath;
+        }
+
+        safety += 1;
+      }
+
+      // 未計測問題が見つからなければ自動送りしない
+      return null;
+    }
+
+    // ---- 通常モード（ODOA OFF）：従来通り「今と違うランダムな問題」へ ----
+    safety = 0;
+    candidatePath = currentPath;
 
     // 「今の問題と同じ URL にならない」ランダムなパスを、最大100回トライする
     while (candidatePath === currentPath && safety < 100) {
