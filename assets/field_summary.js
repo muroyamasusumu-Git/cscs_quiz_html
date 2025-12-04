@@ -82,7 +82,8 @@
     }
 
     .cscs-star-meter-fill-total {
-        background: linear-gradient(90deg, rgba(102, 255, 178, 0.95), rgba(255, 255, 255, 0.95));
+        /* ⭐️と同じ黄色グラデーションに統一 */
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
     }
 
     /* 分野ゲージ用 内側バー（黄色グラデーション） */
@@ -601,8 +602,18 @@
       targetNum = 0;
     }
 
-    // 今日の 3連続正解ユニーク数を localStorage から読み込む
-    starTodayCount = loadTodayStreak3CountFromLocal();
+    // 今日の 3連続正解ユニーク数を SYNC (streak3Today.unique) から取得
+    //  - loadStarFieldCountsStrict() 内で既に取得済みの starTodayCountFromSync を参照する
+    //  - ここではその値をそのまま使用し、localStorage は一切参照しない
+    starTodayCount = Number(starTodayCountFromSync);
+    if (!Number.isFinite(starTodayCount) || starTodayCount < 0) {
+      starTodayCount = 0;
+    }
+
+    // 確認ログ（SYNC から読み出した今日のユニーク数）
+    console.log("field_summary.js: starTodayCount loaded from SYNC.streak3Today.unique", {
+      starTodayCount: starTodayCount
+    });
 
     // 今日の達成率（本日の獲得数 / 本日の目標数）
     var todayPercent = 0;
