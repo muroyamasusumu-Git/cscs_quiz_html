@@ -526,7 +526,27 @@
     // 全日付リスト（ここも nav_list 内で固定）
     var allDays = buildDayArrayForSummary("20250926", "20251224");
     var TOTAL_QUESTIONS_PER_DAY = 30;
-    var totalQuestionsAll = allDays.length * TOTAL_QUESTIONS_PER_DAY;
+
+    // ★総問題数
+    //   - デフォルト : allDays.length * 30
+    //   - ただし SYNC の global.totalQuestions があればそちらを優先して採用
+    var totalQuestionsAll = 0;
+    var syncTotalQuestions = null;
+    try {
+      if (syncRoot && typeof syncRoot === "object" && syncRoot.global && typeof syncRoot.global === "object") {
+        var tqRaw = syncRoot.global.totalQuestions;
+        if (typeof tqRaw === "number" && Number.isFinite(tqRaw) && tqRaw > 0) {
+          syncTotalQuestions = tqRaw;
+        }
+      }
+    } catch (_){
+      syncTotalQuestions = null;
+    }
+    if (syncTotalQuestions !== null) {
+      totalQuestionsAll = syncTotalQuestions;
+    } else {
+      totalQuestionsAll = allDays.length * TOTAL_QUESTIONS_PER_DAY;
+    }
 
     // ★ 獲得済（3連続正解1回以上）の集計（問題単位/日単位）
     var starQuestionCount = 0;  // 「★付き問題」の総数
