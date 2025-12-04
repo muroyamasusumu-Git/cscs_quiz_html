@@ -170,6 +170,35 @@ margin: 0 5px 0 0;
 }
 
 
+/* ▼ explain_menu 専用スタイル（他へ影響しない設計） ▼ */
+
+.explain_menu {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;  /* 横のすき間 */
+}
+
+/* メニュー内の2つの子 div を横並び用に調整 */
+.explain_menu > div {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 中のリンク文字を白に統一 */
+.explain_menu a {
+  color: #ffffff !important;
+  text-decoration: underline !important;
+}
+
+/* deep_dive_inline.js が付ける強制 inline style を無効化 */
+#cscs-consistency-explain-link-wrapper {
+  margin-top: 0 !important;
+}
+
 
 
 .explain {
