@@ -328,9 +328,33 @@
         }
       }
 
-      //「2700問全てを★1回以上とる」ために必要な1日あたりの目標数を計算
+      //「全問題を★1回以上とる」ために必要な1日あたりの目標数を計算
       var targetPerDay = 0;
-      var TOTAL_Q = 2700;
+
+      // ★ 総問題数の決定:
+      //   - まず SYNC の root.global.totalQuestions（number, >0）を最優先
+      //   - 不正または存在しない場合のみ DUMMY_TOTAL を暫定使用
+      var TOTAL_Q = 0;
+      var totalFromSync = null;
+      try {
+        if (root && typeof root === "object" && root.global && typeof root.global === "object") {
+          var tRaw = root.global.totalQuestions;
+          if (typeof tRaw === "number" && Number.isFinite(tRaw) && tRaw > 0) {
+            totalFromSync = tRaw;
+          }
+        }
+      } catch (_e) {
+        totalFromSync = null;
+      }
+      if (totalFromSync !== null) {
+        TOTAL_Q = totalFromSync;
+      } else {
+        TOTAL_Q = DUMMY_TOTAL;
+      }
+
+      // モジュール全体で参照できるように保持
+      totalQuestionsGlobal = TOTAL_Q;
+
       if (remainingDays > 0) {
         var remainingStar = TOTAL_Q - totalStarQ;
         if (remainingStar < 0) {
@@ -501,6 +525,11 @@
   // SYNC (/api/sync/state) をソースとした「未正解/未回答」の集計結果
   var unsolvedCountFromSync = 0;       // SYNC上での「未正解問題数」
   var unansweredCountFromSync = 0;     // SYNC上での「未回答問題数」
+
+  // CSCS 全体の総問題数
+  // - 通常は SYNC の root.global.totalQuestions を採用
+  // - 取得できなかった場合のみ DUMMY_TOTAL を暫定使用
+  var totalQuestionsGlobal = DUMMY_TOTAL;
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -685,7 +714,10 @@
 
     // 全体の達成率（★獲得済み問題数 / 全体問題数）
     var totalPercent = 0;
-    var totalQuestions = DUMMY_TOTAL;
+    var totalQuestions = Number(totalQuestionsGlobal || 0);
+    if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+      totalQuestions = 0;
+    }
     if (totalQuestions > 0) {
       totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
       if (!Number.isFinite(totalPercent) || totalPercent < 0) {
