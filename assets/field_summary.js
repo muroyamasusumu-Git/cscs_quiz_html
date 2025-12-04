@@ -64,7 +64,7 @@
         display: inline-block;
         flex: 1 1 auto;
         width: auto;
-        min-width: 60px;
+        min-width: 30px;
         max-width: 220px;
         height: 8px;
         margin-left: 4px;
