@@ -80,6 +80,45 @@
     return n;
   }
 
+  // ===== 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得 =====
+  async function getCurrentStreakLenFromSync(qid) {
+    if (!qid) {
+      return 0;
+    }
+
+    try {
+      var res = await fetch("/api/sync/state", { cache: "no-store" });
+      if (!res.ok) {
+        console.error("correct_star.js: /api/sync/state 取得失敗(リーチ判定):", res.status);
+        return 0;
+      }
+
+      var json = await res.json();
+      var root = json.data || json;
+
+      if (!root.streakLen || typeof root.streakLen !== "object") {
+        console.warn("correct_star.js: SYNC に streakLen がありません(リーチ判定用)");
+        return 0;
+      }
+
+      var lenRaw = root.streakLen[qid];
+      var len = Number(lenRaw || 0);
+      if (!Number.isFinite(len) || len < 0) {
+        len = 0;
+      }
+
+      console.log("correct_star.js: SYNC streakLen 読み取り成功", {
+        qid: qid,
+        streakLen: len
+      });
+
+      return len;
+    } catch (e) {
+      console.error("correct_star.js: streakLen SYNC 読み取り中に例外:", e);
+      return 0;
+    }
+  }
+
   // ===== 3連続正解回数 → スター絵文字 変換ヘルパー =====
   function getStarSymbolFromStreakCount(count) {
     var n = Number(count || 0);
@@ -108,30 +147,65 @@
   }
 
   // ===== スター表示の更新 =====
-  function updateCorrectStar() {
+  async function updateCorrectStar() {
     var qid = getCurrentQid();
     var starElement = document.querySelector(".qno .correct_star");
 
     if (!starElement) {
       return;
     }
+    if (!qid) {
+      console.warn("correct_star.js: qid を取得できなかったためスター表示を更新できませんでした");
+      return;
+    }
 
-    // 3連続正解達成回数
+    // 3連続正解達成回数（累積）
     var count = getStreak3Count(qid);
 
-    // 共通ヘルパーで ⭐️/🌟/💫 を決定
-    var symbol = getStarSymbolFromStreakCount(count);
+    // 3連続正解の累積回数に応じた基本シンボル（⭐️/🌟/💫）
+    var symbolFromTotal = getStarSymbolFromStreakCount(count);
 
-    // テキストは常に共通ルールに従う
-    starElement.textContent = symbol;
+    // 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得
+    var currentStreakLen = 0;
+    if (count < 1) {
+      currentStreakLen = await getCurrentStreakLenFromSync(qid);
+    }
+
+    var finalSymbol = symbolFromTotal;
+    var state = "off";
 
     if (count >= 1) {
-      // 1回以上達成時は ON
-      starElement.setAttribute("data-star-state", "on");
+      // 一度でも3連続正解を達成していれば、累積シンボルをそのまま表示
+      finalSymbol = symbolFromTotal;
+      state = "on";
     } else {
-      // 未達成時は OFF（CSS 側で非表示扱いにする想定）
-      starElement.setAttribute("data-star-state", "off");
+      // まだ3連続正解は達成していないので、
+      // 現在の連続正解数に応じて ⚡️ / ✨ / ⭐️ を切り替える
+      if (currentStreakLen >= 2) {
+        // リーチ⚡️（2連続正解中）
+        finalSymbol = "⚡️";
+        state = "on";
+      } else if (currentStreakLen === 1) {
+        // あと1回でリーチ✨（1連続正解中）
+        finalSymbol = "✨";
+        state = "on";
+      } else {
+        // 連続正解も無い場合は従来どおりの ⭐️ + OFF
+        finalSymbol = "⭐️";
+        state = "off";
+      }
     }
+
+    starElement.textContent = finalSymbol;
+    starElement.setAttribute("data-star-state", state);
+
+    console.log("correct_star.js: スター表示を更新しました", {
+      qid: qid,
+      streak3Total: count,
+      currentStreakLen: currentStreakLen,
+      finalSymbol: finalSymbol,
+      dataStarState: state
+    });
   }
 
   // ===== 初期化 =====
