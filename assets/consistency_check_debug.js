@@ -363,12 +363,17 @@
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
 
-    // ★ root の中に入れる。なければ body にフォールバック。
-    var root = document.getElementById("root");
-    if (root) {
-      root.appendChild(div);
+    // ★ .wrap の末端に入れる。なければ #root、その次に body にフォールバック。
+    var wrap = document.querySelector(".wrap");
+    if (wrap) {
+      wrap.appendChild(div);
     } else {
-      document.body.appendChild(div);
+      var root = document.getElementById("root");
+      if (root) {
+        root.appendChild(div);
+      } else {
+        document.body.appendChild(div);
+      }
     }
 
     return div;
