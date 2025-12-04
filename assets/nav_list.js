@@ -1094,33 +1094,32 @@
       const qid = day + "-" + n3;
       const qidJp = toJpDateQid(day, n3);
 
+      // SYNCから、その問題の「現在のストリーク長 (0〜3)」を取得
+      const streakLenSync =
+        syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
+          ? Number(syncRoot.streakLen[qid] || 0)
+          : 0;
+
       // SYNCから、その問題の「累積3連続正解回数」を取得
       const streakTotalSync =
         syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
 
-      // ランクシンボル（⭐️/🌟/💫） or まだなし
+      // ランクシンボル（⭐️/🌟/💫/⚡️） or まだなし
       let streakMark = "—";
-      if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-        var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
+
+      // 「⭐️未獲得かつ 2連続正解中」のときは ⚡️ を表示
+      if (streakTotalSync === 0 && streakLenSync === 2) {
+        streakMark = "⚡️";
+      } else if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
         if (streakTotalSync > 0) {
+          var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
           streakMark = starSymbol || "⭐️";
         }
       }
 
-      // SYNCから、その問題の「現在のストリーク長 (0〜3)」を取得
-      const streakLenSync =
-        syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
-          ? Number(syncRoot.streakLen[qid] || 0)
-          : 0;
       const streakProgress = "(" + streakLenSync + "/3)";
-
-      // ⭐️未獲得 かつ 2連続正解中 のときは「リーチ⚡️」扱いにする
-      // ・streakTotalSync === 0   → まだ3連続正解を一度も達成していない（⭐️未獲得）
-      // ・streakLenSync === 2     → 現在 2 連続正解中
-      const isStarCleared = streakTotalSync > 0;
-      const isTwoStreakReach = !isStarCleared && streakLenSync === 2;
 
       // 整合性マーク（◎/○/△/×）を取得
       var consistencyInfo = getConsistencyInfoFromSync(day, n3, syncRoot);
@@ -1152,12 +1151,7 @@
 
       // 問題文の冒頭だけを短くスニペットとして表示
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
-
-      // ⭐️未獲得かつ2連続正解中のときは、1行目スニペットの先頭に⚡️を付与
-      let line1Text = snippet;
-      if (isTwoStreakReach) {
-        line1Text = "⚡️" + snippet;
-      }
+      const line1Text = snippet;
 
       // レベル表記（"Level 2" → "Lv2" のように整形）
       let rawLevel = q.Level || "—";
