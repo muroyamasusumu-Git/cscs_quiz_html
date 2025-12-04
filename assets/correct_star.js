@@ -221,16 +221,10 @@
   // ===== 初期化 =====
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
-      setTimeout(function () {
-        updateCorrectStar();
-        console.log("correct_star.js: 初期スター更新(遅延)を実行しました (DOMContentLoaded)");
-      }, 500);
+      updateCorrectStar();
     });
   } else {
-    setTimeout(function () {
-      updateCorrectStar();
-      console.log("correct_star.js: 初期スター更新(遅延)を実行しました (readyState=" + document.readyState + ")");
-    }, 500);
+    updateCorrectStar();
   }
 
   // SYNC 後に外部から再評価できるように公開
