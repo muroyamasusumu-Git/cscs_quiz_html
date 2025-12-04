@@ -30,6 +30,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     streak3: {},
     streakLen: {},
     consistency_status: {},
+    // グローバルメタ情報（総問題数など）を保持する領域
+    global: {},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
     odoa_mode: "off",
     // ★ここでは streak3Today を追加しない（消失確認のため上書き禁止）
@@ -47,6 +49,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
+  if (!out.global || typeof out.global !== "object") out.global = {};
 
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
   const hasOdoaMode = Object.prototype.hasOwnProperty.call(out, "odoa_mode");
@@ -159,6 +162,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
     console.log("[SYNC/state] hasOncePerDayToday   :", hasOncePerDayProp);
     console.log("[SYNC/state] hasOdoaMode          :", hasOdoaModePropForLog);
+
+    const hasGlobal = !!out.global && typeof out.global === "object";
+    const totalQuestions =
+      hasGlobal && typeof (out.global as any).totalQuestions === "number"
+        ? (out.global as any).totalQuestions
+        : null;
+    console.log("[SYNC/state] hasGlobal            :", hasGlobal);
+    console.log("[SYNC/state] global.totalQuestions:", totalQuestions);
 
     console.log("[SYNC/state] === onRequestGet END ===");
     console.log("====================================================");
