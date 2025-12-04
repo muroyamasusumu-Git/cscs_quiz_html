@@ -689,16 +689,23 @@
           toggleLink.addEventListener("click", consistencyToggleClickHandler);
         }
 
-        // ★ 解説ブロック (<div class="explain">) 末尾にも同じテキストリンクを出す
+        // ★ 解説ブロック内のメニュー (<div class="explain_menu">) 末尾にも同じテキストリンクを出す
         var explainDiv = document.querySelector(".explain");
         if (explainDiv) {
+          var explainMenu = explainDiv.querySelector(".explain_menu");
+          var parentForExplainLink = explainMenu || explainDiv;
+
           var explainWrapper = document.getElementById("cscs-consistency-explain-link-wrapper");
           if (!explainWrapper) {
             explainWrapper = document.createElement("div");
             explainWrapper.id = "cscs-consistency-explain-link-wrapper";
             explainWrapper.style.marginTop = "12px";
-            explainDiv.appendChild(explainWrapper);
+            parentForExplainLink.appendChild(explainWrapper);
+          } else if (explainWrapper.parentNode !== parentForExplainLink) {
+            // 既に存在していても、親が違う場合はメニューの末尾に移動
+            parentForExplainLink.appendChild(explainWrapper);
           }
+
           explainWrapper.innerHTML = '<a href="#" id="cscs-consistency-toggle-link-explain">' + linkText + "</a>";
           var explainLink = document.getElementById("cscs-consistency-toggle-link-explain");
           if (explainLink) {
