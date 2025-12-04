@@ -732,7 +732,7 @@
 
     // 総進捗：0.07%（状況:余裕）
     html += "<span class=\"cscs-star-section-compact\">";
-    html += "総進捗：";
+    html += "／総進捗：";
     html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
     html += "<span class=\"cscs-star-mood\">(状況:" + moodText + ")</span>";
     html += "<span class=\"cscs-star-meter\">";
