@@ -34,6 +34,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streak3: {},
       streakLen: {},
       consistency_status: {},
+      // グローバルメタ情報（総問題数など）を保持する領域
+      global: {},
       // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
       odoa_mode: "off",
       // ここでは初期値として streak3Today / oncePerDayToday を用意する（「無からの初回保存」を許可）
@@ -53,6 +55,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
   if (!(server as any).oncePerDayToday || typeof (server as any).oncePerDayToday !== "object") {
     (server as any).oncePerDayToday = { day: 0, results: {} };
+  }
+  if (!(server as any).global || typeof (server as any).global !== "object") {
+    (server as any).global = {};
   }
 
   // O.D.O.A Mode が存在しない or 不正な場合は "off" で補完しておく
@@ -186,6 +191,38 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       continue;
     }
     server.consistency_status[qid] = payload;
+  }
+
+  // global.totalQuestions: 総問題数の更新
+  // - delta.global.totalQuestions に「正の有限数」が来ている場合のみ採用
+  // - それ以外（未指定 / 0 以下 / NaN）は無視してサーバー状態を変えない
+  try {
+    const globalDelta = (delta as any).global;
+    if (globalDelta && typeof globalDelta === "object") {
+      const rawTq = (globalDelta as any).totalQuestions;
+      const n = Number(rawTq);
+      if (Number.isFinite(n) && n > 0) {
+        if (!(server as any).global || typeof (server as any).global !== "object") {
+          (server as any).global = {};
+        }
+        (server as any).global.totalQuestions = n;
+        try {
+          console.log("[SYNC/merge] (2-g) global.totalQuestions 更新:", {
+            totalQuestions: n
+          });
+        } catch (_eLog) {}
+      } else if (rawTq !== undefined) {
+        try {
+          console.warn("[SYNC/merge] (2-g-warn) 不正な totalQuestions が送信されたため無視します:", {
+            raw: rawTq
+          });
+        } catch (_eWarn) {}
+      }
+    }
+  } catch (_e) {
+    try {
+      console.warn("[SYNC/merge] (2-g-err) global.totalQuestions 処理中にエラーが発生しました");
+    } catch (_e2) {}
   }
 
   // - streak3TodayDelta が送られてきた場合のみ処理
