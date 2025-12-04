@@ -944,6 +944,7 @@
 
     console.log("field_summary.js: B-page detected, scheduling delayed refresh (500ms).");
 
+    // ▼▼▼ ここが遅延時間（ms）。500 → 1000 にすると「1秒後」に実行される ▼▼▼
     setTimeout(function () {
       // 既存のフィールドサマリーパネルを削除してから、再描画する
       var panel = document.getElementById("cscs-field-star-summary");
@@ -965,7 +966,7 @@
 
       console.log("field_summary.js: B-page delayed refresh executing now (reloading SYNC state).");
       renderFieldStarSummary();
-    }, 500);
+    }, 1000);  // ← ★ ここを 1000 に変更（1秒後に refresh）
   }
 
   // =========================
