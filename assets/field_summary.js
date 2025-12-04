@@ -933,13 +933,52 @@
     wrapContainer.insertAdjacentElement("afterend", panel);
   }
 
+  // Bパートで表示されたときに、0.5秒後に一度だけ field_summary を再計算・再描画する
+  function scheduleBPageFieldSummaryRefresh() {
+    var path = location.pathname || "";
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+    if (!m) {
+      // Bパートでないページでは何もしない
+      return;
+    }
+
+    console.log("field_summary.js: B-page detected, scheduling delayed refresh (500ms).");
+
+    setTimeout(function () {
+      // 既存のフィールドサマリーパネルを削除してから、再描画する
+      var panel = document.getElementById("cscs-field-star-summary");
+      if (panel && panel.parentNode) {
+        panel.parentNode.removeChild(panel);
+      }
+
+      // SYNC由来の集計状態を一度リセットしてから、再度 /api/sync/state から読み直す
+      starFieldCounts = null;
+      starTotalSolvedQuestions = 0;
+      starRemainingDays = 0;
+      starTargetPerDay = 0;
+      starReachCountFromSync = 0;
+      if (typeof starPreReachCountFromSync !== "undefined") {
+        starPreReachCountFromSync = 0;
+      }
+      unsolvedCountFromSync = 0;
+      unansweredCountFromSync = 0;
+
+      console.log("field_summary.js: B-page delayed refresh executing now (reloading SYNC state).");
+      renderFieldStarSummary();
+    }, 500);
+  }
+
   // =========================
   // 8. DOM読み込み完了タイミングで実行
   // =========================
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", renderFieldStarSummary);
+    document.addEventListener("DOMContentLoaded", function () {
+      renderFieldStarSummary();
+      scheduleBPageFieldSummaryRefresh();
+    });
   } else {
     renderFieldStarSummary();
+    scheduleBPageFieldSummaryRefresh();
   }
 
 })();
