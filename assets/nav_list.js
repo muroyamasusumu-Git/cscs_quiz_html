@@ -1116,6 +1116,12 @@
           : 0;
       const streakProgress = "(" + streakLenSync + "/3)";
 
+      // ⭐️未獲得 かつ 2連続正解中 のときは「リーチ⚡️」扱いにする
+      // ・streakTotalSync === 0   → まだ3連続正解を一度も達成していない（⭐️未獲得）
+      // ・streakLenSync === 2     → 現在 2 連続正解中
+      const isStarCleared = streakTotalSync > 0;
+      const isTwoStreakReach = !isStarCleared && streakLenSync === 2;
+
       // 整合性マーク（◎/○/△/×）を取得
       var consistencyInfo = getConsistencyInfoFromSync(day, n3, syncRoot);
       const consistencyRawSync = consistencyInfo.statusMark;
@@ -1146,7 +1152,12 @@
 
       // 問題文の冒頭だけを短くスニペットとして表示
       const snippet = (q.Question || "").slice(0, 18) + ((q.Question || "").length > 18 ? "…" : "");
-      const line1Text = snippet;
+
+      // ⭐️未獲得かつ2連続正解中のときは、1行目スニペットの先頭に⚡️を付与
+      let line1Text = snippet;
+      if (isTwoStreakReach) {
+        line1Text = "⚡️" + snippet;
+      }
 
       // レベル表記（"Level 2" → "Lv2" のように整形）
       let rawLevel = q.Level || "—";
