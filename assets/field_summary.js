@@ -602,25 +602,8 @@
       targetNum = 0;
     }
 
-    // 今日の 3連続正解ユニーク数を SYNC から読み込む（フォールバックなし）
-    (function () {
-      var state = window.__cscs_sync_state || null;
-      var cnt = 0;
-
-      if (!state || !state.streak3Today) {
-        console.log("field_summary.js: SYNC streak3Today が未ロード（HUD を一度更新してください）");
-      } else {
-        var s3 = state.streak3Today;
-        if (typeof s3.unique === "number" && Number.isFinite(s3.unique) && s3.unique >= 0) {
-          cnt = s3.unique;
-          console.log("field_summary.js: SYNC streak3Today.unique を読み込み成功", { unique: cnt });
-        } else {
-          console.log("field_summary.js: SYNC streak3Today.unique が数値ではありません", s3);
-        }
-      }
-
-      starTodayCount = cnt;
-    })();
+    // 今日の 3連続正解ユニーク数を localStorage から読み込む
+    starTodayCount = loadTodayStreak3CountFromLocal();
 
     // 今日の達成率（本日の獲得数 / 本日の目標数）
     var todayPercent = 0;
