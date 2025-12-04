@@ -635,8 +635,11 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
   }
 
   function boot(){
-    const explainRoot = findExplanationRoot();
-    if(!explainRoot) return;
+    let explainRoot = document.querySelector(".explain");
+    if (!explainRoot) {
+      explainRoot = findExplanationRoot();
+    }
+    if (!explainRoot) return;
 
     // ★ Bパートの pre-wrap を解除（深掘りで空行が出るのを防ぐ）
     try {
