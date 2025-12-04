@@ -34,6 +34,123 @@
   var RANDOM_MAX_DAY = "20251224";
 
   // =========================
+  // SYNC / ODOA / oncePerDayToday 用ヘルパー
+  // =========================
+
+  var SYNC_STATE_ENDPOINT = "/api/sync/state";
+
+  // このファイル内だけで完結する SYNC 状態キャッシュ
+  var SYNC_STATE = {
+    loaded: false,
+    loading: false,
+    json: null
+  };
+
+  // ログ用ヘルパー（このファイル専用のプレフィックス）
+  function syncLog() {
+    try {
+      var args = Array.prototype.slice.call(arguments);
+      args.unshift("[A:auto-next]");
+      console.log.apply(console, args);
+    } catch (_e) {}
+  }
+
+  // ODOA モードの正規化（"on" / "off"）
+  function normalizeOdoaMode(raw) {
+    if (raw === "on" || raw === "off") {
+      return raw;
+    }
+    return "off";
+  }
+
+  // /api/sync/state から oncePerDayToday / odoa_mode を取得する共通ヘルパー
+  // - 初回のみ実際に fetch し、2回目以降はキャッシュ状態を返す
+  // - 情報源は JSON のみ。localStorage などには絶対にフォールバックしない。
+  async function ensureSyncStateLoaded() {
+    if (SYNC_STATE.loaded) {
+      return SYNC_STATE.json || {};
+    }
+    if (SYNC_STATE.loading) {
+      while (SYNC_STATE.loading && !SYNC_STATE.loaded) {
+        await new Promise(function (resolve) {
+          setTimeout(resolve, 10);
+        });
+      }
+      return SYNC_STATE.json || {};
+    }
+
+    SYNC_STATE.loading = true;
+    try {
+      var res = await fetch(SYNC_STATE_ENDPOINT, { cache: "no-store" });
+      var json = await res.json();
+      SYNC_STATE.json = json || {};
+      SYNC_STATE.loaded = true;
+
+      // ODOA モードをグローバルに反映（"on"/"off" 以外は "off"）
+      if (typeof window.CSCS_ODOA_MODE !== "string") {
+        window.CSCS_ODOA_MODE = "off";
+      }
+      if (json && typeof json.odoa_mode === "string") {
+        window.CSCS_ODOA_MODE = normalizeOdoaMode(json.odoa_mode);
+      }
+
+      syncLog("SYNC state loaded.", {
+        odoa_mode: window.CSCS_ODOA_MODE,
+        hasOncePerDayToday: !!(json && json.oncePerDayToday)
+      });
+
+      return SYNC_STATE.json;
+    } catch (e) {
+      syncLog("SYNC state load failed:", String(e));
+      SYNC_STATE.json = {};
+      SYNC_STATE.loaded = true;
+      return SYNC_STATE.json;
+    } finally {
+      SYNC_STATE.loading = false;
+    }
+  }
+
+  // 現在の ODOA モードを "on" / "off" で取得
+  async function getCurrentOdoaMode() {
+    await ensureSyncStateLoaded();
+    if (typeof window.CSCS_ODOA_MODE !== "string") {
+      return "off";
+    }
+    return normalizeOdoaMode(window.CSCS_ODOA_MODE);
+  }
+
+  // oncePerDayToday.results 内に qid が存在するかどうか（true = 今日すでに回答済み）
+  async function isOncePerDayAnswered(qid) {
+    var json = await ensureSyncStateLoaded();
+    var src = json && json.oncePerDayToday;
+    if (!src || typeof src !== "object") {
+      syncLog("oncePerDayToday is missing or not object.", { qid: qid });
+      return false;
+    }
+    var results = src.results;
+    if (!results || typeof results !== "object") {
+      syncLog("oncePerDayToday.results is missing or not object.", { qid: qid });
+      return false;
+    }
+    var answered = Object.prototype.hasOwnProperty.call(results, qid);
+    syncLog("oncePerDayToday answered check.", {
+      qid: qid,
+      hasEntry: answered,
+      resultsKeysLength: Object.keys(results).length
+    });
+    return !!answered;
+  }
+
+  // 必要であれば他スクリプトからも再利用できるように公開
+  window.CSCS_SYNC_COMMON = window.CSCS_SYNC_COMMON || {};
+  if (!window.CSCS_SYNC_COMMON.getCurrentOdoaMode) {
+    window.CSCS_SYNC_COMMON.getCurrentOdoaMode = getCurrentOdoaMode;
+  }
+  if (!window.CSCS_SYNC_COMMON.isOncePerDayAnswered) {
+    window.CSCS_SYNC_COMMON.isOncePerDayAnswered = isOncePerDayAnswered;
+  }
+
+  // =========================
   // グローバル状態（この JS 内だけで使う）
   // =========================
   var autoEnabled = loadAutoAdvanceEnabled();      // 自動送りが有効かどうか
@@ -217,108 +334,6 @@
   }
 
   // =========================
-  // SYNC 状態 / ODOA 判定ヘルパー
-  // =========================
-
-  var SYNC_STATE_ENDPOINT = "/api/sync/state";
-  var SYNC_STATE_FOR_AUTO_NEXT = null;
-  var SYNC_STATE_LOADED = false;
-  var SYNC_STATE_LOAD_ERROR = false;
-
-  // day(YYYYMMDD) と idx(1〜30) から qid "YYYYMMDD-NNN" を生成
-  function buildQidFromDayAndIdx(dayStr, idx) {
-    var num3 = String(idx).padStart(3, "0");
-    return dayStr + "-" + num3;
-  }
-
-  // O.D.O.A モードが ON かどうかを判定
-  function isOdoaModeOn() {
-    try {
-      var v = window.CSCS_ODOA_MODE;
-      if (!v) {
-        return false;
-      }
-      if (v === true) {
-        return true;
-      }
-      if (typeof v === "string") {
-        var s = v.toLowerCase();
-        return s === "on" || s === "true" || s === "1";
-      }
-      return false;
-    } catch (_e) {
-      return false;
-    }
-  }
-
-  // /api/sync/state から SYNC 状態を読み込む
-  // 成功/失敗はコンソールにログする
-  function loadSyncStateForAutoNext() {
-    if (SYNC_STATE_LOADED || SYNC_STATE_LOAD_ERROR) {
-      return Promise.resolve(SYNC_STATE_FOR_AUTO_NEXT);
-    }
-    var base = location.origin || "";
-    var url = base + SYNC_STATE_ENDPOINT;
-    console.log("[a_auto_next] request SYNC state for auto-next:", url);
-    return fetch(url, { cache: "no-store" }).then(function (res) {
-      if (!res || !res.ok) {
-        throw new Error("HTTP status " + (res && res.status));
-      }
-      return res.json();
-    }).then(function (json) {
-      if (!json || typeof json !== "object") {
-        throw new Error("invalid SYNC json");
-      }
-      SYNC_STATE_FOR_AUTO_NEXT = json;
-      SYNC_STATE_LOADED = true;
-      var qCount = 0;
-      if (json.q && typeof json.q === "object") {
-        try {
-          qCount = Object.keys(json.q).length;
-        } catch (_e) {
-          qCount = 0;
-        }
-      }
-      console.log("[a_auto_next] SYNC state loaded for auto-next.", {
-        hasQ: !!json.q,
-        qCount: qCount
-      });
-      return SYNC_STATE_FOR_AUTO_NEXT;
-    }).catch(function (err) {
-      SYNC_STATE_LOAD_ERROR = true;
-      SYNC_STATE_FOR_AUTO_NEXT = null;
-      console.log("[a_auto_next] SYNC state load failed for auto-next.", String(err));
-      return null;
-    });
-  }
-
-  // SYNC 情報から「この qid が計測済みかどうか」を判定
-  // SYNC の q[qid].correctTotal / wrongTotal を利用
-  function isQuestionMeasuredOnSync(qid) {
-    if (!SYNC_STATE_LOADED) {
-      return false;
-    }
-    if (!SYNC_STATE_FOR_AUTO_NEXT || !SYNC_STATE_FOR_AUTO_NEXT.q) {
-      return false;
-    }
-    var qMap = SYNC_STATE_FOR_AUTO_NEXT.q;
-    var rec = qMap[qid];
-    if (!rec || typeof rec !== "object") {
-      return false;
-    }
-    var c = rec.correctTotal;
-    var w = rec.wrongTotal;
-    if (!Number.isFinite(c) || c < 0) {
-      c = 0;
-    }
-    if (!Number.isFinite(w) || w < 0) {
-      w = 0;
-    }
-    var measured = (c + w) > 0;
-    return measured;
-  }
-
-  // =========================
   // 指定された範囲 [minDayStr, maxDayStr] の中からランダムな YYYYMMDD を返す
   // =========================
   function getRandomDayStringBetween(minDayStr, maxDayStr) {
@@ -376,58 +391,6 @@
     var idx = info.idx;
     var part = info.part || "a";
 
-    // パス先頭部分（_build_cscs_ より前）を抽出する
-    var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
-    var prefix = prefixMatch ? prefixMatch[1] : "";
-
-    // ---- O.D.O.A モード ON かつ SYNC ロード済みのとき：計測済みを飛ばして「次の未計測Aパート」へ ----
-    if (isOdoaModeOn() && SYNC_STATE_LOADED && SYNC_STATE_FOR_AUTO_NEXT && SYNC_STATE_FOR_AUTO_NEXT.q) {
-      var safety = 0;
-      var currentDay = day;
-      var currentIdx = idx;
-
-      console.log("[a_auto_next] ODOA sequential search start.", {
-        fromDay: currentDay,
-        fromIdx: currentIdx
-      });
-
-      // 「現在の次の問題」から順にスキャンして、未計測の qid を探す
-      while (safety < 3000) {
-        currentIdx += 1;
-        if (currentIdx > 30) {
-          currentIdx = 1;
-          currentDay = addDaysToDayString(currentDay, 1);
-          if (!currentDay) {
-            break;
-          }
-        }
-
-        // データセットの最大日を超えたら打ち切り
-        if (currentDay > RANDOM_MAX_DAY) {
-          break;
-        }
-
-        var qid = buildQidFromDayAndIdx(currentDay, currentIdx);
-        var measured = isQuestionMeasuredOnSync(qid);
-
-        if (!measured) {
-          var nextNum3Odoa = String(currentIdx).padStart(3, "0");
-          var nextPathOdoa = prefix + "_build_cscs_" + currentDay + "/slides/q" + nextNum3Odoa + "_a.html";
-          console.log("[a_auto_next] ODOA sequential: next unmeasured found.", {
-            qid: qid,
-            nextUrl: nextPathOdoa
-          });
-          return nextPathOdoa;
-        }
-
-        safety += 1;
-      }
-
-      console.log("[a_auto_next] ODOA sequential: no unmeasured question found. auto-next will stop.");
-      return null;
-    }
-
-    // ---- 通常モード（ODOA OFF または SYNC 未ロード）の挙動：従来通り ----
     if (part === "a") {
       // ---- Aパートの場合 ----
 
@@ -446,8 +409,8 @@
           return null;
         }
         // 先頭部分（ルートパス）を抽出し、次の日付のパスにすげ替え
-        var prefixA = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
-        var nextPath2 = prefixA + "_build_cscs_" + nextDay + "/slides/q001_a.html";
+        var prefix = path.replace(/_build_cscs_\d{8}\/slides\/q\d{3}_a(?:\.html)?$/, "");
+        var nextPath2 = prefix + "_build_cscs_" + nextDay + "/slides/q001_a.html";
         return nextPath2;
       }
 
@@ -498,46 +461,6 @@
     var candidatePath = currentPath;
     var safety = 0; // 無限ループ防止
 
-    // ---- O.D.O.A モード時：SYNC 上で未計測の問題だけからランダムに選ぶ ----
-    if (isOdoaModeOn() && SYNC_STATE_LOADED && SYNC_STATE_FOR_AUTO_NEXT && SYNC_STATE_FOR_AUTO_NEXT.q) {
-      console.log("[a_auto_next] ODOA random search start.");
-      while (safety < 3000) {
-        var randDayOdoa = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
-        if (!randDayOdoa) {
-          break;
-        }
-        var randIdxOdoa = Math.floor(Math.random() * 30) + 1; // 1〜30
-        var qidOdoa = buildQidFromDayAndIdx(randDayOdoa, randIdxOdoa);
-        var measuredOdoa = isQuestionMeasuredOnSync(qidOdoa);
-
-        if (measuredOdoa) {
-          safety += 1;
-          continue;
-        }
-
-        var randNum3Odoa = String(randIdxOdoa).padStart(3, "0");
-        candidatePath = prefix + "_build_cscs_" + randDayOdoa + "/slides/q" + randNum3Odoa + "_a.html";
-
-        if (candidatePath !== currentPath) {
-          console.log("[a_auto_next] ODOA random: next unmeasured found.", {
-            qid: qidOdoa,
-            nextUrl: candidatePath
-          });
-          return candidatePath;
-        }
-
-        safety += 1;
-      }
-
-      console.log("[a_auto_next] ODOA random: no unmeasured question found. auto-next will stop.");
-      return null;
-    }
-
-    // ---- 通常モード（ODOA OFF または SYNC 未ロード）：従来通り ----
-    currentPath = path;
-    candidatePath = currentPath;
-    safety = 0;
-
     // 「今の問題と同じ URL にならない」ランダムなパスを、最大100回トライする
     while (candidatePath === currentPath && safety < 100) {
       var randDay = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
@@ -556,6 +479,130 @@
       return null;
     }
     return candidatePath;
+  }
+
+  // =========================
+  // ODOA モード対応: SYNC / oncePerDayToday を考慮した次の URL 決定
+  // =========================
+  async function buildNextUrlConsideringOdoa() {
+    var info = parseSlideInfo();
+    if (!info) {
+      return null;
+    }
+
+    // ODOA モードを確認（"on" / "off"）
+    var odoaMode = await getCurrentOdoaMode();
+
+    // ODOA OFF の場合は従来ロジックそのまま
+    if (odoaMode !== "on") {
+      if (randomModeEnabled) {
+        return buildRandomNextUrl(info);
+      } else {
+        return buildSequentialNextUrl(info);
+      }
+    }
+
+    // ここから ODOA モード ON の場合のみ、oncePerDayToday を使って「今日すでに計測済みの問題」を除外する
+    var path = String(location.pathname || "");
+    var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
+    var prefix = prefixMatch ? prefixMatch[1] : "";
+
+    // ---- 順番モード（ODOA） ----
+    if (!randomModeEnabled) {
+      var currentDay = info.day;
+      var currentIdx = info.idx;
+      var currentPart = info.part || "a";
+      var safetySeq = 0;
+
+      while (safetySeq < 400) {
+        var nextDay = currentDay;
+        var nextIdx = currentIdx;
+
+        if (currentPart === "a" || currentPart === "b") {
+          if (currentIdx < 30) {
+            nextIdx = currentIdx + 1;
+          } else if (currentIdx === 30) {
+            nextDay = addDaysToDayString(currentDay, 1);
+            if (!nextDay) {
+              return null;
+            }
+            nextIdx = 1;
+          } else {
+            return null;
+          }
+        } else {
+          return null;
+        }
+
+        var nextNum3 = String(nextIdx).padStart(3, "0");
+        var candidateQid = nextDay + "-" + nextNum3;
+        var answered = await isOncePerDayAnswered(candidateQid);
+
+        if (!answered) {
+          var candidatePathSeq =
+            prefix + "_build_cscs_" + nextDay + "/slides/q" + nextNum3 + "_a.html";
+          syncLog("ODOA sequential: choose candidate.", {
+            qid: candidateQid,
+            url: candidatePathSeq
+          });
+          return candidatePathSeq;
+        }
+
+        syncLog("ODOA sequential: skip oncePerDayToday answered qid.", {
+          qid: candidateQid
+        });
+
+        // 次の候補へ進める（今見た候補を「現在位置」とみなす）
+        currentDay = nextDay;
+        currentIdx = nextIdx;
+        currentPart = "a";
+        safetySeq++;
+      }
+
+      syncLog("ODOA sequential: no candidate found within safety limit.");
+      return null;
+    }
+
+    // ---- ランダムモード（ODOA） ----
+    var currentPath = path;
+    var safetyRand = 0;
+
+    while (safetyRand < 200) {
+      var randDay = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
+      if (!randDay) {
+        break;
+      }
+      var randIdx = Math.floor(Math.random() * 30) + 1; // 1〜30
+      var randNum3 = String(randIdx).padStart(3, "0");
+      var candidatePathRand =
+        prefix + "_build_cscs_" + randDay + "/slides/q" + randNum3 + "_a.html";
+
+      // 現在表示中の URL と同じならスキップ
+      if (candidatePathRand === currentPath) {
+        safetyRand++;
+        continue;
+      }
+
+      var candidateQidRand = randDay + "-" + randNum3;
+      var answeredRand = await isOncePerDayAnswered(candidateQidRand);
+
+      if (!answeredRand) {
+        syncLog("ODOA random: choose candidate.", {
+          qid: candidateQidRand,
+          url: candidatePathRand
+        });
+        return candidatePathRand;
+      }
+
+      syncLog("ODOA random: skip oncePerDayToday answered qid.", {
+        qid: candidateQidRand
+      });
+
+      safetyRand++;
+    }
+
+    syncLog("ODOA random: no candidate found within safety limit.");
+    return null;
   }
 
   // =========================
@@ -619,8 +666,16 @@
       btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
 
       if (autoEnabled) {
-        // ON にした瞬間からカウントダウンを開始
-        startAutoAdvanceCountdown();
+        // ON にした瞬間から、ODOA / oncePerDayToday を考慮した NEXT_URL を再計算してカウントダウン開始
+        (async function () {
+          NEXT_URL = await buildNextUrlConsideringOdoa();
+          if (NEXT_URL) {
+            startAutoAdvanceCountdown();
+          } else {
+            // 遷移候補が無い場合は OFF 表示にしておく
+            cancelAutoAdvanceCountdown(true);
+          }
+        })();
       } else {
         // OFF にしたらカウントダウン停止 & 表示を更新
         cancelAutoAdvanceCountdown(true);
@@ -667,12 +722,14 @@
       cancelAutoAdvanceCountdown(false);
 
       if (autoEnabled) {
-        NEXT_URL = buildNextUrl();
-        if (NEXT_URL) {
-          startAutoAdvanceCountdown();
-        } else {
-          cancelAutoAdvanceCountdown(true);
-        }
+        (async function () {
+          NEXT_URL = await buildNextUrlConsideringOdoa();
+          if (NEXT_URL) {
+            startAutoAdvanceCountdown();
+          } else {
+            cancelAutoAdvanceCountdown(true);
+          }
+        })();
       }
     });
 
@@ -814,9 +871,7 @@
     // 既存カウントダウンを一旦リセット
     cancelAutoAdvanceCountdown(false);
 
-    // 最新の NEXT_URL を計算
-    NEXT_URL = buildNextUrl();
-
+    // NEXT_URL は事前に決めておく想定（ODOA / oncePerDayToday を考慮済み）
     if (!NEXT_URL) {
       // 次 URL を決められない場合は何もしない
       return;
@@ -875,43 +930,31 @@
   // =========================
   // 初期化処理（ページ読み込み完了時）
   // =========================
-  function onReady() {
-    // まず SYNC 状態をロードしてから NEXT_URL を計算
-    loadSyncStateForAutoNext().then(function () {
-      // SYNC ロード成功/失敗にかかわらず、現時点の状態で NEXT_URL を組み立てる
-      NEXT_URL = buildNextUrl();
-
-      if (!NEXT_URL) {
-        console.log("[a_auto_next] onReady: NEXT_URL not found. auto-next will not start.");
-        // 次 URL が無ければフェードインだけやって終了
-        runFadeInIfNeeded();
-        return;
-      }
-
-      console.log("[a_auto_next] onReady: NEXT_URL decided.", {
-        nextUrl: NEXT_URL,
-        autoEnabled: autoEnabled,
-        randomModeEnabled: randomModeEnabled,
-        odoaMode: isOdoaModeOn()
-      });
-
-      // 画面左下の制御ボタン類を作成
-      createAutoNextToggleButton();     // 自動送り ON/OFF
-      createAutoNextModeToggleButton(); // 順番／ランダム
-      createAutoNextDurationButton();   // 待ち時間（秒）
-
-      // 自動送りの状態に応じて挙動を分岐
-      if (autoEnabled) {
-        // ON の場合はカウントダウンを開始
-        startAutoAdvanceCountdown();
-      } else {
-        // OFF の場合はカウントダウン停止表示
-        cancelAutoAdvanceCountdown(true);
-      }
-
-      // フェードイン（必要な場合のみ）
+  async function onReady() {
+    // まず ODOA / oncePerDayToday を考慮した「次の URL」を計算
+    NEXT_URL = await buildNextUrlConsideringOdoa();
+    if (!NEXT_URL) {
+      // 次 URL が無ければフェードインだけやって終了
       runFadeInIfNeeded();
-    });
+      return;
+    }
+
+    // 画面左下の制御ボタン類を作成
+    createAutoNextToggleButton();     // 自動送り ON/OFF
+    createAutoNextModeToggleButton(); // 順番／ランダム
+    createAutoNextDurationButton();   // 待ち時間（秒）
+
+    // 自動送りの状態に応じて挙動を分岐
+    if (autoEnabled) {
+      // ON の場合はカウントダウンを開始
+      startAutoAdvanceCountdown();
+    } else {
+      // OFF の場合はカウントダウン停止表示
+      cancelAutoAdvanceCountdown(true);
+    }
+
+    // フェードイン（必要な場合のみ）
+    runFadeInIfNeeded();
   }
 
   // =========================
