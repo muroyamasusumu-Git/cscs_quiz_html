@@ -681,10 +681,29 @@
         var severityForHeader = titleEl.getAttribute("data-severity-mark") || "";
         var baseLabel = "整合性チェック結果";
         var linkText = "[" + baseLabel + (severityForHeader ? "：" + severityForHeader : "") + (open ? " を閉じる" : " 詳細を見る") + "]";
+
+        // ヘッダー内のリンク
         titleEl.innerHTML = '<a href="#" id="cscs-consistency-toggle-link">' + linkText + "</a>";
         var toggleLink = document.getElementById("cscs-consistency-toggle-link");
         if (toggleLink) {
           toggleLink.addEventListener("click", consistencyToggleClickHandler);
+        }
+
+        // ★ 解説ブロック (<div class="explain">) 末尾にも同じテキストリンクを出す
+        var explainDiv = document.querySelector(".explain");
+        if (explainDiv) {
+          var explainWrapper = document.getElementById("cscs-consistency-explain-link-wrapper");
+          if (!explainWrapper) {
+            explainWrapper = document.createElement("div");
+            explainWrapper.id = "cscs-consistency-explain-link-wrapper";
+            explainWrapper.style.marginTop = "12px";
+            explainDiv.appendChild(explainWrapper);
+          }
+          explainWrapper.innerHTML = '<a href="#" id="cscs-consistency-toggle-link-explain">' + linkText + "</a>";
+          var explainLink = document.getElementById("cscs-consistency-toggle-link-explain");
+          if (explainLink) {
+            explainLink.addEventListener("click", consistencyToggleClickHandler);
+          }
         }
       }
     }
