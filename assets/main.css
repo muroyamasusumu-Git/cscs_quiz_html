@@ -278,8 +278,6 @@ margin-left: 10px;
   /* ★ ここだけいじれば全体サイズを一括調整できる */
   --cc-base-font: 13px;   /* ベースフォントサイズ */
   --cc-font-scale: 1.1;     /* 全体スケール（0.9 や 1.1 などに変える） */
-
-  padding: 0 0 0 1px;
   font-size: calc(var(--cc-base-font) * var(--cc-font-scale));
   color: rgb(238, 238, 238);
     width: 97% !important;
