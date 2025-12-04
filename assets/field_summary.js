@@ -694,7 +694,7 @@
     // ⭐️本日の目標 21個（リーチ⚡️2個）
     html += "<span class=\"cscs-star-main-compact\">";
     html += "⭐️本日の目標 " + String(targetNum) + "個";
-    html += "<span class=\"cscs-star-mood\">(リーチ⚡️" + String(reachCount) + "個)</span>";
+    html += "<span class=\"cscs-star-main\">(リーチ⚡️" + String(reachCount) + "個)</span>";
     html += "</span>";
 
     // 本日の獲得 +4：15%
