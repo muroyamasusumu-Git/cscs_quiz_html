@@ -1106,17 +1106,22 @@
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
 
-      // ランクシンボル（⭐️/🌟/💫/⚡️） or まだなし
+      // ランクシンボル（⭐️/🌟/💫/⚡️/✨） or まだなし
       let streakMark = "—";
 
-      // 「⭐️未獲得かつ 2連続正解中」のときは ⚡️ を表示
-      if (streakTotalSync === 0 && streakLenSync === 2) {
-        streakMark = "⚡️";
-      } else if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-        if (streakTotalSync > 0) {
-          var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
-          streakMark = starSymbol || "⭐️";
+      // ⭐️未獲得（streak3累積0）の場合は、現在のストリーク長で ✨ / ⚡️ を表示
+      if (streakTotalSync === 0) {
+        if (streakLenSync === 2) {
+          // 2連続正解中 → リーチ⚡️
+          streakMark = "⚡️";
+        } else if (streakLenSync === 1) {
+          // 1回正解中 → ✨
+          streakMark = "✨";
         }
+      } else if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
+        // ⭐️獲得済み（streak3累積 > 0）の場合は、従来どおり ⭐️/🌟/💫 を表示
+        var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
+        streakMark = starSymbol || "⭐️";
       }
 
       const streakProgress = "(" + streakLenSync + "/3)";
