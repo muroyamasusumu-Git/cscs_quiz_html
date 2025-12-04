@@ -602,18 +602,25 @@
       targetNum = 0;
     }
 
-    // 今日の 3連続正解ユニーク数を SYNC (streak3Today.unique) から取得
-    //  - loadStarFieldCountsStrict() 内で既に取得済みの starTodayCountFromSync を参照する
-    //  - ここではその値をそのまま使用し、localStorage は一切参照しない
-    starTodayCount = Number(starTodayCountFromSync);
-    if (!Number.isFinite(starTodayCount) || starTodayCount < 0) {
-      starTodayCount = 0;
-    }
+    // 今日の 3連続正解ユニーク数を SYNC から読み込む（フォールバックなし）
+    (function () {
+      var state = window.__cscs_sync_state || null;
+      var cnt = 0;
 
-    // 確認ログ（SYNC から読み出した今日のユニーク数）
-    console.log("field_summary.js: starTodayCount loaded from SYNC.streak3Today.unique", {
-      starTodayCount: starTodayCount
-    });
+      if (!state || !state.streak3Today) {
+        console.log("field_summary.js: SYNC streak3Today が未ロード（HUD を一度更新してください）");
+      } else {
+        var s3 = state.streak3Today;
+        if (typeof s3.unique === "number" && Number.isFinite(s3.unique) && s3.unique >= 0) {
+          cnt = s3.unique;
+          console.log("field_summary.js: SYNC streak3Today.unique を読み込み成功", { unique: cnt });
+        } else {
+          console.log("field_summary.js: SYNC streak3Today.unique が数値ではありません", s3);
+        }
+      }
+
+      starTodayCount = cnt;
+    })();
 
     // 今日の達成率（本日の獲得数 / 本日の目標数）
     var todayPercent = 0;
