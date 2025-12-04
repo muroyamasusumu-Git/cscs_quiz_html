@@ -202,12 +202,6 @@ margin: 0 5px 0 0;
   margin-bottom: 0 !important;
 }
 
-/* 整合性チェックパネルの見出しを非表示にする */
-#cscs-consistency-panel .cc-panel-header-title {
-  display: none !important;
-}
-
-
 .explain {
 font-size: 16px;
 margin: 10px 0 0;
@@ -281,16 +275,13 @@ margin-left: 10px;
   padding: 0 0 0 1px;
   font-size: calc(var(--cc-base-font) * var(--cc-font-scale));
   color: rgb(238, 238, 238);
-  width: 67% !important;
+  width: 100% !important;
 }
 
 /* ヘッダー行とボタン */
 
 #cscs-consistency-panel .cc-panel-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  display: none !important;
 }
 
 #cscs-consistency-panel .cc-panel-header-title {
