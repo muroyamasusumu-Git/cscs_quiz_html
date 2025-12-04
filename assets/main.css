@@ -216,6 +216,11 @@ opacity: 0.5;
   line-height: 1.25;
 }
 
+#dd-inline .dd-body-cause {
+    font-size: 13px !important;
+    line-height: 20px !important;
+}
+
 
 .wrong-inline{
 margin-left: 0;
