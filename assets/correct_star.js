@@ -209,13 +209,38 @@
   }
 
   // ===== 初期化 =====
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
-      updateCorrectStar();
+  // .qno .correct_star が DOM に出現するまで監視し、見つかったタイミングでコールバックを実行する
+  function waitForCorrectStar(callback) {
+    var target = document.body;
+    if (!target) {
+      console.warn("correct_star.js: document.body が存在しないため、スター監視を開始できませんでした");
+      return;
+    }
+
+    var observer = new MutationObserver(function () {
+      var starElement = document.querySelector(".qno .correct_star");
+      if (starElement) {
+        observer.disconnect();
+        console.log("correct_star.js: .qno .correct_star を検出したため updateCorrectStar を実行します");
+        callback();
+      }
     });
-  } else {
-    updateCorrectStar();
+
+    observer.observe(target, { childList: true, subtree: true });
+    console.log("correct_star.js: .qno .correct_star の出現を監視開始");
   }
+
+  function initCorrectStarWatcher() {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () {
+        waitForCorrectStar(updateCorrectStar);
+      });
+    } else {
+      waitForCorrectStar(updateCorrectStar);
+    }
+  }
+
+  initCorrectStarWatcher();
 
   // SYNC 後に外部から再評価できるように公開
   window.cscsUpdateCorrectStar = updateCorrectStar;
