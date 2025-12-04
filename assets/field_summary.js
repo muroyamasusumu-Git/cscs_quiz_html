@@ -30,7 +30,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
+        gap: 1px;
         font-size: 12px;
         margin-bottom: 8px;
         margin-left: -4px;
