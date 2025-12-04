@@ -173,10 +173,12 @@ margin: 0 5px 0 0;
 /* ▼ explain_menu 専用スタイル（他へ影響しない設計） ▼ */
 
 .explain_menu {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 12px !important;  /* 横のすき間 */
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 5px 0;
+    font-size: 14px;
 }
 
 /* メニュー内の2つの子 div を横並び用に調整 */
