@@ -511,26 +511,26 @@
 
     html += '<div class="cc-card cc-card-answer">';
     html += '<div class="cc-card-title">正解の妥当性</div>';
-    html += '<div class="cc-card-main">status: ' + acStatus + "</div>";
-    html += '<div class="cc-card-sub">mode: ' + acMode + "</div>";
+    html += '<div class="cc-card-main">ステータス: ' + acStatus + "</div>";
+    html += '<div class="cc-card-sub">判定モード: ' + acMode + "</div>";
     html += "</div>";
 
     html += '<div class="cc-card cc-card-choices">';
     html += '<div class="cc-card-title">選択肢の妥当性</div>';
-    html += '<div class="cc-card-main">status: ' + acStatus + "</div>";
-    html += '<div class="cc-card-sub">choices / distractors</div>';
+    html += '<div class="cc-card-main">ステータス: ' + acStatus + "</div>";
+    html += '<div class="cc-card-sub">選択肢とディストラクタ</div>';
     html += "</div>";
 
     html += '<div class="cc-card cc-card-explanation">';
     html += '<div class="cc-card-title">解説の品質</div>';
-    html += '<div class="cc-card-main">status: ' + eqStatus + "</div>";
-    html += '<div class="cc-card-sub">explanation_quality</div>';
+    html += '<div class="cc-card-main">ステータス: ' + eqStatus + "</div>";
+    html += '<div class="cc-card-sub">解説の整合性</div>';
     html += "</div>";
 
     html += '<div class="cc-card cc-card-problem">';
     html += '<div class="cc-card-title">問題文の NSCA 的妥当性</div>';
-    html += '<div class="cc-card-main">status: ' + psStatus + "</div>";
-    html += '<div class="cc-card-sub">problem_statement_nsac_validity</div>';
+    html += '<div class="cc-card-main">ステータス: ' + psStatus + "</div>";
+    html += '<div class="cc-card-sub">出題としての妥当性</div>';
     html += "</div>";
 
     html += "</div>";
