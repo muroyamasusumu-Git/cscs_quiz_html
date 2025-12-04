@@ -186,6 +186,7 @@ margin: 0 5px 0 0;
   align-items: center !important;
   margin: 0 !important;
   padding: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /* 中のリンク文字を白に統一 */
