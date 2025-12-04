@@ -474,6 +474,11 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       head.style.cursor = "pointer";
       head.textContent = `[${headLabel}を生成]`;
 
+      // ★ 見出しテキストリンク用のラッパー div を追加
+      const headWrapper = document.createElement("div");
+      headWrapper.className = `dd-head-wrapper dd-head-wrapper-${sectionKey}`;
+      headWrapper.appendChild(head);
+
       const body = document.createElement("div");
       body.className = `dd-body dd-body-${sectionKey}`;
       body.style.margin = "0";
@@ -611,7 +616,8 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         state = "initial";
       }
 
-      row.appendChild(head);
+      // ★ ここでラッパーごと追加
+      row.appendChild(headWrapper);
       row.appendChild(body);
       return row;
     };
