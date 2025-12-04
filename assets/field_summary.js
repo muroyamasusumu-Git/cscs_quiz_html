@@ -412,11 +412,36 @@
         unanswered = 0;
       }
 
+      // =========================
+      // リーチ数（⚡️）を集計する：
+      //   ・現時点で 3連続正解（★）はしていない
+      //   ・現時点での連続正解数 streakLen[qid] がちょうど 2
+      // =========================
+      var reachCount = 0;
+      if (root.streakLen && typeof root.streakLen === "object") {
+        Object.keys(root.streakLen).forEach(function (qid) {
+          var len = Number(root.streakLen[qid]);
+          if (!Number.isFinite(len)) {
+            return;
+          }
+          // 連続正解数が 2 以外はリーチ対象外
+          if (len !== 2) {
+            return;
+          }
+          // すでに 3連続正解（★獲得済み）の問題はリーチ対象外
+          if (root.streak3 && Number(root.streak3[qid]) > 0) {
+            return;
+          }
+          reachCount += 1;
+        });
+      }
+
       // 計算結果をモジュール内グローバルに保存
       starFieldCounts = counts;
       starTotalSolvedQuestions = totalStarQ;
       starRemainingDays = remainingDays;
       starTargetPerDay = targetPerDay;
+      starReachCountFromSync = reachCount;
       unsolvedCountFromSync = unsolved;
       unansweredCountFromSync = unanswered;
 
@@ -428,7 +453,12 @@
         everCorrectCount: everCorrectCount,
         appearedCount: appearedCount,
         unsolvedCountFromSync: unsolvedCountFromSync,
-        unansweredCountFromSync: unansweredCountFromSync
+        unansweredCountFromSync: unansweredCountFromSync,
+        starReachCountFromSync: starReachCountFromSync
+      });
+
+      console.log("field_summary.js: SYNC-based reach(2連続正解) computed", {
+        starReachCountFromSync: starReachCountFromSync
       });
 
       return counts;
@@ -448,6 +478,7 @@
   var starTotalSolvedQuestions = 0;    // 全体で★済みの問題数
   var starRemainingDays = 0;           // 締切までの残り日数
   var starTargetPerDay = 0;            // 1日あたりの目標★数（SYNCから計算）
+  var starReachCountFromSync = 0;      // 2連続正解の「リーチ⚡️」問題数（SYNCから取得）
 
   // SYNC (/api/sync/state) をソースとした「未正解/未回答」の集計結果
   var unsolvedCountFromSync = 0;       // SYNC上での「未正解問題数」
@@ -654,10 +685,16 @@
     var moodText = mood || "順調";
     var html = "";
 
-    // ⭐️本日の目標数 26個(基準比:余裕)
+    // SYNC から計算された「リーチ⚡️（2連続正解）」の問題数
+    var reachCount = Number(starReachCountFromSync || 0);
+    if (!Number.isFinite(reachCount) || reachCount < 0) {
+      reachCount = 0;
+    }
+
+    // ⭐️本日の目標数 21個（リーチ⚡️2個）
     html += "<span class=\"cscs-star-main-compact\">";
     html += "⭐️本日の目標数 " + String(targetNum) + "個";
-    html += "<span class=\"cscs-star-mood\">(基準比:" + moodText + ")</span>";
+    html += "<span class=\"cscs-star-mood\">（リーチ⚡️" + String(reachCount) + "個）</span>";
     html += "</span>";
 
     // 本日の獲得数 +4：15%
@@ -669,10 +706,11 @@
     html += "</span>";
     html += "</span>";
 
-    // 全体進捗：0.00%
+    // 全体進捗：0.07%（基準比:余裕）
     html += "<span class=\"cscs-star-section-compact\">";
     html += "全体進捗：";
     html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
+    html += "<span class=\"cscs-star-mood\">（基準比:" + moodText + "）</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
     html += "</span>";
@@ -686,12 +724,15 @@
     needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
 
-    // コンソールに現在の目標値と進捗を出力して、値とレンダリング結果を確認できるようにする
+    // コンソールに現在の目標値と進捗・リーチ数を出力して、値とレンダリング結果を確認できるようにする
     console.log("field_summary.js: compact star summary rendered", {
       targetNum: targetNum,
       starTodayCount: starTodayCount,
       todayPercent: todayPercent,
-      totalPercent: totalPercent
+      totalPercent: totalPercent,
+      moodText: moodText,
+      starReachCountFromSync: starReachCountFromSync,
+      reachCountUsedForView: reachCount
     });
 
     // 分野別の一覧を <ul> として作成
