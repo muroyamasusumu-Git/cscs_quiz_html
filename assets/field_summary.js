@@ -693,13 +693,13 @@
 
     // ⭐️本日の目標 21個（リーチ⚡️2個）
     html += "<span class=\"cscs-star-main-compact\">";
-    html += "⭐️本日の目標 " + String(targetNum) + "個";
+    html += "⭐️本日目標 " + String(targetNum) + "個";
     html += "<span class=\"cscs-star-main\">（リーチ⚡️" + String(reachCount) + "個）</span>";
     html += "</span>";
 
     // 本日の獲得 +4：15%
     html += "<span class=\"cscs-star-section-compact\">";
-    html += "本日の獲得 +" + String(starTodayCount) + "：";
+    html += "本日獲得 +" + String(starTodayCount) + "：";
     html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
