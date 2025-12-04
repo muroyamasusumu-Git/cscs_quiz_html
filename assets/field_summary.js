@@ -500,21 +500,38 @@
   var dummyFieldStats = null;
 
   // =========================
-  // 6. 今日の 3連続正解ユニーク数（streak3Today）を localStorage から読む
+  // 6. 今日の 3連続正解ユニーク数（streak3Today）を SYNC から読む
   // =========================
   var starTodayCount = 0;
 
-  function loadTodayStreak3CountFromLocal() {
+  async function loadTodayStreak3CountFromSync() {
     try {
-      // b_judge_record.js 側が更新している「今日の3連続正解ユニーク数」キー
-      var raw = window.localStorage.getItem("cscs_streak3_today_unique_count");
-      var n = Number(raw);
-      if (!Number.isFinite(n) || n < 0) {
+      var res = await fetch("/api/sync/state", { cache: "no-store" });
+      if (!res.ok) {
+        console.error("field_summary.js: SYNC streak3Today GET失敗:", res.status);
         return 0;
       }
-      return n;
+      var json = await res.json();
+      var root = json.data || json;
+
+      if (!root.streak3Today || typeof root.streak3Today !== "object") {
+        console.warn("field_summary.js: SYNC に streak3Today がありません");
+        return 0;
+      }
+
+      var u = Number(root.streak3Today.unique_count);
+      if (!Number.isFinite(u) || u < 0) {
+        u = 0;
+      }
+
+      console.log("field_summary.js: SYNC streak3Today.unique_count 読み取り成功:", {
+        day: root.streak3Today.day,
+        unique_count: u
+      });
+
+      return u;
     } catch (e) {
-      console.warn("field_summary.js: cscs_streak3_today_unique_count の取得に失敗しました", e);
+      console.error("field_summary.js: streak3Today SYNC 読み取り中に例外:", e);
       return 0;
     }
   }
