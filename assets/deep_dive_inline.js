@@ -460,6 +460,9 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     `;
     wrap.appendChild(styleReset);
 
+    // ★ 解説エリア内のメニューコンテナ（あればここに見出しを出す）
+    const menuRoot = root.querySelector(".explain_menu");
+
     const mkRow = (sectionKey, headLabel) => {
       const row = document.createElement("div");
       row.className = `dd-row dd-${sectionKey}`;
@@ -616,8 +619,12 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
         state = "initial";
       }
 
-      // ★ ここでラッパーごと追加
-      row.appendChild(headWrapper);
+      // ★ 見出しラッパーは .explain_menu 内に配置（なければ row 内に配置）
+      if (menuRoot) {
+        menuRoot.appendChild(headWrapper);
+      } else {
+        row.appendChild(headWrapper);
+      }
       row.appendChild(body);
       return row;
     };
