@@ -449,7 +449,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
 
       /* 「[理論深掘り｜上流（原因・原理）を生成]」を小さく */
       #dd-inline .dd-body-cause {
-        font-size: 16px !important;
+        font-size: 14px !important;
       }
 
       /* 「この問題への当てはめ」を小さく */
