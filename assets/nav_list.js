@@ -1070,7 +1070,7 @@
       favMap = {};
     }
 
-    // qid / qidJp から「★1/★2/★3/未設定」の表示文字列を返す
+    // qid / qidJp から「★１/★２/★３/★ー」の表示文字列を返す
     function getFavTextForQid(qid, qidJp){
       var num = 0;
 
@@ -1098,10 +1098,10 @@
         }
       }
 
-      if (num === 1) return "★1";
-      if (num === 2) return "★2";
-      if (num === 3) return "★3";
-      return "未設定";
+      if (num === 1) return "★１";
+      if (num === 2) return "★２";
+      if (num === 3) return "★３";
+      return "★ー";
     }
 
     // =========================
