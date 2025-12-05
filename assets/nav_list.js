@@ -351,14 +351,12 @@
         String(ratePercent) +
         "%)";
 
+      // 表示順:
+      // DAY-XX(⭐️) / YYYYMMDD / 獲得：X/30 / 達成(YY%)
       link.appendChild(titleRow);
       link.appendChild(dateRow);
       link.appendChild(rateRow);
       link.appendChild(percentRow);
-
-      link.appendChild(titleRow);
-      link.appendChild(dateRow);
-      link.appendChild(rateRow);
 
       item.appendChild(link);
       rightCol.appendChild(item);
