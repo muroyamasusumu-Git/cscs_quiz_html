@@ -15,6 +15,13 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
 
   const user = await getUserIdFromAccess(request);
+  if (!user) {
+    // JWT が無い / パースできない場合は 401 を明示的に返す
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "content-type": "text/plain" }
+    });
+  }
   const key = `sync:${user}`;
 
   // (0) 受信 delta 全体をログ
@@ -48,6 +55,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streak3: {},
       streakLen: {},
       consistency_status: {},
+      // お気に入り状態（fav_modal.js からの同期先）
+      fav: {},
       // グローバルメタ情報（総問題数など）を保持する領域
       global: {},
       // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
@@ -64,6 +73,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.streak3) server.streak3 = {};
   if (!server.streakLen) server.streakLen = {};
   if (!server.consistency_status) server.consistency_status = {};
+  if (!server.fav || typeof server.fav !== "object") server.fav = {};
   if (!(server as any).streak3Today) {
     (server as any).streak3Today = { day: "", unique_count: 0, qids: [] };
   }
@@ -205,6 +215,44 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       continue;
     }
     server.consistency_status[qid] = payload;
+  }
+
+  // favDelta: お気に入り状態の差分反映
+  // - delta.fav = { [qid]: "unset" | "understood" | "unanswered" | "none" | 0 | 1 | 2 | 3 }
+  // - 文字列/数値どちらも受け取り、サーバー側には「そのまま」保存する
+  //   （表示側で数値→文字列のマッピングを行う前提）
+  const favDelta = (delta as any).fav || {};
+  if (favDelta && typeof favDelta === "object") {
+    if (!server.fav || typeof server.fav !== "object") {
+      server.fav = {};
+    }
+    for (const [qid, raw] of Object.entries(favDelta)) {
+      if (typeof qid !== "string" || !qid) {
+        continue;
+      }
+      const v = raw as any;
+
+      // 許可する値だけ通す（それ以外は無視）
+      const isValidString =
+        v === "unset" || v === "understood" || v === "unanswered" || v === "none";
+      const isValidNumber =
+        v === 0 || v === 1 || v === 2 || v === 3;
+
+      if (!isValidString && !isValidNumber) {
+        try {
+          console.warn("[SYNC/merge] (favDelta) invalid value ignored:", { qid, value: v });
+        } catch (_eWarn) {}
+        continue;
+      }
+
+      server.fav[qid] = v;
+    }
+
+    try {
+      console.log("[SYNC/merge] (favDelta) merged fav entries:", {
+        keys: Object.keys(favDelta)
+      });
+    } catch (_eLog) {}
   }
 
   // global.totalQuestions: 総問題数の更新
@@ -623,7 +671,26 @@ async function getUserIdFromAccess(request: Request) {
   // Cloudflare Access の JWT からユーザーの email を取り出し、
   // ユーザーごとの SYNC キー（sync:<email>）を作るための ID として使う
   const jwt = request.headers.get("CF-Access-Jwt-Assertion");
-  if (!jwt) throw new Response("Unauthorized", { status: 401 });
-  const payload = JSON.parse(atob(jwt.split(".")[1]));
-  return payload.email;
+  if (!jwt) {
+    console.error("[SYNC/merge] CF-Access-Jwt-Assertion header missing.");
+    return "";
+  }
+
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) {
+      console.error("[SYNC/merge] invalid JWT format (parts length !== 3).");
+      return "";
+    }
+    const payloadJson = atob(parts[1]);
+    const payload = JSON.parse(payloadJson);
+    if (!payload || typeof payload.email !== "string" || !payload.email) {
+      console.error("[SYNC/merge] JWT payload does not contain valid email.", payload);
+      return "";
+    }
+    return payload.email as string;
+  } catch (e) {
+    console.error("[SYNC/merge] JWT decode/parse error.", e);
+    return "";
+  }
 }
