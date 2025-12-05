@@ -27,11 +27,140 @@
   function getQid(){ return getDayFromPath() + "-" + getQNum(); } // A/B共通キー
 
   // =========================
-  // localStorage から現在問題の「お気に入り状態」を読み取る
-  // - KEY: "cscs_fav"
-  // - 値: "unset" | "understood" | "unanswered" | "none"
+  // SYNCルートを取得（/api/sync/state の戻り値から data を優先）
+  // - 他ファイルと同じく window.CSCS_SYNC_DATA を参照
+  // =========================
+  function getSyncRootForFav(){
+    try{
+      if (typeof window === "undefined") return null;
+      var raw = window.CSCS_SYNC_DATA;
+      if (!raw || typeof raw !== "object") return null;
+      if (raw.data && typeof raw.data === "object") {
+        return raw.data;
+      }
+      return raw;
+    }catch(_){
+      return null;
+    }
+  }
+
+  // =========================
+  // SYNC から現在問題の「お気に入り状態」を読み取る
+  // - 期待構造: syncRoot.fav[qid] = "unset" | "understood" | "unanswered" | "none" | 数値(1〜3)
+  // - 見つからない場合は null を返す（ローカル側の状態に委ねる）
+  // =========================
+  function getFavFromSync(){
+    var qid = getQid();
+    try{
+      var root = getSyncRootForFav();
+      if (!root || !root.fav || typeof root.fav !== "object") {
+        return null;
+      }
+      if (!Object.prototype.hasOwnProperty.call(root.fav, qid)) {
+        return null;
+      }
+      var raw = root.fav[qid];
+      var val = null;
+
+      if (raw === "unset" || raw === "understood" || raw === "unanswered" || raw === "none") {
+        val = raw;
+      } else if (typeof raw === "number") {
+        if (raw === 1) {
+          val = "understood";
+        } else if (raw === 2) {
+          val = "unanswered";
+        } else if (raw === 3) {
+          val = "none";
+        } else {
+          val = "unset";
+        }
+      } else {
+        val = "unset";
+      }
+
+      try{
+        console.log("fav_modal.js: getFavFromSync →", { qid: qid, raw: raw, val: val });
+      }catch(_){}
+
+      return val;
+    }catch(e){
+      try{
+        console.error("fav_modal.js: getFavFromSync error.", e);
+      }catch(_){}
+      return null;
+    }
+  }
+
+  // =========================
+  // お気に入り状態を SYNC サーバーへ送信
+  // - /api/sync/merge に { fav: { [qid]: val } } 形式でPOST
+  // - 戻り値で window.CSCS_SYNC_DATA を更新
+  // =========================
+  function sendFavToSync(val){
+    var qid = getQid();
+    var payload = { fav: {} };
+    payload.fav[qid] = val;
+
+    try{
+      console.log("fav_modal.js: sendFavToSync → POST /api/sync/merge", payload);
+    }catch(_){}
+
+    try{
+      fetch("/api/sync/merge", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      })
+        .then(function(res){
+          if (!res || !res.ok) {
+            try{
+              console.error("fav_modal.js: SYNC merge HTTP error.", res && res.status);
+            }catch(_){}
+            return null;
+          }
+          return res.json().catch(function(e){
+            try{
+              console.error("fav_modal.js: SYNC merge JSON parse error.", e);
+            }catch(_){}
+            return null;
+          });
+        })
+        .then(function(json){
+          if (!json || typeof json !== "object") {
+            return;
+          }
+          try{
+            window.CSCS_SYNC_DATA = json;
+            var root = getSyncRootForFav();
+            var hasFav = !!(root && root.fav && typeof root.fav === "object" && Object.prototype.hasOwnProperty.call(root.fav, qid));
+            console.log("fav_modal.js: SYNC fav updated.", { qid: qid, storedInSync: hasFav });
+          }catch(_){}
+        })
+        .catch(function(e){
+          try{
+            console.error("fav_modal.js: SYNC merge fetch error.", e);
+          }catch(_){}
+        });
+    }catch(e){
+      try{
+        console.error("fav_modal.js: sendFavToSync outer fetch error.", e);
+      }catch(_){}
+    }
+  }
+
+  // =========================
+  // localStorage / SYNC から現在問題の「お気に入り状態」を読み取る
+  // - まず SYNC を参照し、値が在ればそれを優先
+  // - SYNC に無ければ従来どおり localStorage("cscs_fav") を参照
   // =========================
   function loadFav(){
+    var fromSync = getFavFromSync();
+    if (fromSync !== null && fromSync !== undefined) {
+      return fromSync;
+    }
+
     const KEY="cscs_fav";
     let obj={}; 
     try{ 
@@ -80,8 +209,59 @@
     legacy[getQid()] = toNum(val);
     localStorage.setItem(MAP_KEY, JSON.stringify(legacy));
 
-    // デバッグログ（どのqidが何に設定されたか）
-    try{ console.log("⭐ saved fav:", qid, "→", val); }catch(_){}
+    // デバッグログ（どのqidが何に設定されたか、SYNC送信も含めて確認）
+    try{ console.log("⭐ saved fav (local):", qid, "→", val); }catch(_){}
+
+    try{
+      sendFavToSync(val);
+    }catch(_){}
+  }
+
+  // =========================
+  // SYNCサーバーから最新状態を取得（お気に入り含む）
+  // - /api/sync/state を叩いて window.CSCS_SYNC_DATA を更新
+  // - fav セクションが存在するかどうかをログに出す
+  // =========================
+  function fetchSyncStateForFav(){
+    try{
+      console.log("fav_modal.js: fetchSyncStateForFav → GET /api/sync/state");
+    }catch(_){}
+    return fetch("/api/sync/state", { cache: "no-store" })
+      .then(function(res){
+        if (!res || !res.ok) {
+          try{
+            console.error("fav_modal.js: SYNC state HTTP error.", res && res.status);
+          }catch(_){}
+          return null;
+        }
+        return res.json().catch(function(e){
+          try{
+            console.error("fav_modal.js: SYNC state JSON parse error.", e);
+          }catch(_){}
+          return null;
+        });
+      })
+      .then(function(json){
+        if (!json || typeof json !== "object") {
+          try{
+            console.warn("fav_modal.js: SYNC state is not a valid object.");
+          }catch(_){}
+          return null;
+        }
+        try{
+          window.CSCS_SYNC_DATA = json;
+          var root = getSyncRootForFav();
+          var hasFav = !!(root && root.fav && typeof root.fav === "object");
+          console.log("fav_modal.js: SYNC state stored.", { hasFavFavSection: hasFav });
+        }catch(_){}
+        return json;
+      })
+      .catch(function(e){
+        try{
+          console.error("fav_modal.js: fetchSyncStateForFav error.", e);
+        }catch(_){}
+        return null;
+      });
   }
 
   // =========================
@@ -238,6 +418,22 @@
   // =========================
   // DOM構築完了後に hook() を実行して
   // お気に入りモーダルを使えるようにする
+  // 先に SYNC 状態を取得しておくことで、開いた瞬間から
+  // 他端末での更新も反映されたお気に入り状態が使える
   // =========================
-  window.addEventListener("DOMContentLoaded", hook);
+  window.addEventListener("DOMContentLoaded", function(){
+    fetchSyncStateForFav()
+      .then(function(){
+        try{
+          console.log("fav_modal.js: DOMContentLoaded → hook() after SYNC fetch.");
+        }catch(_){}
+        hook();
+      })
+      .catch(function(e){
+        try{
+          console.error("fav_modal.js: DOMContentLoaded SYNC fetch error (hook anyway).", e);
+        }catch(_){}
+        hook();
+      });
+  });
 })();

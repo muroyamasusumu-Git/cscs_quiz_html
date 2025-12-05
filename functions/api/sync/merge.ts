@@ -1,5 +1,19 @@
 // merge.ts
 export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
+  // ★ Origin チェック（同一ドメイン＋ローカル開発のみ許可）
+  const origin = request.headers.get("Origin");
+  const allowedOrigins = [
+    "https://cscs-quiz-html.pages.dev", // 本番ドメイン（必要に応じて変更）
+    "http://localhost:8789"            // wrangler pages dev 用（不要なら消してOK）
+  ];
+
+  if (origin !== null && !allowedOrigins.includes(origin)) {
+    return new Response("Forbidden", {
+      status: 403,
+      headers: { "content-type": "text/plain" }
+    });
+  }
+
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
 

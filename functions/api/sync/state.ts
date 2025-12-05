@@ -1,5 +1,19 @@
 // state.ts
 export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
+  // ★ Origin チェック（同一ドメイン＋ローカル開発のみ許可）
+  const origin = request.headers.get("Origin");
+  const allowedOrigins = [
+    "https://cscs-quiz-html.pages.dev", // 本番
+    "http://localhost:8789"             // ローカル開発
+  ];
+
+  if (origin !== null && !allowedOrigins.includes(origin)) {
+    return new Response("Forbidden", {
+      status: 403,
+      headers: { "content-type": "text/plain" }
+    });
+  }
+
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
 
