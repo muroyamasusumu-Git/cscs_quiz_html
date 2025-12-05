@@ -152,16 +152,61 @@
   }
 
   // =========================
-  // SYNC から現在問題の「お気に入り状態」を読み取る
-  // - getFavFromSync() の結果のみを採用し、フォールバックは行わない
-  // - SYNC に値が無い場合は "unset" 固定
+  // ローカル(localStorage)から現在問題の「お気に入り状態」を読み取る
+  // - 優先: cscs_fav[qid] = "unset" | "understood" | "unanswered" | "none"
+  // - 互換: cscs_fav_map[qid] = 1/2/3 → 文字列にマッピング
+  // =========================
+  function getFavFromLocal(){
+    var qid = getQid();
+    var KEY = "cscs_fav";
+    var MAP_KEY = "cscs_fav_map";
+    var val = null;
+
+    // 1) 文字列表現から取得
+    try{
+      var obj = JSON.parse(localStorage.getItem(KEY) || "{}");
+      if (obj && typeof obj === "object" && Object.prototype.hasOwnProperty.call(obj, qid)) {
+        var raw = obj[qid];
+        if (raw === "understood" || raw === "unanswered" || raw === "none" || raw === "unset") {
+          val = raw;
+        }
+      }
+    }catch(_){}
+
+    // 2) 数値表現(互換)からの復元
+    if (val === null) {
+      try{
+        var legacy = JSON.parse(localStorage.getItem(MAP_KEY) || "{}");
+        if (legacy && typeof legacy === "object" && Object.prototype.hasOwnProperty.call(legacy, qid)) {
+          var n = legacy[qid] | 0;
+          if (n === 1) {
+            val = "understood";
+          } else if (n === 2) {
+            val = "unanswered";
+          } else if (n === 3) {
+            val = "none";
+          }
+        }
+      }catch(_){}
+    }
+
+    // 3) どちらからも取れなければ "unset"
+    if (val === null) {
+      val = "unset";
+    }
+
+    try{
+      console.log("fav_modal.js: getFavFromLocal →", { qid: qid, val: val });
+    }catch(_){}
+
+    return val;
+  }
+
+  // =========================
+  // 現在問題の「お気に入り状態」を読み取る（ローカル専用）
   // =========================
   function loadFav(){
-    var fromSync = getFavFromSync();
-    if (fromSync === null || fromSync === undefined) {
-      return "unset"; // SYNC に未登録 → 未設定扱い
-    }
-    return fromSync;   // "unset" | "understood" | "unanswered" | "none"
+    return getFavFromLocal();
   }
 
   // =========================
@@ -201,12 +246,8 @@
     legacy[getQid()] = toNum(val);
     localStorage.setItem(MAP_KEY, JSON.stringify(legacy));
 
-    // デバッグログ（どのqidが何に設定されたか、SYNC送信も含めて確認）
-    try{ console.log("⭐ saved fav (local):", qid, "→", val); }catch(_){}
-
-    try{
-      sendFavToSync(val);
-    }catch(_){}
+    // デバッグログ（どのqidが何に設定されたかを確認）
+    try{ console.log("⭐ saved fav (local-only):", qid, "→", val); }catch(_){}
   }
 
   // =========================
@@ -240,7 +281,7 @@
   // 現在ページの qid に対する「お気に入り状態」を取得して
   // { qid, label, type } 形式で返すユーティリティ
   // type は "unset" / "understood" / "unanswered" / "none" のいずれか
-  // ★ SYNC専用: /api/sync/state → window.CSCS_SYNC_DATA → getSyncRootForFav().fav[qid] のみを見る
+  // ★ ローカル専用: localStorage(cscs_fav / cscs_fav_map) だけを見る
   function readFavLabelAndTypeForCurrentQid(){
     var qid = getQid();
     if (!qid) {
@@ -250,53 +291,17 @@
     var type = "unset";
 
     try{
-      // SYNC state から fav セクションを取得
-      var root = getSyncRootForFav && getSyncRootForFav();
-      var favMap = (root && root.fav && typeof root.fav === "object") ? root.fav : null;
-
-      if (favMap && Object.prototype.hasOwnProperty.call(favMap, qid)) {
-        var raw = favMap[qid];
-
-        // 1) 数値 1/2/3 の場合
-        if (typeof raw === "number") {
-          if (raw === 1) {
-            type = "understood";
-          } else if (raw === 2) {
-            type = "unanswered";
-          } else if (raw === 3) {
-            type = "none";
-          } else {
-            type = "unset";
-          }
-        }
-        // 2) 文字列 "understood" / "unanswered" / "none" / "unset" の場合
-        else if (typeof raw === "string") {
-          if (raw === "understood" || raw === "unanswered" || raw === "none" || raw === "unset") {
-            type = raw;
-          } else {
-            type = "unset";
-          }
-        }
-        // 3) それ以外の型は未設定扱い
-        else {
-          type = "unset";
-        }
-
-        console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) hit", {
-          qid: qid,
-          rawValue: raw,
-          mappedType: type
-        });
-      } else {
-        // ★ SYNC に fav セクションが無い/該当 qid が無い場合は「未設定」として扱う（ローカルへは一切フォールバックしない）
-        console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) no entry", {
-          qid: qid,
-          hasFavMap: !!favMap
-        });
+      type = getFavFromLocal();
+      if (type !== "understood" && type !== "unanswered" && type !== "none" && type !== "unset") {
+        type = "unset";
       }
+
+      console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(local-only)", {
+        qid: qid,
+        mappedType: type
+      });
     }catch(e){
-      // SYNC state 取得時の例外も「未設定」として扱う（フォールバックしない）
-      console.error("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) error", {
+      console.error("fav_modal.js: readFavLabelAndTypeForCurrentQid(local-only) error", {
         qid: qid,
         error: e
       });
@@ -589,25 +594,12 @@
   // あわせて topmeta-left のお気に入りバッジも描画する
   // =========================
   window.addEventListener("DOMContentLoaded", function(){
-    fetchSyncStateForFav()
-      .then(function(){
-        try{
-          console.log("fav_modal.js: DOMContentLoaded → hook() & renderFavBadgeForCurrentQid() after SYNC fetch.");
-        }catch(_){}
-        hook();
-        try{
-          renderFavBadgeForCurrentQid();
-        }catch(_){}
-      })
-      .catch(function(e){
-        try{
-          console.error("fav_modal.js: DOMContentLoaded SYNC fetch error (hook anyway).", e);
-        }catch(_){}
-        hook();
-        // SYNC 取得に失敗しても「未設定」としてバッジだけは描画しておく
-        try{
-          renderFavBadgeForCurrentQid();
-        }catch(_){}
-      });
+    try{
+      console.log("fav_modal.js: DOMContentLoaded → local-only mode (no SYNC).");
+    }catch(_){}
+    hook();
+    try{
+      renderFavBadgeForCurrentQid();
+    }catch(_){}
   });
 })();
