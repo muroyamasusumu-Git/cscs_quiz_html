@@ -306,8 +306,6 @@
   // 左上 box に「お気に入りステータス」「この問題の正解/不正解累計」を表示し、
   // 正解/不正解部分をクリックでリセットモーダルを開くようにする
   function render() {
-    const { label, type } = readFavLabelAndType();
-
     // 当該1問の QID を pathname から復元（A/B両方対応）
     const dayPath = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1] || "";
     const n3 = (location.pathname.match(/q(\d{3})_[ab]/i) || [])[1] || "";
@@ -319,18 +317,14 @@
 
     // box と中の要素を取得（無ければ生成）
     const box = ensureFixedBox();
-    const favSpan = box.querySelector(".fav-status");
+    const favSpan   = box.querySelector(".fav-status");
     const wrongLink = box.querySelector(".wrong-status");
 
-    // お気に入りラベルとクラスを更新
-    if (favSpan) {
-      favSpan.textContent = `［${label}］`;
-      favSpan.className = `fav-status fav-${type}`;
-    }
-
-    // 現在の★ステータスをデバッグログに出力（qid と合わせて確認用）
+    // ★ お気に入り表示は fav_modal.js に委譲
     try {
-      console.log("★ wrong_badge fav status:", { qid, label, type });
+      if (favSpan && window.CSCS_FAV && typeof window.CSCS_FAV.renderStatusBadge === "function") {
+        window.CSCS_FAV.renderStatusBadge();
+      }
     } catch(_) {}
 
     // 正解/不正解のリンク表示と挙動を設定

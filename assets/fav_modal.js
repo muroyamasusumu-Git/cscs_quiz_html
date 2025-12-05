@@ -151,25 +151,16 @@
   }
 
   // =========================
-  // localStorage / SYNC から現在問題の「お気に入り状態」を読み取る
-  // - まず SYNC を参照し、値が在ればそれを優先
-  // - SYNC に無ければ従来どおり localStorage("cscs_fav") を参照
+  // SYNC から現在問題の「お気に入り状態」を読み取る
+  // - getFavFromSync() の結果のみを採用し、フォールバックは行わない
+  // - SYNC に値が無い場合は "unset" 固定
   // =========================
   function loadFav(){
     var fromSync = getFavFromSync();
-    if (fromSync !== null && fromSync !== undefined) {
-      return fromSync;
+    if (fromSync === null || fromSync === undefined) {
+      return "unset"; // SYNC に未登録 → 未設定扱い
     }
-
-    const KEY="cscs_fav";
-    let obj={}; 
-    try{ 
-      obj=JSON.parse(localStorage.getItem(KEY)||"{}"); 
-    }catch(_){ 
-      obj={}; 
-    }
-    const cur = obj[getQid()];
-    return cur || "unset"; // "unset" | "understood" | "unanswered" | "none"
+    return fromSync;   // "unset" | "understood" | "unanswered" | "none"
   }
 
   // =========================
@@ -216,6 +207,126 @@
       sendFavToSync(val);
     }catch(_){}
   }
+
+  // =========================
+  // topmeta-left 用「表示ユーティリティ」
+  // - wrong_badge.js など他スクリプトから再利用する前提
+  // - ラベル変換 / DOM生成 / バッジ描画 / グローバル公開をまとめる
+  // =========================
+
+  // お気に入り状態（文字列）をバッジ表示用ラベルに変換
+  // "understood" → "★１" など、UIに直接出す表記を決める
+  function favLabelFromStringForBadge(s){
+    switch (String(s || "unset")) {
+      case "understood": return "★１";
+      case "unanswered": return "★２";
+      case "none":       return "★３";
+      default:           return "★ー";
+    }
+  }
+
+  // お気に入り状態（数値）をバッジ表示用ラベルに変換
+  // cscs_fav_map の 1/2/3 を "★１/★２/★３" に変換する
+  function favLabelFromNumberForBadge(n){
+    switch ((n | 0)) {
+      case 1: return "★１";
+      case 2: return "★２";
+      case 3: return "★３";
+      default: return "★ー";
+    }
+  }
+
+  // 現在ページの qid に対する「お気に入り状態」を取得して
+  // { qid, label, type } 形式で返すユーティリティ
+  // type は "unset" / "understood" / "unanswered" / "none" のいずれか
+  function readFavLabelAndTypeForCurrentQid(){
+    var qid = getQid();
+    if (!qid) {
+      return { qid: "", label: "★ー", type: "unset" };
+    }
+
+    // 既存の loadFav() を使って、SYNC優先→localStorage から文字列表現を取得
+    var val = loadFav(); // "unset" | "understood" | "unanswered" | "none"
+    var label = favLabelFromStringForBadge(val);
+
+    return { qid: qid, label: label, type: val };
+  }
+
+  // topmeta-left 内に「お気に入りバッジ」を表示するための箱を用意
+  // - .topmeta-left が無い場合は生成
+  // - その中に .fav-status が無い場合は生成
+  function ensureFavStatusBox(){
+    var box = document.querySelector(".topmeta-left");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "topmeta-left";
+      var topmeta = document.querySelector(".topmeta");
+      if (topmeta) {
+        topmeta.appendChild(box);
+      } else {
+        document.body.appendChild(box);
+      }
+    }
+
+    var favSpan = box.querySelector(".fav-status");
+    if (!favSpan) {
+      favSpan = document.createElement("span");
+      favSpan.className = "fav-status";
+      favSpan.textContent = "［--］";
+      box.appendChild(favSpan);
+    }
+
+    return { box: box, favSpan: favSpan };
+  }
+
+  // 現在ページの qid 用に topmeta-left のお気に入りバッジを描画する
+  // - DOM 更新は前回と状態が変わった時だけ行う（ログもそのタイミングのみ）
+  function renderFavBadgeForCurrentQid(){
+    var info = readFavLabelAndTypeForCurrentQid();
+    if (!info.qid) {
+      return;
+    }
+
+    var holder = ensureFavStatusBox();
+    var favSpan = holder.favSpan;
+    if (!favSpan) {
+      return;
+    }
+
+    try{
+      if (!window.__cscsLastFavBadge) {
+        window.__cscsLastFavBadge = {};
+      }
+      var last = window.__cscsLastFavBadge[info.qid];
+
+      // 前回と同じ状態なら何もせず終了（無限ログ・無駄なDOM更新を防ぐ）
+      if (last && last.label === info.label && last.type === info.type) {
+        return;
+      }
+
+      // ラベルとクラスを更新
+      favSpan.textContent = "［" + info.label + "］";
+      favSpan.className   = "fav-status fav-" + info.type;
+
+      window.__cscsLastFavBadge[info.qid] = {
+        label: info.label,
+        type:  info.type
+      };
+
+      console.log("★ fav_modal fav badge updated:", info);
+    }catch(_){}
+  }
+
+  // 上記ユーティリティをグローバルに公開して、
+  // 他ファイルから window.CSCS_FAV.readFavLabelAndType() /
+  // window.CSCS_FAV.renderStatusBadge() 経由で呼べるようにする
+  try{
+    if (!window.CSCS_FAV) {
+      window.CSCS_FAV = {};
+    }
+    window.CSCS_FAV.readFavLabelAndType = readFavLabelAndTypeForCurrentQid;
+    window.CSCS_FAV.renderStatusBadge   = renderFavBadgeForCurrentQid;
+  }catch(_){}
 
   // =========================
   // SYNCサーバーから最新状態を取得（お気に入り含む）
