@@ -1227,13 +1227,14 @@
       const levelText = "Lv" + rawLevel;
 
       // 2行目に表示する情報をまとめる
-      const line2Text =
+      // 例: 01／💫(1/3)／◎／Lv1／正×100／不×0／★１
+      // → 問題番号(01)は span.nl-qnum でラップして CSS で太字にする
+      const line2RightText =
+        "／" +
         streakMark +
         streakProgress +
         "／" +
         consistencyMark +
-        "／" +
-        pad2(i) +
         "／" +
         levelText +
         "／正×" +
@@ -1257,10 +1258,20 @@
       a.textContent = line1Text;
       l1.appendChild(a);
 
-      // 2行目: ステータス（⭐️/◎/問題番号/Lv/正誤回数/お気に入り）
+      // 2行目: ステータス（問題番号／💫(1/3)／◎／Lv/正誤回数/お気に入り）
       const l2 = document.createElement("div");
       l2.className = "line2";
-      l2.textContent = line2Text;
+
+      // 問題番号だけ span.nl-qnum で太字にできるように分離
+      const qnumSpan = document.createElement("span");
+      qnumSpan.className = "nl-qnum";
+      qnumSpan.textContent = pad2(i);
+
+      // 残り部分はテキストノードとして後ろに続ける
+      const restTextNode = document.createTextNode(line2RightText);
+
+      l2.appendChild(qnumSpan);
+      l2.appendChild(restTextNode);
 
       item.appendChild(l1);
       item.appendChild(l2);
