@@ -1121,6 +1121,20 @@
 
   window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
     try {
+      // ★ 追加ガード: O.D.O.A が nocount のときは streak3Today を一切送らない
+      var state = null;
+      try {
+        state = window.__cscs_sync_state || null;
+      } catch(_e) {
+        state = null;
+      }
+      if (state && (state.odoaMode === "on_nocount" || state.odoa_mode === "on_nocount")) {
+        // 補足: nocount 中に streak3Today が送信されると「正誤を計測していないのに★だけ増える事故」が発生するため、
+        //       ここで必ずブロックする。
+        console.log("[SYNC-B:streak3Today] skip because O.D.O.A = on_nocount");
+        return;
+      }
+
       // 1) オフラインならそもそも送信しない（Bパートからの streak3TodayDelta は「オンライン時だけ」）
       if (!navigator.onLine) {
         console.warn("[SYNC-B:streak3Today] offline → 送信スキップ");

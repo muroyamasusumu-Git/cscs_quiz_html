@@ -423,10 +423,61 @@
       if(!choice || !correct){ return; }
       var isCorrect = (choice === correct);
 
+      // ★ 追加ガード: O.D.O.A = on_nocount のときは b_judge_record.js 側の計測を完全停止する
+      var skipCountingForOdoa = false;
+      (function(){
+        var state = null;
+        try{
+          state = (typeof window !== "undefined" && window.__cscs_sync_state) ? window.__cscs_sync_state : null;
+        }catch(_e){
+          state = null;
+        }
+
+        var rawMode = null;
+        if(state){
+          if(typeof state.odoaMode === "string"){
+            rawMode = state.odoaMode;
+          }else if(typeof state.odoa_mode === "string"){
+            rawMode = state.odoa_mode;
+          }
+        }
+
+        // ガード判定前の状態をログに残す（デバッグ用）
+        console.log("[B:judge] ODOA check before counting", {
+          qid: qid,
+          dayPlay: dayPlay,
+          rawMode: rawMode
+        });
+
+        // Workers 側で on_nocount が指定されている場合のみ、以降の計測処理を完全停止
+        if(rawMode === "on_nocount"){
+          skipCountingForOdoa = true;
+          console.log("[B:judge] O.D.O.A = on_nocount → mark skip ALL counting for", {
+            qid: qid,
+            dayPlay: dayPlay,
+            isCorrect: isCorrect
+          });
+        }
+      })();
+
+      // on_nocount のときは、oncePerDay / attempts / streak / ⭐️ / ログ をすべてスキップして終了
+      if(skipCountingForOdoa){
+        console.log("[B:judge] SKIP ALL counting by on_nocount guard", {
+          qid: qid,
+          dayPlay: dayPlay
+        });
+        return;
+      }
+
       // ★ 「1日1回計測モード」用: 正誤が確定したタイミングで当日マップを更新
       try{
         if(dayPlay && dayPlay !== "unknown" && qid && qid !== "unknown"){
           updateOncePerDayMap(dayPlay, qid, isCorrect);
+          console.log("[B:oncePerDay] UPDATED via b_judge_record.js", {
+            dayPlay: dayPlay,
+            qid: qid,
+            isCorrect: isCorrect
+          });
         }else{
           console.log("[B:oncePerDay] SKIP (invalid dayPlay or qid)", {
             dayPlay: dayPlay,
@@ -434,8 +485,10 @@
             isCorrect: isCorrect
           });
         }
-      }catch(_){}
-
+      }catch(_e){
+        console.error("[B:oncePerDay] ERROR while updating oncePerDay map", _e);
+      }
+      
       // ---- 正誤どちらも「日替わり1回＋試行回数」へ統一 ----
       // 全体（その日ぶん）
       //  正解: attempts -> cscs_correct_attempts_YYYYMMDD
