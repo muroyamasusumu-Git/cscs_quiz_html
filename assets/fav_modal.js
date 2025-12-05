@@ -504,6 +504,7 @@
   // =========================
   // ページ上のクリックトリガーを仕込む
   // - 代表として h1 と .question 要素をクリックしたらモーダルを出す
+  // - .fav-status（［★ー］など）もクリック/Enter/Spaceでモーダルを出す
   // - ただし aタグのリンク部分や .opt-link をクリックした場合は発火させない
   // =========================
   function hook(){
@@ -523,6 +524,46 @@
         e.stopPropagation();
         show();
       });
+    });
+
+    // 追加: .fav-status（［★ー］など）を「リンク風トリガー」にする
+    // - クリックでモーダルを開く
+    // - Enter / Space キーでも開けるようにしておく
+    const favSpans = document.querySelectorAll(".fav-status");
+    favSpans.forEach(function(span){
+      // すでにイベントが付与されている場合でも、上書きではなく追加扱いなので問題なし
+      span.style.cursor = "pointer";
+      span.setAttribute("role", "button");
+      span.setAttribute("tabindex", "0");
+
+      span.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("fav_modal.js: fav-status clicked → open modal", {
+          text: span.textContent
+        });
+        show();
+      });
+
+      span.addEventListener("keydown", function(e){
+        // Enter(13) / Space(32) でモーダルを開く
+        if (e.key === "Enter" || e.key === " " || e.keyCode === 13 || e.keyCode === 32) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("fav_modal.js: fav-status keydown (Enter/Space) → open modal", {
+            text: span.textContent,
+            key: e.key,
+            keyCode: e.keyCode
+          });
+          show();
+        }
+      });
+
+      try{
+        console.log("fav_modal.js: hook fav-status as modal trigger", {
+          text: span.textContent
+        });
+      }catch(_){}
     });
   }
 
