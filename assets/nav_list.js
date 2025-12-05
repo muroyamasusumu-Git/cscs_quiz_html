@@ -336,10 +336,11 @@
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
 
-      // 3行目: ★獲得：X/30 (YY%)
+      // 3行目: 獲得：⭐️X/30 (YY%)
       var rateRow = document.createElement("div");
       rateRow.textContent =
-        "★獲得：" +
+        "獲得：" +
+        "⭐️" +
         String(anyStarCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
