@@ -116,15 +116,24 @@
       '<div class="fav-modal" role="dialog" aria-modal="true" aria-label="お気に入り登録" aria-hidden="true" data-modal-scope="fav">',
         '<div class="fav-title" role="heading" aria-level="3">お気に入りの種別を選択</div>',
         '<div class="fav-row">',
-          '<button class="fav-btn" data-val="unset" aria-pressed="false">未設定</button>',
-          '<button class="fav-btn" data-val="understood" aria-pressed="false">理解済</button>',
-          '<button class="fav-btn" data-val="unanswered" aria-pressed="false">要復習</button>',
-          '<button class="fav-btn" data-val="none" aria-pressed="false">重要高</button>',
+          '<button class="fav-btn" data-val="unset" aria-pressed="false">★ー</button>',
+          '<button class="fav-btn" data-val="understood" aria-pressed="false">★１</button>',
+          '<button class="fav-btn" data-val="unanswered" aria-pressed="false">★２</button>',
+          '<button class="fav-btn" data-val="none" aria-pressed="false">★３</button>',
         '</div>',
         '<a href="#" class="fav-cancel" id="fav-cancel">閉じる</a>',
       '</div>'
     ].join("");
     document.body.appendChild(bd);
+
+    // ボタンのラベルが期待通りに差し替わっているかをデバッグログで確認
+    try {
+      const labels = Array.prototype.map.call(
+        bd.querySelectorAll(".fav-btn"),
+        function(btn){ return btn.textContent; }
+      );
+      console.log("★ fav_modal button labels initialized:", labels);
+    } catch(_) {}
 
     // 初回オープン時の「アクティブボタン」を現在の状態で反映
     const init = loadFav();
