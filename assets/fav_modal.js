@@ -1,4 +1,4 @@
-// assets/fav_modal.js　
+// assets/fav_modal.js
 (function(){
   "use strict";
 
