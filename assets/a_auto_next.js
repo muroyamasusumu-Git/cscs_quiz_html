@@ -213,6 +213,74 @@
   }
 
   // =========================
+  // ランダム再生履歴（直近 N 件）
+  // =========================
+
+  var RANDOM_HISTORY_KEY = "cscs_auto_next_random_history";
+  var RANDOM_HISTORY_LIMIT = 100;
+  var randomHistoryCache = null;
+
+  function loadRandomHistory() {
+    if (randomHistoryCache && Array.isArray(randomHistoryCache)) {
+      return randomHistoryCache;
+    }
+    var history = [];
+    try {
+      var raw = localStorage.getItem(RANDOM_HISTORY_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          history = parsed.filter(function (x) {
+            return typeof x === "string" && x.length > 0;
+          });
+        }
+      }
+    } catch (_e) {
+      history = [];
+    }
+    randomHistoryCache = history;
+    return history;
+  }
+
+  function saveRandomHistory(history) {
+    try {
+      randomHistoryCache = history.slice();
+      localStorage.setItem(RANDOM_HISTORY_KEY, JSON.stringify(randomHistoryCache));
+    } catch (_e) {
+      // 保存失敗は致命的ではないので無視
+    }
+  }
+
+  function isQidInRandomHistory(qid) {
+    if (typeof qid !== "string" || !qid) {
+      return false;
+    }
+    var history = loadRandomHistory();
+    for (var i = 0; i < history.length; i++) {
+      if (history[i] === qid) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function pushRandomHistory(qid) {
+    if (typeof qid !== "string" || !qid) {
+      return;
+    }
+    var history = loadRandomHistory().slice();
+    history.push(qid);
+    if (history.length > RANDOM_HISTORY_LIMIT) {
+      history = history.slice(history.length - RANDOM_HISTORY_LIMIT);
+    }
+    saveRandomHistory(history);
+    syncLog("Random history updated.", {
+      latest: qid,
+      length: history.length
+    });
+  }
+
+  // =========================
   // 自動送り待ち時間（ms）の読み書き
   // =========================
 
@@ -460,25 +528,52 @@
 
     var currentPath = path;
     var candidatePath = currentPath;
+    var chosenQid = null;
     var safety = 0; // 無限ループ防止
 
-    // 「今の問題と同じ URL にならない」ランダムなパスを、最大100回トライする
-    while (candidatePath === currentPath && safety < 100) {
+    // 「今の問題」と「直近履歴」に含まれないランダムパスを、最大200回トライする
+    while (candidatePath === currentPath && safety < 200) {
       var randDay = getRandomDayStringBetween(RANDOM_MIN_DAY, RANDOM_MAX_DAY);
       if (!randDay) {
         break;
       }
       var randIdx = Math.floor(Math.random() * 30) + 1; // 1〜30
       var randNum3 = String(randIdx).padStart(3, "0");
+      var candidateQid = randDay + "-" + randNum3;
+
+      // 直近ランダム履歴に含まれている qid はスキップ
+      if (isQidInRandomHistory(candidateQid)) {
+        safety++;
+        continue;
+      }
+
       candidatePath =
         prefix + "_build_cscs_" + randDay + "/slides/q" + randNum3 + "_a.html";
-      safety++;
+
+      // 現在表示中の URL と同じ場合もスキップ
+      if (candidatePath === currentPath) {
+        safety++;
+        candidatePath = currentPath;
+        continue;
+      }
+
+      chosenQid = candidateQid;
+      break;
     }
 
-    if (candidatePath === currentPath) {
-      // 安全策：結局同じパスしか作れなかった場合は諦める
+    if (!chosenQid || candidatePath === currentPath) {
+      // 安全策：結局有効な候補を作れなかった場合は諦める
+      syncLog("Random: no candidate found (history/currentPath filter).");
       return null;
     }
+
+    // 採用した qid を履歴に追加
+    pushRandomHistory(chosenQid);
+    syncLog("Random: choose candidate.", {
+      qid: chosenQid,
+      url: candidatePath
+    });
+
     return candidatePath;
   }
 
@@ -586,8 +681,11 @@
 
       var candidateQidRand = randDay + "-" + randNum3;
       var answeredRand = await isOncePerDayAnswered(candidateQidRand);
+      var inHistoryRand = isQidInRandomHistory(candidateQidRand);
 
-      if (!answeredRand) {
+      if (!answeredRand && !inHistoryRand) {
+        // oncePerDayToday 未回答 かつ 直近履歴に無い qid のみ採用
+        pushRandomHistory(candidateQidRand);
         syncLog("ODOA random: choose candidate.", {
           qid: candidateQidRand,
           url: candidatePathRand
@@ -595,9 +693,15 @@
         return candidatePathRand;
       }
 
-      syncLog("ODOA random: skip oncePerDayToday answered qid.", {
-        qid: candidateQidRand
-      });
+      if (answeredRand) {
+        syncLog("ODOA random: skip oncePerDayToday answered qid.", {
+          qid: candidateQidRand
+        });
+      } else if (inHistoryRand) {
+        syncLog("ODOA random: skip recent-history qid.", {
+          qid: candidateQidRand
+        });
+      }
 
       safetyRand++;
     }
