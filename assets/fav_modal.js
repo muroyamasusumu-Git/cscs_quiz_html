@@ -503,57 +503,26 @@
 
   // =========================
   // ページ上のクリックトリガーを仕込む
+  // - 代表として h1 と .question 要素をクリックしたらモーダルを出す
+  // - ただし aタグのリンク部分や .opt-link をクリックした場合は発火させない
   // =========================
   function hook(){
-    // h1 / .question → モーダル
+    // 代表：h1 をクリックターゲットにする。class="question" も保険で拾う
     const targets = [];
     const h1 = document.querySelector("h1");
     if(h1) targets.push(h1);
     document.querySelectorAll(".question").forEach(el=>targets.push(el));
+
     targets.forEach(el=>{
-      el.style.cursor = "pointer";
+      // クリック可能であることが分かるようにカーソル変更
+      el.style.cursor="pointer";
       el.addEventListener("click",(e)=>{
+        // aタグ内部クリック or 選択肢リンク(.opt-link)はスルー
         if (e.target && (e.target.closest("a") || e.target.classList.contains("opt-link"))) return;
         e.preventDefault();
         e.stopPropagation();
         show();
       });
-    });
-
-    // ★ バッジ（fav-status）を構造化して、★だけクリック可能にする
-    const favSpans = document.querySelectorAll(".fav-status");
-    favSpans.forEach(function(span){
-      const text = span.textContent.trim();   // 例: "［★１］"
-      // ★ 部分だけ取り出す
-      const core = text.replace(/^[［\[]?/, "").replace(/[］\]]?$/, "");
-
-      // DOM を階層化
-      span.innerHTML = "［<span class=\"fav-core\">" + core + "</span>］";
-
-      const coreEl = span.querySelector(".fav-core");
-      coreEl.style.cursor = "pointer";
-      coreEl.style.textDecoration = "underline";   // ★だけ下線
-      coreEl.setAttribute("role", "button");
-      coreEl.setAttribute("tabindex", "0");
-
-      // クリックでモーダル
-      coreEl.addEventListener("click",(e)=>{
-        e.preventDefault();
-        e.stopPropagation();
-        console.log("fav_modal.js: fav-core clicked → open modal", { core });
-        show();
-      });
-
-      // キーボード (Enter/Space)
-      coreEl.addEventListener("keydown",(e)=>{
-        if (e.key === "Enter" || e.key === " " || e.keyCode === 13 || e.keyCode === 32){
-          e.preventDefault();
-          e.stopPropagation();
-          show();
-        }
-      });
-
-      console.log("fav_modal.js: fav-core prepared:", { core });
     });
   }
 
