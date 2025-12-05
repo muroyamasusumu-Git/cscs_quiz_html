@@ -503,60 +503,57 @@
 
   // =========================
   // ページ上のクリックトリガーを仕込む
-  // - h1 / .question 要素クリック → モーダル
-  // - .fav-status（［★ー］など）もリンク風にし、クリック/Enter/Space でモーダル
   // =========================
   function hook(){
-    // 代表ターゲット：h1 / .question
+    // h1 / .question → モーダル
     const targets = [];
     const h1 = document.querySelector("h1");
     if(h1) targets.push(h1);
     document.querySelectorAll(".question").forEach(el=>targets.push(el));
-
     targets.forEach(el=>{
-      el.style.cursor="pointer";
+      el.style.cursor = "pointer";
       el.addEventListener("click",(e)=>{
         if (e.target && (e.target.closest("a") || e.target.classList.contains("opt-link"))) return;
-        e.preventDefault(); 
+        e.preventDefault();
         e.stopPropagation();
         show();
       });
     });
 
-    // ★ 追加：.fav-status を「リンク風トリガー」にする
+    // ★ バッジ（fav-status）を構造化して、★だけクリック可能にする
     const favSpans = document.querySelectorAll(".fav-status");
     favSpans.forEach(function(span){
-      span.style.cursor = "pointer";
-      span.style.textDecoration = "underline";   // ← ★ 下線追加！
-      span.setAttribute("role", "button");
-      span.setAttribute("tabindex", "0");
+      const text = span.textContent.trim();   // 例: "［★１］"
+      // ★ 部分だけ取り出す
+      const core = text.replace(/^[［\[]?/, "").replace(/[］\]]?$/, "");
+
+      // DOM を階層化
+      span.innerHTML = "［<span class=\"fav-core\">" + core + "</span>］";
+
+      const coreEl = span.querySelector(".fav-core");
+      coreEl.style.cursor = "pointer";
+      coreEl.style.textDecoration = "underline";   // ★だけ下線
+      coreEl.setAttribute("role", "button");
+      coreEl.setAttribute("tabindex", "0");
 
       // クリックでモーダル
-      span.addEventListener("click", function(e){
+      coreEl.addEventListener("click",(e)=>{
         e.preventDefault();
         e.stopPropagation();
-        console.log("fav_modal.js: fav-status clicked → open modal", {
-          text: span.textContent
-        });
+        console.log("fav_modal.js: fav-core clicked → open modal", { core });
         show();
       });
 
-      // Enter / Space でモーダル
-      span.addEventListener("keydown", function(e){
-        if (e.key === "Enter" || e.key === " " || e.keyCode === 13 || e.keyCode === 32) {
+      // キーボード (Enter/Space)
+      coreEl.addEventListener("keydown",(e)=>{
+        if (e.key === "Enter" || e.key === " " || e.keyCode === 13 || e.keyCode === 32){
           e.preventDefault();
           e.stopPropagation();
-          console.log("fav_modal.js: fav-status keydown → open modal", {
-            text: span.textContent,
-            key: e.key
-          });
           show();
         }
       });
 
-      console.log("fav_modal.js: hook fav-status as modal trigger (with underline)", {
-        text: span.textContent
-      });
+      console.log("fav_modal.js: fav-core prepared:", { core });
     });
   }
 
