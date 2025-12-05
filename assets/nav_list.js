@@ -689,10 +689,10 @@
 
     var now = new Date();
 
-    // ★サマリー行2: 「★｜獲得済｜0000／2700｜00／90｜00.0% 達成」
+    // ★サマリー行2: 「⭐️｜獲得済｜0000／2700｜00／90｜00.0% 達成」
     summaryLine2.style.marginTop = "0";
     summaryLine2.textContent =
-      "★｜獲得済｜" +
+      "⭐️｜獲得済｜" +
       starQStr +
       "／" +
       totalQuestionsStr +
