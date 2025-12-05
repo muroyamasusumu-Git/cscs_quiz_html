@@ -80,42 +80,84 @@
     return n;
   }
 
-  // ===== 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得 =====
-  async function getCurrentStreakLenFromSync(qid) {
+  // ===== 現在の連続正解数（1連続 / 2連続 など）と「本日回答済み」フラグを SYNC から取得 =====
+  /**
+   * SYNC (/api/sync/state) から
+   *  - streakLen[qid]（現在の連続正解数）
+   *  - oncePerDayToday[qid]（本日その qid を一度でも計測したか）
+   * をまとめて取得して返すヘルパー。
+   *
+   * フォールバックは行わず、SYNC から取得できなかった場合は
+   *  { streakLen: 0, answeredToday: false }
+   * を返す。
+   */
+  async function getCurrentStreakInfoFromSync(qid) {
     if (!qid) {
-      return 0;
+      return {
+        streakLen: 0,
+        answeredToday: false
+      };
     }
 
     try {
       var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
-        console.error("correct_star.js: /api/sync/state 取得失敗(リーチ判定):", res.status);
-        return 0;
+        console.error("correct_star.js: /api/sync/state 取得失敗(streakLen/oncePerDayToday):", res.status);
+        return {
+          streakLen: 0,
+          answeredToday: false
+        };
       }
 
       var json = await res.json();
       var root = json.data || json;
 
-      if (!root.streakLen || typeof root.streakLen !== "object") {
-        console.warn("correct_star.js: SYNC に streakLen がありません(リーチ判定用)");
-        return 0;
+      if (!root || typeof root !== "object") {
+        console.warn("correct_star.js: SYNC から期待するオブジェクトが取得できませんでした");
+        return {
+          streakLen: 0,
+          answeredToday: false
+        };
       }
 
-      var lenRaw = root.streakLen[qid];
-      var len = Number(lenRaw || 0);
-      if (!Number.isFinite(len) || len < 0) {
-        len = 0;
+      // streakLen 部分の取得
+      var lenMap = root.streakLen;
+      var len = 0;
+      if (lenMap && typeof lenMap === "object") {
+        var lenRaw = lenMap[qid];
+        len = Number(lenRaw || 0);
+        if (!Number.isFinite(len) || len < 0) {
+          len = 0;
+        }
+      } else {
+        console.warn("correct_star.js: SYNC に streakLen がありません(リーチ/不正解判定用)");
       }
 
-      console.log("correct_star.js: SYNC streakLen 読み取り成功", {
+      // oncePerDayToday 部分の取得
+      var onceMap = root.oncePerDayToday;
+      var answeredToday = false;
+      if (onceMap && typeof onceMap === "object") {
+        answeredToday = Boolean(onceMap[qid]);
+      } else {
+        console.warn("correct_star.js: SYNC に oncePerDayToday がありません(本日回答済み判定用)");
+      }
+
+      console.log("correct_star.js: SYNC streakInfo 読み取り成功", {
         qid: qid,
-        streakLen: len
+        streakLen: len,
+        answeredToday: answeredToday
       });
 
-      return len;
+      return {
+        streakLen: len,
+        answeredToday: answeredToday
+      };
     } catch (e) {
-      console.error("correct_star.js: streakLen SYNC 読み取り中に例外:", e);
-      return 0;
+      console.error("correct_star.js: streakInfo SYNC 読み取り中に例外:", e);
+      return {
+        streakLen: 0,
+        answeredToday: false
+      };
     }
   }
 
@@ -147,6 +189,16 @@
   }
 
   // ===== スター表示の更新 =====
+  /**
+   * 現在の問題 qid に対応するスター表示を更新する。
+   *
+   * 優先度の高いルール：
+   *  1) 一度でも 3連続正解を達成していれば、累積回数に応じて ⭐️/🌟/💫 を表示
+   *  2) まだ 3連続正解を達成していない場合：
+   *      - SYNC の oncePerDayToday[qid] === true かつ streakLen[qid] === 0 なら 🖊️
+   *        （本日回答済みかつ現在の連続正解数が 0 → 直近が不正解とみなす）
+   *      - そうでなければ、streakLen に応じて ⚡️ / ✨ / ⭐️ を表示
+   */
   async function updateCorrectStar() {
     var qid = getCurrentQid();
     var starElement = document.querySelector(".qno .correct_star");
@@ -165,10 +217,21 @@
     // 3連続正解の累積回数に応じた基本シンボル（⭐️/🌟/💫）
     var symbolFromTotal = getStarSymbolFromStreakCount(count);
 
-    // 現在の連続正解数（1連続 / 2連続 など）を SYNC から取得
+    // 現在の連続正解数と「本日回答済み」フラグを SYNC から取得
     var currentStreakLen = 0;
+    var answeredToday = false;
+
+    // まだ 3連続正解を一度も達成していない問題だけ、
+    // SYNC を見て「本日不正解だったか（=直近が不正解か）」を判定に使う
     if (count < 1) {
-      currentStreakLen = await getCurrentStreakLenFromSync(qid);
+      var info = await getCurrentStreakInfoFromSync(qid);
+      if (info && typeof info === "object") {
+        currentStreakLen = Number(info.streakLen || 0);
+        if (!Number.isFinite(currentStreakLen) || currentStreakLen < 0) {
+          currentStreakLen = 0;
+        }
+        answeredToday = Boolean(info.answeredToday);
+      }
     }
 
     var finalSymbol = symbolFromTotal;
@@ -179,9 +242,15 @@
       finalSymbol = symbolFromTotal;
       state = "on";
     } else {
-      // まだ3連続正解は達成していないので、
-      // 現在の連続正解数に応じて ⚡️ / ✨ / ⭐️ を切り替える
-      if (currentStreakLen >= 2) {
+      // まだ3連続正解は達成していない場合のみ、
+      // SYNC の「本日回答済み」かつ連続正解数 0 で 🖊️ を優先する
+      var isWrongToday = answeredToday && currentStreakLen === 0;
+
+      if (isWrongToday) {
+        // 本日回答済み & 現在の連続正解数が 0 → 直近回答が不正解とみなして 🖊️
+        finalSymbol = "🖊️";
+        state = "on";
+      } else if (currentStreakLen >= 2) {
         // リーチ⚡️（2連続正解中）
         finalSymbol = "⚡️";
         state = "on";
@@ -190,7 +259,7 @@
         finalSymbol = "✨";
         state = "on";
       } else {
-        // 連続正解も無い場合は従来どおりの ⭐️ + OFF
+        // 本日未回答 or 連続正解も無い場合は従来どおりの ⭐️ + OFF
         finalSymbol = "⭐️";
         state = "off";
       }
@@ -203,6 +272,7 @@
       qid: qid,
       streak3Total: count,
       currentStreakLen: currentStreakLen,
+      answeredToday: answeredToday,
       finalSymbol: finalSymbol,
       dataStarState: state
     });
