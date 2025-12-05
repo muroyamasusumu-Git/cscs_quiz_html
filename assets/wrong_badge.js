@@ -1,4 +1,4 @@
-// /assets/wrong_badge.js
+// /assets/wrong_badge.js　
 // 目的: b_judge_record.js のキー命名に完全一致。
 // 表示の（正解/不正）をリンク化し、クリックでその問題単体の集計をリセットできるようにする。
 (() => {
