@@ -239,17 +239,56 @@
   // 現在ページの qid に対する「お気に入り状態」を取得して
   // { qid, label, type } 形式で返すユーティリティ
   // type は "unset" / "understood" / "unanswered" / "none" のいずれか
+  // ★ SYNC専用: /api/sync/state → window.CSCS_SYNC_DATA → getSyncRootForFav().fav[qid] のみを見る
   function readFavLabelAndTypeForCurrentQid(){
     var qid = getQid();
     if (!qid) {
       return { qid: "", label: "★ー", type: "unset" };
     }
 
-    // 既存の loadFav() を使って、SYNC優先→localStorage から文字列表現を取得
-    var val = loadFav(); // "unset" | "understood" | "unanswered" | "none"
-    var label = favLabelFromStringForBadge(val);
+    var type = "unset";
 
-    return { qid: qid, label: label, type: val };
+    try{
+      // SYNC state から fav セクションを取得
+      var root = getSyncRootForFav && getSyncRootForFav();
+      var favMap = (root && root.fav && typeof root.fav === "object") ? root.fav : null;
+
+      if (favMap && Object.prototype.hasOwnProperty.call(favMap, qid)) {
+        // SYNC 側の数値 (1/2/3) を文字列表現にマッピング
+        var n = favMap[qid] | 0;
+        if (n === 1) {
+          type = "understood";
+        } else if (n === 2) {
+          type = "unanswered";
+        } else if (n === 3) {
+          type = "none";
+        } else {
+          type = "unset";
+        }
+
+        console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) hit", {
+          qid: qid,
+          rawValue: favMap[qid],
+          mappedType: type
+        });
+      } else {
+        // ★ SYNC に fav セクションが無い/該当 qid が無い場合は「未設定」として扱う（ローカルへは一切フォールバックしない）
+        console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) no entry", {
+          qid: qid,
+          hasFavMap: !!favMap
+        });
+      }
+    }catch(e){
+      // SYNC state 取得時の例外も「未設定」として扱う（フォールバックしない）
+      console.error("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) error", {
+        qid: qid,
+        error: e
+      });
+      type = "unset";
+    }
+
+    var label = favLabelFromStringForBadge(type);
+    return { qid: qid, label: label, type: type };
   }
 
   // topmeta-left 内に「お気に入りバッジ」を表示するための箱を用意
