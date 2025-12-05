@@ -15,6 +15,12 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   }
 
   const user = await getUserIdFromAccess(request);
+  if (!user) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "content-type": "text/plain" }
+    });
+  }
   const key = `sync:${user}`;
 
   try {
@@ -44,6 +50,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     streak3: {},
     streakLen: {},
     consistency_status: {},
+    // お気に入り状態（fav_modal.js 用）
+    fav: {},
     // グローバルメタ情報（総問題数など）を保持する領域
     global: {},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
@@ -63,6 +71,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
   if (!out.consistency_status) out.consistency_status = {};
+  if (!out.fav || typeof out.fav !== "object") out.fav = {};
   if (!out.global || typeof out.global !== "object") out.global = {};
 
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
@@ -173,6 +182,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] hasStreak3           :", !!out.streak3);
     console.log("[SYNC/state] hasStreakLen         :", !!out.streakLen);
     console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
+    console.log("[SYNC/state] hasFav               :", !!out.fav);
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
     console.log("[SYNC/state] hasOncePerDayToday   :", hasOncePerDayProp);
     console.log("[SYNC/state] hasOdoaMode          :", hasOdoaModePropForLog);
@@ -197,7 +207,26 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
 // -----------------------------
 async function getUserIdFromAccess(request: Request) {
   const jwt = request.headers.get("CF-Access-Jwt-Assertion");
-  if (!jwt) throw new Response("Unauthorized", { status: 401 });
-  const payload = JSON.parse(atob(jwt.split(".")[1]));
-  return payload.email;
+  if (!jwt) {
+    console.error("[SYNC/state] CF-Access-Jwt-Assertion header missing.");
+    return "";
+  }
+
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) {
+      console.error("[SYNC/state] invalid JWT format (parts length !== 3).");
+      return "";
+    }
+    const payloadJson = atob(parts[1]);
+    const payload = JSON.parse(payloadJson);
+    if (!payload || typeof payload.email !== "string" || !payload.email) {
+      console.error("[SYNC/state] JWT payload does not contain valid email.", payload);
+      return "";
+    }
+    return payload.email as string;
+  } catch (e) {
+    console.error("[SYNC/state] JWT decode/parse error.", e);
+    return "";
+  }
 }
