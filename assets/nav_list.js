@@ -1126,11 +1126,37 @@
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
 
-      // ランクシンボル（⭐️/🌟/💫/⚡️/✨） or まだなし
+      // SYNCから oncePerDayToday（cscs_sync_view_b.js と同じ { day, results } 構造）を参照し、
+      // この qid の本日の oncePerDayStatus ("correct" / "wrong" / "nocount"...) を取得
+      let oncePerDayStatus = null;
+      (function () {
+        try {
+          if (syncRoot && typeof syncRoot === "object" && syncRoot.oncePerDayToday && typeof syncRoot.oncePerDayToday === "object") {
+            const opd = syncRoot.oncePerDayToday;
+            if (opd.results && typeof opd.results === "object" && Object.prototype.hasOwnProperty.call(opd.results, qid)) {
+              const raw = opd.results[qid];
+              if (typeof raw === "string") {
+                oncePerDayStatus = raw;
+              }
+            }
+          }
+        } catch (e) {
+          console.error("nav_list.js: oncePerDayToday 読み取り中に例外:", e);
+          oncePerDayStatus = null;
+        }
+      })();
+
+      // ランクシンボル（⭐️/🌟/💫/⚡️/✨/☑️） or まだなし
       let streakMark = "—";
 
-      // ⭐️未獲得（streak3累積0）の場合は、現在のストリーク長で ✨ / ⚡️ を表示
-      if (streakTotalSync === 0) {
+      // oncePerDayStatus === "wrong" の場合は、3連続正解の有無に関わらず ☑️ を最優先で表示
+      const isWrongToday = oncePerDayStatus === "wrong";
+
+      if (isWrongToday) {
+        // 本日の oncePerDayToday 正誤記録が "wrong" → ☑️
+        streakMark = "☑️";
+      } else if (streakTotalSync === 0) {
+        // ⭐️未獲得（streak3累積0）の場合は、現在のストリーク長で ✨ / ⚡️ を表示
         if (streakLenSync === 2) {
           // 2連続正解中 → リーチ⚡️
           streakMark = "⚡️";
@@ -1145,6 +1171,15 @@
       }
 
       const streakProgress = "(" + streakLenSync + "/3)";
+
+      // デバッグ用ログ（ナビリスト行ごとに、本日の oncePerDayStatus とマークを確認）
+      console.log("nav_list.js: streak/oncePerDay マーク決定", {
+        qid: qid,
+        streakLenSync: streakLenSync,
+        streakTotalSync: streakTotalSync,
+        oncePerDayStatus: oncePerDayStatus,
+        streakMark: streakMark
+      });
 
       // 整合性マーク（◎/○/△/×）を取得
       var consistencyInfo = getConsistencyInfoFromSync(day, n3, syncRoot);
