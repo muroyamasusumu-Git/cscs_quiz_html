@@ -215,7 +215,7 @@
    * 優先度の高いルール：
    *  1) 一度でも 3連続正解を達成していれば、累積回数に応じて ⭐️/🌟/💫 を表示
    *  2) まだ 3連続正解を達成していない場合：
-   *      - SYNC の oncePerDayToday[qid] が "wrong" なら 🖊️
+   *      - SYNC の oncePerDayToday[qid] が "wrong" なら ☑️
    *        （本日の oncePerDayToday 正誤記録が不正解だった問題を明示する）
    *      - そうでなければ、streakLen に応じて ⚡️ / ✨ / ⭐️ を表示
    */
@@ -267,12 +267,12 @@
       state = "on";
     } else {
       // まだ3連続正解は達成していない場合のみ、
-      // oncePerDayToday のステータスが "wrong" のときに 🖊️ を優先する
+      // oncePerDayToday のステータスが "wrong" のときに ☑️ を優先する
       var isWrongToday = oncePerDayStatus === "wrong";
 
       if (isWrongToday) {
-        // 本日の oncePerDayToday 正誤記録が "wrong" → 🖊️ を表示
-        finalSymbol = "🖊️";
+        // 本日の oncePerDayToday 正誤記録が "wrong" → ☑️ を表示
+        finalSymbol = "☑️";
         state = "on";
       } else if (currentStreakLen >= 2) {
         // リーチ⚡️（2連続正解中）
