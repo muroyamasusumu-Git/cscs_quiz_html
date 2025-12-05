@@ -503,39 +503,35 @@
 
   // =========================
   // ページ上のクリックトリガーを仕込む
-  // - 代表として h1 と .question 要素をクリックしたらモーダルを出す
-  // - .fav-status（［★ー］など）もクリック/Enter/Spaceでモーダルを出す
-  // - ただし aタグのリンク部分や .opt-link をクリックした場合は発火させない
+  // - h1 / .question 要素クリック → モーダル
+  // - .fav-status（［★ー］など）もリンク風にし、クリック/Enter/Space でモーダル
   // =========================
   function hook(){
-    // 代表：h1 をクリックターゲットにする。class="question" も保険で拾う
+    // 代表ターゲット：h1 / .question
     const targets = [];
     const h1 = document.querySelector("h1");
     if(h1) targets.push(h1);
     document.querySelectorAll(".question").forEach(el=>targets.push(el));
 
     targets.forEach(el=>{
-      // クリック可能であることが分かるようにカーソル変更
       el.style.cursor="pointer";
       el.addEventListener("click",(e)=>{
-        // aタグ内部クリック or 選択肢リンク(.opt-link)はスルー
         if (e.target && (e.target.closest("a") || e.target.classList.contains("opt-link"))) return;
-        e.preventDefault();
+        e.preventDefault(); 
         e.stopPropagation();
         show();
       });
     });
 
-    // 追加: .fav-status（［★ー］など）を「リンク風トリガー」にする
-    // - クリックでモーダルを開く
-    // - Enter / Space キーでも開けるようにしておく
+    // ★ 追加：.fav-status を「リンク風トリガー」にする
     const favSpans = document.querySelectorAll(".fav-status");
     favSpans.forEach(function(span){
-      // すでにイベントが付与されている場合でも、上書きではなく追加扱いなので問題なし
       span.style.cursor = "pointer";
+      span.style.textDecoration = "underline";   // ← ★ 下線追加！
       span.setAttribute("role", "button");
       span.setAttribute("tabindex", "0");
 
+      // クリックでモーダル
       span.addEventListener("click", function(e){
         e.preventDefault();
         e.stopPropagation();
@@ -545,25 +541,22 @@
         show();
       });
 
+      // Enter / Space でモーダル
       span.addEventListener("keydown", function(e){
-        // Enter(13) / Space(32) でモーダルを開く
         if (e.key === "Enter" || e.key === " " || e.keyCode === 13 || e.keyCode === 32) {
           e.preventDefault();
           e.stopPropagation();
-          console.log("fav_modal.js: fav-status keydown (Enter/Space) → open modal", {
+          console.log("fav_modal.js: fav-status keydown → open modal", {
             text: span.textContent,
-            key: e.key,
-            keyCode: e.keyCode
+            key: e.key
           });
           show();
         }
       });
 
-      try{
-        console.log("fav_modal.js: hook fav-status as modal trigger", {
-          text: span.textContent
-        });
-      }catch(_){}
+      console.log("fav_modal.js: hook fav-status as modal trigger (with underline)", {
+        text: span.textContent
+      });
     });
   }
 
