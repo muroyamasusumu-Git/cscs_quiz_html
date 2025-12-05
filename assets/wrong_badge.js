@@ -22,19 +22,19 @@
   // お気に入りステータスのラベル化（文字列版）
   function favLabelFromString(s) {
     switch (String(s || "unset")) {
-      case "understood": return "理解済";
-      case "unanswered": return "要復習";
-      case "none":       return "重要高";
-      default:           return "未設定";
+      case "understood": return "★１";
+      case "unanswered": return "★２";
+      case "none":       return "★３";
+      default:           return "★ー";
     }
   }
   // お気に入りステータスのラベル化（数値版）
   function favLabelFromNumber(n) {
     switch ((n | 0)) {
-      case 1: return "理解済";
-      case 2: return "要復習";
-      case 3: return "重要高";
-      default: return "未設定";
+      case 1: return "★１";
+      case 2: return "★２";
+      case 3: return "★３";
+      default: return "★ー";
     }
   }
 
@@ -46,7 +46,7 @@
     const dayPath = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1] || "";
     const n3 = (location.pathname.match(/q(\d{3})_[ab]/i) || [])[1] || "";
     const qid = dayPath && n3 ? `${dayPath}-${n3}` : "";
-    if (!qid) return { label: "未設定", type: "unset" };
+    if (!qid) return { label: "★ー", type: "unset" };
 
     // 1) まず cscs_fav（文字列版）を参照
     try {
@@ -73,7 +73,7 @@
     } catch {}
 
     // どちらにも無ければ「未設定」
-    return { label: "未設定", type: "unset" };
+    return { label: "★ー", type: "unset" };
   }
 
   // ===== topmeta-left 内にステータスを差し込む =====
@@ -327,6 +327,11 @@
       favSpan.textContent = `［${label}］`;
       favSpan.className = `fav-status fav-${type}`;
     }
+
+    // 現在の★ステータスをデバッグログに出力（qid と合わせて確認用）
+    try {
+      console.log("★ wrong_badge fav status:", { qid, label, type });
+    } catch(_) {}
 
     // 正解/不正解のリンク表示と挙動を設定
     if (wrongLink) {
