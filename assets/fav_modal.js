@@ -111,7 +111,8 @@
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        credentials: "include"
       })
         .then(function(res){
           if (!res || !res.ok) {
