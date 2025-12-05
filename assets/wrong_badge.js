@@ -18,70 +18,16 @@
     }
   }
 
-  // ===== Favorites（既存表示は維持） =====
-  // お気に入りステータスのラベル化（文字列版）
-  function favLabelFromString(s) {
-    switch (String(s || "unset")) {
-      case "understood": return "★１";
-      case "unanswered": return "★２";
-      case "none":       return "★３";
-      default:           return "★ー";
-    }
-  }
-  // お気に入りステータスのラベル化（数値版）
-  function favLabelFromNumber(n) {
-    switch ((n | 0)) {
-      case 1: return "★１";
-      case 2: return "★２";
-      case 3: return "★３";
-      default: return "★ー";
-    }
-  }
-
-  // 現在ページの QID に紐づく「お気に入りステータス」を localStorage から読み取る
-  // ・cscs_fav      : 文字列版 "understood" / "unanswered" / "none"
-  // ・cscs_fav_map  : 数値版   1 / 2 / 3
-  function readFavLabelAndType() {
-    // URL から dayPath（YYYYMMDD）と n3（3桁番号）を取り出し、qid を復元
-    const dayPath = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1] || "";
-    const n3 = (location.pathname.match(/q(\d{3})_[ab]/i) || [])[1] || "";
-    const qid = dayPath && n3 ? `${dayPath}-${n3}` : "";
-    if (!qid) return { label: "★ー", type: "unset" };
-
-    // 1) まず cscs_fav（文字列版）を参照
-    try {
-      const obj = JSON.parse(localStorage.getItem("cscs_fav") || "{}");
-      if (obj && Object.prototype.hasOwnProperty.call(obj, qid)) {
-        const raw = String(obj[qid] || "unset");
-        return { label: favLabelFromString(raw), type: raw };
-      }
-    } catch {}
-
-    // 2) 次に cscs_fav_map（数値版）を参照
-    try {
-      const m = JSON.parse(localStorage.getItem("cscs_fav_map") || "{}");
-      if (m && Object.prototype.hasOwnProperty.call(m, qid)) {
-        const n = m[qid];
-        const label = favLabelFromNumber(n);
-        const type =
-          n === 1 ? "understood" :
-          n === 2 ? "unanswered" :
-          n === 3 ? "none" :
-          "unset";
-        return { label, type };
-      }
-    } catch {}
-
-    // どちらにも無ければ「未設定」
-    return { label: "★ー", type: "unset" };
-  }
+  // ===== Favorites（wrong_badge.js では扱わない） =====
+  // ※ お気に入り表示・状態管理は fav_modal.js 側に完全移譲する。
+  // ※ このファイルは「問題別の正解/不正解累計の表示・リセット」に専念する。
 
   // ===== topmeta-left 内にステータスを差し込む =====
   function ensureFixedBox() {
     // HTML 側に用意された .topmeta-left を優先的に利用
     let box = document.querySelector(".topmeta-left");
 
-    // 無い場合はフォールバックとして生成
+    // 無い場合は最小限のコンテナだけ生成（お気に入り表示は扱わない）
     if (!box) {
       box = document.createElement("div");
       box.className = "topmeta-left";
@@ -95,11 +41,11 @@
       }
     }
 
-    // 既に .fav-status / .wrong-status があるかどうかチェック
-    const hasFav = !!box.querySelector(".fav-status");
+    // 既に .wrong-status があるかどうかチェック
     const hasWrong = !!box.querySelector(".wrong-status");
 
-    // 「正解/不正解」表示（クリック可能なリンク）を生成
+    // 「正解/不正解」表示（クリック可能なリンク）だけを生成
+    // ※ お気に入り表示用の .fav-status はここでは作らない。
     if (!hasWrong) {
       const wrongEl = document.createElement("a");
       wrongEl.href = "#";
@@ -108,14 +54,6 @@
       wrongEl.setAttribute("aria-label", "成績の統計を表示");
       wrongEl.textContent = "（正解:--回 / 不正解:--回）";
       box.appendChild(wrongEl);
-    }
-
-    // お気に入りステータス表示を生成
-    if (!hasFav) {
-      const favEl = document.createElement("span");
-      favEl.className = "fav-status";
-      favEl.textContent = "［--］";
-      box.appendChild(favEl);
     }
 
     return box;
@@ -303,8 +241,9 @@
   }
 
   // ===== 描画 =====
-  // 左上 box に「お気に入りステータス」「この問題の正解/不正解累計」を表示し、
+  // 左上 box に「この問題の正解/不正解累計」だけを表示し、
   // 正解/不正解部分をクリックでリセットモーダルを開くようにする
+  // ※ お気に入り表示はこのファイルでは一切扱わない。
   function render() {
     // 当該1問の QID を pathname から復元（A/B両方対応）
     const dayPath = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1] || "";
@@ -317,15 +256,10 @@
 
     // box と中の要素を取得（無ければ生成）
     const box = ensureFixedBox();
-    const favSpan   = box.querySelector(".fav-status");
     const wrongLink = box.querySelector(".wrong-status");
 
-    // ★ お気に入り表示は fav_modal.js に委譲
-    try {
-      if (favSpan && window.CSCS_FAV && typeof window.CSCS_FAV.renderStatusBadge === "function") {
-        window.CSCS_FAV.renderStatusBadge();
-      }
-    } catch(_) {}
+    // お気に入り関連の要素や CSCS_FAV には一切アクセスしない。
+    // このファイルの責務は「この問題の正解/不正解累計の表示」と「リセット UI」のみ。
 
     // 正解/不正解のリンク表示と挙動を設定
     if (wrongLink) {
