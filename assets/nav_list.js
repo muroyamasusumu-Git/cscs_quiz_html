@@ -8,6 +8,12 @@
   const NAV_ALWAYS_OPEN = true;
 
   // =========================
+  // デバッグフラグ（ナビリストの1問ごとのログ出力）
+  // true にすると streak/oncePerDay の詳細ログを全問分出す
+  // =========================
+  var DEBUG_NAV_LIST_STREAK_LOG = false;
+
+  // =========================
   // SYNC状態のロード
   // =========================
   async function loadSyncDataForNavList(){
@@ -1180,13 +1186,15 @@
       const streakProgress = "(" + streakLenSync + "/3)";
 
       // デバッグ用ログ（ナビリスト行ごとに、本日の oncePerDayStatus とマークを確認）
-      console.log("nav_list.js: streak/oncePerDay マーク決定", {
-        qid: qid,
-        streakLenSync: streakLenSync,
-        streakTotalSync: streakTotalSync,
-        oncePerDayStatus: oncePerDayStatus,
-        streakMark: streakMark
-      });
+      if (DEBUG_NAV_LIST_STREAK_LOG) {
+        console.log("nav_list.js: streak/oncePerDay マーク決定", {
+          qid: qid,
+          streakLenSync: streakLenSync,
+          streakTotalSync: streakTotalSync,
+          oncePerDayStatus: oncePerDayStatus,
+          streakMark: streakMark
+        });
+      }
 
       // 整合性マーク（◎/○/△/×）を取得
       var consistencyInfo = getConsistencyInfoFromSync(day, n3, syncRoot);
