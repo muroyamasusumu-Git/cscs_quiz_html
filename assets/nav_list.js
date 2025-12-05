@@ -1146,15 +1146,15 @@
         }
       })();
 
-      // ランクシンボル（⭐️/🌟/💫/⚡️/✨/☑️） or まだなし
+      // ランクシンボル（⭐️/🌟/💫/⚡️/✨/🖋️） or まだなし
       let streakMark = "—";
 
-      // oncePerDayStatus === "wrong" の場合は、3連続正解の有無に関わらず ☑️ を最優先で表示
+      // oncePerDayStatus === "wrong" の場合は、3連続正解の有無に関わらず 🖋️ を最優先で表示
       const isWrongToday = oncePerDayStatus === "wrong";
 
       if (isWrongToday) {
-        // 本日の oncePerDayToday 正誤記録が "wrong" → ☑️
-        streakMark = "☑️";
+        // 本日の oncePerDayToday 正誤記録が "wrong" → 🖋️
+        streakMark = "🖋️";
       } else if (streakTotalSync === 0) {
         // ⭐️未獲得（streak3累積0）の場合は、現在のストリーク長で ✨ / ⚡️ を表示
         if (streakLenSync === 2) {
