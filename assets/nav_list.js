@@ -336,16 +336,25 @@
       var dateRow = document.createElement("div");
       dateRow.textContent = dayStr;
 
-      // 3行目: 獲得：⭐️X/30 (YY%)
+      // 3行目: 獲得：X/30
+      // 4行目: 達成(YY%)
       var rateRow = document.createElement("div");
       rateRow.textContent =
         "獲得：" +
         String(anyStarCount) +
         "/" +
-        String(TOTAL_QUESTIONS) +
-        "(" +
+        String(TOTAL_QUESTIONS);
+
+      var percentRow = document.createElement("div");
+      percentRow.textContent =
+        "達成(" +
         String(ratePercent) +
         "%)";
+
+      link.appendChild(titleRow);
+      link.appendChild(dateRow);
+      link.appendChild(rateRow);
+      link.appendChild(percentRow);
 
       link.appendChild(titleRow);
       link.appendChild(dateRow);
