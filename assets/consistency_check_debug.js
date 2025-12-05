@@ -1439,6 +1439,51 @@
     showConsistencyResultPanel: showConsistencyResultPanel
   };
 
+  /**
+   * 整合性チェック未生成時に「[整合性チェックを開始する]」リンクを解説部に表示する
+   *
+   * @param {Object} meta
+   * @param {Object} q
+   * @param {boolean} hasResult  // 既に整合性チェック結果（result）がローカルにあるかどうか
+   */
+  function initConsistencyStartLink(meta, q, hasResult) {
+    // 既に結果がある場合は、showConsistencyResultPanel → setConsistencyPanelOpen が
+    // 自動的に「[整合性チェック結果：◎ 詳細を見る / を閉じる]」リンクを構築するので何もしない
+    if (hasResult) {
+      return;
+    }
+
+    var explainDiv = document.querySelector(".explain");
+    if (!explainDiv) {
+      return;
+    }
+
+    var explainMenu = explainDiv.querySelector(".explain_menu");
+    var parentForExplainLink = explainMenu || explainDiv;
+
+    var explainWrapper = document.getElementById("cscs-consistency-explain-link-wrapper");
+    if (!explainWrapper) {
+      explainWrapper = document.createElement("div");
+      explainWrapper.id = "cscs-consistency-explain-link-wrapper";
+      explainWrapper.style.marginTop = "12px";
+      parentForExplainLink.appendChild(explainWrapper);
+    } else if (explainWrapper.parentNode !== parentForExplainLink) {
+      parentForExplainLink.appendChild(explainWrapper);
+    }
+
+    explainWrapper.innerHTML = '<a href="#" id="cscs-consistency-start-link">[整合性チェックを開始する]</a>';
+
+    var startLink = document.getElementById("cscs-consistency-start-link");
+    if (startLink) {
+      startLink.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        // 初回実行：厳格モードで開始
+        window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+      });
+    }
+  }
+
   // Bパート用：整合性チェックボタンの自動生成（Aパートではステータス表示のみ）
   document.addEventListener("DOMContentLoaded", function() {
     var scripts = document.querySelectorAll('script[src$="consistency_check_debug.js"]');
@@ -1536,6 +1581,8 @@
       return;
     }
 
+    var hasLocalResult = false;
+
     if (typeof localStorage !== "undefined") {
       try {
         var storageKey = getConsistencyStorageKey(meta, q);
@@ -1545,12 +1592,16 @@
           if (storedData && storedData.result) {
             var usedStrict = typeof storedData.strict === "boolean" ? storedData.strict : STRICT_MODE_DEFAULT;
             showConsistencyResultPanel(meta, q, storedData.result, usedStrict);
+            hasLocalResult = true;
           }
         }
       } catch (restoreError) {
         console.error("整合性チェック結果の復元に失敗しました:", restoreError);
       }
     }
+
+    // ★ 整合性チェック未生成時は「[整合性チェックを開始する]」リンクを出す
+    initConsistencyStartLink(meta, q, hasLocalResult);
 
     var btn = document.createElement("button");
     btn.id = "cc-check-btn";
