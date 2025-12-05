@@ -18,16 +18,18 @@
     }
   }
 
-  // ===== Favorites（wrong_badge.js では扱わない） =====
-  // ※ お気に入り表示・状態管理は fav_modal.js 側に完全移譲する。
-  // ※ このファイルは「問題別の正解/不正解累計の表示・リセット」に専念する。
+  // ===== Favorites =====
+  // お気に入り表示ロジックは fav_modal.js 側に完全移管。
+  // wrong_badge.js ではお気に入りの状態やラベルを一切扱わない。
 
   // ===== topmeta-left 内にステータスを差し込む =====
+  // ※ wrong_badge.js は「正解/不正解」の表示だけを担当し、
+  //    お気に入りバッジ .fav-status の生成・更新は fav_modal.js に任せる。
   function ensureFixedBox() {
     // HTML 側に用意された .topmeta-left を優先的に利用
     let box = document.querySelector(".topmeta-left");
 
-    // 無い場合は最小限のコンテナだけ生成（お気に入り表示は扱わない）
+    // 無い場合は新規に生成
     if (!box) {
       box = document.createElement("div");
       box.className = "topmeta-left";
@@ -44,8 +46,7 @@
     // 既に .wrong-status があるかどうかチェック
     const hasWrong = !!box.querySelector(".wrong-status");
 
-    // 「正解/不正解」表示（クリック可能なリンク）だけを生成
-    // ※ お気に入り表示用の .fav-status はここでは作らない。
+    // 「正解/不正解」表示（クリック可能なリンク）を生成
     if (!hasWrong) {
       const wrongEl = document.createElement("a");
       wrongEl.href = "#";
@@ -241,9 +242,9 @@
   }
 
   // ===== 描画 =====
-  // 左上 box に「この問題の正解/不正解累計」だけを表示し、
+  // 左上 box に「この問題の正解/不正解累計」を表示し、
   // 正解/不正解部分をクリックでリセットモーダルを開くようにする
-  // ※ お気に入り表示はこのファイルでは一切扱わない。
+  // ※ お気に入りバッジの表示・更新は fav_modal.js 側に完全委譲。
   function render() {
     // 当該1問の QID を pathname から復元（A/B両方対応）
     const dayPath = (location.pathname.match(/_build_cscs_(\d{8})/) || [])[1] || "";
@@ -257,9 +258,6 @@
     // box と中の要素を取得（無ければ生成）
     const box = ensureFixedBox();
     const wrongLink = box.querySelector(".wrong-status");
-
-    // お気に入り関連の要素や CSCS_FAV には一切アクセスしない。
-    // このファイルの責務は「この問題の正解/不正解累計の表示」と「リセット UI」のみ。
 
     // 正解/不正解のリンク表示と挙動を設定
     if (wrongLink) {

@@ -254,21 +254,36 @@
       var favMap = (root && root.fav && typeof root.fav === "object") ? root.fav : null;
 
       if (favMap && Object.prototype.hasOwnProperty.call(favMap, qid)) {
-        // SYNC 側の数値 (1/2/3) を文字列表現にマッピング
-        var n = favMap[qid] | 0;
-        if (n === 1) {
-          type = "understood";
-        } else if (n === 2) {
-          type = "unanswered";
-        } else if (n === 3) {
-          type = "none";
-        } else {
+        var raw = favMap[qid];
+
+        // 1) 数値 1/2/3 の場合
+        if (typeof raw === "number") {
+          if (raw === 1) {
+            type = "understood";
+          } else if (raw === 2) {
+            type = "unanswered";
+          } else if (raw === 3) {
+            type = "none";
+          } else {
+            type = "unset";
+          }
+        }
+        // 2) 文字列 "understood" / "unanswered" / "none" / "unset" の場合
+        else if (typeof raw === "string") {
+          if (raw === "understood" || raw === "unanswered" || raw === "none" || raw === "unset") {
+            type = raw;
+          } else {
+            type = "unset";
+          }
+        }
+        // 3) それ以外の型は未設定扱い
+        else {
           type = "unset";
         }
 
         console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC only) hit", {
           qid: qid,
-          rawValue: favMap[qid],
+          rawValue: raw,
           mappedType: type
         });
       } else {
@@ -570,20 +585,28 @@
   // お気に入りモーダルを使えるようにする
   // 先に SYNC 状態を取得しておくことで、開いた瞬間から
   // 他端末での更新も反映されたお気に入り状態が使える
+  // あわせて topmeta-left のお気に入りバッジも描画する
   // =========================
   window.addEventListener("DOMContentLoaded", function(){
     fetchSyncStateForFav()
       .then(function(){
         try{
-          console.log("fav_modal.js: DOMContentLoaded → hook() after SYNC fetch.");
+          console.log("fav_modal.js: DOMContentLoaded → hook() & renderFavBadgeForCurrentQid() after SYNC fetch.");
         }catch(_){}
         hook();
+        try{
+          renderFavBadgeForCurrentQid();
+        }catch(_){}
       })
       .catch(function(e){
         try{
           console.error("fav_modal.js: DOMContentLoaded SYNC fetch error (hook anyway).", e);
         }catch(_){}
         hook();
+        // SYNC 取得に失敗しても「未設定」としてバッジだけは描画しておく
+        try{
+          renderFavBadgeForCurrentQid();
+        }catch(_){}
       });
   });
 })();
