@@ -84,12 +84,19 @@
   /**
    * SYNC (/api/sync/state) から
    *  - streakLen[qid]（現在の連続正解数）
-   *  - oncePerDayToday[qid]（"correct" / "wrong" / "nocount" などのステータス文字列）
+   *  - oncePerDayToday.results[qid]（"correct" / "wrong" / "nocount" などのステータス文字列）
    * をまとめて取得して返すヘルパー。
    *
    * フォールバックは行わず、SYNC から取得できなかった場合は
    *  { streakLen: 0, oncePerDayStatus: null }
    * を返す。
+   *
+   * oncePerDayToday の構造は cscs_sync_view_b.js と同じく:
+   *   oncePerDayToday: {
+   *     day: number,              // 例: 20251204
+   *     results: { qid: string }  // 例: { "20250926-022": "wrong", ... }
+   *   }
+   * を想定する。
    */
   async function getCurrentStreakInfoFromSync(qid) {
     if (!qid) {
@@ -133,15 +140,22 @@
         console.warn("correct_star.js: SYNC に streakLen がありません(リーチ/不正解判定用)");
       }
 
-      // oncePerDayToday 部分の取得（値は "correct" / "wrong" / "nocount" などの文字列を想定）
-      var onceMap = root.oncePerDayToday;
+      // oncePerDayToday 部分の取得（cscs_sync_view_b.js と同じ { day, results } 構造）
       var oncePerDayStatus = null;
+      var onceMap = root.oncePerDayToday;
+      var onceDay = null;
       if (onceMap && typeof onceMap === "object") {
-        var statusRaw = onceMap[qid];
-        if (typeof statusRaw === "string") {
-          oncePerDayStatus = statusRaw;
-        } else {
-          oncePerDayStatus = null;
+        if (typeof onceMap.day === "number") {
+          onceDay = onceMap.day;
+        }
+        var results = onceMap.results;
+        if (results && typeof results === "object") {
+          if (Object.prototype.hasOwnProperty.call(results, qid)) {
+            var statusRaw = results[qid];
+            if (typeof statusRaw === "string") {
+              oncePerDayStatus = statusRaw;
+            }
+          }
         }
       } else {
         console.warn("correct_star.js: SYNC に oncePerDayToday がありません(本日の正誤ステータス判定用)");
@@ -150,6 +164,7 @@
       console.log("correct_star.js: SYNC streakInfo 読み取り成功", {
         qid: qid,
         streakLen: len,
+        oncePerDayTodayDay: onceDay,
         oncePerDayStatus: oncePerDayStatus
       });
 
