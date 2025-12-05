@@ -340,7 +340,6 @@
       var rateRow = document.createElement("div");
       rateRow.textContent =
         "獲得：" +
-        "⭐️" +
         String(anyStarCount) +
         "/" +
         String(TOTAL_QUESTIONS) +
