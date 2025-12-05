@@ -129,8 +129,8 @@
 }
 
 .quiz-item .line2 .nl-qnum {
-  font-weight: 700;
-  margin-right: 2px;  /* 余白ちょっとだけ */
+  font-weight: 800;
+  margin-right: 1px;  /* 余白ちょっとだけ */
 }
 
 #nl-panel .quiz-item.is-current {
