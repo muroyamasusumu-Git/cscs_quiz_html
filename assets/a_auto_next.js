@@ -1029,10 +1029,23 @@
       if (nextMode === "on") {
         autoEnabled = true;
         saveAutoAdvanceEnabled(true);
-        var autoBtn = document.getElementById("auto-next-toggle");
-        if (autoBtn) {
-          autoBtn.textContent = "[自動送り ON]";
+        var autoBtnOn = document.getElementById("auto-next-toggle");
+        if (autoBtnOn) {
+          autoBtnOn.textContent = "[自動送り ON]";
         }
+      }
+
+      // ★ 検証AUTO:OFF のときは、自動送りも必ず OFF に倒す
+      if (nextMode === "off") {
+        autoEnabled = false;
+        saveAutoAdvanceEnabled(false);
+        var autoBtnOff = document.getElementById("auto-next-toggle");
+        if (autoBtnOff) {
+          autoBtnOff.textContent = "[自動送りOFF]";
+        }
+        // カウントダウンや自動遷移も停止し、「OFF」表示にしておく
+        cancelAutoAdvanceCountdown(true);
+        return;
       }
 
       // 検証モードの ON/OFF によって A→B か ODOA かの挙動が変わるため、
@@ -1101,7 +1114,15 @@
         reason: reason || "external-turn-off"
       });
 
-      // 検証AUTO中に自動送りが動いていた場合は、カウントダウンも止めて OFF 表示にする
+      // ★ 検証モードOFF時は、自動送りも必ず OFF に揃える
+      autoEnabled = false;
+      saveAutoAdvanceEnabled(false);
+      var autoBtn = document.getElementById("auto-next-toggle");
+      if (autoBtn) {
+        autoBtn.textContent = "[自動送りOFF]";
+      }
+
+      // カウントダウンや自動遷移も停止し、「OFF」表示にしておく
       cancelAutoAdvanceCountdown(true);
     };
   }
