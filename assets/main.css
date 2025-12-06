@@ -198,7 +198,8 @@ margin: 0 5px 0 0;
 
 /* deep_dive_inline.js が付ける強制 inline style を無効化 */
 #cscs-consistency-explain-link-wrapper {
-  margin-top: 0 !important;
+    margin-top: 0 !important;
+    gap: 12px;
 }
 .explain_menu .dd-head{
   margin-bottom: 0 !important;
