@@ -1496,15 +1496,109 @@
       parentForExplainLink.appendChild(explainWrapper);
     }
 
-    explainWrapper.innerHTML = '<a href="#" id="cscs-consistency-start-link">[整合性チェックを開始する]</a>';
+    // ★ 自動整合性チェックの現在設定を localStorage から読み込む（デフォルトは ON）
+    var autoRunKey = "cscs_consistency_auto_run";
+    var autoEnabled = true;
+    if (typeof localStorage !== "undefined") {
+      try {
+        var stored = localStorage.getItem(autoRunKey);
+        if (stored === "off") {
+          autoEnabled = false;
+        } else if (stored === "on") {
+          autoEnabled = true;
+        }
+      } catch (autoReadError) {
+        console.error("自動整合性チェック設定の読み込みに失敗しました:", autoReadError);
+      }
+    }
 
-    var startLink = document.getElementById("cscs-consistency-start-link");
+    // ★ 既存の中身をクリアしてから、[開始]リンクとON/OFFボタンを横並びで配置する
+    while (explainWrapper.firstChild) {
+      explainWrapper.removeChild(explainWrapper.firstChild);
+    }
+
+    // [整合性チェックを開始する]
+    var startLink = document.createElement("a");
+    startLink.id = "cscs-consistency-start-link";
+    startLink.href = "#";
+    startLink.textContent = "[整合性チェックを開始する]";
+    explainWrapper.appendChild(startLink);
+
+    // 区切りスペース
+    explainWrapper.appendChild(document.createTextNode(" "));
+
+    // [自動整合性チェックON]
+    var autoOnBtn = document.createElement("button");
+    autoOnBtn.id = "cscs-consistency-auto-on-btn";
+    autoOnBtn.type = "button";
+    autoOnBtn.textContent = "[自動整合性チェックON]";
+    explainWrapper.appendChild(autoOnBtn);
+
+    // 区切りスペース
+    explainWrapper.appendChild(document.createTextNode(" "));
+
+    // [自動整合性チェックOFF]
+    var autoOffBtn = document.createElement("button");
+    autoOffBtn.id = "cscs-consistency-auto-off-btn";
+    autoOffBtn.type = "button";
+    autoOffBtn.textContent = "[自動整合性チェックOFF]";
+    explainWrapper.appendChild(autoOffBtn);
+
+    // ★ ボタンの見た目を現在の設定に合わせて更新するヘルパー
+    function updateAutoButtonsVisual() {
+      var onActive = autoEnabled === true;
+      if (autoOnBtn) {
+        autoOnBtn.disabled = onActive;
+        autoOnBtn.style.opacity = onActive ? "1.0" : "0.6";
+        autoOnBtn.style.fontWeight = onActive ? "700" : "400";
+      }
+      if (autoOffBtn) {
+        autoOffBtn.disabled = !onActive;
+        autoOffBtn.style.opacity = !onActive ? "1.0" : "0.6";
+        autoOffBtn.style.fontWeight = !onActive ? "700" : "400";
+      }
+    }
+
+    updateAutoButtonsVisual();
+
     if (startLink) {
       startLink.addEventListener("click", function(e) {
         e.preventDefault();
         e.stopPropagation();
         // 初回実行：厳格モードで開始
         window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+      });
+    }
+
+    if (autoOnBtn) {
+      autoOnBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        autoEnabled = true;
+        if (typeof localStorage !== "undefined") {
+          try {
+            localStorage.setItem(autoRunKey, "on");
+          } catch (autoStoreErrorOn) {
+            console.error("自動整合性チェック設定(ON)の保存に失敗しました:", autoStoreErrorOn);
+          }
+        }
+        updateAutoButtonsVisual();
+      });
+    }
+
+    if (autoOffBtn) {
+      autoOffBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        autoEnabled = false;
+        if (typeof localStorage !== "undefined") {
+          try {
+            localStorage.setItem(autoRunKey, "off");
+          } catch (autoStoreErrorOff) {
+            console.error("自動整合性チェック設定(OFF)の保存に失敗しました:", autoStoreErrorOff);
+          }
+        }
+        updateAutoButtonsVisual();
       });
     }
   }
@@ -1526,6 +1620,20 @@
     // ローカルに結果がある場合は「チェック済み」とみなして自動実行しない
     if (hasLocalResult) {
       return;
+    }
+
+    // ★ 自動整合性チェック設定が OFF の場合は、自動実行を行わない
+    var autoRunKey = "cscs_consistency_auto_run";
+    if (typeof localStorage !== "undefined") {
+      try {
+        var stored = localStorage.getItem(autoRunKey);
+        if (stored === "off") {
+          console.log("autoRunConsistencyIfNeeded: 自動整合性チェックはOFF設定のため実行しません。");
+          return;
+        }
+      } catch (autoReadError) {
+        console.error("自動整合性チェック設定の読み込みに失敗しました(autoRun):", autoReadError);
+      }
     }
 
     try {
