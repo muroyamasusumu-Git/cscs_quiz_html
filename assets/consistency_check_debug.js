@@ -37,13 +37,20 @@
   }
 
   // 自動整合性チェックのON/OFFを保存し、必要なら VerifyMode ヘルパーとも同期させる
-  function setAutoConsistencyEnabled(enabled) {
+  // options.skipVerifySync === true のときは VerifyMode 側には触らない（ラッパーから呼ぶ用）
+  function setAutoConsistencyEnabled(enabled, options) {
+    var opt = options || {};
     try {
       if (typeof localStorage !== "undefined") {
         localStorage.setItem(AUTO_CONSISTENCY_LS_KEY, enabled ? "1" : "0");
       }
     } catch (e) {
       console.error("自動整合性チェック状態の保存に失敗しました:", e);
+    }
+
+    // VerifyMode ヘルパーとの同期をスキップする指定があればここで終了
+    if (opt && opt.skipVerifySync) {
+      return;
     }
 
     // 既存の VerifyMode ヘルパーがあれば、併せて状態を同期しておく
@@ -57,6 +64,18 @@
       }
     } catch (helperError) {
       console.error("VerifyMode ヘルパーの更新中にエラーが発生しました:", helperError);
+    }
+  }
+
+  // [自動チェックON/OFF] ラベルだけを現在の状態に合わせて更新するヘルパー
+  function updateAutoConsistencyLabel(enabled) {
+    try {
+      var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
+      if (autoToggleLink) {
+        autoToggleLink.textContent = enabled ? "[自動チェックON]" : "[自動チェックOFF]";
+      }
+    } catch (e) {
+      console.error("自動チェック表記の更新に失敗しました:", e);
     }
   }
 
@@ -1609,8 +1628,7 @@
         setAutoConsistencyEnabled(nextEnabled);
 
         // ラベルも現在の状態に合わせて更新
-        var newLabel = nextEnabled ? "[自動チェックON]" : "[自動チェックOFF]";
-        autoToggleLink.textContent = newLabel;
+        updateAutoConsistencyLabel(nextEnabled);
 
         console.log("自動整合性チェックモードを切り替えました:", nextEnabled ? "ON" : "OFF");
       });
@@ -1673,6 +1691,54 @@
         break;
       }
     }
+
+    // ★ 検証AUTO（VerifyMode）と自動チェックON/OFFを連動させるラッパー
+    //   [検証AUTO:ON] → 自動チェックON
+    //   [検証AUTO:OFF] → 自動チェックOFF
+    (function () {
+      if (!window.CSCS_VERIFY_MODE_HELPER) {
+        return;
+      }
+      var helper = window.CSCS_VERIFY_MODE_HELPER;
+
+      // 二重ラップ防止
+      if (helper.__consistencyWrappedForAutoCheck) {
+        return;
+      }
+
+      var originalTurnOn = (typeof helper.turnOnVerifyMode === "function") ? helper.turnOnVerifyMode : null;
+      var originalTurnOff = (typeof helper.turnOffVerifyMode === "function") ? helper.turnOffVerifyMode : null;
+
+      helper.turnOnVerifyMode = function (reason) {
+        // 元の挙動を先に実行
+        if (originalTurnOn) {
+          originalTurnOn(reason);
+        }
+        // 検証AUTO:ON → 自動チェックON + ラベル更新
+        try {
+          setAutoConsistencyEnabled(true, { skipVerifySync: true });
+          updateAutoConsistencyLabel(true);
+        } catch (e) {
+          console.error("検証AUTO:ON 連動処理中にエラーが発生しました:", e);
+        }
+      };
+
+      helper.turnOffVerifyMode = function (reason) {
+        // 元の挙動を先に実行
+        if (originalTurnOff) {
+          originalTurnOff(reason);
+        }
+        // 検証AUTO:OFF → 自動チェックOFF + ラベル更新
+        try {
+          setAutoConsistencyEnabled(false, { skipVerifySync: true });
+          updateAutoConsistencyLabel(false);
+        } catch (e) {
+          console.error("検証AUTO:OFF 連動処理中にエラーが発生しました:", e);
+        }
+      };
+
+      helper.__consistencyWrappedForAutoCheck = true;
+    })();
 
     var metaScript = document.getElementById("cscs-meta");
     if (!metaScript) {
