@@ -955,6 +955,31 @@
   }
 
   // =========================
+  // 自動検証モードの状態変更＋UI同期ヘルパー
+  // =========================
+  function setVerifyModeAndSyncUI(mode, options) {
+    // mode を "on" / "off" に正規化する
+    var normalized = mode === "on" ? "on" : "off";
+
+    // グローバル状態と localStorage を更新
+    window.CSCS_VERIFY_MODE = normalized;
+    saveVerifyMode(normalized);
+
+    // トグルボタン表示を現在のモードに合わせて更新
+    var btn = document.getElementById("auto-next-verify-toggle");
+    if (btn) {
+      btn.textContent = normalized === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
+    }
+
+    // 変更理由をログに残しておく（外部からの強制OFF含む）
+    var reason = options && typeof options.reason === "string" ? options.reason : "";
+    syncLog("VerifyMode: set by helper.", {
+      mode: normalized,
+      reason: reason
+    });
+  }
+
+  // =========================
   // 自動検証モード（A→B 自動遷移／計測なし）切り替えボタンの生成
   // =========================
   function createVerifyModeToggleButton() {
@@ -971,7 +996,8 @@
       typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on"
         ? "on"
         : "off";
-    btn.textContent = mode === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
+    // 初期表示もヘルパーと同じロジックを使うため、setVerifyModeAndSyncUI を呼び出す
+    setVerifyModeAndSyncUI(mode, { reason: "init-button" });
 
     btn.style.cssText =
       "position: fixed;" +
@@ -987,18 +1013,15 @@
       "border: none;";
 
     btn.addEventListener("click", function () {
+      // 現在のモードを読み取り、ON/OFF を反転させる
       var current =
         typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on"
           ? "on"
           : "off";
       var next = current === "on" ? "off" : "on";
 
-      window.CSCS_VERIFY_MODE = next;
-      saveVerifyMode(next);
-
-      btn.textContent = next === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
-
-      syncLog("VerifyMode: toggled.", { prev: current, next: next });
+      // ヘルパー経由で状態変更とUI更新を一括で行う
+      setVerifyModeAndSyncUI(next, { reason: "toggle" });
 
       // 検証モード変更直後に NEXT_URL を再計算してカウントダウンをやり直す
       if (autoEnabled) {
@@ -1016,6 +1039,23 @@
 
     document.body.appendChild(btn);
     return btn;
+  }
+
+  // =========================
+  // 外部から検証モードを強制OFFにするための公開API
+  // 例: 整合性チェック中に Gemini のクォータ超過エラーが発生したときに呼び出す
+  // =========================
+  window.CSCS_VERIFY_MODE_HELPER = window.CSCS_VERIFY_MODE_HELPER || {};
+  if (!window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode) {
+    window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode = function (reason) {
+      // 検証モードを "off" にして UI と localStorage を同期
+      setVerifyModeAndSyncUI("off", {
+        reason: reason || "external-turn-off"
+      });
+
+      // 検証AUTO中に自動送りが動いていた場合は、カウントダウンも止めて OFF 表示にする
+      cancelAutoAdvanceCountdown(true);
+    };
   }
 
   // =========================
