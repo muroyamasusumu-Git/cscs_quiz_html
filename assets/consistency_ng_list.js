@@ -127,7 +127,7 @@
     var parent = document.querySelector(".topmeta-left") || document.body;
     var link = document.getElementById("cscs-consistency-ng-toggle");
 
-    var label = "×NGlist(" + String(count) + ")";
+    var label = "×/△list(" + String(count) + ")";
 
     if (!link) {
       link = document.createElement("a");
@@ -164,7 +164,7 @@
       for (var qid in map) {
         var st = map[qid];
         var mark = st.status_mark || st.severity_mark;
-        if (mark === "×") {
+        if (mark === "×" || mark === "△") {
           list.push({
             qid: qid,
             status_mark: mark,
@@ -184,7 +184,7 @@
         if (item.kind !== "consistency_status") continue;
         var st2 = item.status || {};
         var mark2 = st2.status_mark || st2.severity_mark;
-        if (mark2 === "×") {
+        if (mark2 === "×" || mark2 === "△") {
           list.push({
             qid: item.qid || "",
             status_mark: mark2,
@@ -224,14 +224,14 @@
   function buildConsistencyNgPanelHtml(list) {
     var html = "";
 
-    html += "<h3>× 整合性エラー問題リスト（SYNC）</h3>";
+    html += "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>";
 
     if (!list.length) {
-      html += '<div class="cng-summary cng-empty">現在SYNCに「×」の問題はありません。</div>';
+      html += '<div class="cng-summary cng-empty">現在SYNCに「×」「△」の問題はありません。</div>';
       return html;
     }
 
-    html += `<div class="cng-summary">SYNCに保存されている × 問題は <strong>${list.length}</strong> 件。</div>`;
+    html += `<div class="cng-summary">SYNCに保存されている × / △ 問題は <strong>${list.length}</strong> 件。</div>`;
 
     html += "<table><thead><tr>";
     html += "<th>QID</th>";
@@ -292,7 +292,7 @@
 
     if (!cngListCache && !cngFetchError) {
       panel.innerHTML =
-        "<h3>× 整合性エラー問題リスト（SYNC）</h3>" +
+        "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>" +
         '<div class="cng-summary cng-empty">一覧データがまだ準備されていません。</div>';
       panel.style.display = "";
       cngPanelVisible = true;
@@ -301,7 +301,7 @@
 
     if (cngFetchError) {
       panel.innerHTML =
-        "<h3>× 整合性エラー問題リスト（SYNC）</h3>" +
+        "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>" +
         '<div class="cng-summary cng-empty">SYNC取得中にエラーが発生しました。</div>';
       panel.style.display = "";
       cngPanelVisible = true;
