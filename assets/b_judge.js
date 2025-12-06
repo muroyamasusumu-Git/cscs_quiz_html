@@ -343,17 +343,36 @@
           host.innerHTML = '';
           host.setAttribute('style', 'min-height:1em;display:block;');
 
-          // 不正解表示と同じクラス系を流用しつつ、O.D.O.A Mode 用の説明文を出す
-          host.innerHTML =
-          host.innerHTML =
-            '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。</span>';
+          // ▼ 自動検証モードかどうかを判定（"on"/"off" 以外は "off" 扱い）
+          var verifyMode =
+            typeof window.CSCS_VERIFY_MODE === 'string' && window.CSCS_VERIFY_MODE === 'on'
+              ? 'on'
+              : 'off';
+
+          // ▼ モードに応じて表示メッセージを切り替え
+          //   - 検証モードON  : 「自動検証 Mode : ON ～」
+          //   - 検証モードOFF : 従来通り「O.D.O.A Mode : ON ～」
+          var messageHtml = '';
+          if (verifyMode === 'on') {
+            messageHtml =
+              '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※自動検証 Mode : ON のため、この問題の正誤計測はされていません。</span>';
+          } else {
+            messageHtml =
+              '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※O.D.O.A Mode : ON のため、この問題の正誤計測はされていません。</span>';
+          }
+
+          // 不正解表示と同じクラス系を流用しつつ、モード別の説明文を出す
+          host.innerHTML = messageHtml;
 
           // 正解／不正解どちらの状態クラスも外して「判定なし」であることを明示
           document.body.classList.remove('is-correct');
           document.body.classList.remove('is-wrong');
 
           // コンソール上で、この分岐が確実に通ったことを確認できるログ
-          dlog('ODOA no-count message rendered (no choice; no tally)', { qid });
+          dlog('ODOA no-count message rendered (no choice; no tally)', {
+            qid,
+            verifyMode: verifyMode
+          });
         } else {
           // #judge 自体が見つからない場合もログに残しておく
           wlog('ODOA no-count: #judge not found', { qid });
