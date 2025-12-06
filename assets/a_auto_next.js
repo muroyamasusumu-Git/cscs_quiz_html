@@ -817,7 +817,7 @@
     btn = document.createElement("button");
     btn.id = "auto-next-toggle";
     btn.type = "button";
-    btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
+    btn.textContent = autoEnabled ? "[自動送り ON]" : "[自動送りOFF]";
     btn.style.cssText =
       "position: fixed;" +
       "left: 260px;" +
@@ -835,7 +835,7 @@
     btn.addEventListener("click", function () {
       autoEnabled = !autoEnabled;
       saveAutoAdvanceEnabled(autoEnabled);
-      btn.textContent = autoEnabled ? "[自動送りON]" : "[自動送りOFF]";
+      btn.textContent = autoEnabled ? "[自動送り ON]" : "[自動送りOFF]";
 
       if (autoEnabled) {
         // ON にした瞬間から、ODOA / oncePerDayToday を考慮した NEXT_URL を再計算してカウントダウン開始
