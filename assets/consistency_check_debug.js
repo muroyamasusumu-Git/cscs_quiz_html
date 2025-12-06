@@ -1495,12 +1495,17 @@
       updateConsistencyCheckStatus(meta, q);
     } catch (e) {
       var msg = String(e && e.message ? e.message : e);
+
+      // ★ HTTP 429（利用上限超過など）の場合は詳細エラーを出さず、シンプルなメッセージのみ表示
+      if (msg.indexOf("HTTP 429") !== -1) {
+        console.error("整合性チェック中に HTTP 429（Gemini API 利用上限超過）が発生しました:", msg);
+        panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">Gemini API の利用上限を超えたので自動検証モードはOFFに切り替えました。</div>';
+        return;
+      }
+
       var friendly = "";
 
-      // ★ HTTP 429（利用上限超過など）の場合
-      if (msg.indexOf("HTTP 429") !== -1) {
-        friendly = "（整合性チェック用の Gemini API の利用上限を超えた可能性があります。自動検証モードは安全のため自動で OFF に切り替えました。しばらく時間を空けてから、必要な問題だけ手動で整合性チェックを実行してください。）";
-      } else if (msg.indexOf("HTTP 500") !== -1 || msg.indexOf("503") !== -1) {
+      if (msg.indexOf("HTTP 500") !== -1 || msg.indexOf("503") !== -1) {
         friendly = "（Gemini のモデル側が一時的に過負荷のため利用できない状態です。少し時間を空けてから、もう一度「整合性チェック」ボタンを押してみてください。）";
       }
 
