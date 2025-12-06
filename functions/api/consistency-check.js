@@ -88,7 +88,13 @@ async function callGeminiConsistencyCheck(env, prompt, modelName) {
         continue;
       }
 
-      throw new Error("Gemini API error: HTTP " + res.status + " " + text);
+      // 503以外のHTTPエラーはそのままErrorとして上位に投げる。
+      // ここでstatusとresponseBodyをErrorオブジェクトに持たせておくことで、
+      // 呼び出し元（onRequestPost）がHTTP 429などのステータスを判別できるようにする。
+      const err = new Error("Gemini API error: HTTP " + res.status + " " + text);
+      err.status = res.status;
+      err.responseBody = text;
+      throw err;
     }
 
     // res.ok のときはループを抜ける
@@ -290,6 +296,21 @@ export async function onRequestPost(context) {
     return jsonResponse(request, 200, json);
   } catch (e) {
     const msg = e && e.message ? e.message : String(e);
+
+    // Gemini側がHTTP 429（レート制限など）を返した場合は、
+    // /api/consistency-check もHTTP 429でそのまま返す。
+    // これにより、フロント側は response.status === 429 をトリガーに
+    // 自動検証モードを安全側（OFF）に倒すことができる。
+    const statusFromError = typeof e === "object" && e !== null && typeof e.status === "number"
+      ? e.status
+      : null;
+
+    if (statusFromError === 429 || msg.indexOf("HTTP 429") !== -1) {
+      return jsonResponse(request, 429, { error: msg });
+    }
+
+    // それ以外のエラー（400系/500系）は従来どおりHTTP 500でまとめて返す。
+    // フォールバック処理は行わず、フロント側でメッセージを見て対処してもらう方針。
     return jsonResponse(request, 500, { error: msg });
   }
 }
