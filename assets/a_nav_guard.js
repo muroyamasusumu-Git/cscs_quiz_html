@@ -156,8 +156,20 @@
         }
 
         // 「O.D.O.A Mode の仕様上、この問題はトークン発行をスキップすべきか？」を判定
-        // - モードが "on" で、かつ oncePerDayToday 上「今日すでに回答済み」であれば true
+        // - 検証モード "on" のときは無条件でスキップ（計測なし）
+        // - それ以外で、モードが "on" かつ oncePerDayToday 上「今日すでに回答済み」であれば true
         function shouldSkipTokenForThisQuestion(){
+          // 自動検証モード中は、この問題に対しては常にトークン発行をスキップする
+          const verifyModeOn =
+            typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+          if (verifyModeOn) {
+            dlog("Verify-auto mode: skip token issuing for this qid.", {
+              qid,
+              verifyMode: window.CSCS_VERIFY_MODE
+            });
+            return true;
+          }
+
           const mode = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
           if (mode !== "on") return false;
           const answered = isOncePerDayAnsweredForThisQid();

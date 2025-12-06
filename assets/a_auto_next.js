@@ -47,6 +47,51 @@
     json: null
   };
 
+  // 自動検証モード（A→B 自動遷移／計測なし）用の localStorage キー
+  // 値は "on" または "off" を前提とする（それ以外は "off" に丸める）
+  var VERIFY_MODE_KEY = "cscs_auto_verify_mode";
+
+  // 検証モード状態を読み込むヘルパー
+  function loadVerifyMode() {
+    try {
+      var v = localStorage.getItem(VERIFY_MODE_KEY);
+      if (v === "on" || v === "off") {
+        return v;
+      }
+      return "off";
+    } catch (_e) {
+      return "off";
+    }
+  }
+
+  // 検証モード状態を保存するヘルパー
+  function saveVerifyMode(mode) {
+    try {
+      var normalized = mode === "on" ? "on" : "off";
+      localStorage.setItem(VERIFY_MODE_KEY, normalized);
+    } catch (_e) {
+      // 保存失敗は致命的ではないので無視
+    }
+  }
+
+  // グローバルな検証モードフラグを初期化する
+  (function initVerifyModeGlobal() {
+    var initialMode = "off";
+    try {
+      initialMode = loadVerifyMode();
+    } catch (_e) {
+      initialMode = "off";
+    }
+
+    if (typeof window.CSCS_VERIFY_MODE !== "string") {
+      window.CSCS_VERIFY_MODE = initialMode;
+    } else {
+      // 既にどこかで設定されている場合は "on"/"off" に丸めて保存
+      window.CSCS_VERIFY_MODE = window.CSCS_VERIFY_MODE === "on" ? "on" : "off";
+      saveVerifyMode(window.CSCS_VERIFY_MODE);
+    }
+  })();
+
   // ログ用ヘルパー（このファイル専用のプレフィックス）
   function syncLog() {
     try {
@@ -586,6 +631,28 @@
       return null;
     }
 
+    // ▼ 自動検証モード（A→B 自動遷移／計測なし）の特別処理
+    //   - Aパートのときだけ、同じ問題番号の Bパートへ送る
+    //   - Bパート側は従来どおり（次の問題の A へ）でよい
+    var verifyOn =
+      typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+    if (verifyOn && info.part === "a") {
+      var pathVerify = String(location.pathname || "");
+      var nextNum3Verify = String(info.idx).padStart(3, "0");
+      var nextPathVerify = pathVerify.replace(
+        /q\d{3}_a(?:\.html)?$/,
+        "q" + nextNum3Verify + "_b.html"
+      );
+
+      var qidVerify = info.day + "-" + nextNum3Verify;
+      syncLog("VerifyMode: A→B auto jump.", {
+        qid: qidVerify,
+        url: nextPathVerify
+      });
+
+      return nextPathVerify;
+    }
+
     // ODOA モードを確認（"on" / "off"）
     var odoaMode = await getCurrentOdoaMode();
 
@@ -888,6 +955,70 @@
   }
 
   // =========================
+  // 自動検証モード（A→B 自動遷移／計測なし）切り替えボタンの生成
+  // =========================
+  function createVerifyModeToggleButton() {
+    var btn = document.getElementById("auto-next-verify-toggle");
+    if (btn) {
+      return btn;
+    }
+
+    btn = document.createElement("button");
+    btn.id = "auto-next-verify-toggle";
+    btn.type = "button";
+
+    var mode =
+      typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on"
+        ? "on"
+        : "off";
+    btn.textContent = mode === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
+
+    btn.style.cssText =
+      "position: fixed;" +
+      "left: 502px;" +
+      "bottom: 14px;" +
+      "padding: 6px 10px;" +
+      "font-size: 13px;" +
+      "color: rgb(150, 150, 150);" +
+      "border-radius: 0px;" +
+      "z-index: 10000;" +
+      "cursor: pointer;" +
+      "background: none;" +
+      "border: none;";
+
+    btn.addEventListener("click", function () {
+      var current =
+        typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on"
+          ? "on"
+          : "off";
+      var next = current === "on" ? "off" : "on";
+
+      window.CSCS_VERIFY_MODE = next;
+      saveVerifyMode(next);
+
+      btn.textContent = next === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
+
+      syncLog("VerifyMode: toggled.", { prev: current, next: next });
+
+      // 検証モード変更直後に NEXT_URL を再計算してカウントダウンをやり直す
+      if (autoEnabled) {
+        cancelAutoAdvanceCountdown(false);
+        (async function () {
+          NEXT_URL = await buildNextUrlConsideringOdoa();
+          if (NEXT_URL) {
+            startAutoAdvanceCountdown();
+          } else {
+            cancelAutoAdvanceCountdown(true);
+          }
+        })();
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }
+
+  // =========================
   // nav_list / フェードモジュールと連携した遷移処理
   // =========================
 
@@ -1045,9 +1176,10 @@
     }
 
     // 画面左下の制御ボタン類を作成
-    createAutoNextToggleButton();     // 自動送り ON/OFF
-    createAutoNextModeToggleButton(); // 順番／ランダム
-    createAutoNextDurationButton();   // 待ち時間（秒）
+    createAutoNextToggleButton();       // 自動送り ON/OFF
+    createAutoNextModeToggleButton();   // 順番／ランダム
+    createAutoNextDurationButton();     // 待ち時間（秒）
+    createVerifyModeToggleButton();     // 自動検証モード（A→B 自動遷移）
 
     // 自動送りの状態に応じて挙動を分岐
     if (autoEnabled) {
