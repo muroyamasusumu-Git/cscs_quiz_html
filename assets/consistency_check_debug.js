@@ -248,6 +248,21 @@
 
     if (!response.ok) {
       console.error("整合性チェック API 生レスポンス:", text);
+
+      // ★ HTTP 429（クォータ超過など）の場合は、自動検証モードを強制OFFにする
+      if (response.status === 429) {
+        try {
+          if (
+            window.CSCS_VERIFY_MODE_HELPER &&
+            typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function"
+          ) {
+            window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("consistency-api-http-429");
+          }
+        } catch (verifyOffError) {
+          console.error("VerifyMode 強制OFF処理中にエラーが発生しました:", verifyOffError);
+        }
+      }
+
       throw new Error("整合性チェック API エラー: HTTP " + response.status + " / body: " + text);
     }
 
@@ -1428,7 +1443,10 @@
       var msg = String(e && e.message ? e.message : e);
       var friendly = "";
 
-      if (msg.indexOf("HTTP 500") !== -1 && msg.indexOf("503") !== -1) {
+      // ★ HTTP 429（利用上限超過など）の場合
+      if (msg.indexOf("HTTP 429") !== -1) {
+        friendly = "（整合性チェック用の Gemini API の利用上限を超えた可能性があります。自動検証モードは安全のため自動で OFF に切り替えました。しばらく時間を空けてから、必要な問題だけ手動で整合性チェックを実行してください。）";
+      } else if (msg.indexOf("HTTP 500") !== -1 || msg.indexOf("503") !== -1) {
         friendly = "（Gemini のモデル側が一時的に過負荷のため利用できない状態です。少し時間を空けてから、もう一度「整合性チェック」ボタンを押してみてください。）";
       }
 
