@@ -968,6 +968,7 @@
     // トグルボタン表示を現在のモードに合わせて更新
     var btn = document.getElementById("auto-next-verify-toggle");
     if (btn) {
+      // 現在の検証モードに応じてラベルを切り替える
       btn.textContent = normalized === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
     }
 
@@ -981,7 +982,7 @@
 
   // =========================
   // 自動検証モード（A→B 自動遷移／計測なし）切り替えボタンの生成
-  // 現時点では「準備中」であることを明示し、モード切り替えは行わない。
+  // UI から ON/OFF できる正式トグルボタンとして動作させる。
   // =========================
   function createVerifyModeToggleButton() {
     var btn = document.getElementById("auto-next-verify-toggle");
@@ -995,35 +996,47 @@
     btn.id = "auto-next-verify-toggle";
     btn.type = "button";
 
-    // 現時点では自動検証モードは利用不可であることを明示するため、
-    // 初期ラベルを「準備中」として固定表示する。
-    btn.textContent = "[検証AUTO:準備中]";
+    // 現在の検証モード（window.CSCS_VERIFY_MODE）に応じて初期ラベルを決定する
+    var initialMode = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on") ? "on" : "off";
+    btn.textContent = initialMode === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
 
-    // 見た目は他のボタンと揃えつつ、やや暗めの色で「無効感」を出す
+    // 他ボタンと同等の見た目にそろえる（有効な操作ボタンとして扱う）
     btn.style.cssText =
       "position: fixed;" +
       "left: 462px;" +
       "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
-      "color: rgb(110, 110, 110);" +
+      "color: rgb(150, 150, 150);" +
       "border-radius: 0px;" +
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
       "border: none;";
 
-    // クリックされた場合は、まだ機能が有効化されていない旨を通知し、
-    // 実際のモード切り替えやカウントダウン再計算は一切行わない。
+    // クリックごとに検証モード "on" / "off" をトグルし、
+    // ラベル更新・localStorage 保存・ログ出力まで一括で行う
     btn.addEventListener("click", function () {
-      // ログには「準備中のボタンが押された」事実だけ残す
-      syncLog("VerifyMode button clicked (not available yet).", {
-        currentVerifyMode: window.CSCS_VERIFY_MODE
+      var currentMode = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on") ? "on" : "off";
+      var nextMode = currentMode === "on" ? "off" : "on";
+
+      // 検証モードの実状態と UI を同期させる
+      setVerifyModeAndSyncUI(nextMode, {
+        reason: "user-toggle"
       });
-      try {
-        alert("自動検証モードは現在準備中です。\n整合性チェック機能との連携が完了したら有効化されます。");
-      } catch (_e) {
-        // alert が使えない環境でも落ちないようにしておく
+
+      // 検証モードの ON/OFF によって A→B か ODOA かの挙動が変わるため、
+      // 自動送りが有効な場合は NEXT_URL を再計算してカウントダウンをやり直す
+      if (autoEnabled) {
+        (async function () {
+          NEXT_URL = await buildNextUrlConsideringOdoa();
+          if (NEXT_URL) {
+            startAutoAdvanceCountdown();
+          } else {
+            // 遷移候補が無い場合はカウントダウンを停止し、OFF 表示にしておく
+            cancelAutoAdvanceCountdown(true);
+          }
+        })();
       }
     });
 
