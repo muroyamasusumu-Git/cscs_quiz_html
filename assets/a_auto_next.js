@@ -1122,7 +1122,7 @@
       return;
     }
 
-    // ▼ 検証モード中は A=10秒, B=20秒 に固定するための有効待ち時間を決定する
+    // ▼ 検証モード中は A=5秒, B=20秒 に固定するための有効待ち時間を決定する
     var verifyOn =
       typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
     var effectiveMs = AUTO_ADVANCE_MS;
@@ -1130,9 +1130,9 @@
     if (verifyOn) {
       var infoForVerify = parseSlideInfo();
       if (infoForVerify && infoForVerify.part === "a") {
-        // Aパートでは 10秒 固定
-        effectiveMs = 10000;
-        syncLog("VerifyMode: use fixed duration for A (10s).", {
+        // Aパートでは 5秒 固定
+        effectiveMs = 5000;
+        syncLog("VerifyMode: use fixed duration for A (5s).", {
           ms: effectiveMs
         });
       } else if (infoForVerify && infoForVerify.part === "b") {
