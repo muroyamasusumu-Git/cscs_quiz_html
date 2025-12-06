@@ -981,62 +981,53 @@
 
   // =========================
   // 自動検証モード（A→B 自動遷移／計測なし）切り替えボタンの生成
+  // 現時点では「準備中」であることを明示し、モード切り替えは行わない。
   // =========================
   function createVerifyModeToggleButton() {
     var btn = document.getElementById("auto-next-verify-toggle");
     if (btn) {
+      // すでにボタンが存在する場合は、そのまま再利用する
       return btn;
     }
 
+    // ボタン要素を新規作成
     btn = document.createElement("button");
     btn.id = "auto-next-verify-toggle";
     btn.type = "button";
 
-    var mode =
-      typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on"
-        ? "on"
-        : "off";
-    // 初期表示もヘルパーと同じロジックを使うため、setVerifyModeAndSyncUI を呼び出す
-    setVerifyModeAndSyncUI(mode, { reason: "init-button" });
+    // 現時点では自動検証モードは利用不可であることを明示するため、
+    // 初期ラベルを「準備中」として固定表示する。
+    btn.textContent = "[検証AUTO:準備中]";
 
+    // 見た目は他のボタンと揃えつつ、やや暗めの色で「無効感」を出す
     btn.style.cssText =
       "position: fixed;" +
       "left: 462px;" +
       "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
-      "color: rgb(150, 150, 150);" +
+      "color: rgb(110, 110, 110);" +
       "border-radius: 0px;" +
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
       "border: none;";
 
+    // クリックされた場合は、まだ機能が有効化されていない旨を通知し、
+    // 実際のモード切り替えやカウントダウン再計算は一切行わない。
     btn.addEventListener("click", function () {
-      // 現在のモードを読み取り、ON/OFF を反転させる
-      var current =
-        typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on"
-          ? "on"
-          : "off";
-      var next = current === "on" ? "off" : "on";
-
-      // ヘルパー経由で状態変更とUI更新を一括で行う
-      setVerifyModeAndSyncUI(next, { reason: "toggle" });
-
-      // 検証モード変更直後に NEXT_URL を再計算してカウントダウンをやり直す
-      if (autoEnabled) {
-        cancelAutoAdvanceCountdown(false);
-        (async function () {
-          NEXT_URL = await buildNextUrlConsideringOdoa();
-          if (NEXT_URL) {
-            startAutoAdvanceCountdown();
-          } else {
-            cancelAutoAdvanceCountdown(true);
-          }
-        })();
+      // ログには「準備中のボタンが押された」事実だけ残す
+      syncLog("VerifyMode button clicked (not available yet).", {
+        currentVerifyMode: window.CSCS_VERIFY_MODE
+      });
+      try {
+        alert("自動検証モードは現在準備中です。\n整合性チェック機能との連携が完了したら有効化されます。");
+      } catch (_e) {
+        // alert が使えない環境でも落ちないようにしておく
       }
     });
 
+    // 画面に追加
     document.body.appendChild(btn);
     return btn;
   }
