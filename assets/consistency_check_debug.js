@@ -1696,16 +1696,29 @@
     //   [検証AUTO:ON] → 自動チェックON
     //   [検証AUTO:OFF] → 自動チェックOFF
     function attachVerifyModeWrapperForConsistency() {
+      console.log("[consistency][wrapper] attachVerifyModeWrapperForConsistency 呼び出し開始");
+
       try {
         // helper がまだ定義されていない場合は false を返して呼び出し側にリトライさせる
         if (!window.CSCS_VERIFY_MODE_HELPER) {
+          console.log("[consistency][wrapper] window.CSCS_VERIFY_MODE_HELPER がまだ存在しません。リトライ待ちとします。");
           return false;
         }
 
         var helper = window.CSCS_VERIFY_MODE_HELPER;
+        try {
+          console.log("[consistency][wrapper] CSCS_VERIFY_MODE_HELPER を検出しました。", {
+            hasTurnOnVerifyMode: typeof helper.turnOnVerifyMode === "function",
+            hasTurnOffVerifyMode: typeof helper.turnOffVerifyMode === "function",
+            alreadyWrapped: !!helper.__consistencyWrappedForAutoCheck
+          });
+        } catch (logErr) {
+          console.warn("[consistency][wrapper] helper 情報ログ出力中にエラーが発生しました:", logErr);
+        }
 
         // 既にラップ済みなら true を返して処理終了（二重ラップ防止）
         if (helper.__consistencyWrappedForAutoCheck) {
+          console.log("[consistency][wrapper] 既に自動チェック連動ラッパーが設定済みのため、新規ラップはスキップします。");
           return true;
         }
 
@@ -1713,35 +1726,62 @@
         var originalTurnOn = (typeof helper.turnOnVerifyMode === "function") ? helper.turnOnVerifyMode : null;
         var originalTurnOff = (typeof helper.turnOffVerifyMode === "function") ? helper.turnOffVerifyMode : null;
 
+        if (!originalTurnOn) {
+          console.warn("[consistency][wrapper] helper.turnOnVerifyMode が関数ではありません。元の ON 挙動はスキップされます。");
+        }
+        if (!originalTurnOff) {
+          console.warn("[consistency][wrapper] helper.turnOffVerifyMode が関数ではありません。元の OFF 挙動はスキップされます。");
+        }
+
         // 検証AUTO:ON → 自動チェックON + ラベル更新
         helper.turnOnVerifyMode = function (reason) {
+          console.log("[consistency][wrapper] turnOnVerifyMode ラッパーが呼び出されました。", { reason: reason });
+
           // まず元の挙動をそのまま呼び出す
           if (originalTurnOn) {
-            originalTurnOn(reason);
+            try {
+              console.log("[consistency][wrapper] 元の turnOnVerifyMode を呼び出します。");
+              originalTurnOn(reason);
+              console.log("[consistency][wrapper] 元の turnOnVerifyMode 呼び出し完了。");
+            } catch (origErrOn) {
+              console.error("[consistency][wrapper] 元の turnOnVerifyMode 実行中にエラーが発生しました:", origErrOn);
+            }
           }
+
           // 自動整合性チェックをONにしつつ VerifyMode 側には再通知しない（循環防止）
           try {
+            console.log("[consistency][wrapper] 自動整合性チェックを ON に設定します。");
             setAutoConsistencyEnabled(true, { skipVerifySync: true });
             updateAutoConsistencyLabel(true);
-            console.log("[consistency] 検証AUTO:ON に連動して自動整合性チェックをONにしました。", { reason: reason });
+            console.log("[consistency][wrapper] 検証AUTO:ON に連動して自動整合性チェックを ON にしました。", { reason: reason });
           } catch (e) {
-            console.error("[consistency] 検証AUTO:ON 連動処理中にエラーが発生しました:", e);
+            console.error("[consistency][wrapper] 検証AUTO:ON 連動処理中にエラーが発生しました:", e);
           }
         };
 
         // 検証AUTO:OFF → 自動チェックOFF + ラベル更新
         helper.turnOffVerifyMode = function (reason) {
+          console.log("[consistency][wrapper] turnOffVerifyMode ラッパーが呼び出されました。", { reason: reason });
+
           // まず元の挙動をそのまま呼び出す
           if (originalTurnOff) {
-            originalTurnOff(reason);
+            try {
+              console.log("[consistency][wrapper] 元の turnOffVerifyMode を呼び出します。");
+              originalTurnOff(reason);
+              console.log("[consistency][wrapper] 元の turnOffVerifyMode 呼び出し完了。");
+            } catch (origErrOff) {
+              console.error("[consistency][wrapper] 元の turnOffVerifyMode 実行中にエラーが発生しました:", origErrOff);
+            }
           }
+
           // 自動整合性チェックをOFFにしつつ VerifyMode 側には再通知しない（循環防止）
           try {
+            console.log("[consistency][wrapper] 自動整合性チェックを OFF に設定します。");
             setAutoConsistencyEnabled(false, { skipVerifySync: true });
             updateAutoConsistencyLabel(false);
-            console.log("[consistency] 検証AUTO:OFF に連動して自動整合性チェックをOFFにしました。", { reason: reason });
+            console.log("[consistency][wrapper] 検証AUTO:OFF に連動して自動整合性チェックを OFF にしました。", { reason: reason });
           } catch (e) {
-            console.error("[consistency] 検証AUTO:OFF 連動処理中にエラーが発生しました:", e);
+            console.error("[consistency][wrapper] 検証AUTO:OFF 連動処理中にエラーが発生しました:", e);
           }
         };
 
@@ -1749,39 +1789,57 @@
         helper.__consistencyWrappedForAutoCheck = true;
 
         // いつラップされたかを確認するためのログ
-        console.log("[consistency] VerifyMode ヘルパー用の自動チェック連動ラッパーを設定しました。");
+        console.log("[consistency][wrapper] VerifyMode ヘルパー用の自動チェック連動ラッパーを正常に設定しました。");
 
         return true;
       } catch (e) {
-        console.error("[consistency] VerifyMode ヘルパー ラッパー設定中にエラーが発生しました:", e);
+        console.error("[consistency][wrapper] VerifyMode ヘルパー ラッパー設定中に予期せぬエラーが発生しました:", e);
         return false;
       }
     }
 
     (function () {
-      // まずは現在のタイミングで helper が存在するかをチェックし、いれば即ラップする
-      if (attachVerifyModeWrapperForConsistency()) {
-        return;
-      }
-
       // まだ helper が作られていない場合だけ、短時間のリトライを行う
       var retryCount = 0;
       var maxRetry = 20;       // 最大 20 回までリトライ
       var intervalMs = 100;    // 100ms 間隔で helper の出現を確認する
+
+      console.log("[consistency][wrapper] VerifyMode ヘルパー用ラッパーの自動設定シーケンスを開始します。", {
+        maxRetry: maxRetry,
+        intervalMs: intervalMs
+      });
+
+      // まずは現在のタイミングで helper が存在するかをチェックし、いれば即ラップする
+      var firstAttachOk = attachVerifyModeWrapperForConsistency();
+      if (firstAttachOk) {
+        console.log("[consistency][wrapper] DOMContentLoaded 時点でラッパー設定に成功したため、リトライは不要です。");
+        return;
+      }
+
       var intervalId = window.setInterval(function () {
         retryCount += 1;
+        console.log("[consistency][wrapper] VerifyMode ラッパー設定のリトライを実行します。", {
+          attempt: retryCount,
+          maxRetry: maxRetry
+        });
 
         // helper が出現してラップに成功したらそこで終了
-        if (attachVerifyModeWrapperForConsistency()) {
+        var ok = attachVerifyModeWrapperForConsistency();
+        if (ok) {
           window.clearInterval(intervalId);
-          console.log("[consistency] VerifyMode ヘルパー用ラッパーをリトライで設定しました。", { retryCount: retryCount });
+          console.log("[consistency][wrapper] リトライ中に VerifyMode ヘルパー用ラッパーの設定に成功しました。", {
+            retryCount: retryCount
+          });
           return;
         }
 
         // 規定回数までに helper が見つからなければ諦めて終了
         if (retryCount >= maxRetry) {
           window.clearInterval(intervalId);
-          console.warn("[consistency] CSCS_VERIFY_MODE_HELPER が見つからないため、自動チェック連動ラッパーの設定を中止しました。");
+          console.warn("[consistency][wrapper] CSCS_VERIFY_MODE_HELPER が見つからないため、自動チェック連動ラッパーの設定を中止しました。", {
+            finalRetryCount: retryCount,
+            maxRetry: maxRetry
+          });
         }
       }, intervalMs);
     })();
