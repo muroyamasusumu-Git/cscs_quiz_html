@@ -868,19 +868,21 @@
    *
    * @param {Object} meta
    * @param {Object} q
-   * @returns {Promise<void>}
+   * @returns {Promise<boolean>}  // true: SYNC に整合性ステータスが存在した / false: それ以外（未チェック・エラー等）
    */
   async function fetchConsistencySyncStatus(meta, q) {
+    var hasRemoteStatus = false;
+
     if (typeof fetch !== "function") {
-      return;
+      return hasRemoteStatus;
     }
     if (typeof localStorage === "undefined") {
-      return;
+      return hasRemoteStatus;
     }
 
     var consistencyQid = getConsistencySyncQid(meta);
     if (!consistencyQid) {
-      return;
+      return hasRemoteStatus;
     }
 
     var url = "/api/sync-consistency?qid=" + encodeURIComponent(consistencyQid);
@@ -897,11 +899,11 @@
 
       if (!response.ok) {
         console.log("[consistency SYNC] fetch failed:", response.status, text);
-        return;
+        return hasRemoteStatus;
       }
 
       if (!text) {
-        return;
+        return hasRemoteStatus;
       }
 
       var data;
@@ -909,7 +911,7 @@
         data = JSON.parse(text);
       } catch (parseError) {
         console.error("[consistency SYNC] response JSON parse error:", parseError, text);
-        return;
+        return hasRemoteStatus;
       }
 
       var items = [];
@@ -920,15 +922,17 @@
       }
 
       if (!items || items.length === 0) {
-        return;
+        return hasRemoteStatus;
       }
 
       var item = items[0];
       var statusObj = item && item.status ? item.status : item;
 
       if (!statusObj || typeof statusObj !== "object") {
-        return;
+        return hasRemoteStatus;
       }
+
+      hasRemoteStatus = true;
 
       var severityMark = typeof statusObj.status_mark === "string" ? statusObj.status_mark : "";
       var severityLabel = typeof statusObj.status_label === "string" ? statusObj.status_label : "";
@@ -997,8 +1001,11 @@
       } catch (syncOkError) {
         console.error("[consistency SYNC] failed to store sync_ok flag:", syncOkError);
       }
+
+      return hasRemoteStatus;
     } catch (e) {
       console.error("[consistency SYNC] request failed:", e);
+      return hasRemoteStatus;
     }
   }
 
@@ -1484,6 +1491,45 @@
     }
   }
 
+  /**
+   * 遷移時に SYNC データを確認し、未チェックなら自動で整合性チェックを実行する
+   *
+   * @param {Object} meta
+   * @param {Object} q
+   * @param {boolean} hasLocalResult  // localStorage に既に結果があるかどうか
+   */
+  function autoRunConsistencyIfNeeded(meta, q, hasLocalResult) {
+    if (!meta || !meta.qid) {
+      return;
+    }
+    if (!q || !q.question) {
+      return;
+    }
+    // ローカルに結果がある場合は「チェック済み」とみなして自動実行しない
+    if (hasLocalResult) {
+      return;
+    }
+
+    try {
+      fetchConsistencySyncStatus(meta, q).then(function(hasSyncStatus) {
+        try {
+          updateConsistencyCheckStatus(meta, q);
+        } catch (updateError) {
+          console.error("整合性チェックステータス更新に失敗しました(autoRun):", updateError);
+        }
+
+        // SYNC にも整合性ステータスが無い場合のみ、自動で厳格モードの整合性チェックを実行
+        if (!hasSyncStatus) {
+          window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+        }
+      }).catch(function(e) {
+        console.error("autoRunConsistencyIfNeeded で SYNC 状態取得に失敗しました:", e);
+      });
+    } catch (callError) {
+      console.error("autoRunConsistencyIfNeeded 呼び出し時にエラー:", callError);
+    }
+  }
+
   // Bパート用：整合性チェックボタンの自動生成（Aパートではステータス表示のみ）
   document.addEventListener("DOMContentLoaded", function() {
     var scripts = document.querySelectorAll('script[src$="consistency_check_debug.js"]');
@@ -1557,13 +1603,20 @@
       explanation: explanationText
     };
 
+    // Aパートでは従来通り：SYNC → ステータス更新のみ
     if (questionText) {
       if (meta && meta.qid) {
-        fetchConsistencySyncStatus(meta, q).then(function() {
+        if (!isB) {
+          fetchConsistencySyncStatus(meta, q).then(function() {
+            updateConsistencyCheckStatus(meta, q);
+          }).catch(function() {
+            updateConsistencyCheckStatus(meta, q);
+          });
+        } else {
+          // Bパートでは autoRunConsistencyIfNeeded 内で SYNC とステータス更新を行うため、
+          // ここではステータスの初期描画だけ行う
           updateConsistencyCheckStatus(meta, q);
-        }).catch(function() {
-          updateConsistencyCheckStatus(meta, q);
-        });
+        }
       } else {
         updateConsistencyCheckStatus(meta, q);
       }
@@ -1602,6 +1655,9 @@
 
     // ★ 整合性チェック未生成時は「[整合性チェックを開始する]」リンクを出す
     initConsistencyStartLink(meta, q, hasLocalResult);
+
+    // ★ 遷移時に SYNC を確認し、未チェックなら自動で整合性チェックを実行
+    autoRunConsistencyIfNeeded(meta, q, hasLocalResult);
 
     var btn = document.createElement("button");
     btn.id = "cc-check-btn";
