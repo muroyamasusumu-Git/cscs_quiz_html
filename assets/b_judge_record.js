@@ -424,7 +424,10 @@
       var isCorrect = (choice === correct);
 
       // ★ 追加ガード: O.D.O.A = on_nocount のときは b_judge_record.js 側の計測を完全停止する
-      var skipCountingForOdoa = false;
+      // ★ さらに、自動検証モード（CSCS_VERIFY_MODE === "on"）中も b_judge_record.js の計測を完全停止する
+      var skipCountingForOdoa = false;    // SYNC 側の ODOA モード on_nocount 用
+      var skipCountingForVerify = false;  // 自動検証モード（A→B 自動遷移／計測なし）用
+
       (function(){
         var state = null;
         try{
@@ -460,11 +463,42 @@
         }
       })();
 
-      // on_nocount のときは、oncePerDay / attempts / streak / ⭐️ / ログ をすべてスキップして終了
-      if(skipCountingForOdoa){
-        console.log("[B:judge] SKIP ALL counting by on_nocount guard", {
+      // ★ 追加: 自動検証モード（A→B 自動遷移／計測なし）のときは b_judge_record.js 側での計測を完全停止する
+      (function(){
+        var verifyMode = null;
+        try{
+          if (typeof window !== "undefined" && typeof window.CSCS_VERIFY_MODE === "string") {
+            verifyMode = window.CSCS_VERIFY_MODE;
+          }
+        }catch(_e){
+          verifyMode = null;
+        }
+
+        // 自動検証モードの状態をログに残す（デバッグ用）
+        console.log("[B:judge] VerifyMode check before counting", {
           qid: qid,
-          dayPlay: dayPlay
+          dayPlay: dayPlay,
+          verifyMode: verifyMode
+        });
+
+        // CSCS_VERIFY_MODE が "on" の場合、この問題の oncePerDay / attempts / streak / ⭐️ / ログ をすべてスキップ
+        if(verifyMode === "on"){
+          skipCountingForVerify = true;
+          console.log("[B:judge] VerifyMode = on → mark skip ALL counting for", {
+            qid: qid,
+            dayPlay: dayPlay,
+            isCorrect: isCorrect
+          });
+        }
+      })();
+
+      // on_nocount または 自動検証モード のときは、oncePerDay / attempts / streak / ⭐️ / ログ をすべてスキップして終了
+      if(skipCountingForOdoa || skipCountingForVerify){
+        console.log("[B:judge] SKIP ALL counting by guard", {
+          qid: qid,
+          dayPlay: dayPlay,
+          skipByOdoaOnNoCount: skipCountingForOdoa,
+          skipByVerifyMode: skipCountingForVerify
         });
         return;
       }
