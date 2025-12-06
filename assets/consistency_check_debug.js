@@ -13,6 +13,53 @@
   const STRICT_MODE_DEFAULT = true; // 空気を読ませない「厳しめ判定」モード
   var lastConsistencyDebug = null;
 
+  // 自動整合性チェックON/OFFの状態を保持する localStorage キー
+  const AUTO_CONSISTENCY_LS_KEY = "cscs_consistency_auto_enabled";
+
+  // 自動整合性チェックが有効かどうかを判定する
+  function isAutoConsistencyEnabled() {
+    try {
+      if (typeof localStorage === "undefined") {
+        // localStorage が使えない環境では常にONとして扱う
+        return true;
+      }
+      var v = localStorage.getItem(AUTO_CONSISTENCY_LS_KEY);
+      // 未設定時はデフォルトON
+      if (v === null || v === "") {
+        return true;
+      }
+      return v === "1";
+    } catch (e) {
+      console.error("自動整合性チェック状態の読み込みに失敗しました:", e);
+      // エラー時も安全側（ON）で扱う
+      return true;
+    }
+  }
+
+  // 自動整合性チェックのON/OFFを保存し、必要なら VerifyMode ヘルパーとも同期させる
+  function setAutoConsistencyEnabled(enabled) {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(AUTO_CONSISTENCY_LS_KEY, enabled ? "1" : "0");
+      }
+    } catch (e) {
+      console.error("自動整合性チェック状態の保存に失敗しました:", e);
+    }
+
+    // 既存の VerifyMode ヘルパーがあれば、併せて状態を同期しておく
+    try {
+      if (window.CSCS_VERIFY_MODE_HELPER) {
+        if (enabled && typeof window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode === "function") {
+          window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode("consistency-auto-on");
+        } else if (!enabled && typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function") {
+          window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("consistency-auto-off");
+        }
+      }
+    } catch (helperError) {
+      console.error("VerifyMode ヘルパーの更新中にエラーが発生しました:", helperError);
+    }
+  }
+
   // ===== プロンプト生成 =====
 
   /**
@@ -249,8 +296,15 @@
     if (!response.ok) {
       console.error("整合性チェック API 生レスポンス:", text);
 
-      // ★ HTTP 429（クォータ超過など）の場合は、自動検証モードを強制OFFにする
+      // ★ HTTP 429（クォータ超過など）の場合は、自動整合性チェックモードそのものをOFFにする
       if (response.status === 429) {
+        // 1) localStorage ベースの自動実行フラグをOFFにする
+        try {
+          setAutoConsistencyEnabled(false);
+        } catch (autoFlagError) {
+          console.error("自動整合性チェックOFF状態への切り替えに失敗しました:", autoFlagError);
+        }
+        // 2) 既存の VerifyMode ヘルパーもあればOFFに倒す
         try {
           if (
             window.CSCS_VERIFY_MODE_HELPER &&
@@ -1496,7 +1550,11 @@
       parentForExplainLink.appendChild(explainWrapper);
     }
 
-    explainWrapper.innerHTML = '<a href="#" id="cscs-consistency-start-link">[整合性チェックを開始する]</a>';
+    // [整合性チェックを開始する] と並べて [自動整合性チェックON/OFF] を表示する
+    var autoLabel = isAutoConsistencyEnabled() ? "[自動整合性チェックON]" : "[自動整合性チェックOFF]";
+    explainWrapper.innerHTML =
+      '<a href="#" id="cscs-consistency-start-link">[整合性チェックを開始する]</a>' +
+      ' <a href="#" id="cscs-consistency-auto-toggle-link">' + autoLabel + "</a>";
 
     var startLink = document.getElementById("cscs-consistency-start-link");
     if (startLink) {
@@ -1505,6 +1563,25 @@
         e.stopPropagation();
         // 初回実行：厳格モードで開始
         window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+      });
+    }
+
+    var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
+    if (autoToggleLink) {
+      autoToggleLink.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 現在の状態を反転させる（ON → OFF / OFF → ON）
+        var currentEnabled = isAutoConsistencyEnabled();
+        var nextEnabled = !currentEnabled;
+        setAutoConsistencyEnabled(nextEnabled);
+
+        // ラベルも現在の状態に合わせて更新
+        var newLabel = nextEnabled ? "[自動整合性チェックON]" : "[自動整合性チェックOFF]";
+        autoToggleLink.textContent = newLabel;
+
+        console.log("自動整合性チェックモードを切り替えました:", nextEnabled ? "ON" : "OFF");
       });
     }
   }
@@ -1525,6 +1602,12 @@
     }
     // ローカルに結果がある場合は「チェック済み」とみなして自動実行しない
     if (hasLocalResult) {
+      return;
+    }
+
+    // 自動整合性チェックがOFFの場合は何もしない（429発生時などにOFFへ切り替え）
+    if (!isAutoConsistencyEnabled()) {
+      console.log("autoRunConsistencyIfNeeded: 自動整合性チェックがOFFのためスキップしました。");
       return;
     }
 
