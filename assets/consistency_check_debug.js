@@ -1519,7 +1519,7 @@
   };
 
   /**
-   * 整合性チェック未生成時に「[整合性チェックを開始する]」リンクを解説部に表示する
+   * 整合性チェック未生成時に「[整合性チェック実行]」リンクを解説部に表示する
    *
    * @param {Object} meta
    * @param {Object} q
@@ -1550,10 +1550,10 @@
       parentForExplainLink.appendChild(explainWrapper);
     }
 
-    // [整合性チェックを開始する] と並べて [自動チェックON/OFF] を表示する
+    // [整合性チェック実行] と並べて [自動チェックON/OFF] を表示する
     var autoLabel = isAutoConsistencyEnabled() ? "[自動チェックON]" : "[自動チェックOFF]";
     explainWrapper.innerHTML =
-      '<a href="#" id="cscs-consistency-start-link">[整合性チェックを開始する]</a>' +
+      '<a href="#" id="cscs-consistency-start-link">[整合性チェック実行]</a>' +
       ' <a href="#" id="cscs-consistency-auto-toggle-link">' + autoLabel + "</a>";
 
     var startLink = document.getElementById("cscs-consistency-start-link");
@@ -1754,7 +1754,7 @@
       }
     }
 
-    // ★ 整合性チェック未生成時は「[整合性チェックを開始する]」リンクを出す
+    // ★ 整合性チェック未生成時は「[整合性チェック実行]」リンクを出す
     initConsistencyStartLink(meta, q, hasLocalResult);
 
     // ★ 遷移時に SYNC を確認し、未チェックなら自動で整合性チェックを実行
