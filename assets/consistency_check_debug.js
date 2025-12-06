@@ -1550,8 +1550,8 @@
       parentForExplainLink.appendChild(explainWrapper);
     }
 
-    // [整合性チェックを開始する] と並べて [自動整合性チェックON/OFF] を表示する
-    var autoLabel = isAutoConsistencyEnabled() ? "[自動整合性チェックON]" : "[自動整合性チェックOFF]";
+    // [整合性チェックを開始する] と並べて [自動チェックON/OFF] を表示する
+    var autoLabel = isAutoConsistencyEnabled() ? "[自動チェックON]" : "[自動チェックOFF]";
     explainWrapper.innerHTML =
       '<a href="#" id="cscs-consistency-start-link">[整合性チェックを開始する]</a>' +
       ' <a href="#" id="cscs-consistency-auto-toggle-link">' + autoLabel + "</a>";
@@ -1578,7 +1578,7 @@
         setAutoConsistencyEnabled(nextEnabled);
 
         // ラベルも現在の状態に合わせて更新
-        var newLabel = nextEnabled ? "[自動整合性チェックON]" : "[自動整合性チェックOFF]";
+        var newLabel = nextEnabled ? "[自動チェックON]" : "[自動チェックOFF]";
         autoToggleLink.textContent = newLabel;
 
         console.log("自動整合性チェックモードを切り替えました:", nextEnabled ? "ON" : "OFF");
