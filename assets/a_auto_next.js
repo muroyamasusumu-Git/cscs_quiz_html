@@ -1025,6 +1025,16 @@
         reason: "user-toggle"
       });
 
+      // ★ 検証AUTO:ON のときは、自動送りも強制的に ON にする
+      if (nextMode === "on") {
+        autoEnabled = true;
+        saveAutoAdvanceEnabled(true);
+        var autoBtn = document.getElementById("auto-next-toggle");
+        if (autoBtn) {
+          autoBtn.textContent = "[自動送り ON]";
+        }
+      }
+
       // 検証モードの ON/OFF によって A→B か ODOA かの挙動が変わるため、
       // 自動送りが有効な場合は NEXT_URL を再計算してカウントダウンをやり直す
       if (autoEnabled) {
@@ -1046,10 +1056,44 @@
   }
 
   // =========================
-  // 外部から検証モードを強制OFFにするための公開API
-  // 例: 整合性チェック中に Gemini のクォータ超過エラーが発生したときに呼び出す
+  // 外部から検証モードを強制ON/OFFにするための公開API
+  // 例: 整合性チェックの自動モード切り替えなどから呼び出す
   // =========================
   window.CSCS_VERIFY_MODE_HELPER = window.CSCS_VERIFY_MODE_HELPER || {};
+
+  // 検証モードを強制ONにする（[検証AUTO:ON] ＋ [自動送り ON]）
+  if (!window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode) {
+    window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode = function (reason) {
+      // 検証モードを "on" にして UI と localStorage を同期
+      setVerifyModeAndSyncUI("on", {
+        reason: reason || "external-turn-on"
+      });
+
+      // ★ 検証AUTO:ON のときは、自動送りも強制的に ON にする
+      autoEnabled = true;
+      saveAutoAdvanceEnabled(true);
+      var autoBtn = document.getElementById("auto-next-toggle");
+      if (autoBtn) {
+        autoBtn.textContent = "[自動送り ON]";
+      }
+
+      // 自動送りが有効なら、ODOA/検証モードを考慮した NEXT_URL を再計算してカウントダウン開始
+      (async function () {
+        if (!autoEnabled) {
+          return;
+        }
+        NEXT_URL = await buildNextUrlConsideringOdoa();
+        if (NEXT_URL) {
+          startAutoAdvanceCountdown();
+        } else {
+          // 遷移候補が無い場合は OFF 表示にしておく
+          cancelAutoAdvanceCountdown(true);
+        }
+      })();
+    };
+  }
+
+  // 検証モードを強制OFFにする
   if (!window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode) {
     window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode = function (reason) {
       // 検証モードを "off" にして UI と localStorage を同期
