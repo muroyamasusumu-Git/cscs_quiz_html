@@ -36,13 +36,13 @@
             style.textContent = `
 #cscs-odoa-toggle {
     font-size: 12px;
-    padding: 0px 0px;
+    padding: 0px 5px;
     position: fixed;
     top: 1px;
     right: 50px;
     opacity: 0.15;
     font-weight: bold;
-    width: 100px;
+    width: auto;
     text-align: center;
 }
             `;
