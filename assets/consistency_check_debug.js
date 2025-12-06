@@ -1622,20 +1622,6 @@
       return;
     }
 
-    // ★ 自動整合性チェック設定が OFF の場合は、自動実行を行わない
-    var autoRunKey = "cscs_consistency_auto_run";
-    if (typeof localStorage !== "undefined") {
-      try {
-        var stored = localStorage.getItem(autoRunKey);
-        if (stored === "off") {
-          console.log("autoRunConsistencyIfNeeded: 自動整合性チェックはOFF設定のため実行しません。");
-          return;
-        }
-      } catch (autoReadError) {
-        console.error("自動整合性チェック設定の読み込みに失敗しました(autoRun):", autoReadError);
-      }
-    }
-
     try {
       fetchConsistencySyncStatus(meta, q).then(function(hasSyncStatus) {
         try {
