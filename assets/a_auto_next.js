@@ -870,7 +870,7 @@
     btn = document.createElement("button");
     btn.id = "auto-next-mode-toggle";
     btn.type = "button";
-    btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番]";
+    btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番遷移]";
     btn.style.cssText =
       "position: fixed;" +
       "left: 350px;" +
@@ -888,7 +888,7 @@
     btn.addEventListener("click", function () {
       randomModeEnabled = !randomModeEnabled;
       saveRandomModeEnabled(randomModeEnabled);
-      btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番]";
+      btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番遷移]";
 
       // いったんカウントダウンを止めてから、新しい NEXT_URL で再スタート
       cancelAutoAdvanceCountdown(false);
@@ -975,7 +975,7 @@
 
     btn.style.cssText =
       "position: fixed;" +
-      "left: 502px;" +
+      "left: 462px;" +
       "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
@@ -1122,9 +1122,36 @@
       return;
     }
 
-    // 現在時刻と終了時刻を記録
+    // ▼ 検証モード中は A=10秒, B=20秒 に固定するための有効待ち時間を決定する
+    var verifyOn =
+      typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+    var effectiveMs = AUTO_ADVANCE_MS;
+
+    if (verifyOn) {
+      var infoForVerify = parseSlideInfo();
+      if (infoForVerify && infoForVerify.part === "a") {
+        // Aパートでは 10秒 固定
+        effectiveMs = 10000;
+        syncLog("VerifyMode: use fixed duration for A (10s).", {
+          ms: effectiveMs
+        });
+      } else if (infoForVerify && infoForVerify.part === "b") {
+        // Bパートでは 20秒 固定
+        effectiveMs = 20000;
+        syncLog("VerifyMode: use fixed duration for B (20s).", {
+          ms: effectiveMs
+        });
+      } else {
+        // part が判定できない場合は、現在の AUTO_ADVANCE_MS をそのまま使う
+        syncLog("VerifyMode: slide info not available, use current AUTO_ADVANCE_MS.", {
+          ms: effectiveMs
+        });
+      }
+    }
+
+    // 現在時刻と終了時刻を記録（有効待ち時間を使用）
     startTime = Date.now();
-    endTime = startTime + AUTO_ADVANCE_MS;
+    endTime = startTime + effectiveMs;
 
     if (!counterEl) {
       counterEl = createAutoNextCounterElement();
@@ -1153,14 +1180,14 @@
     // 1秒ごとに残り時間を更新
     counterTimerId = window.setInterval(updateCounter, COUNTER_INTERVAL_MS);
 
-    // 待ち時間経過後に、自動で次の問題へ遷移
+    // 待ち時間経過後に、自動で次の問題へ遷移（有効待ち時間を使用）
     autoTimeoutId = window.setTimeout(function () {
       if (counterTimerId) {
         window.clearInterval(counterTimerId);
         counterTimerId = null;
       }
       goNextIfExists(NEXT_URL);
-    }, AUTO_ADVANCE_MS);
+    }, effectiveMs);
   }
 
   // =========================
