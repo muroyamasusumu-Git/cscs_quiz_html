@@ -947,6 +947,15 @@
 
         var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
 
+        // ★ 自動検証モード（CSCS_VERIFY_MODE=on）のときは、
+        //   b_judge_record.js と同じく「計測ガード中」であることが分かるように
+        //   statusText に明示しておく（diff の送信自体は後段でブロックする）
+        var verifyModeOn =
+          typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+        if (!suppressDiffSend && verifyModeOn) {
+          statusTextForRender = "state ok / verify-mode: 計測ガード中(diff送信なし)";
+        }
+
         // 初期表示や diff 送信前の HUD:
         //   - suppressDiffSend===true のときは "__keep__" を渡し、既存表示を維持
         //   - 通常モードでは「ON nocount」/「OFF」で初期表示を行う
@@ -985,6 +994,27 @@
         //    HUD 表示のみ更新した状態で終了する（手動 streak3Today テスト用）
         if (suppressDiffSend) {
           console.log("[SYNC-B] refreshAndSend: suppressDiffSend=true → diff POST を実行せず HUD 表示のみ更新", {
+            qid: info.qid,
+            serverCorrect: serverCorrect,
+            serverWrong: serverWrong,
+            localCorrect: localCorrect,
+            localWrong: localWrong,
+            diffCorrect: diffCorrect,
+            diffWrong: diffWrong,
+            diffStreak3: diffStreak3,
+            diffStreakLen: diffStreakLen,
+            odoaModeText: odoaModeText
+          });
+          return;
+        }
+
+        // ★ 自動検証モード中（CSCS_VERIFY_MODE=on）は、
+        //    b_judge_record.js と同様「計測ガード」として diff POST を完全にブロックする。
+        //    これにより、verify モードで流した A→B 自動遷移では
+        //    localStorage 側の計測を行わないだけでなく、
+        //    SYNC 側の累計・streak3・oncePerDayToday も一切更新されない。
+        if (verifyModeOn) {
+          console.log("[SYNC-B] refreshAndSend: verify-mode ON → diff POST を実行せず HUD 表示のみ更新（計測ガード）", {
             qid: info.qid,
             serverCorrect: serverCorrect,
             serverWrong: serverWrong,
