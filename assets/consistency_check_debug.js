@@ -315,6 +315,16 @@
         } catch (verifyOffError) {
           console.error("VerifyMode 強制OFF処理中にエラーが発生しました:", verifyOffError);
         }
+
+        // 3) 画面上の [自動チェックON/OFF] ラベルも OFF に更新する
+        try {
+          var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
+          if (autoToggleLink) {
+            autoToggleLink.textContent = "[自動チェックOFF]";
+          }
+        } catch (labelError) {
+          console.error("自動チェック表記のOFF反映に失敗しました:", labelError);
+        }
       }
 
       throw new Error("整合性チェック API エラー: HTTP " + response.status + " / body: " + text);
@@ -1500,6 +1510,22 @@
       if (msg.indexOf("HTTP 429") !== -1) {
         console.error("整合性チェック中に HTTP 429（Gemini API 利用上限超過）が発生しました:", msg);
         panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">Gemini API の利用上限を超えたので自動検証モードはOFFに切り替えました。</div>';
+
+        // ラベル側も念のため OFF に揃えておく（requestConsistencyCheck 側で OFF 済みだが二重実行でも問題なし）
+        try {
+          setAutoConsistencyEnabled(false);
+        } catch (autoFlagError) {
+          console.error("自動整合性チェックOFF状態への再設定に失敗しました:", autoFlagError);
+        }
+        try {
+          var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
+          if (autoToggleLink) {
+            autoToggleLink.textContent = "[自動チェックOFF]";
+          }
+        } catch (labelError) {
+          console.error("自動チェック表記のOFF反映に失敗しました(runAndShowConsistencyCheck):", labelError);
+        }
+
         return;
       }
 
