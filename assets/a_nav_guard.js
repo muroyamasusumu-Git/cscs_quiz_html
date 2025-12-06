@@ -39,7 +39,7 @@
     padding: 0px 5px;
     position: fixed;
     top: 1px;
-    right: 50px;
+    right: 30px;
     opacity: 0.15;
     font-weight: bold;
     width: auto;
