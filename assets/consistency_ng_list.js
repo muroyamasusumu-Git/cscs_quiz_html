@@ -1,0 +1,339 @@
+// assets/consistency_ng_list.js
+// 目的:
+//   SYNC(/api/sync/state) から「整合性チェック ×」になっている問題の一覧を取得し、
+//   ページ内でオンデマンド表示するトグル機能を提供する。
+// 仕様:
+//   - デフォルト非表示
+//   - <div class="topmeta-left"> の末端に 「×NGlist(N)」 を白文字リンクとして追加
+//   - クリックで .wrap の末端に一覧パネルを表示 / 非表示 (toggle)
+//   - N は SYNC から取得した × の総数
+
+(function () {
+  "use strict";
+
+  // =========================
+  // 内部状態
+  // =========================
+
+  var cngListCache = null;
+  var cngFetchError = null;
+  var cngPanelVisible = false;
+
+  // =========================
+  // スタイル挿入
+  // =========================
+
+  function injectConsistencyNgStyles() {
+    if (document.getElementById("cscs-consistency-ng-style")) {
+      return;
+    }
+
+    var style = document.createElement("style");
+    style.id = "cscs-consistency-ng-style";
+
+    style.textContent =
+      // ▼ パネル本体（ユーザー指定済）
+      "#cscs-consistency-ng-panel {\n" +
+      "  font-size: 11px;\n" +
+      "  line-height: 1.5;\n" +
+      "  margin: 0;\n" +
+      "  padding: 8px 10px 8px 2px;\n" +
+      "  width: 600px;\n" +
+      "  color: rgba(255, 220, 220, 0.85);\n" +
+      "  opacity: 0.80;\n" +
+      "}\n" +
+
+      "#cscs-consistency-ng-panel h3 {\n" +
+      "  margin: 0 0 6px 0;\n" +
+      "  font-size: 15px;\n" +
+      "  font-weight: 600;\n" +
+      "  opacity: 0.85;\n" +
+      "}\n" +
+
+      "#cscs-consistency-ng-panel .cng-summary {\n" +
+      "  margin-bottom: 6px;\n" +
+      "  opacity: 0.75;\n" +
+      "}\n" +
+
+      "#cscs-consistency-ng-panel table {\n" +
+      "  width: 100%;\n" +
+      "  border-collapse: collapse;\n" +
+      "  background: rgba(255, 120, 120, 0.08);\n" +
+      "  opacity: 0.90;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel th,\n" +
+      "#cscs-consistency-ng-panel td {\n" +
+      "  border: 1px solid rgba(255, 200, 200, 0.18);\n" +
+      "  padding: 2px 4px;\n" +
+      "  text-align: left;\n" +
+      "  font-size: 10px;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel th {\n" +
+      "  background: rgba(255, 120, 120, 0.15);\n" +
+      "  font-weight: 600;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-qid {\n" +
+      "  white-space: nowrap;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-empty {\n" +
+      "  font-size: 11px;\n" +
+      "  opacity: 0.7;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-footer {\n" +
+      "  margin-top: 4px;\n" +
+      "  font-size: 10px;\n" +
+      "  opacity: 0.6;\n" +
+      "}\n" +
+
+      // ▼ ★あなたが指定したトグルリンクの新スタイル★
+      "#cscs-consistency-ng-toggle:hover {\n" +
+      "  text-decoration: underline;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-toggle {\n" +
+      "  color: #ffffff;\n" +
+      "  font-size: 14px;\n" +
+      "  margin-left: 0;\n" +
+      "  text-decoration: underline;\n" +
+      "  cursor: pointer;\n" +
+      "  opacity: 0.7;\n" + 
+      "}\n";
+
+    document.head.appendChild(style);
+  }
+
+  // =========================
+  // パネル DOM を生成
+  // =========================
+
+  function ensureConsistencyNgPanel() {
+    var existing = document.getElementById("cscs-consistency-ng-panel");
+    if (existing) return existing;
+
+    var panel = document.createElement("div");
+    panel.id = "cscs-consistency-ng-panel";
+    panel.style.display = "none";
+
+    var wrap = document.querySelector(".wrap") || document.body;
+    wrap.appendChild(panel);
+
+    return panel;
+  }
+
+  // =========================
+  // トグルリンク生成
+  // =========================
+
+  function createOrUpdateToggleLink(count) {
+    var parent = document.querySelector(".topmeta-left") || document.body;
+    var link = document.getElementById("cscs-consistency-ng-toggle");
+
+    var label = "×NGlist(" + String(count) + ")";
+
+    if (!link) {
+      link = document.createElement("a");
+      link.id = "cscs-consistency-ng-toggle";
+      link.href = "#";
+      link.textContent = label;
+      parent.appendChild(link);
+
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        toggleConsistencyNgPanel();
+      });
+    } else {
+      link.textContent = label;
+      if (!link.parentNode) parent.appendChild(link);
+    }
+  }
+
+  // =========================
+  // SYNCから × 問題一覧を取得
+  // =========================
+
+  async function fetchConsistencyNgListFromSync() {
+    var res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    var root = await res.json();
+    var list = [];
+    var i;
+
+    // root.consistency_status
+    if (root.consistency_status && typeof root.consistency_status === "object") {
+      var map = root.consistency_status;
+      for (var qid in map) {
+        var st = map[qid];
+        var mark = st.status_mark || st.severity_mark;
+        if (mark === "×") {
+          list.push({
+            qid: qid,
+            status_mark: mark,
+            status_label: st.status_label || "",
+            classification_code: st.classification_code || "",
+            classification_detail: st.classification_detail || "",
+            saved_at: st.saved_at || ""
+          });
+        }
+      }
+    }
+
+    // root.items
+    if (Array.isArray(root.items)) {
+      for (i = 0; i < root.items.length; i++) {
+        var item = root.items[i];
+        if (item.kind !== "consistency_status") continue;
+        var st2 = item.status || {};
+        var mark2 = st2.status_mark || st2.severity_mark;
+        if (mark2 === "×") {
+          list.push({
+            qid: item.qid || "",
+            status_mark: mark2,
+            status_label: st2.status_label || "",
+            classification_code: st2.classification_code || "",
+            classification_detail: st2.classification_detail || "",
+            saved_at: st2.saved_at || ""
+          });
+        }
+      }
+    }
+
+    list.sort((a, b) => String(a.qid).localeCompare(String(b.qid)));
+    return list;
+  }
+
+  // =========================
+  // 表示用のデータ整形
+  // =========================
+
+  function formatSavedAt(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    var y = d.getFullYear();
+    var m = ("0" + (d.getMonth() + 1)).slice(-2);
+    var day = ("0" + d.getDate()).slice(-2);
+    var h = ("0" + d.getHours()).slice(-2);
+    var min = ("0" + d.getMinutes()).slice(-2);
+    return `${y}-${m}-${day} ${h}:${min}`;
+  }
+
+  // =========================
+  // パネルHTML生成
+  // =========================
+
+  function buildConsistencyNgPanelHtml(list) {
+    var html = "";
+
+    html += "<h3>× 整合性エラー問題リスト（SYNC）</h3>";
+
+    if (!list.length) {
+      html += '<div class="cng-summary cng-empty">現在SYNCに「×」の問題はありません。</div>';
+      return html;
+    }
+
+    html += `<div class="cng-summary">SYNCに保存されている × 問題は <strong>${list.length}</strong> 件。</div>`;
+
+    html += "<table><thead><tr>";
+    html += "<th>QID</th>";
+    html += "<th>記号</th>";
+    html += "<th>ステータス</th>";
+    html += "<th>種別</th>";
+    html += "<th>対象</th>";
+    html += "<th>最終更新</th>";
+    html += "</tr></thead><tbody>";
+
+    for (var row of list) {
+      var detail = row.classification_detail;
+      if (!detail && row.classification_code) {
+        detail =
+          row.classification_code === "A" ? "正解" :
+          row.classification_code === "B" ? "解説" :
+          row.classification_code === "C" ? "選択肢" :
+          row.classification_code === "D" ? "問題" : "";
+      }
+
+      html += "<tr>";
+      html += `<td class="cng-qid">${row.qid}</td>`;
+      html += `<td>${row.status_mark}</td>`;
+      html += `<td>${row.status_label}</td>`;
+      html += `<td>${row.classification_code}</td>`;
+      html += `<td>${detail}</td>`;
+      html += `<td>${formatSavedAt(row.saved_at)}</td>`;
+      html += "</tr>";
+    }
+
+    html += "</tbody></table>";
+    html += '<div class="cng-footer">※ この一覧は /api/sync/state の内容を直接参照しています。</div>';
+
+    return html;
+  }
+
+  // =========================
+  // パネル描画
+  // =========================
+
+  function renderConsistencyNgPanel(list) {
+    var panel = ensureConsistencyNgPanel();
+    panel.innerHTML = buildConsistencyNgPanelHtml(list);
+  }
+
+  // =========================
+  // トグル動作
+  // =========================
+
+  function toggleConsistencyNgPanel() {
+    var panel = ensureConsistencyNgPanel();
+
+    if (cngPanelVisible) {
+      panel.style.display = "none";
+      cngPanelVisible = false;
+      return;
+    }
+
+    if (!cngListCache && !cngFetchError) {
+      panel.innerHTML =
+        "<h3>× 整合性エラー問題リスト（SYNC）</h3>" +
+        '<div class="cng-summary cng-empty">一覧データがまだ準備されていません。</div>';
+      panel.style.display = "";
+      cngPanelVisible = true;
+      return;
+    }
+
+    if (cngFetchError) {
+      panel.innerHTML =
+        "<h3>× 整合性エラー問題リスト（SYNC）</h3>" +
+        '<div class="cng-summary cng-empty">SYNC取得中にエラーが発生しました。</div>';
+      panel.style.display = "";
+      cngPanelVisible = true;
+      return;
+    }
+
+    renderConsistencyNgPanel(cngListCache);
+    panel.style.display = "";
+    cngPanelVisible = true;
+  }
+
+  // =========================
+  // 初期化
+  // =========================
+
+  async function initConsistencyNgList() {
+    injectConsistencyNgStyles();
+
+    try {
+      var list = await fetchConsistencyNgListFromSync();
+      cngListCache = list;
+      createOrUpdateToggleLink(list.length);
+    } catch (e) {
+      console.error("[consistency NG list] error:", e);
+      cngFetchError = e;
+      createOrUpdateToggleLink(0);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initConsistencyNgList);
+  } else {
+    initConsistencyNgList();
+  }
+})();
