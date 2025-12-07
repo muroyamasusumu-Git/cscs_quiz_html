@@ -1015,51 +1015,37 @@
       "border: none;";
 
     // クリックごとに検証モード "on" / "off" をトグルし、
-    // ラベル更新・localStorage 保存・ログ出力まで一括で行う
+    // ラベル更新・localStorage 保存・ログ出力などは
+    // CSCS_VERIFY_MODE_HELPER.turnOn/turnOffVerifyMode 経由で一括実行する
     btn.addEventListener("click", function () {
       var currentMode = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on") ? "on" : "off";
       var nextMode = currentMode === "on" ? "off" : "on";
 
-      // 検証モードの実状態と UI を同期させる
-      setVerifyModeAndSyncUI(nextMode, {
-        reason: "user-toggle"
-      });
-
-      // ★ 検証AUTO:ON のときは、自動送りも強制的に ON にする
+      // ▼ ユーザー操作によるトグルは、必ず公開ヘルパー経由で行う
+      //    これにより consistency_check_debug.js などが
+      //    turnOn/turnOffVerifyMode をフックしている場合も確実に通過させる
       if (nextMode === "on") {
-        autoEnabled = true;
-        saveAutoAdvanceEnabled(true);
-        var autoBtnOn = document.getElementById("auto-next-toggle");
-        if (autoBtnOn) {
-          autoBtnOn.textContent = "[自動送り ON]";
+        if (window.CSCS_VERIFY_MODE_HELPER && typeof window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode === "function") {
+          window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode("user-toggle");
+        } else {
+          // ヘルパーが存在しない場合はログだけ残して何もしない
+          syncLog("VerifyMode: helper.turnOnVerifyMode is not available.", {
+            reason: "user-toggle"
+          });
         }
-      }
-
-      // ★ 検証AUTO:OFF のときは、自動送りも必ず OFF に倒す
-      if (nextMode === "off") {
-        autoEnabled = false;
-        saveAutoAdvanceEnabled(false);
-        var autoBtnOff = document.getElementById("auto-next-toggle");
-        if (autoBtnOff) {
-          autoBtnOff.textContent = "[自動送りOFF]";
-        }
-        // カウントダウンや自動遷移も停止し、「OFF」表示にしておく
-        cancelAutoAdvanceCountdown(true);
         return;
       }
 
-      // 検証モードの ON/OFF によって A→B か ODOA かの挙動が変わるため、
-      // 自動送りが有効な場合は NEXT_URL を再計算してカウントダウンをやり直す
-      if (autoEnabled) {
-        (async function () {
-          NEXT_URL = await buildNextUrlConsideringOdoa();
-          if (NEXT_URL) {
-            startAutoAdvanceCountdown();
-          } else {
-            // 遷移候補が無い場合はカウントダウンを停止し、OFF 表示にしておく
-            cancelAutoAdvanceCountdown(true);
-          }
-        })();
+      if (nextMode === "off") {
+        if (window.CSCS_VERIFY_MODE_HELPER && typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function") {
+          window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("user-toggle");
+        } else {
+          // ヘルパーが存在しない場合はログだけ残して何もしない
+          syncLog("VerifyMode: helper.turnOffVerifyMode is not available.", {
+            reason: "user-toggle"
+          });
+        }
+        return;
       }
     });
 
