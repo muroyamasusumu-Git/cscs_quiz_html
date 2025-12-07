@@ -50,10 +50,9 @@
    * - 元 DOM は一切動かさず、そのクローンをフェード用オーバーレイ内部の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
    * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標に position: fixed でクローンを貼り付ける。
    * - ハイライトレイヤーは常に「黒幕オーバーレイの内側かつ最前面」に置くことで、スタッキングコンテキスト競合を避ける。
-   * - choiceNode が <li> の場合は、その <li> だけをハイライト対象とし、他の選択肢は暗転側に残す。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
-   * @param {Element|null} choiceNode    選択肢DOMノード(<li> または <ol class="opts"> など。渡されたものをそのまま使う)
+   * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
    * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
    */
   function createHighlightLayer(questionNode, choiceNode) {
@@ -64,10 +63,25 @@
         existing.parentNode.removeChild(existing); // 古いレイヤーをオーバーレイ内部から取り除く
       }
 
-      // 🔸ここでは choiceNode を親リストに昇格させず、
-      //    呼び出し側から渡ってきた DOM ノード（<li> ならその1行だけ）をそのままハイライト対象として扱う。
-      //    → 「選択した選択肢だけ」が暗転の上に浮かび上がる。
-      //    親 <ol> 全体を浮かせたいケースでは、呼び出し側で choiceNode として <ol> を渡す設計にしておく。
+      // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
+      // - 番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出すための前処理
+      // - 親リストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバックなし）
+      if (choiceNode && choiceNode.nodeType === 1) {
+        var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
+        if (tag === "li") {
+          var listContainer = null;
+          if (typeof choiceNode.closest === "function") {
+            listContainer = choiceNode.closest("ol.opts") ||
+                            choiceNode.closest("ol") ||
+                            choiceNode.closest("ul");
+          }
+          if (listContainer && listContainer.nodeType === 1) {
+            choiceNode = listContainer;      // <li> ではなく、親のリストコンテナ全体をハイライト対象に昇格させる
+          } else {
+            choiceNode = null;               // 親リストが見つからない場合は選択肢のハイライトは諦める
+          }
+        }
+      }
 
       // ハイライト対象が存在しない場合は何もせず終了
       if (!questionNode && !choiceNode) {
@@ -99,7 +113,7 @@
         targets.push(questionNode);          // 有効な問題文ノードをハイライト対象として登録
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);            // 有効な選択肢ノード（<li> or <ol> など）をハイライト対象として登録
+        targets.push(choiceNode);            // 有効な選択肢コンテナノードをハイライト対象として登録
       }
 
       // 各対象ノードごとに、画面上の位置に合わせたクローンを作り、ハイライトレイヤー上に固定配置する
@@ -120,30 +134,14 @@
           }
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
-          // - choiceNode が <ol class="opts"> の場合にだけ効く。<li> 単体の場合は computedStyle をコピーして再現する。
+          // - 元 DOM は一切触らず、クローン専用のスタイルとして margin を足す
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
-
-          // --- <ol class="opts"> の場合（従来の位置調整） ---
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "18px";     // クローン専用マージン（元DOMは変更しない）
-            clone.style.marginBottom = "15px";   // クローン専用のボトム余白
+            clone.style.marginLeft = "18px";    // 左寄せのズレを吸収するためのクローン専用左マージン
+            clone.style.marginBottom = "15px";  // 下方向の詰まりを防ぐためのクローン専用のボトムマージン
+            clone.style.lineHeight = "1";// line-height 等を追加したい場合は、クローン専用スタイルとしてここに限定的に足していく
           }
-
-          // --- <li> の場合：computedStyle をコピーして完全再現する ---
-          if (cloneTag === "li") {
-            var origStyle = window.getComputedStyle(node);
-
-            // 必要最小限のプロパティだけを安全にコピー
-            clone.style.fontSize = origStyle.fontSize;
-            clone.style.lineHeight = origStyle.lineHeight;
-            clone.style.marginTop = origStyle.marginTop;
-            clone.style.marginBottom = origStyle.marginBottom;
-            clone.style.paddingLeft = origStyle.paddingLeft;
-            clone.style.listStyleType = origStyle.listStyleType;
-            clone.style.listStylePosition = origStyle.listStylePosition;
-            clone.style.fontWeight = origStyle.fontWeight;
-            clone.style.color = origStyle.color;
-          }
+        }
 
         // クローンを配置するためのラッパーを作成し、元の位置に固定する
         var wrapper = document.createElement("div");
