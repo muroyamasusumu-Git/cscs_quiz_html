@@ -497,7 +497,6 @@ margin-left: 10px;
 #cc-check-wrapper {
     position: fixed;
     right: 0;
-    z-index: 99999;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -528,7 +527,6 @@ body.mode-b #cc-check-wrapper {
 }
 
 #cc-check-btn {
-  z-index: 99999;
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 6px;
@@ -563,7 +561,6 @@ body.mode-b #cc-check-wrapper {
   position: fixed;
   right: 0;
   top: 125px;
-  z-index: 9999;
   background: transparent;
   color: #eee;
   border: 0 solid #444;
@@ -632,7 +629,6 @@ body.mode-b #cc-check-wrapper {
   right: 0;                /* 右寄せ */
   top: 150px;
   opacity: 0.20;           /* 透明度 */
-  z-index: 9999;
   background: transparent;
   color: #eee;
   border: 0 solid #444;
