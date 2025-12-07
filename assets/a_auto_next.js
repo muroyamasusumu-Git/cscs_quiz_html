@@ -1174,9 +1174,10 @@
 
   // =========================
   // 「次の問題へ」リンク（back-to-top ボタン）の生成
-  // - A/B 共通のコンテナ（.wrap または #root）の末尾に a.back-to-top を追加する
+  // - body 直下に a.back-to-top を追加する
   // - 見た目は .back-to-top の CSS に完全委譲する
   // - クリック時は ODOA と同じ NEXT_URL を使って遷移する
+  // - フォールバックは行わない
   // =========================
   function createBackToTopLink() {
     // すでに存在していれば再利用
@@ -1185,19 +1186,14 @@
       return existing;
     }
 
-    // A/B 共通コンテナ（.wrap 優先、その次に #root）を探す
-    var container = document.querySelector(".wrap");
-    if (!container) {
-      container = document.getElementById("root");
-    }
-
-    // 対象コンテナが見つからない場合は何もしない（フォールバックは行わない）
-    if (!container) {
-      syncLog("BackToTop: container(.wrap/#root) not found.");
+    // body が無ければ何もしない（フォールバックしない）
+    var bodyEl = document.body;
+    if (!bodyEl) {
+      syncLog("BackToTop: <body> not found.");
       return null;
     }
 
-    // a.back-to-top 要素を生成（見た目は CSS の .back-to-top に任せる）
+    // a.back-to-top 要素を生成（スタイル調整は CSS 側の .back-to-top に委譲）
     var link = document.createElement("a");
     link.className = "back-to-top";
     link.textContent = "［次の問題へ］";
@@ -1208,7 +1204,6 @@
         ev.preventDefault();
       } catch (_e) {}
 
-      // NEXT_URL が未決定の場合は、ODOA/oncePerDayToday を考慮して再計算する
       (async function () {
         if (!NEXT_URL) {
           NEXT_URL = await buildNextUrlConsideringOdoa();
@@ -1221,8 +1216,9 @@
       })();
     });
 
-    container.appendChild(link);
-    syncLog("BackToTop: link created.");
+    // body 直下に追加
+    bodyEl.appendChild(link);
+    syncLog("BackToTop: link created under <body>.");
     return link;
   }
 
