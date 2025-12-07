@@ -108,6 +108,7 @@
   // お気に入り状態を SYNC サーバーへ送信
   // - /api/sync/merge に { fav: { [qid]: val } } 形式でPOST
   // - 戻り値で window.CSCS_SYNC_DATA を更新
+  // - fetch の Promise をそのまま返し、呼び出し側で完了後にリロードできるようにする
   // =========================
   function sendFavToSync(val){
     var qid = getQid();
@@ -119,7 +120,7 @@
     }catch(_){}
 
     try{
-      fetch("/api/sync/merge", {
+      return fetch("/api/sync/merge", {
         method: "POST",
         headers: {
           "content-type": "application/json"
@@ -143,7 +144,7 @@
         })
         .then(function(json){
           if (!json || typeof json !== "object") {
-            return;
+            return null;
           }
           try{
             window.CSCS_SYNC_DATA = json;
@@ -151,16 +152,21 @@
             var hasFav = !!(root && root.fav && typeof root.fav === "object" && Object.prototype.hasOwnProperty.call(root.fav, qid));
             console.log("fav_modal.js: SYNC fav updated.", { qid: qid, storedInSync: hasFav });
           }catch(_){}
+          return json;
         })
         .catch(function(e){
+          // ページリロードなどで fetch が中断された場合に出るエラーをここで握りつぶす
           try{
-            console.error("fav_modal.js: SYNC merge fetch error.", e);
+            console.warn("fav_modal.js: SYNC merge fetch error (ignored):", e);
           }catch(_){}
+          return null;
         });
     }catch(e){
       try{
         console.error("fav_modal.js: sendFavToSync outer fetch error.", e);
       }catch(_){}
+      // 例外時も呼び出し側が then/finally を呼べるように resolved Promise を返す
+      return Promise.resolve(null);
     }
   }
 
@@ -229,18 +235,17 @@
   // 現在問題の「お気に入り状態」を保存（SYNC専用）
   // - /api/sync/merge に対して fav 情報だけを送信する
   // - localStorage(cscs_fav / cscs_fav_map) は一切更新しない
+  // - sendFavToSync の Promise をそのまま返し、呼び出し側で完了待ちできるようにする
   // =========================
   function saveFav(val){
     var qid = getQid();
 
-    // デバッグログで、どの qid に何を送るかを確認
     try{
       console.log("fav_modal.js: saveFav(SYNC only) → sendFavToSync", { qid: qid, val: val });
     }catch(_){}
 
-    // SYNCサーバーにお気に入り状態を送信
-    // 成功時には sendFavToSync 内で window.CSCS_SYNC_DATA が更新される
-    sendFavToSync(val);
+    // SYNCサーバーにお気に入り状態を送信し、その Promise を返す
+    return sendFavToSync(val);
   }
 
   // =========================
@@ -499,26 +504,44 @@
     // 手順:
     //  1) 直前の値を取得
     //  2) 新しい値を取得
-    //  3) 見た目更新 + 保存
-    //  4) モーダル閉じる
-    //  5) 値が変わったときだけ location.reload() で画面をリロード
+    //  3) 見た目更新
+    //  4) SYNC 送信（Promise 完了を待つ）
+    //  5) モーダルを閉じる
+    //  6) 値が変わったときだけ、SYNC 完了後に画面をリロード
     bd.querySelectorAll(".fav-btn").forEach(btn=>{
       btn.addEventListener("click", (ev)=>{
-        ev.preventDefault(); 
+        ev.preventDefault();
         ev.stopPropagation();
 
-        const prev = loadFav();                          // 直前の値
-        const v = btn.getAttribute("data-val");          // 新しい値
+        const prev = loadFav();                 // 直前の値
+        const v = btn.getAttribute("data-val"); // 新しい値
 
-        setActive(bd, v);                                // 見た目のアクティブ切替
-        saveFav(v);                                      // 保存（cscs_fav / cscs_fav_map 両対応で更新）
-        hide();                                          // いったん閉じる
+        // 見た目のアクティブ切替
+        setActive(bd, v);
 
-        if (v !== prev) {                                // 値が変わったときだけリロード
-          try { 
-            // setTimeout で次のtickにリロード → モーダル閉じ演出などがチラつきにくくなる
-            setTimeout(()=>location.reload(), 0); 
-          } catch(_) {}
+        // SYNC 送信の Promise を取得
+        var p = saveFav(v);
+
+        // モーダルはすぐ閉じてしまって OK（裏で SYNC が走る）
+        hide();
+
+        if (v !== prev) {
+          try{
+            // Promise があれば完了後にリロード、それ以外は従来どおり次の tick でリロード
+            if (p && typeof p.then === "function") {
+              p.finally(function(){
+                try{
+                  location.reload();
+                }catch(_){}
+              });
+            } else {
+              setTimeout(function(){
+                try{
+                  location.reload();
+                }catch(_){}
+              }, 0);
+            }
+          }catch(_){}
         }
       });
     });
