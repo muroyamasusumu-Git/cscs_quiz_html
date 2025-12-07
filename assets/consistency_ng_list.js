@@ -56,7 +56,7 @@
       "#cscs-consistency-ng-panel .cng-summary {\n" +
       "  margin-bottom: 6px;\n" +
       "  opacity: 0.90;\n" +
-      "  font-size: 13px;\n" +
+      "  font-size: 14px;\n" +
       "}\n" +
       "#cscs-consistency-ng-panel .cng-summary a {\n" +
       "  color: rgba(255, 220, 220, 0.85);\n" +
