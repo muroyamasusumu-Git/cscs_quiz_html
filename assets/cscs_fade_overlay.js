@@ -121,17 +121,16 @@
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
             clone.style.marginLeft = "15px";    // 元の nav レイアウトで付与されている左マージン分をクローン側にも足して位置を合わせる
-            clone.style.marginBottom = "15px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
+            clone.style.marginBottom = "17px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
           }
         }
 
         var wrapper = document.createElement("div");
         wrapper.style.position = "fixed";
         wrapper.style.left = String(rect.left) + "px";
+        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
         wrapper.style.top = String(rect.top - 15) + "px";
         wrapper.style.width = String(rect.width) + "px";
-        wrapper.style.height = String(rect.height) + "px";   // クローンの行間変更で高さが変わっても wrapper は元高さのまま固定
-        wrapper.style.overflow = "hidden";                   // はみ出した部分を描画せず、クリック障害を防ぐ
         wrapper.style.margin = "0";
         wrapper.style.padding = "0";
         wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない
