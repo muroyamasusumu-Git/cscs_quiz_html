@@ -52,6 +52,7 @@
     pointer-events: none;        /* クリックを無効化して完全なラベル扱いにする */
     cursor: default;             /* ポインタ形状も通常矢印に固定する */
     filter: invert(1);           /* 既存スタイルをそのまま反転（白⇔黒の反転効果） */
+    border: 1px solid #ffffff;   /* 白い枠線を付けてラベルを視覚的に際立たせる */
 }
             `;
             document.head.appendChild(style);
