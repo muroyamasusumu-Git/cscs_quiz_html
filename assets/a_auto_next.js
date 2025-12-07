@@ -1173,6 +1173,67 @@
   }
 
   // =========================
+  // 「次の問題へ」リンク（back-to-top ボタン）の生成
+  // - A/B 共通のコンテナ（.wrap または #root）の末尾に a.back-to-top を追加する
+  // - クリック時は ODOA と同じ NEXT_URL を使って遷移する
+  // =========================
+  function createBackToTopLink() {
+    // すでに存在していれば再利用
+    var existing = document.querySelector(".back-to-top");
+    if (existing) {
+      return existing;
+    }
+
+    // A/B 共通コンテナ（.wrap 優先、その次に #root）を探す
+    var container = document.querySelector(".wrap");
+    if (!container) {
+      container = document.getElementById("root");
+    }
+
+    // 対象コンテナが見つからない場合は何もしない（フォールバックは行わない）
+    if (!container) {
+      syncLog("BackToTop: container(.wrap/#root) not found.");
+      return null;
+    }
+
+    // a.back-to-top 要素を生成
+    var link = document.createElement("a");
+    link.className = "back-to-top";
+    link.textContent = "［次の問題へ］";
+
+    // 最低限の見た目調整（レイアウト本体は CSS 側で上書きする前提）
+    link.style.display = "inline-block";
+    link.style.marginTop = "12px";
+    link.style.fontSize = "13px";
+    link.style.color = "rgb(200, 200, 200)";
+    link.style.cursor = "pointer";
+    link.style.textDecoration = "underline";
+
+    // クリック時に ODOA と同じ NEXT_URL へ遷移させる
+    link.addEventListener("click", function (ev) {
+      try {
+        ev.preventDefault();
+      } catch (_e) {}
+
+      // NEXT_URL が未決定の場合は、ODOA/oncePerDayToday を考慮して再計算する
+      (async function () {
+        if (!NEXT_URL) {
+          NEXT_URL = await buildNextUrlConsideringOdoa();
+        }
+        if (!NEXT_URL) {
+          syncLog("BackToTop: NEXT_URL is not available.");
+          return;
+        }
+        goNextIfExists(NEXT_URL);
+      })();
+    });
+
+    container.appendChild(link);
+    syncLog("BackToTop: link created.");
+    return link;
+  }
+
+  // =========================
   // カウントダウンのキャンセル処理
   // =========================
   function cancelAutoAdvanceCountdown(updateText) {
@@ -1309,6 +1370,9 @@
     createAutoNextModeToggleButton();   // 順番／ランダム
     createAutoNextDurationButton();     // 待ち時間（秒）
     createVerifyModeToggleButton();     // 自動検証モード（A→B 自動遷移）
+
+    // A/B 共通コンテナ内に「次の問題へ」リンクを追加（ODOA と同じ NEXT_URL を使う）
+    createBackToTopLink();
 
     // 自動送りの状態に応じて挙動を分岐
     if (autoEnabled) {
