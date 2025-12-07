@@ -49,24 +49,17 @@
    * 問題文＋選択肢を「画面上の見た目を極力そのまま」に前面へ浮かせる処理。
    * - 元 DOM は一切動かさず、そのクローンを body 直下の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
    * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標に position: fixed でクローンを貼り付ける。
-   * - 質問文ブロックと各選択肢(li)で、X/Y のオフセットと行間(line-height)を個別に調整できる。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
-   * @param {Element|null} choiceNode    元の選択肢コンテナ/項目DOMノード(<ol class="opts"> または <li> など)
+   * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
    * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      // =========================================
-      // 位置・行間の調整用パラメータ
-      // ここだけ変えれば見た目の微調整ができる
-      // =========================================
+      // 質問文ブロック用のYオフセット（h1 をまとめて上下に微調整したいとき用）
+      var QUESTION_OFFSET_Y_PX = -15;
 
-      // 質問文ブロック(h1)用のオフセット（px）
-      var QUESTION_OFFSET_X_PX = 0;    // 左右
-      var QUESTION_OFFSET_Y_PX = -15;  // 上下
-
-      // 選択肢4つを li ごとに個別調整するための配列
+      // 選択肢4つを li ごとに個別調整するための設定
       // インデックス: 0=A, 1=B, 2=C, 3=D
 
       // X方向オフセット（px）: 左右位置の微調整用
@@ -75,39 +68,35 @@
       // Y方向オフセット（px）: 上下位置の微調整用
       var CHOICE_OFFSET_Y_PX_LIST = [-15, -15, -15, -15];
 
-      // 行間補正（line-height 倍率）
-      // 1.0 が元のまま、それ以外の値を入れるとクローン側の行間だけ変更される
+      // 行間補正（line-height 倍率）: 1.0 が元のまま、それ以外で行間を広げたり狭めたりできる
       var CHOICE_LINE_HEIGHT_LIST = [1.0, 1.0, 1.0, 1.0];
 
-      // 旧レイヤーが残っていたら削除してクリーンな状態にする
       var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
         existing.parentNode.removeChild(existing);
       }
 
-      // choiceNode が li/ol/ul のどれで来ても、ここで親のリストコンテナを特定する
+      // choiceNode が li の場合のみ、親の ol.opts / ol / ul を取ってくる
       var listContainer = null;
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
-          // li のときは親の ol.opts / ol / ul を探す
           if (typeof choiceNode.closest === "function") {
             listContainer = choiceNode.closest("ol.opts") ||
                             choiceNode.closest("ol") ||
                             choiceNode.closest("ul");
           }
         } else if (tag === "ol" || tag === "ul") {
-          // すでにリストコンテナそのものが渡ってきている場合
           listContainer = choiceNode;
         }
       }
 
-      // h1 もリストコンテナも無ければ何もしない
+      // 質問文も選択肢リストも無ければ何もしない
       if (!questionNode && !listContainer) {
         return null;
       }
 
-      // フェード用のハイライトレイヤーを作成（黒幕より前面）
+      // フェード用のハイライトレイヤーを作成（黒幕より前面に置く）
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -128,7 +117,7 @@
 
         var qw = document.createElement("div");
         qw.style.position = "fixed";
-        qw.style.left = String(qrect.left + QUESTION_OFFSET_X_PX) + "px";
+        qw.style.left = String(qrect.left) + "px";
         qw.style.top = String(qrect.top + QUESTION_OFFSET_Y_PX) + "px";
         qw.style.width = String(qrect.width) + "px";
         qw.style.margin = "0";
@@ -150,17 +139,11 @@
           var clone = li.cloneNode(true);
 
           // 個別の X/Y オフセットと行間補正を取得（設定が無ければ 0 / 1.0 を使う）
-          var offsetX = (typeof CHOICE_OFFSET_X_PX_LIST[i] === "number")
-            ? CHOICE_OFFSET_X_PX_LIST[i]
-            : 0;
-          var offsetY = (typeof CHOICE_OFFSET_Y_PX_LIST[i] === "number")
-            ? CHOICE_OFFSET_Y_PX_LIST[i]
-            : 0;
-          var lineHeightFactor = (typeof CHOICE_LINE_HEIGHT_LIST[i] === "number")
-            ? CHOICE_LINE_HEIGHT_LIST[i]
-            : 1.0;
+          var offsetX = CHOICE_OFFSET_X_PX_LIST[i] || 0;
+          var offsetY = CHOICE_OFFSET_Y_PX_LIST[i] || 0;
+          var lineHeightFactor = CHOICE_LINE_HEIGHT_LIST[i] || 1.0;
 
-          // クローン側に行間補正を適用（1.0 のときは何もしない）
+          // クローン側に行間補正を適用
           if (lineHeightFactor && lineHeightFactor !== 1.0) {
             clone.style.lineHeight = String(lineHeightFactor);
           }
@@ -185,12 +168,6 @@
       return null;
     }
   }
-
-  function fadeOutTo(nextUrl, reason) {
-    if (!nextUrl) {
-      // 遷移先 URL が無い場合はフェード処理自体を行わない
-      return;
-    }
 
     // フェード用オーバーレイを準備（既存があれば再利用、無ければ作成）
     var overlay = getOrCreateFadeOverlay();
@@ -228,7 +205,7 @@
    * @param {string} reason                          ログや復路判定用の任意の文字列
    * @param {Object} highlightTargets                ハイライト対象の DOM ノードセット
    *   highlightTargets.questionNode … 問題文DOMノード (例: <h1>…)
-   *   highlightTargets.choiceNode   … 選択肢DOMノード (例: <li>… または <ol class="opts"> …)
+   *   highlightTargets.choiceNode   … 選択肢DOMノード (例: <li>…)
    */
   function fadeOutToWithHighlight(nextUrl, reason, highlightTargets) {
     if (!nextUrl) {
