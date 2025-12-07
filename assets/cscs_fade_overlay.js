@@ -139,7 +139,7 @@
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
             clone.style.marginLeft = "15px";    // 左寄せのズレを吸収するためのクローン専用左マージン
             clone.style.marginBottom = "15px";  // 下方向の詰まりを防ぐためのクローン専用のボトムマージン
-            // line-height 等を追加したい場合は、クローン専用スタイルとしてここに限定的に足していく
+            clone.style.lineHeight = "1.45";// line-height 等を追加したい場合は、クローン専用スタイルとしてここに限定的に足していく
           }
         }
 
