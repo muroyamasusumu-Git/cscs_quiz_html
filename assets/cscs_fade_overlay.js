@@ -137,7 +137,7 @@
           // - 元 DOM は一切触らず、クローン専用のスタイルとして margin を足す
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "17px";    // 左寄せのズレを吸収するためのクローン専用左マージン
+            clone.style.marginLeft = "18px";    // 左寄せのズレを吸収するためのクローン専用左マージン
             clone.style.marginBottom = "15px";  // 下方向の詰まりを防ぐためのクローン専用のボトムマージン
             clone.style.lineHeight = "1";// line-height 等を追加したい場合は、クローン専用スタイルとしてここに限定的に足していく
           }
