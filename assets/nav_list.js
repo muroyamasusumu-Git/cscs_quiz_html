@@ -328,10 +328,22 @@
 
       var link = document.createElement("a");
       // その日の1問目Aパートへのリンク（手動ナビモード）
-      link.href = "/_build_cscs_" + dayStr + "/slides/q001_a.html?nav=manual";
+      var dayUrl = "/_build_cscs_" + dayStr + "/slides/q001_a.html?nav=manual";
+      link.href = dayUrl;
       link.setAttribute("data-nl-allow", "1");
       link.style.display = "block";
       link.style.textDecoration = "none";
+      link.addEventListener("click", function(ev){
+        // 修飾キー（Cmd/Ctrl/Shift/Alt）付きや中クリックなどはブラウザ標準の挙動に任せる
+        if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) {
+          return;
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        try{
+          window.location.assign(dayUrl);
+        }catch(_){}
+      });
 
       // 1行目: DAY-XX + 全クリ度シンボル
       var titleRow = document.createElement("div");
@@ -1264,6 +1276,17 @@
       a.href = url;
       a.setAttribute("data-nl-allow", "1");
       a.textContent = line1Text;
+      a.addEventListener("click", function(ev){
+        // 修飾キー（Cmd/Ctrl/Shift/Alt）付きや中クリックなどはブラウザ標準の挙動に任せる
+        if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) {
+          return;
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        try{
+          window.location.assign(url);
+        }catch(_){}
+      });
       l1.appendChild(a);
 
       // 2行目: ステータス（問題番号／💫(1/3)／◎／Lv/正誤回数/お気に入り）
