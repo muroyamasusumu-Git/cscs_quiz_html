@@ -134,6 +134,15 @@
       "  text-decoration: underline;\n" +
       "  cursor: pointer;\n" +
       "  opacity: 0.7;\n" + 
+      "}\n" +
+
+      /* QIDリンクのフォント色を変えない */
+      "#cscs-consistency-ng-panel .cng-qid-link {\n" +
+      "  color: inherit;\n" +        /* これで親と同じ色になる */
+      "  text-decoration: underline;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-qid-link:hover {\n" +
+      "  opacity: 1.0;\n" +          /* ホバー時の視認性は上げる */
       "}\n";
 
     document.head.appendChild(style);
@@ -386,7 +395,7 @@
       html += "<tr>";
       if (aHref) {
         // AパートURLが生成できた場合はリンク付きで表示
-        html += '<td class="cng-qid"><a href="' + aHref + '">' + row.qid + "</a></td>";
+        html += '<td class="cng-qid"><a class="cng-qid-link" href="' + aHref + '">' + row.qid + "</a></td>";
       } else {
         // 生成できなかった場合は従来通りテキストのみ
         html += '<td class="cng-qid">' + row.qid + "</td>";
