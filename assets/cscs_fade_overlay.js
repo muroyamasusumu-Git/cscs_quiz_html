@@ -122,6 +122,7 @@
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
             clone.style.marginLeft = "15px";    // 元の nav レイアウトで付与されている左マージン分をクローン側にも足して位置を合わせる
             clone.style.marginBottom = "15px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
+            clone.style.lineHeight = "1";  
           }
         }
 
