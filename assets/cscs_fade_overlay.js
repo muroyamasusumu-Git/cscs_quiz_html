@@ -120,8 +120,8 @@
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "10px";    // 元の nav レイアウトで付与されている左マージン分をクローン側にも足して位置を合わせる
-            clone.style.marginBottom = "10px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
+            clone.style.marginLeft = "15px";    // 元の nav レイアウトで付与されている左マージン分をクローン側にも足して位置を合わせる
+            clone.style.marginBottom = "15px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
           }
         }
 
