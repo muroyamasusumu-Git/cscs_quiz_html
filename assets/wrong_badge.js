@@ -262,7 +262,7 @@
     // 正解/不正解のリンク表示と挙動を設定
     if (wrongLink) {
       // 表示（リンク） ※文言から「回」は削除
-      wrongLink.textContent = `(正解:${correct} / 不正解:${wrong})`;
+      wrongLink.textContent = `(正:${correct} / 誤:${wrong})`;
       wrongLink.setAttribute("title", qid ? `qid: ${qid} の累計（延べ）` : `qid未特定（パス判定不可）`);
       wrongLink.setAttribute("href", "#");
 
