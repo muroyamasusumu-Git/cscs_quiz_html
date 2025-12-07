@@ -113,9 +113,12 @@ body.mode-b ol.opts {
 
 body.mode-b .opts li {
 margin-top: 15px !important;
+opacity: 0.1; 
 }
 
-
+body.mode-b .opts .is-correct {
+opacity: 1 !important;
+}
 
 
 
