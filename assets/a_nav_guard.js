@@ -49,14 +49,17 @@
 
 /* Bパート用：ODOA ボタンを「押せないラベル」にしつつ白黒反転させる */
 #cscs-odoa-toggle.cscs-odoa-readonly {
+    font-size: 11px;
+    padding: 0px 6px;
+    position: static;            /* 位置固定を完全解除 */
+    font-weight: bold;
+    width: auto;
+    text-align: center;
+    margin-left: 0;
     pointer-events: none;
-    font-size: 12px;
-    padding: 0px 5px;
-    opacity: 0.7;
-    cursor: default;
-    border: 0 solid #ffffff;
     background: #5c5c5c;
     color: #fff;
+    opacity: 0.7;
 }
             `;
             document.head.appendChild(style);
