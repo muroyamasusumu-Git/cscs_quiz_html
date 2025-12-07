@@ -49,7 +49,8 @@
 
 /* Bパート用：ODOA ボタンを「押せないラベル」にしつつ白黒反転させる */
 #cscs-odoa-toggle.cscs-odoa-readonly {
-    pointer-events: none;        /* クリックを無効化して完全なラベル扱いにする */
+    pointer-events: none;       /* クリックを無効化して完全なラベル扱いにする */
+    font-size: 12px;
     opacity: 0.8;
     cursor: default;             /* ポインタ形状も通常矢印に固定する */
     filter: invert(1);           /* 既存スタイルをそのまま反転（白⇔黒の反転効果） */
