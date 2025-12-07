@@ -275,10 +275,7 @@
   function buildConsistencyNgPanelHtml(list, sortMode) {
     var html = "";
 
-    html += '<h3 style="display:flex; justify-content:space-between; align-items:center;">'
-         + '× / △ 整合性要対応問題リスト（SYNC）'
-         + '<a href="#" id="cng-panel-close" style="font-size:12px; color:rgba(255,220,220,0.85); text-decoration:underline; margin-left:10px;">[閉じる]</a>'
-         + '</h3>';
+    html += "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>";
 
     if (!list.length) {
       html += '<div class="cng-summary cng-empty">現在SYNCに「×」「△」の問題はありません。</div>';
@@ -352,6 +349,16 @@
     // 並び替え済みのリストと現在のソートモードを渡して HTML を生成する
     panel.innerHTML = buildConsistencyNgPanelHtml(sorted, cngSortMode);
 
+    // ヘッダー右側の [閉じる] リンクでパネルを閉じられるようにする
+    var closeLink = panel.querySelector(".cng-header a.cng-close");
+    if (closeLink) {
+      closeLink.addEventListener("click", function (e) {
+        e.preventDefault();
+        panel.style.display = "none";    // パネルを非表示
+        cngPanelVisible = false;         // 内部状態も「閉じている」に更新
+      });
+    }
+
     // 「×→△」「△→×」のトグルリンクにクリックイベントを付与する
     var sortX = panel.querySelector("#cng-sort-x-first");
     var sortD = panel.querySelector("#cng-sort-d-first");
@@ -390,19 +397,47 @@
 
     if (!cngListCache && !cngFetchError) {
       panel.innerHTML =
+        '<div class="cng-header">' +
         "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>" +
+        '<a href="#" class="cng-close">[閉じる]</a>' +
+        "</div>" +
         '<div class="cng-summary cng-empty">一覧データがまだ準備されていません。</div>';
       panel.style.display = "";
       cngPanelVisible = true;
+
+      // 未準備表示でもヘッダーの [閉じる] でパネルを閉じられるようにする
+      var closeLink1 = panel.querySelector(".cng-header a.cng-close");
+      if (closeLink1) {
+        closeLink1.addEventListener("click", function (e) {
+          e.preventDefault();
+          panel.style.display = "none";
+          cngPanelVisible = false;
+        });
+      }
+
       return;
     }
 
     if (cngFetchError) {
       panel.innerHTML =
+        '<div class="cng-header">' +
         "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>" +
+        '<a href="#" class="cng-close">[閉じる]</a>' +
+        "</div>" +
         '<div class="cng-summary cng-empty">SYNC取得中にエラーが発生しました。</div>';
       panel.style.display = "";
       cngPanelVisible = true;
+
+      // エラー表示時もヘッダーの [閉じる] でパネルを閉じられるようにする
+      var closeLink2 = panel.querySelector(".cng-header a.cng-close");
+      if (closeLink2) {
+        closeLink2.addEventListener("click", function (e) {
+          e.preventDefault();
+          panel.style.display = "none";
+          cngPanelVisible = false;
+        });
+      }
+
       return;
     }
 
