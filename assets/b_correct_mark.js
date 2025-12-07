@@ -123,4 +123,61 @@
     obs2.observe(ans, { childList: true, subtree: true, characterData: true });
   }
 
+  // ▼ 10. 選択した誤答に取り消し線を付けるクリックハンドラ
+  function setupWrongStrike() {
+    // 選択肢リストを取得
+    var ol = document.querySelector("ol.opts");
+    if (!ol) return;
+
+    // 二重バインド防止
+    if (ol.getAttribute("data-wrong-strike-bound") === "1") return;
+    ol.setAttribute("data-wrong-strike-bound", "1");
+
+    var items = ol.querySelectorAll("li");
+    if (!items || !items.length) return;
+
+    for (var i = 0; i < items.length; i++) {
+      (function(li) {
+        var link = li.querySelector("a.opt-link");
+        if (!link) return;
+
+        link.addEventListener("click", function() {
+          // クリック時点での正解選択肢を取得
+          var corr = getCorrectFromMeta() || getCorrectFromJudge() || getCorrectFromAnswer();
+          if (!corr || !/^[ABCD]$/.test(corr)) return;
+
+          // A〜D → 1〜4 のマッピング
+          var map = { A: 1, B: 2, C: 3, D: 4 };
+          var correctIndex = map[corr];
+
+          // この li が何番目かを判定
+          var children = ol.children;
+          var idx = -1;
+          for (var j = 0; j < children.length; j++) {
+            if (children[j] === li) {
+              idx = j + 1; // nth-child 用に 1 始まり
+              break;
+            }
+          }
+          if (idx === -1) return;
+
+          // 正解以外（＝誤答）なら取り消し線を付ける
+          if (idx !== correctIndex) {
+            li.classList.add("is-wrong-selected");
+            link.classList.add("is-wrong-selected");
+            // 直接スタイルで取り消し線を付与
+            link.style.textDecoration = "line-through";
+          }
+        });
+      })(items[i]);
+    }
+  }
+
+  // DOM 構築後に一度だけセットアップ
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupWrongStrike);
+  } else {
+    setupWrongStrike();
+  }
+
 })();
