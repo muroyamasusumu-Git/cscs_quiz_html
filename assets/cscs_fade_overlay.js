@@ -47,8 +47,9 @@
 
   /**
    * 問題文＋選択肢を「画面上の見た目を極力そのまま」に前面へ浮かせる処理。
-   * - 元 DOM は一切動かさず、そのクローンを body 直下の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
+   * - 元 DOM は一切動かさず、そのクローンをフェード用オーバーレイ内部の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
    * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標に position: fixed でクローンを貼り付ける。
+   * - ハイライトレイヤーは常に「黒幕オーバーレイの内側かつ最前面」に置くことで、スタッキングコンテキスト競合を避ける。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
    * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
@@ -56,11 +57,15 @@
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
+      // 既存のハイライトレイヤーがあれば一度削除して、毎回まっさらな状態から作り直す
       var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing); // 以前のハイライトレイヤーが残っていれば一度破棄してクリーンな状態に戻す
+        existing.parentNode.removeChild(existing); // 古いレイヤーをオーバーレイ内部から取り除く
       }
 
+      // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
+      // - 番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出すための前処理
+      // - 親リストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバックなし）
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
@@ -73,15 +78,24 @@
           if (listContainer && listContainer.nodeType === 1) {
             choiceNode = listContainer;      // <li> ではなく、親のリストコンテナ全体をハイライト対象に昇格させる
           } else {
-            choiceNode = null;               // 親リストが見つからない場合は選択肢側のハイライトは行わない（フォールバックなし）
+            choiceNode = null;               // 親リストが見つからない場合は選択肢のハイライトは諦める
           }
         }
       }
 
+      // ハイライト対象が存在しない場合は何もせず終了
       if (!questionNode && !choiceNode) {
         return null;                         // 問題文・選択肢の両方が無ければ何もせず終了
       }
 
+      // フェード用オーバーレイを必ず取得し、その「内側」にハイライトレイヤーをぶら下げる
+      // - こうすることで、オーバーレイのスタッキングコンテキストの中で z-index を完結させられる
+      var overlay = getOrCreateFadeOverlay(); // 既存オーバーレイを取得（無ければ新規作成）
+      if (!overlay) {
+        return null;                         // 何らかの理由でオーバーレイが作れない場合はハイライトも諦める
+      }
+
+      // フェードオーバーレイ内部に、ハイライト専用レイヤーを新規作成
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -89,10 +103,11 @@
       layer.style.top = "0";
       layer.style.right = "0";
       layer.style.bottom = "0";
-      layer.style.zIndex = "9999";
-      layer.style.pointerEvents = "none";
-      document.body.appendChild(layer);      // 黒幕オーバーレイより前面に、ハイライト専用レイヤーをマウントする
+      layer.style.zIndex = "9999";          // オーバーレイ背景より前面に出すための z-index（コンテキストは overlay の内側で完結）
+      layer.style.pointerEvents = "none";   // ハイライトレイヤー自体はマウス操作を一切受け付けない
+      overlay.appendChild(layer);           // body 直下ではなく overlay 配下にぶら下げることで、黒幕と一体化した前面表示にする
 
+      // ハイライト対象を配列にまとめて、共通のクローン処理を適用する
       var targets = [];
       if (questionNode && questionNode.nodeType === 1) {
         targets.push(questionNode);          // 有効な問題文ノードをハイライト対象として登録
@@ -101,30 +116,34 @@
         targets.push(choiceNode);            // 有効な選択肢コンテナノードをハイライト対象として登録
       }
 
+      // 各対象ノードごとに、画面上の位置に合わせたクローンを作り、ハイライトレイヤー上に固定配置する
       for (var i = 0; i < targets.length; i++) {
         var node = targets[i];
-        var rect = node.getBoundingClientRect(); // 元DOMの画面上の位置・幅を取得する
+        var rect = node.getBoundingClientRect(); // 元DOMの画面上の位置・幅を取得する（ビューポート基準）
         var clone = node.cloneNode(true);        // 元DOMは動かさず、クローンだけをハイライト用に利用する
 
-        // クローンであることを示す専用クラスを付与しておく（CSS からクローンだけを調整するためのフック）
+        // クローン共通の識別用クラスを付与して、CSSから「クローンだけ」を安全に調整できるようにする
         if (clone && clone.nodeType === 1) {
           if (clone.classList) {
-            clone.classList.add("cscs-fade-highlight-clone"); // クローン共通の識別用クラスを追加
+            clone.classList.add("cscs-fade-highlight-clone"); // classList が使える場合は add で足す
           } else {
             var cls = clone.getAttribute("class") || "";
             if (cls.indexOf("cscs-fade-highlight-clone") === -1) {
-              clone.setAttribute("class", (cls ? cls + " " : "") + "cscs-fade-highlight-clone"); // classList が無い場合は属性経由でクラスを付与
+              clone.setAttribute("class", (cls ? cls + " " : "") + "cscs-fade-highlight-clone"); // 属性操作でクラスを追加
             }
           }
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
+          // - 元 DOM は一切触らず、クローン専用のスタイルとして margin を足す
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "15px";    // 元の nav レイアウトで付与されている左マージン分をクローン側にも足して位置を合わせる
-            clone.style.marginTop = "-18px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
+            clone.style.marginLeft = "15px";    // 左寄せのズレを吸収するためのクローン専用左マージン
+            clone.style.marginBottom = "15px";  // 下方向の詰まりを防ぐためのクローン専用のボトムマージン
+            // line-height 等を追加したい場合は、クローン専用スタイルとしてここに限定的に足していく
           }
         }
 
+        // クローンを配置するためのラッパーを作成し、元の位置に固定する
         var wrapper = document.createElement("div");
         wrapper.style.position = "fixed";
         wrapper.style.left = String(rect.left) + "px";
@@ -133,13 +152,13 @@
         wrapper.style.width = String(rect.width) + "px";
         wrapper.style.margin = "0";
         wrapper.style.padding = "0";
-        wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない
+        wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない（クリックは元DOM側で処理済みの前提）
 
         wrapper.appendChild(clone);              // クローンを wrapper に入れて
         layer.appendChild(wrapper);              // wrapper ごとハイライトレイヤーに追加する
       }
 
-      return layer;                              // 作成したハイライトレイヤー要素を返す
+      return layer;                              // 作成したハイライトレイヤー要素を返す（デバッグ・検証用）
     } catch (_e) {
       return null;                               // 例外発生時もフェード自体は続行できるように null を返しておく
     }
