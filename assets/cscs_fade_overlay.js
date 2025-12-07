@@ -46,64 +46,65 @@
   // =========================================
 
   /**
-   * 問題文＋選択肢をクローンして、フェード用オーバーレイの「上」に固定表示するレイヤーを作成する。
+   * 問題文＋選択肢を「元のレイアウトのまま」ハイライトするための処理。
+   * - クローンは作らず、渡された DOM ノードそのものに z-index を与えて前面に浮かせる。
+   * - position が未指定の場合のみ relative を付け、既存のレイアウトを崩さないようにする。
    *
-   * @param {Element|null} questionNode  元の問題文DOMノード
-   * @param {Element|null} choiceNode    元の選択肢DOMノード（クリックされた<li>など）
-   * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
+   * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
+   * @param {Element|null} choiceNode    元の選択肢DOMノード(<li>など)
+   * @returns {null}                     独立レイヤーは作成しないので常に null
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      // すでにハイライトレイヤーが存在している場合は一度取り除いてクリーンな状態にする
-      var existing = document.getElementById("cscs-fade-highlight-layer");
+      // 旧仕様で使っていたハイライト用レイヤーが残っている可能性があるため、念のため削除しておく
+      var existing = document.getElementById("cscs-fade-highlight-layer"); // 旧レイヤー要素を取得
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing);
+        existing.parentNode.removeChild(existing); // 残っていれば DOM から取り除いてクリーンな状態にする
       }
 
-      // 問題文も選択肢も指定されていない場合はレイヤーを作らず、そのまま終了する
+      // ハイライト対象が一切渡されていない場合は何もせずに終了する
       if (!questionNode && !choiceNode) {
-        return null;
+        return null; // questionNode / choiceNode が両方 null のときは処理不要
       }
 
-      // 画面全体を覆うフルスクリーンのハイライトレイヤーを作成する（黒幕の一段上に配置）
-      var layer = document.createElement("div");
-      layer.id = "cscs-fade-highlight-layer";
-      layer.style.position = "fixed";
-      layer.style.left = "0";
-      layer.style.top = "0";
-      layer.style.right = "0";
-      layer.style.bottom = "0";
-      layer.style.zIndex = "9999";          // フェードオーバーレイ(9998)よりも上に重ねる
-      layer.style.pointerEvents = "none";   // ここではブロックせず、既にフェード側で操作を止めている前提
-      layer.style.display = "flex";
-      layer.style.alignItems = "center";
-      layer.style.justifyContent = "center";
-
-      // 中央にテキストをまとめて表示するためのコンテナを作成
-      var inner = document.createElement("div");
-      inner.id = "cscs-fade-highlight-inner";
-      inner.style.maxWidth = "80%";
-      inner.style.fontSize = "1em";
-
-      // 問題文の DOM をそのままクローンし、中央コンテナに挿入する
+      // ハイライト対象となるノードを配列にまとめて同じ処理を適用する
+      var targets = []; // 処理対象ノードを一時的に保持する配列
       if (questionNode && questionNode.nodeType === 1) {
-        var qClone = questionNode.cloneNode(true);
-        inner.appendChild(qClone);
+        targets.push(questionNode); // 有効な問題文ノードがあれば targets に追加
       }
-
-      // 選択肢（クリックされた<li>など）もクローンし、少し下に余白を空けて表示する
       if (choiceNode && choiceNode.nodeType === 1) {
-        var cClone = choiceNode.cloneNode(true);
-        cClone.style.marginTop = "16px";
-        inner.appendChild(cClone);
+        targets.push(choiceNode); // 有効な選択肢ノードがあれば targets に追加
       }
 
-      // レイヤーにコンテナを追加し、最後に body の最前面にマウントする
-      layer.appendChild(inner);
-      document.body.appendChild(layer);
-      return layer;
+      // まとめた対象ノードそれぞれに対してハイライト用スタイルを付与する
+      for (var i = 0; i < targets.length; i++) {
+        var node = targets[i]; // 現在処理中のノード
+
+        // すでにハイライト適用済みのノードには二重で処理を掛けないようにする
+        if (node.getAttribute("data-cscs-highlight-applied") === "1") {
+          continue; // data-cscs-highlight-applied="1" が付いていればスキップ
+        }
+
+        // 一度適用したことをマークするフラグを data 属性で残しておく
+        node.setAttribute("data-cscs-highlight-applied", "1"); // ハイライト済みフラグを付与
+
+        // 元の inline style の position / z-index を退避しておく（必要になれば戻せるようにするため）
+        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || ""); // 元の position を記録
+        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");    // 元の z-index を記録
+
+        // 既に inline style で position が指定されている場合はその値を尊重し、空の場合のみ relative を設定する
+        if (!node.style.position) {
+          node.style.position = "relative"; // position が未指定なら relative にして z-index を効かせる
+        }
+
+        // フェードオーバーレイ(9998)よりも前面に出すため、十分に大きな z-index を付与する
+        node.style.zIndex = "9999"; // 背景の黒フェードより前に表示させるための z-index
+      }
+
+      // 独立したハイライトレイヤーは作らないため、戻り値は常に null にしておく
+      return null;
     } catch (_e) {
-      // 何らかの例外が発生した場合は安全に null を返し、フェード自体は継続させる
+      // 想定外の例外が発生した場合もフェード処理自体は継続できるように null を返す
       return null;
     }
   }
