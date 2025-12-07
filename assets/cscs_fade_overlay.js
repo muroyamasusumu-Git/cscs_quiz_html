@@ -118,6 +118,10 @@
         // 元 DOM をそのままにしておくため、クローンを作成してハイライト用に利用する
         var clone = node.cloneNode(true);
 
+        // クローン側の margin を 0 にリセットして、
+        // getBoundingClientRect() で取得したボーダーボックスの位置とズレないようにする
+        clone.style.margin = "0";
+
         // クローンを配置するためのラッパーを作成し、rect の位置に固定する
         var wrapper = document.createElement("div");
         wrapper.style.position = "fixed";
