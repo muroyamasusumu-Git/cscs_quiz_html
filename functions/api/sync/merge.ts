@@ -217,40 +217,67 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.consistency_status[qid] = payload;
   }
 
-  // favDelta: お気に入り状態の差分反映
-  // - delta.fav = { [qid]: "unset" | "understood" | "unanswered" | "none" | 0 | 1 | 2 | 3 }
-  // - 文字列/数値どちらも受け取り、サーバー側には「そのまま」保存する
-  //   （表示側で数値→文字列のマッピングを行う前提）
-  const favDelta = (delta as any).fav || {};
-  if (favDelta && typeof favDelta === "object") {
+  // favDelta: お気に入り状態の差分反映（fav_modal.js との連携専用）
+  // - delta.fav = { [qid]: "unset" | "understood" | "unanswered" | "none" }
+  // - 値は上記 4 種類の文字列のみ許可し、それ以外が混ざっている場合は 400 を返して処理を中断する
+  // - フォールバックや自動変換は行わず、「送られてきた fav の内容」がそのままサーバー状態になる
+  const favDelta = (delta as any).fav;
+  if (favDelta !== undefined) {
+    // delta.fav が存在するにもかかわらずプレーンオブジェクトでない場合はエラー扱い
+    if (!favDelta || typeof favDelta !== "object" || Array.isArray(favDelta)) {
+      console.error("[SYNC/merge] (favDelta-err) delta.fav がプレーンオブジェクトではありません:", {
+        favDeltaType: typeof favDelta
+      });
+      return new Response("invalid favDelta: structure", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    // server.fav が存在しない / 不正な場合はここで空オブジェクトとして初期化
     if (!server.fav || typeof server.fav !== "object") {
       server.fav = {};
     }
-    for (const [qid, raw] of Object.entries(favDelta)) {
+
+    // まず全エントリを検証し、不正なキー／値があれば即 400 を返す
+    for (const [qid, raw] of Object.entries(favDelta as any)) {
       if (typeof qid !== "string" || !qid) {
-        continue;
+        console.error("[SYNC/merge] (favDelta-err) delta.fav 内のキー(qid)が不正です:", {
+          qid,
+          value: raw
+        });
+        return new Response("invalid favDelta: qid", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
       }
+
       const v = raw as any;
-
-      // 許可する値だけ通す（それ以外は無視）
-      const isValidString =
+      const isValidFavString =
         v === "unset" || v === "understood" || v === "unanswered" || v === "none";
-      const isValidNumber =
-        v === 0 || v === 1 || v === 2 || v === 3;
 
-      if (!isValidString && !isValidNumber) {
-        try {
-          console.warn("[SYNC/merge] (favDelta) invalid value ignored:", { qid, value: v });
-        } catch (_eWarn) {}
-        continue;
+      if (!isValidFavString) {
+        console.error("[SYNC/merge] (favDelta-err) delta.fav 内の値が不正です:", {
+          qid,
+          value: v
+        });
+        return new Response("invalid favDelta: value", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
       }
+    }
 
+    // ここまで到達したら全エントリが有効 → サーバー側 fav に反映
+    for (const [qid, raw] of Object.entries(favDelta as any)) {
+      const v = raw as "unset" | "understood" | "unanswered" | "none";
       server.fav[qid] = v;
     }
 
+    // マージ結果をログに出して、どの qid が更新されたかを確認できるようにする
     try {
-      console.log("[SYNC/merge] (favDelta) merged fav entries:", {
-        keys: Object.keys(favDelta)
+      console.log("[SYNC/merge] (favDelta) fav updated:", {
+        keys: Object.keys(favDelta as any)
       });
     } catch (_eLog) {}
   }
