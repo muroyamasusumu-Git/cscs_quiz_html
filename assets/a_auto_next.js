@@ -1223,6 +1223,81 @@
   }
 
   // =========================
+  // Bパートの「選択肢エリア」をクリックしたら
+  // ［次の問題へ］と同じ挙動で遷移させる
+  // =========================
+  function setupBChoicesClickToNext() {
+    // スライド情報を確認し、Bパート以外では何もしない
+    var info = parseSlideInfo();
+    if (!info || info.part !== "b") {
+      syncLog("BChoices: not B-part; skip.");
+      return;
+    }
+
+    // 「選択肢の部分」のコンテナ候補セレクタ
+    // 実際のクラス名に合わせて調整可能
+    var selectors = [
+      ".choices",
+      ".choice-list",
+      ".choice-container",
+      ".question-choices",
+      ".quiz-choices"
+    ];
+
+    var targets = [];
+    for (var i = 0; i < selectors.length; i++) {
+      var nodeList = document.querySelectorAll(selectors[i]);
+      if (nodeList && nodeList.length > 0) {
+        for (var j = 0; j < nodeList.length; j++) {
+          targets.push(nodeList[j]);
+        }
+      }
+    }
+
+    if (targets.length === 0) {
+      syncLog("BChoices: no target choice container found.");
+      return;
+    }
+
+    // 対象コンテナそれぞれにクリックリスナーを付与
+    targets.forEach(function (el) {
+      // 二重バインド防止
+      if (el.dataset && el.dataset.cscsBChoicesBound === "1") {
+        return;
+      }
+      if (el.dataset) {
+        el.dataset.cscsBChoicesBound = "1";
+      }
+
+      el.style.cursor = el.style.cursor || "pointer";
+
+      el.addEventListener("click", function (ev) {
+        try {
+          ev.preventDefault();
+        } catch (_e1) {}
+        try {
+          ev.stopPropagation();
+        } catch (_e2) {}
+
+        (async function () {
+          if (!NEXT_URL) {
+            NEXT_URL = await buildNextUrlConsideringOdoa();
+          }
+          if (!NEXT_URL) {
+            syncLog("BChoices: NEXT_URL is not available.");
+            return;
+          }
+          goNextIfExists(NEXT_URL);
+        })();
+      });
+    });
+
+    syncLog("BChoices: click-to-next bound on choice containers.", {
+      count: targets.length
+    });
+  }
+
+  // =========================
   // カウントダウンのキャンセル処理
   // =========================
   function cancelAutoAdvanceCountdown(updateText) {
@@ -1362,6 +1437,9 @@
 
     // A/B 共通コンテナ内に「次の問題へ」リンクを追加（ODOA と同じ NEXT_URL を使う）
     createBackToTopLink();
+
+    // Bパートの選択肢エリアにも「次の問題へ」と同じ挙動を紐づける
+    setupBChoicesClickToNext();
 
     // 自動送りの状態に応じて挙動を分岐
     if (autoEnabled) {
