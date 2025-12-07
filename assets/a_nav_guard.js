@@ -35,7 +35,7 @@
             style.id = "cscs-odoa-toggle-style";
             style.textContent = `
 #cscs-odoa-toggle {
-    font-size: 12px;
+    font-size: 11px;
     padding: 1px 6px;
     position: static;            /* 位置固定を完全解除 */
     opacity: 0.5;                /* topmeta-left の中に溶け込む軽めの表示 */
