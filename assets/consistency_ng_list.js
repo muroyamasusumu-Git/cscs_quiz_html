@@ -255,6 +255,35 @@
     return `${y}-${m}-${day} ${h}:${min}`;
   }
 
+  // QID から Aパートへのパスを生成するヘルパー
+  // - "2025年9月26日-013" → "/_build_cscs_20250926/slides/q013_a.html"
+  // - "20250926-013"       → "/_build_cscs_20250926/slides/q013_a.html"
+  function buildAUrlFromQid(qid) {
+    if (!qid || typeof qid !== "string") return "";
+
+    // パターン1: "YYYY年M月D日-NNN"
+    var m1 = qid.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日-(\d{3})$/);
+    if (m1) {
+      var y = m1[1];
+      var mm = ("0" + m1[2]).slice(-2);
+      var dd = ("0" + m1[3]).slice(-2);
+      var day = y + mm + dd;       // "YYYYMMDD"
+      var num = m1[4];             // "NNN"
+      return "/_build_cscs_" + day + "/slides/q" + num + "_a.html";
+    }
+
+    // パターン2: "YYYYMMDD-NNN"
+    var m2 = qid.match(/^(\d{8})-(\d{3})$/);
+    if (m2) {
+      var day2 = m2[1];            // "YYYYMMDD"
+      var num2 = m2[2];            // "NNN"
+      return "/_build_cscs_" + day2 + "/slides/q" + num2 + "_a.html";
+    }
+
+    // どちらもマッチしない場合はリンクなし
+    return "";
+  }
+
   // =========================
   // パネルHTML生成
   // =========================
@@ -351,8 +380,17 @@
           row.classification_code === "D" ? "問題" : "";
       }
 
+      // QID から Aパートへのリンクを生成
+      var aHref = buildAUrlFromQid(row.qid);
+
       html += "<tr>";
-      html += '<td class="cng-qid">' + row.qid + "</td>";
+      if (aHref) {
+        // AパートURLが生成できた場合はリンク付きで表示
+        html += '<td class="cng-qid"><a href="' + aHref + '">' + row.qid + "</a></td>";
+      } else {
+        // 生成できなかった場合は従来通りテキストのみ
+        html += '<td class="cng-qid">' + row.qid + "</td>";
+      }
       html += "<td>" + row.status_mark + "</td>";
       html += "<td>" + row.status_label + "</td>";
       html += "<td>" + row.classification_code + "</td>";
