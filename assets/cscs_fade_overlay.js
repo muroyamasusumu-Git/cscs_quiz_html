@@ -44,6 +44,68 @@
   // nextUrl: 遷移先URL
   // reason : 遷移理由（ログ用 / 復路の判定用に保存しているが、ここでは特に使用していない）
   // =========================================
+
+  /**
+   * 問題文＋選択肢をクローンして、フェード用オーバーレイの「上」に固定表示するレイヤーを作成する。
+   *
+   * @param {Element|null} questionNode  元の問題文DOMノード
+   * @param {Element|null} choiceNode    元の選択肢DOMノード（クリックされた<li>など）
+   * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
+   */
+  function createHighlightLayer(questionNode, choiceNode) {
+    try {
+      // 既存のレイヤーがあれば一旦削除
+      var existing = document.getElementById("cscs-fade-highlight-layer");
+      if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+      }
+
+      // ハイライト対象が一切なければ何もしない
+      if (!questionNode && !choiceNode) {
+        return null;
+      }
+
+      // フルスクリーンのハイライトレイヤー（オーバーレイより1段高い z-index）
+      var layer = document.createElement("div");
+      layer.id = "cscs-fade-highlight-layer";
+      layer.style.position = "fixed";
+      layer.style.left = "0";
+      layer.style.top = "0";
+      layer.style.right = "0";
+      layer.style.bottom = "0";
+      layer.style.zIndex = "9999";          // フェードオーバーレイ(9998)よりも上
+      layer.style.pointerEvents = "none";   // ハイライト中も操作はブロック済みなのでイベントは通さない
+      layer.style.display = "flex";
+      layer.style.alignItems = "center";
+      layer.style.justifyContent = "center";
+
+      // 中央に表示するコンテナ
+      var inner = document.createElement("div");
+      inner.id = "cscs-fade-highlight-inner";
+      inner.style.maxWidth = "80%";
+      inner.style.fontSize = "1em";
+
+      // 問題文のクローン
+      if (questionNode && questionNode.nodeType === 1) {
+        var qClone = questionNode.cloneNode(true);
+        inner.appendChild(qClone);
+      }
+
+      // 選択肢のクローン
+      if (choiceNode && choiceNode.nodeType === 1) {
+        var cClone = choiceNode.cloneNode(true);
+        cClone.style.marginTop = "16px";
+        inner.appendChild(cClone);
+      }
+
+      layer.appendChild(inner);
+      document.body.appendChild(layer);
+      return layer;
+    } catch (_e) {
+      return null;
+    }
+  }
+
   function fadeOutTo(nextUrl, reason) {
     if (!nextUrl) {
       return; // URLが無ければ何もしない
@@ -76,6 +138,45 @@
       // 実際のページ遷移
       location.href = nextUrl;
     }, FADE_DURATION_MS + 40); // フェード完了後＋ちょっと余裕を持たせる
+  }
+
+  /**
+   * ハイライト対象（問題文＋選択肢）を指定してフェードアウト遷移するための拡張API。
+   *
+   * @param {string} nextUrl
+   * @param {string} reason
+   * @param {Object} highlightTargets
+   *   highlightTargets.questionNode … 問題文DOMノード
+   *   highlightTargets.choiceNode   … 選択肢DOMノード
+   */
+  function fadeOutToWithHighlight(nextUrl, reason, highlightTargets) {
+    if (!nextUrl) {
+      return;
+    }
+
+    var questionNode = null;
+    var choiceNode = null;
+
+    try {
+      if (highlightTargets && typeof highlightTargets === "object") {
+        if (highlightTargets.questionNode && highlightTargets.questionNode.nodeType === 1) {
+          questionNode = highlightTargets.questionNode;
+        }
+        if (highlightTargets.choiceNode && highlightTargets.choiceNode.nodeType === 1) {
+          choiceNode = highlightTargets.choiceNode;
+        }
+      }
+    } catch (_e) {
+      questionNode = null;
+      choiceNode = null;
+    }
+
+    if (questionNode || choiceNode) {
+      createHighlightLayer(questionNode, choiceNode);
+    }
+
+    // 実際のフェードアウト処理は既存の fadeOutTo に委譲する
+    fadeOutTo(nextUrl, reason);
   }
 
   // =========================================
@@ -134,11 +235,13 @@
   // =========================================
   // 外部から使えるAPIをグローバルに公開
   // - CSCS_FADE.fadeOutTo(url, reason)
+  // - CSCS_FADE.fadeOutToWithHighlight(url, reason, { questionNode, choiceNode })
   // - CSCS_FADE.runFadeInIfNeeded()
   // - CSCS_FADE.fadeReload(reason)
   // =========================================
   window.CSCS_FADE = {
     fadeOutTo: fadeOutTo,
+    fadeOutToWithHighlight: fadeOutToWithHighlight,
     runFadeInIfNeeded: runFadeInIfNeeded,
     fadeReload: fadeReload
   };

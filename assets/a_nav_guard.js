@@ -560,14 +560,79 @@
         }
 
         // SAVE.ok が true であることを前提に、保存済みの href に遷移する
-        // URL オブジェクトで絶対URLにし、requestAnimationFrame 内で location.assign する
+        // 可能であれば CSCS_FADE を使ってフェードアウト遷移し、
+        // その際に問題文＋選択肢をハイライトレイヤーとして前面に残す。
+        // フェード機構が無い場合は従来どおり location.assign を使う。
         function navigateIfSaved(a){
           if (!SAVE.ok){
             dlog('nav blocked: token missing');
             return;
           }
-          const url = new URL(SAVE.lastHref || a.getAttribute('href') || '', location.href);
-          requestAnimationFrame(() => location.assign(url.toString()));
+
+          try{
+            const rawHref = SAVE.lastHref || a.getAttribute('href') || '';
+            const url = new URL(rawHref, location.href);
+            const finalUrl = url.toString();
+
+            // ハイライト対象となる DOM ノードを推定する
+            // - 問題文: よく使われるクラス名の中から最初に見つかったもの
+            // - 選択肢: クリックされた a 要素の親 li 要素
+            let questionNode = null;
+            try{
+              questionNode =
+                document.querySelector(".question-text") ||
+                document.querySelector(".question") ||
+                document.querySelector(".q-text");
+            }catch(_){
+              questionNode = null;
+            }
+
+            let choiceNode = null;
+            try{
+              if (a && typeof a.closest === "function") {
+                const li = a.closest("li");
+                if (li && li.nodeType === 1) {
+                  choiceNode = li;
+                }
+              }
+            }catch(_){
+              choiceNode = null;
+            }
+
+            // CSCS_FADE.fadeOutToWithHighlight が使える場合はそれを優先
+            if (window.CSCS_FADE &&
+                typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
+              window.CSCS_FADE.fadeOutToWithHighlight(finalUrl, "a_nav_guard", {
+                questionNode: questionNode,
+                choiceNode: choiceNode
+              });
+              return;
+            }
+
+            // ハイライト対応が無い場合でも、通常のフェードアウトがあればそれを使う
+            if (window.CSCS_FADE &&
+                typeof window.CSCS_FADE.fadeOutTo === "function") {
+              window.CSCS_FADE.fadeOutTo(finalUrl, "a_nav_guard");
+              return;
+            }
+
+            // フェード機構が存在しなければ、従来どおり直接遷移
+            requestAnimationFrame(function(){
+              location.assign(finalUrl);
+            });
+          }catch(e){
+            dlog("navigateIfSaved exception, fallback to direct assign:", String(e));
+            try{
+              const rawHref = SAVE.lastHref || (a && a.getAttribute && a.getAttribute('href')) || '';
+              const url = new URL(rawHref || location.href, location.href);
+              const finalUrl = url.toString();
+              requestAnimationFrame(function(){
+                location.assign(finalUrl);
+              });
+            }catch(e2){
+              dlog("navigateIfSaved fallback failed:", String(e2));
+            }
+          }
         }
 
         // ▼ イベントリスナー群
