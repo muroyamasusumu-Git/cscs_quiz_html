@@ -53,10 +53,22 @@
       "  opacity: 0.95;\n" +
       "}\n" +
       "#cscs-consistency-ng-panel .cng-header {\n" +
-      "  display: flex;\n" +                            // タイトルと [閉じる] を左右に配置
-      "  align-items: center;\n" +
-      "  justify-content: space-between;\n" +
-      "  margin-bottom: 6px;\n" +                       // すぐ下のコンテンツとの余白
+      "  display: block;\n" +                           // フレックスをやめて通常のブロックに戻す
+      "  margin-bottom: 6px;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-header h3 {\n" +
+      "  display: inline-block;\n" +                    // タイトルを横並びにできるようにする
+      "  margin-right: 8px;\n" +                       // タイトルと閉じるの間に少し余白
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-header a.cng-close {\n" +
+      "  display: inline-block;\n" +                    // 見出しすぐ横に配置
+      "  font-size: 12px;\n" +
+      "  color: rgba(255, 220, 220, 0.85);\n" +
+      "  text-decoration: underline;\n" +
+      "  cursor: pointer;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-header a.cng-close:hover {\n" +
+      "  opacity: 1.0;\n" +
       "}\n" +
       "#cscs-consistency-ng-panel .cng-header a.cng-close {\n" +
       "  font-size: 12px;\n" +                          // タイトルより少し小さめ
