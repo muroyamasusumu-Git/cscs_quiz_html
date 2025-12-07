@@ -63,12 +63,25 @@
         existing.parentNode.removeChild(existing); // 古いレイヤーをオーバーレイ内部から取り除く
       }
 
+      // 選択された choice (A/B/C/D など) を保存しておくための変数
+      // - choiceNode が <li> の場合に、その <a> の href から choice パラメータを抽出してセットする
+      var selectedChoiceCode = null;
+
       // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
       // - 番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出すための前処理
       // - 親リストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバックなし）
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
+          // まず、この <li> が持つ <a> の href から choice=◯ のパラメータを抜き出して記録しておく
+          var anchorForSelected = choiceNode.querySelector("a");
+          if (anchorForSelected && anchorForSelected.href) {
+            var m = anchorForSelected.href.match(/choice=([A-Z])/);
+            if (m && m[1]) {
+              selectedChoiceCode = m[1]; // 例: "A" / "B" / "C" / "D"
+            }
+          }
+
           var listContainer = null;
           if (typeof choiceNode.closest === "function") {
             listContainer = choiceNode.closest("ol.opts") ||
@@ -143,19 +156,21 @@
 
             // --- 追加処理① ---
             // 選択されていない <li> を透明化し、選択された <li> のみ残す。
-            // wrapper.dataset.selectedChoice に A/B/C/D が入っている前提で可視・不可視を切り替える。
-            var selected = clone.getAttribute("data-selected-choice");
+            // selectedChoiceCode（"A" / "B" / "C" / "D"）に基づいて href の choice=◯ を判定する。
+            var selected = selectedChoiceCode;
             if (selected) {
               var lis = clone.querySelectorAll("li");
               for (var ii = 0; ii < lis.length; ii++) {
                 var li = lis[ii];
                 var link = li.querySelector("a");
-                if (!link) continue;
-                // choice=A のようにクエリを形成して比較
+                if (!link || !link.href) {
+                  continue;
+                }
+                // href 内の choice=◯ と、選択されたコードが一致するかどうかで可視・不可視を切り替える
                 if (link.href.indexOf("choice=" + selected) === -1) {
                   li.style.opacity = "0";     // 選択されなかった選択肢 → 非表示
                 } else {
-                  li.style.opacity = "1";     // 選択肢 → 表示
+                  li.style.opacity = "1";     // 選択された選択肢 → 表示
                 }
               }
             }
