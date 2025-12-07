@@ -275,7 +275,10 @@
   function buildConsistencyNgPanelHtml(list, sortMode) {
     var html = "";
 
-    html += "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>";
+    html += '<h3 style="display:flex; justify-content:space-between; align-items:center;">'
+         + '× / △ 整合性要対応問題リスト（SYNC）'
+         + '<a href="#" id="cng-panel-close" style="font-size:12px; color:rgba(255,220,220,0.85); text-decoration:underline; margin-left:10px;">[閉じる]</a>'
+         + '</h3>';
 
     if (!list.length) {
       html += '<div class="cng-summary cng-empty">現在SYNCに「×」「△」の問題はありません。</div>';
