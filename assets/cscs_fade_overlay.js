@@ -110,7 +110,7 @@
         wrapper.style.position = "fixed";
         wrapper.style.left = String(rect.left) + "px";
         // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
-        wrapper.style.top = String(rect.top - 10) + "px";
+        wrapper.style.top = String(rect.top - 12) + "px";
         wrapper.style.width = String(rect.width) + "px";
         wrapper.style.margin = "0";
         wrapper.style.padding = "0";
