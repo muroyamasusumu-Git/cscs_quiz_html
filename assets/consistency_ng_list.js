@@ -47,10 +47,25 @@
       "}\n" +
 
       "#cscs-consistency-ng-panel h3 {\n" +
-      "  margin: 0 0 6px 0;\n" +
+      "  margin: 0;\n" +                                  // 上下余白は .cng-header に任せる
       "  font-size: 15px;\n" +
       "  font-weight: 600;\n" +
-      "  opacity: 0.85;\n" +
+      "  opacity: 0.95;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-header {\n" +
+      "  display: flex;\n" +                            // タイトルと [閉じる] を左右に配置
+      "  align-items: center;\n" +
+      "  justify-content: space-between;\n" +
+      "  margin-bottom: 6px;\n" +                       // すぐ下のコンテンツとの余白
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-header a.cng-close {\n" +
+      "  font-size: 12px;\n" +                          // タイトルより少し小さめ
+      "  color: rgba(255, 220, 220, 0.85);\n" +         // 本文と同じ薄い赤
+      "  text-decoration: underline;\n" +
+      "  cursor: pointer;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-header a.cng-close:hover {\n" +
+      "  opacity: 1.0;\n" +                             // ホバーで少しだけ濃く
       "}\n" +
 
       "#cscs-consistency-ng-panel .cng-summary {\n" +
@@ -275,7 +290,11 @@
   function buildConsistencyNgPanelHtml(list, sortMode) {
     var html = "";
 
+    // タイトルと [閉じる] を横並びにしたヘッダブロックを作成
+    html += '<div class="cng-header">';
     html += "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>";
+    html += '<a href="#" class="cng-close">[閉じる]</a>';
+    html += "</div>";
 
     if (!list.length) {
       html += '<div class="cng-summary cng-empty">現在SYNCに「×」「△」の問題はありません。</div>';
