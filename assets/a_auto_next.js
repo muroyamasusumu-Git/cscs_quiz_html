@@ -187,6 +187,58 @@
     return !!answered;
   }
 
+  // qid ("YYYYMMDD-NNN") → consistency_status 用キー ("YYYY年M月D日-NNN") 変換
+  function qidToConsistencyKey(qid) {
+    if (typeof qid !== "string") {
+      return null;
+    }
+    var m = qid.match(/^(\d{4})(\d{2})(\d{2})-(\d{3})$/);
+    if (!m) {
+      return null;
+    }
+    var year = m[1];
+    var monthNum = parseInt(m[2], 10);
+    var dayNum = parseInt(m[3], 10);
+    var num3 = m[4];
+    if (!year || !monthNum || !dayNum || !num3) {
+      return null;
+    }
+    // 月・日はゼロ詰め解除して「2025年9月26日-001」の形式にそろえる
+    return (
+      year +
+      "年" +
+      String(monthNum) +
+      "月" +
+      String(dayNum) +
+      "日-" +
+      num3
+    );
+  }
+
+  // consistency_status に該当キーが存在するかどうか（true = 整合性チェック済み）
+  async function isConsistencyChecked(qid) {
+    var json = await ensureSyncStateLoaded();
+    var statusRoot = json && json.consistency_status;
+    if (!statusRoot || typeof statusRoot !== "object") {
+      syncLog("consistency_status is missing or not object.", { qid: qid });
+      return false;
+    }
+    var key = qidToConsistencyKey(qid);
+    if (!key) {
+      syncLog("qidToConsistencyKey failed.", { qid: qid });
+      return false;
+    }
+    var hasEntry = Object.prototype.hasOwnProperty.call(statusRoot, key);
+    var value = hasEntry ? statusRoot[key] : undefined;
+    syncLog("consistency_status checked.", {
+      qid: qid,
+      key: key,
+      hasEntry: hasEntry,
+      valueType: typeof value
+    });
+    return !!hasEntry;
+  }
+
   // 必要であれば他スクリプトからも再利用できるように公開
   window.CSCS_SYNC_COMMON = window.CSCS_SYNC_COMMON || {};
   if (!window.CSCS_SYNC_COMMON.getCurrentOdoaMode) {
@@ -194,6 +246,9 @@
   }
   if (!window.CSCS_SYNC_COMMON.isOncePerDayAnswered) {
     window.CSCS_SYNC_COMMON.isOncePerDayAnswered = isOncePerDayAnswered;
+  }
+  if (!window.CSCS_SYNC_COMMON.isConsistencyChecked) {
+    window.CSCS_SYNC_COMMON.isConsistencyChecked = isConsistencyChecked;
   }
 
   // =========================
@@ -665,7 +720,9 @@
       }
     }
 
-    // ここから ODOA モード ON の場合のみ、oncePerDayToday を使って「今日すでに計測済みの問題」を除外する
+    // ここから ODOA モード ON の場合のみ、
+    //   - 通常時: oncePerDayToday を使って「今日すでに計測済みの問題」を除外
+    //   - 検証AUTO: consistency_status を使って「整合性チェック済みの問題」を除外
     var path = String(location.pathname || "");
     var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
     var prefix = prefixMatch ? prefixMatch[1] : "";
@@ -699,21 +756,41 @@
 
         var nextNum3 = String(nextIdx).padStart(3, "0");
         var candidateQid = nextDay + "-" + nextNum3;
-        var answered = await isOncePerDayAnswered(candidateQid);
 
-        if (!answered) {
-          var candidatePathSeq =
-            prefix + "_build_cscs_" + nextDay + "/slides/q" + nextNum3 + "_a.html";
-          syncLog("ODOA sequential: choose candidate.", {
-            qid: candidateQid,
-            url: candidatePathSeq
+        if (verifyOn) {
+          // ▼ 自動検証モード中: consistency_status で「未チェック」のみを候補にする
+          var checked = await isConsistencyChecked(candidateQid);
+          if (!checked) {
+            var candidatePathSeqVerify =
+              prefix + "_build_cscs_" + nextDay + "/slides/q" + nextNum3 + "_a.html";
+            syncLog("VerifyMode+ODOA sequential: choose candidate (not consistency-checked).", {
+              qid: candidateQid,
+              url: candidatePathSeqVerify
+            });
+            return candidatePathSeqVerify;
+          }
+
+          syncLog("VerifyMode+ODOA sequential: skip consistency-checked qid.", {
+            qid: candidateQid
           });
-          return candidatePathSeq;
-        }
+        } else {
+          // ▼ 通常時: oncePerDayToday で「本日すでに計測済み」の問題をスキップ
+          var answered = await isOncePerDayAnswered(candidateQid);
 
-        syncLog("ODOA sequential: skip oncePerDayToday answered qid.", {
-          qid: candidateQid
-        });
+          if (!answered) {
+            var candidatePathSeq =
+              prefix + "_build_cscs_" + nextDay + "/slides/q" + nextNum3 + "_a.html";
+            syncLog("ODOA sequential: choose candidate.", {
+              qid: candidateQid,
+              url: candidatePathSeq
+            });
+            return candidatePathSeq;
+          }
+
+          syncLog("ODOA sequential: skip oncePerDayToday answered qid.", {
+            qid: candidateQid
+          });
+        }
 
         // 次の候補へ進める（今見た候補を「現在位置」とみなす）
         currentDay = nextDay;
@@ -747,27 +824,52 @@
       }
 
       var candidateQidRand = randDay + "-" + randNum3;
-      var answeredRand = await isOncePerDayAnswered(candidateQidRand);
       var inHistoryRand = isQidInRandomHistory(candidateQidRand);
 
-      if (!answeredRand && !inHistoryRand) {
-        // oncePerDayToday 未回答 かつ 直近履歴に無い qid のみ採用
-        pushRandomHistory(candidateQidRand);
-        syncLog("ODOA random: choose candidate.", {
-          qid: candidateQidRand,
-          url: candidatePathRand
-        });
-        return candidatePathRand;
-      }
+      if (verifyOn) {
+        // ▼ 自動検証モード中: consistency_status で「未チェック」かつ履歴にないものだけ採用
+        var checkedRand = await isConsistencyChecked(candidateQidRand);
 
-      if (answeredRand) {
-        syncLog("ODOA random: skip oncePerDayToday answered qid.", {
-          qid: candidateQidRand
-        });
-      } else if (inHistoryRand) {
-        syncLog("ODOA random: skip recent-history qid.", {
-          qid: candidateQidRand
-        });
+        if (!checkedRand && !inHistoryRand) {
+          pushRandomHistory(candidateQidRand);
+          syncLog("VerifyMode+ODOA random: choose candidate (not consistency-checked).", {
+            qid: candidateQidRand,
+            url: candidatePathRand
+          });
+          return candidatePathRand;
+        }
+
+        if (checkedRand) {
+          syncLog("VerifyMode+ODOA random: skip consistency-checked qid.", {
+            qid: candidateQidRand
+          });
+        } else if (inHistoryRand) {
+          syncLog("VerifyMode+ODOA random: skip recent-history qid.", {
+            qid: candidateQidRand
+          });
+        }
+      } else {
+        // ▼ 通常時: oncePerDayToday 未回答 かつ 直近履歴に無い qid のみ採用
+        var answeredRand = await isOncePerDayAnswered(candidateQidRand);
+
+        if (!answeredRand && !inHistoryRand) {
+          pushRandomHistory(candidateQidRand);
+          syncLog("ODOA random: choose candidate.", {
+            qid: candidateQidRand,
+            url: candidatePathRand
+          });
+          return candidatePathRand;
+        }
+
+        if (answeredRand) {
+          syncLog("ODOA random: skip oncePerDayToday answered qid.", {
+            qid: candidateQidRand
+          });
+        } else if (inHistoryRand) {
+          syncLog("ODOA random: skip recent-history qid.", {
+            qid: candidateQidRand
+          });
+        }
       }
 
       safetyRand++;
