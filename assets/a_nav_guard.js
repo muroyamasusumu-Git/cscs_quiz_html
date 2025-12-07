@@ -36,14 +36,13 @@
             style.textContent = `
 #cscs-odoa-toggle {
     font-size: 12px;
-    padding: 0px 5px;
-    position: fixed;
-    top: 1px;
-    right: 30px;
-    opacity: 0.15;
+    padding: 1px 6px;
+    position: static;            /* 位置固定を完全解除 */
+    opacity: 0.6;                /* topmeta-left の中に溶け込む軽めの表示 */
     font-weight: bold;
     width: auto;
     text-align: center;
+    margin-left: 6px;            /* topmeta-left 内で他要素と軽く間隔を取る */
 }
             `;
             document.head.appendChild(style);
@@ -363,18 +362,8 @@
           wrapper.appendChild(btn);
 
           document.addEventListener("DOMContentLoaded", function(){
-            // まず <div class="wrap"> が存在すれば、その中にトグルボタンを入れる
-            // 見つからない場合は、従来どおり Aパート下部 or body に配置する
-            let anchor = null;
-            const wrap = document.querySelector("div.wrap");
-            if (wrap) {
-              anchor = wrap;
-            } else {
-              anchor =
-                document.getElementById("cscs-a-bottom-controls") ||
-                document.getElementById("cscs-a-bottom") ||
-                document.body;
-            }
+            // O.D.O.A ボタンは <div class="topmeta-left"> の閉じタグ直前に配置する
+            const anchor = document.querySelector("div.topmeta-left") || document.body;
 
             anchor.appendChild(wrapper);
 
