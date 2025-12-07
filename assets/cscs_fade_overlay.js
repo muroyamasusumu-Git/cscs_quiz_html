@@ -47,77 +47,72 @@
 
   /**
    * 問題文＋選択肢を「元レイアウトのまま」前面に浮かせる処理。
-   * - DOM ツリーの位置は一切変更せず、position / z-index / pointer-events だけを操作する。
-   * - position が未指定または static の場合のみ relative にし、z-index を効かせる。
+   * - DOM ツリーは一切動かさず、対象ノードに position / z-index / pointer-events だけを付与する。
+   * - choiceNode が <li> 以外の要素の場合は、最近傍の <li> をハイライト対象として昇格させる。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
-   * @param {Element|null} choiceNode    元の選択肢DOMノード(<li> など。li の場合も li のまま扱う)
+   * @param {Element|null} choiceNode    クリックされた選択肢の DOM ノード(<li> またはその子要素想定)
    * @returns {null}                     独立レイヤー要素は作らないので常に null
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      // 旧仕様で使っていたハイライト用レイヤー(#cscs-fade-highlight-layer)が残っていれば掃除しておく
-      var existing = document.getElementById("cscs-fade-highlight-layer"); // 旧レイヤー要素を取得
+      var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing); // 旧レイヤーを DOM から完全に取り除く
+        existing.parentNode.removeChild(existing);
       }
 
-      // ハイライト対象が何も渡されていない場合は処理不要
-      if (!questionNode && !choiceNode) {
-        return null; // どちらも null なら何もせず終了
-      }
-
-      // ハイライト対象を配列にまとめる（共通ロジックで処理するため）
-      var targets = []; // 前面に出す対象ノード一覧
-      if (questionNode && questionNode.nodeType === 1) {
-        targets.push(questionNode); // 有効な問題文ノードを登録
-      }
+      // choiceNode が <li> 以外（例: <span>）の場合は、最近傍の <li> を選択肢ノードとして扱う
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);   // 有効な選択肢ノード（クリックされた <li> など）を登録
-      }
-
-      // それぞれの対象ノードに対して「前面に浮かせるための最小限のスタイル」だけを付与する
-      for (var i = 0; i < targets.length; i++) {
-        var node = targets[i]; // 現在処理中のノード
-
-        // 一度ハイライト処理を適用したノードに対しては二重適用を避ける
-        if (node.getAttribute("data-cscs-highlight-applied") === "1") {
-          continue; // data-cscs-highlight-applied="1" があればスキップ
-        }
-
-        // ハイライト適用済みであることを data 属性に記録しておく
-        node.setAttribute("data-cscs-highlight-applied", "1"); // 再処理防止フラグをセット
-
-        // 元の inline style の値を退避しておく（必要になればデバッグ等で参照できるようにする）
-        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || "");        // 元の position を保存
-        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");            // 元の z-index を保存
-        node.setAttribute("data-cscs-highlight-orig-pointer-events", node.style.pointerEvents || ""); // 元の pointer-events を保存
-
-        // 現在の position を取得し、未指定または static の場合のみ relative に変更する
-        // （z-index が効くようにするための最小限の変更。元々 relative 等ならそのまま維持）
-        var currentPosition = node.style.position;
-        if (!currentPosition) {
-          try {
-            var cs = window.getComputedStyle(node);              // 実際の計算済みスタイルを取得
-            currentPosition = cs && cs.position ? cs.position : ""; // position の実値を反映
-          } catch (_e2) {
-            currentPosition = currentPosition || "";             // getComputedStyle 失敗時は inline 値だけを見る
+        var tagName = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
+        if (tagName !== "li" && typeof choiceNode.closest === "function") {
+          var liNode = choiceNode.closest("li");
+          if (liNode && liNode.nodeType === 1) {
+            choiceNode = liNode; // 実際に浮かせる対象を <li> に統一する
           }
         }
-        if (!currentPosition || currentPosition === "static") {
-          node.style.position = "relative";                      // 未指定 / static の場合のみ relative を付与
-        }
-
-        // フェードオーバーレイ(z-index:9998)より前面に出すための z-index を付与する
-        node.style.zIndex = "9999";                              // 他要素より前に重ねて表示する
-        // フェード中にクリック等のイベントを拾わないよう、ポインタイベントを無効化する
-        node.style.pointerEvents = "none";                       // 見た目だけ残し、操作は全て無効にする
       }
 
-      // DOM の位置は一切変更していないため、独立のレイヤー要素は生成せず null を返す
+      if (!questionNode && !choiceNode) {
+        return null;
+      }
+
+      var targets = [];
+      if (questionNode && questionNode.nodeType === 1) {
+        targets.push(questionNode);
+      }
+      if (choiceNode && choiceNode.nodeType === 1) {
+        targets.push(choiceNode);
+      }
+
+      for (var i = 0; i < targets.length; i++) {
+        var node = targets[i];
+
+        // 既にハイライト適用済みなら二重適用を避ける
+        if (node.getAttribute("data-cscs-highlight-applied") === "1") {
+          continue;
+        }
+
+        // もともとの position / z-index を退避しておく（必要に応じてデバッグ確認用）
+        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || "");
+        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");
+
+        // position は「未指定なら relative」にする。それ以外は元の値を尊重。
+        if (!node.style.position) {
+          node.style.position = "relative";
+        }
+
+        // 黒いオーバーレイ(z-index:9998)より前に出す
+        node.style.zIndex = "9999";
+
+        // フェード中はクリックなどを受け付けないようにする
+        node.style.pointerEvents = "none";
+
+        // 一度処理したことをマーク
+        node.setAttribute("data-cscs-highlight-applied", "1");
+      }
+
       return null;
     } catch (_e) {
-      // 予期せぬ例外が発生してもフェード処理自体は継続させたいので null を返して終了
       return null;
     }
   }
