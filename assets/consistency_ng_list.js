@@ -55,7 +55,15 @@
 
       "#cscs-consistency-ng-panel .cng-summary {\n" +
       "  margin-bottom: 6px;\n" +
-      "  opacity: 0.75;\n" +
+      "  opacity: 0.90;\n" +
+      "  font-size: 13px;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-summary a {\n" +
+      "  color: rgba(255, 220, 220, 0.85);\n" +
+      "  text-decoration: underline;\n" +
+      "}\n" +
+      "#cscs-consistency-ng-panel .cng-summary a:hover {\n" +
+      "  opacity: 1.0;\n" +
       "}\n" +
 
       "#cscs-consistency-ng-panel table {\n" +
