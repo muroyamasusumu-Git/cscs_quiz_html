@@ -496,7 +496,7 @@ margin-left: 10px;
 
 #cc-check-wrapper {
     position: fixed;
-    right: 40px;
+    right: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -510,7 +510,7 @@ body.mode-a #cc-check-wrapper {
 }
 
 body.mode-b #cc-check-wrapper {
-    top: 0px;
+    top: 40px;
     opacity: 0.6 !important;
 }
 
