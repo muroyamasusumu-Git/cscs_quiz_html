@@ -231,7 +231,11 @@
       return html;
     }
 
-    html += `<div class="cng-summary">SYNCに保存されている × / △ 問題は <strong>${list.length}</strong> 件。</div>`;
+    // × と △ の件数をカウント
+var countX = list.filter(function (x) { return x.status_mark === "×"; }).length;
+var countD = list.filter(function (x) { return x.status_mark === "△"; }).length;
+
+html += `<div class="cng-summary">SYNCに保存されている ×:<strong>${countX}</strong> 件 / △:<strong>${countD}</strong> 件（計 <strong>${list.length}</strong> 件）</div>`;
 
     html += "<table><thead><tr>";
     html += "<th>QID</th>";
