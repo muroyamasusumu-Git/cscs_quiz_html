@@ -781,14 +781,16 @@
         var baseLabel = "整合性チェック結果";
         var linkText = "[" + baseLabel + (severityForHeader ? "：" + severityForHeader : "") + (open ? " を閉じる" : " 詳細を見る") + "]";
 
-        // ヘッダー内のリンク
+        // ヘッダー内のリンク（パネルのタイトル部分）
         titleEl.innerHTML = '<a href="#" id="cscs-consistency-toggle-link">' + linkText + "</a>";
         var toggleLink = document.getElementById("cscs-consistency-toggle-link");
         if (toggleLink) {
           toggleLink.addEventListener("click", consistencyToggleClickHandler);
         }
 
-        // ★ 解説ブロック内のメニュー (<div class="explain_menu">) 末尾にも同じテキストリンクを出す
+        // ★ 解説ブロック内のメニュー (<div class="explain_menu">) 末尾にも
+        //    「[整合性チェック結果：◎ 詳細を見る / を閉じる]」と
+        //    「[自動チェックON/OFF]」の2つのリンクを並べて表示する
         var explainDiv = document.querySelector(".explain");
         if (explainDiv) {
           var explainMenu = explainDiv.querySelector(".explain_menu");
@@ -805,10 +807,39 @@
             parentForExplainLink.appendChild(explainWrapper);
           }
 
-          explainWrapper.innerHTML = '<a href="#" id="cscs-consistency-toggle-link-explain">' + linkText + "</a>";
+          // 自動整合性チェックの現在状態からラベルを決定
+          var autoLabel = isAutoConsistencyEnabled() ? "[自動チェックON]" : "[自動チェックOFF]";
+
+          // 結果トグルリンク + 自動チェックON/OFF を並べて描画
+          explainWrapper.innerHTML =
+            '<a href="#" id="cscs-consistency-toggle-link-explain">' + linkText + "</a>" +
+            ' <a href="#" id="cscs-consistency-auto-toggle-link">' + autoLabel + "</a>";
+
+          // 結果パネルの開閉リンク
           var explainLink = document.getElementById("cscs-consistency-toggle-link-explain");
           if (explainLink) {
             explainLink.addEventListener("click", consistencyToggleClickHandler);
+          }
+
+          // 自動チェックON/OFF切り替えリンク
+          var autoToggleLinkExplain = document.getElementById("cscs-consistency-auto-toggle-link");
+          if (autoToggleLinkExplain) {
+            autoToggleLinkExplain.addEventListener("click", function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // 現在のON/OFF状態を反転
+              var currentEnabled = isAutoConsistencyEnabled();
+              var nextEnabled = !currentEnabled;
+
+              // VerifyModeヘルパーと同期しつつ、localStorageへ保存
+              setAutoConsistencyEnabled(nextEnabled);
+
+              // ラベルも現在の状態に合わせて更新（ヘッダ側に同じIDがあっても安全に更新される）
+              updateAutoConsistencyLabel(nextEnabled);
+
+              console.log("自動整合性チェックモードを切り替えました (explain):", nextEnabled ? "ON" : "OFF");
+            });
           }
         }
       }
