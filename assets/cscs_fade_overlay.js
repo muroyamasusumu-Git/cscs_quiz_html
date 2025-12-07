@@ -47,9 +47,8 @@
 
   /**
    * 問題文＋選択肢を「画面上の見た目を一切変えず」に前面へ浮かせる処理。
-   * - クローンは作らず、渡された DOM ノードそのものに z-index を付与してオーバーレイより前面に出す。
-   * - DOM の親子関係や left/top/width/margin などのレイアウトは一切変更しない。
-   * - choiceNode が <li> の場合は、親の <ol class="opts"> などのリストコンテナに昇格させてリスト全体をハイライトする。
+   * - クローンは作らず、渡された DOM ノードそのものを body 直下へ移動して position: fixed で貼り付ける。
+   * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標のまま固定する。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
    * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
@@ -64,7 +63,7 @@
       }
 
       // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
-      // - これにより、番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出せる
+      // - これにより、番号付きリストのスタイル・インデント・行間をそのまま保った状態で前面に出せる
       // - 親のリストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバック無し）
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
@@ -89,7 +88,7 @@
       }
 
       // ハイライト対象を配列にまとめる（共通ロジックで処理するため）
-      var targets = []; // 前面に出す対象ノード一覧
+      var targets = []; // fixed 位置化する対象ノード一覧
       if (questionNode && questionNode.nodeType === 1) {
         targets.push(questionNode); // 有効な問題文ノードを登録
       }
@@ -97,30 +96,51 @@
         targets.push(choiceNode);   // 有効な選択肢コンテナノードを登録
       }
 
-      // それぞれの対象ノードに対して、レイアウトはそのままに z-index のみを上げる
+      // それぞれの対象ノードを「今見えている位置」に固定して body 直下に持ち上げる
       for (var i = 0; i < targets.length; i++) {
         var node = targets[i]; // 現在処理中のノード
 
-        // 一度ハイライト適用済みのノードに対しては二重に処理を掛けない
+        // 一度 fixed 化したノードに対しては二重に処理を掛けない
         if (node.getAttribute("data-cscs-highlight-fixed") === "1") {
           continue; // data-cscs-highlight-fixed="1" があればスキップ
         }
 
-        // 元の inline style 値を退避しておく（必要になればデバッグ用に確認できるようにする）
-        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || ""); // 元々の position を保存
-        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");    // 元々の z-index を保存
+        // 現在の画面上での位置とサイズを取得しておく（この座標をそのまま固定表示に使う）
+        var rect = node.getBoundingClientRect(); // ビューポート基準の位置・幅・高さを取得
 
-        // このノードにはハイライト用処理を適用済みであることをマークする
-        node.setAttribute("data-cscs-highlight-fixed", "1"); // 再処理防止フラグをセット
-
-        // position が未指定（inline style 上で空）の場合だけ relative を付けて z-index を有効にする
-        if (!node.style.position) {
-          node.style.position = "relative";                   // レイアウトを崩さずにスタッキングコンテキストだけ作る
+        // 後から状態を確認できるよう、元の親要素と兄弟関係を data 属性に記録しておく
+        var parent = node.parentNode; // 元の親ノード
+        if (parent) {
+          node.setAttribute("data-cscs-highlight-orig-parent-tag", parent.tagName || ""); // 親のタグ名を記録
+          node.setAttribute("data-cscs-highlight-orig-parent-id", parent.id || "");       // 親の id を記録（空なら空文字）
+        } else {
+          node.setAttribute("data-cscs-highlight-orig-parent-tag", ""); // 親が無い場合は空文字で記録
+          node.setAttribute("data-cscs-highlight-orig-parent-id", "");
         }
 
-        // フェードオーバーレイ(z-index:9998)より前面に出すための z-index を付与し、見た目はそのままに手前へ浮かせる
-        node.style.zIndex = "9999";                           // 暗転オーバーレイより前に表示させる
-        node.style.pointerEvents = "none";                    // フェード中はクリック・タップを拾わないようイベントを無効化する
+        // 元の inline style 値を退避しておく（必要になればデバッグ用に確認できるようにする）
+        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || "");   // 元々の position を保存
+        node.setAttribute("data-cscs-highlight-orig-left", node.style.left || "");           // 元々の left を保存
+        node.setAttribute("data-cscs-highlight-orig-top", node.style.top || "");             // 元々の top を保存
+        node.setAttribute("data-cscs-highlight-orig-width", node.style.width || "");         // 元々の width を保存
+        node.setAttribute("data-cscs-highlight-orig-margin", node.style.margin || "");       // 元々の margin を保存
+        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");       // 元々の z-index を保存
+
+        // このノードにはハイライト用の固定化処理を適用済みであることをマークする
+        node.setAttribute("data-cscs-highlight-fixed", "1"); // 再処理防止フラグをセット
+
+        // 実際の座標固定処理：
+        // - body 直下に移動してスタッキングコンテキストの最上位に乗せる
+        // - position: fixed + rect.left/top で「今見えている位置」に貼り付ける
+        // - width を rect.width に固定することで改行位置を維持する
+        document.body.appendChild(node);                         // ノードを body 直下へ移動し、overlay と同じレベルに引き上げる
+        node.style.position = "fixed";                           // ビューポート基準の固定配置に切り替える
+        node.style.left = String(rect.left) + "px";              // 現在の表示位置の left をそのまま適用
+        node.style.top = String(rect.top) + "px";                // 現在の表示位置の top をそのまま適用
+        node.style.width = String(rect.width) + "px";            // 現在の描画幅を固定幅として設定し、改行位置を維持する
+        node.style.margin = "0";                                 // 余計な再レイアウトを防ぐため margin は 0 に揃える
+        node.style.zIndex = "9999";                              // フェードオーバーレイ(z-index:9998)より前面に配置する
+        node.style.pointerEvents = "none";                       // フェード中にクリックイベントを拾わないよう完全に無効化する
       }
 
       // 独立したレイヤー要素は生成していないので戻り値は null
