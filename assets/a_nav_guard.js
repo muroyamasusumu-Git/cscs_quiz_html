@@ -42,7 +42,7 @@
     font-weight: bold;
     width: auto;
     text-align: center;
-    margin-left: 6px;            /* topmeta-left 内で他要素と軽く間隔を取る */
+    margin-left: 0;            /* topmeta-left 内で他要素と軽く間隔を取る */
 }
             `;
             document.head.appendChild(style);
