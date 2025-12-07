@@ -1,3 +1,10 @@
+ハイライト対象は <li> じゃなくて <ol class="opts"> を丸ごと前面に出す
+上記の内容を実現するために
+以下の最新の　「cscs_fade_overlay.js」　を”必ず”参照し、これに修正を加える形で、
+参照元のコードから「確実に検索できる」ように「インデントあり」「"..."などの省略は絶対無し」の置換前・置換後の正確なコードを出して。フルじゃなくて置換部分のコードのみ。置換前コード内に「本文に無いコメント」は入れないこと。
+フォールバックの設定は基本的に無しで
+追加した処理に対して処理ごとに何をしているか説明する補足コメントをいれる。
+
 // assets/cscs_fade_overlay.js
 (function () {
   "use strict";
@@ -46,82 +53,107 @@
   // =========================================
 
   /**
-   * 問題文＋選択肢を「画面上の見た目を極力そのまま」に前面へ浮かせる処理。
-   * - 元 DOM は一切動かさず、そのクローンを body 直下の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
-   * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標に position: fixed でクローンを貼り付ける。
+   * 問題文＋選択肢を「画面上の見た目を一切変えず」に前面へ浮かせる処理。
+   * - クローンは作らず、渡された DOM ノードそのものを body 直下へ移動して position: fixed で貼り付ける。
+   * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標のまま固定する。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
    * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
-   * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
+   * @returns {null}                     独立レイヤー要素は作らないので常に null
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      var existing = document.getElementById("cscs-fade-highlight-layer");
+      // 旧仕様で使っていたハイライト用レイヤー(#cscs-fade-highlight-layer)が残っていれば掃除しておく
+      var existing = document.getElementById("cscs-fade-highlight-layer"); // 旧レイヤー要素を取得
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing);
+        existing.parentNode.removeChild(existing); // 旧レイヤーを DOM から完全に取り除く
       }
 
+      // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
+      // - これにより、番号付きリストのスタイル・インデント・行間をそのまま保った状態で前面に出せる
+      // - 親のリストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバック無し）
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
-          var listContainer = null;
+          var listContainer = null;                                     // 昇格先となるリストコンテナ(<ol>/<ul>)の一時保持
           if (typeof choiceNode.closest === "function") {
-            listContainer = choiceNode.closest("ol.opts") ||
-                            choiceNode.closest("ol") ||
-                            choiceNode.closest("ul");
+            listContainer = choiceNode.closest("ol.opts") ||            // まずは .opts を持つ <ol> を最優先で探す
+                            choiceNode.closest("ol") ||                 // 見つからなければ汎用的な <ol> を対象とする
+                            choiceNode.closest("ul");                   // それでも無ければ <ul> を対象にする
           }
           if (listContainer && listContainer.nodeType === 1) {
-            choiceNode = listContainer;
+            choiceNode = listContainer;                                 // ハイライト対象をリストコンテナ全体に差し替える
           } else {
-            choiceNode = null;
+            choiceNode = null;                                          // 親リストが見つからない場合は選択肢のハイライトは諦める
           }
         }
       }
 
+      // ハイライト対象が何も渡されていない場合は処理不要
       if (!questionNode && !choiceNode) {
-        return null;
+        return null; // どちらも null なら何もせず終了
       }
 
-      var layer = document.createElement("div");
-      layer.id = "cscs-fade-highlight-layer";
-      layer.style.position = "fixed";
-      layer.style.left = "0";
-      layer.style.top = "0";
-      layer.style.right = "0";
-      layer.style.bottom = "0";
-      layer.style.zIndex = "9999";
-      layer.style.pointerEvents = "none";
-      document.body.appendChild(layer);
-
-      var targets = [];
+      // ハイライト対象を配列にまとめる（共通ロジックで処理するため）
+      var targets = []; // fixed 位置化する対象ノード一覧
       if (questionNode && questionNode.nodeType === 1) {
-        targets.push(questionNode);
+        targets.push(questionNode); // 有効な問題文ノードを登録
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);
+        targets.push(choiceNode);   // 有効な選択肢コンテナノードを登録
       }
 
+      // それぞれの対象ノードを「今見えている位置」に固定して body 直下に持ち上げる
       for (var i = 0; i < targets.length; i++) {
-        var node = targets[i];
-        var rect = node.getBoundingClientRect();
-        var clone = node.cloneNode(true);
+        var node = targets[i]; // 現在処理中のノード
 
-        var wrapper = document.createElement("div");
-        wrapper.style.position = "fixed";
-        wrapper.style.left = String(rect.left) + "px";
-        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
-        wrapper.style.top = String(rect.top - 15) + "px";
-        wrapper.style.width = String(rect.width) + "px";
-        wrapper.style.margin = "0";
-        wrapper.style.padding = "0";
-        wrapper.style.pointerEvents = "none";
+        // 一度 fixed 化したノードに対しては二重に処理を掛けない
+        if (node.getAttribute("data-cscs-highlight-fixed") === "1") {
+          continue; // data-cscs-highlight-fixed="1" があればスキップ
+        }
 
-        wrapper.appendChild(clone);
-        layer.appendChild(wrapper);
+        // 現在の画面上での位置とサイズを取得しておく（この座標をそのまま固定表示に使う）
+        var rect = node.getBoundingClientRect(); // ビューポート基準の位置・幅・高さを取得
+
+        // 後から状態を確認できるよう、元の親要素と兄弟関係を data 属性に記録しておく
+        var parent = node.parentNode; // 元の親ノード
+        if (parent) {
+          node.setAttribute("data-cscs-highlight-orig-parent-tag", parent.tagName || ""); // 親のタグ名を記録
+          node.setAttribute("data-cscs-highlight-orig-parent-id", parent.id || "");       // 親の id を記録（空なら空文字）
+        } else {
+          node.setAttribute("data-cscs-highlight-orig-parent-tag", ""); // 親が無い場合は空文字で記録
+          node.setAttribute("data-cscs-highlight-orig-parent-id", "");
+        }
+
+        // 元の inline style 値を退避しておく（必要になればデバッグ用に確認できるようにする）
+        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || "");   // 元々の position を保存
+        node.setAttribute("data-cscs-highlight-orig-left", node.style.left || "");           // 元々の left を保存
+        node.setAttribute("data-cscs-highlight-orig-top", node.style.top || "");             // 元々の top を保存
+        node.setAttribute("data-cscs-highlight-orig-width", node.style.width || "");         // 元々の width を保存
+        node.setAttribute("data-cscs-highlight-orig-margin", node.style.margin || "");       // 元々の margin を保存
+        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");       // 元々の z-index を保存
+
+        // このノードにはハイライト用の固定化処理を適用済みであることをマークする
+        node.setAttribute("data-cscs-highlight-fixed", "1"); // 再処理防止フラグをセット
+
+        // 実際の座標固定処理：
+        // - body 直下に移動してスタッキングコンテキストの最上位に乗せる
+        // - position: fixed + rect.left/top で「今見えている位置」に貼り付ける
+        // - width を rect.width に固定することで改行位置を維持する
+        document.body.appendChild(node);                         // ノードを body 直下へ移動し、overlay と同じレベルに引き上げる
+        node.style.position = "fixed";                           // ビューポート基準の固定配置に切り替える
+        node.style.left = String(rect.left) + "px";              // 現在の表示位置の left をそのまま適用
+        node.style.top = String(rect.top) + "px";                // 現在の表示位置の top をそのまま適用
+        node.style.width = String(rect.width) + "px";            // 現在の描画幅を固定幅として設定し、改行位置を維持する
+        node.style.margin = "0";                                 // 余計な再レイアウトを防ぐため margin は 0 に揃える
+        node.style.zIndex = "9999";                              // フェードオーバーレイ(z-index:9998)より前面に配置する
+        node.style.pointerEvents = "none";                       // フェード中にクリックイベントを拾わないよう完全に無効化する
       }
 
-      return layer;
+      // 独立したレイヤー要素は生成していないので戻り値は null
+      return null;
     } catch (_e) {
+      // 予期せぬ例外が発生してもフェード処理自体は継続させたいので null を返して終了
       return null;
     }
   }
