@@ -1,96 +1,95 @@
 // assets/final_export_and_go.js
-// Bパート最終問題：その日の回答をJSONでエクスポート → result.htmlへ遷移
+// Bパート最終問題：このスクリプトが読み込まれた B ページから、同日の q001_a へ戻る専用ナビゲーション
+// - JSONエクスポート機能は廃止
+// - result.html への遷移も廃止
+// - 「どの番号が最後か」は HTML 側の <script> 読み込み位置で決める
 (function () {
   "use strict";
 
-  function getDayFromPath() {
-    const m = (window.location.pathname || "").match(/_build_cscs_(\d{8})/);
-    return m ? m[1] : (localStorage.getItem("cscs_last_day") || "unknown");
+  // 現在のURLが Bパート(qNNN_b.html) かどうか判定
+  // 例: /_build_cscs_20250926/slides/q030_b.html → true
+  function isBPage() {
+    const path = window.location.pathname || "";
+    return /q\d{3}_b(?:\.html)?$/i.test(path);
   }
 
-  function downloadJSON(obj, filename) {
+  // 同じ日の最初の問題（q001_a.html）へ戻る
+  function goToFirstQuestion() {
     try {
-      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-        a.remove();
-      }, 1000);
+      // 同一ディレクトリ内での相対パス遷移
+      window.location.href = "q001_a.html";
     } catch (e) {
-      console && console.warn && console.warn("export failed:", e);
+      if (window.console && window.console.warn) {
+        window.console.warn("[final_export_and_go] q001_a.html への遷移に失敗:", e);
+      }
     }
   }
 
-  function exportAndGo() {
-    const nextHref = "result.html";
-    const day = getDayFromPath();
-
-    let all = [];
-    try { all = JSON.parse(localStorage.getItem("cscs_results") || "[]"); }
-    catch (_) { all = []; }
-
-    const rows = all
-      .filter(r => r && r.day === day)
-      .sort((a, b) => (a.stem || "").localeCompare(b.stem || ""));
-
-    const payload = { day, exportedAt: new Date().toISOString(), results: rows };
-
-    const t = new Date();
-    const pad = n => String(n).padStart(2, "0");
-    const fn = `cscs_${day}_results_${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}_${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}.json`;
-
-    downloadJSON(payload, fn);
-
-    // 即遷移だとDLが落ちる環境対策
-    setTimeout(() => { window.location.href = nextHref; }, 350);
-  }
-
+  // DeepDive 関連のクリックかどうか
   function isDeepDiveClick(target) {
     return !!(target && target.closest && (
-      target.closest('#dd-panel') ||
-      target.closest('.deep-dive-btn') ||
-      target.closest('.dd-btn')
+      target.closest("#dd-panel") ||
+      target.closest(".deep-dive-btn") ||
+      target.closest(".dd-btn")
     ));
   }
 
+  // お気に入りモーダル関連のクリックかどうか
   function isFavClick(target) {
     return !!(target && target.closest && (
-      target.closest('#fav-backdrop .fav-modal') ||
-      target.closest('#fav-backdrop')
+      target.closest("#fav-backdrop .fav-modal") ||
+      target.closest("#fav-backdrop")
     ));
   }
 
   window.addEventListener("DOMContentLoaded", () => {
-    // ドキュメントどこでも（リンク/音声ボタン/DeepDive/Favを除く）→ エクスポート → 遷移
+    // 念のため「Bパート以外」では何もしない（誤読込対策）
+    if (!isBPage()) {
+      if (window.console && window.console.log) {
+        window.console.log("[final_export_and_go] Bパートではないため何もしません:", window.location.pathname);
+      }
+      return;
+    }
+
+    if (window.console && window.console.log) {
+      window.console.log("[final_export_and_go] Bパート最終問題から q001_a への戻り遷移を有効化しました。");
+    }
+
+    // ドキュメントのどこでも（リンク/音声ボタン/DeepDive/Fav を除く）クリックで q001_a に戻る
     document.addEventListener("click", (e) => {
       if (e.target.closest(".audio-fallback-btn")) return;
       if (e.target.closest("a")) return;
       if (isDeepDiveClick(e.target)) return;
       if (isFavClick(e.target)) return;
+
       e.preventDefault();
-      exportAndGo();
+      goToFirstQuestion();
     });
 
-    // スペース / Enter / → でも発火（DeepDive/Fav開時は抑止）
+    // Space / Enter / → キーでも q001_a に戻る
     document.addEventListener("keydown", (e) => {
-      if ([' ', 'Enter', 'ArrowRight'].includes(e.key)) {
+      if ([" ", "Enter", "ArrowRight"].includes(e.key)) {
+        // 入力欄にフォーカスがある場合は邪魔しない
+        const active = document.activeElement;
+        if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+          return;
+        }
+
         e.preventDefault();
-        exportAndGo();
+        goToFirstQuestion();
       }
     });
 
-    // 画面オーバーレイのクリックで実行（保険）
+    // 画面オーバーレイ（next-overlay）がある場合は、そのクリックでも戻る
     const ov = document.querySelector(".next-overlay");
     if (ov) {
-      ov.addEventListener("click", (e) => { e.preventDefault(); exportAndGo(); });
+      ov.addEventListener("click", (e) => {
+        e.preventDefault();
+        goToFirstQuestion();
+      });
       ov.href = "#";
       ov.style.zIndex = 9999;
-      ov.setAttribute("aria-label", "結果へ");
+      ov.setAttribute("aria-label", "最初の問題へ戻る");
       ov.setAttribute("role", "link");
       ov.setAttribute("tabindex", "0");
     }
