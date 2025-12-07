@@ -49,13 +49,14 @@
 
 /* Bパート用：ODOA ボタンを「押せないラベル」にしつつ白黒反転させる */
 #cscs-odoa-toggle.cscs-odoa-readonly {
-    pointer-events: none;       /* クリックを無効化して完全なラベル扱いにする */
-    font-size: 13px;
+    pointer-events: none;
+    font-size: 12px;
     padding: 0px 5px;
-    opacity: 0.8;
-    cursor: default;             /* ポインタ形状も通常矢印に固定する */
-    filter: invert(1);           /* 既存スタイルをそのまま反転（白⇔黒の反転効果） */
-    border: 1px solid #ffffff;   /* 白い枠線を付けてラベルを視覚的に際立たせる */
+    opacity: 0.7;
+    cursor: default;
+    border: 0 solid #ffffff;
+    background: #5c5c5c;
+    color: #fff;
 }
             `;
             document.head.appendChild(style);
