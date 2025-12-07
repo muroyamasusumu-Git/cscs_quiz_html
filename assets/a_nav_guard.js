@@ -60,6 +60,7 @@
     background: #5c5c5c;
     color: #fff;
     opacity: 0.7;
+    border: none;
 }
             `;
             document.head.appendChild(style);
