@@ -51,7 +51,7 @@
    * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標のまま固定する。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
-   * @param {Element|null} choiceNode    元の選択肢DOMノード(<li>など)
+   * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
    * @returns {null}                     独立レイヤー要素は作らないので常に null
    */
   function createHighlightLayer(questionNode, choiceNode) {
@@ -60,6 +60,26 @@
       var existing = document.getElementById("cscs-fade-highlight-layer"); // 旧レイヤー要素を取得
       if (existing && existing.parentNode) {
         existing.parentNode.removeChild(existing); // 旧レイヤーを DOM から完全に取り除く
+      }
+
+      // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
+      // - これにより、番号付きリストのスタイル・インデント・行間をそのまま保った状態で前面に出せる
+      // - 親のリストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバック無し）
+      if (choiceNode && choiceNode.nodeType === 1) {
+        var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
+        if (tag === "li") {
+          var listContainer = null;                                     // 昇格先となるリストコンテナ(<ol>/<ul>)の一時保持
+          if (typeof choiceNode.closest === "function") {
+            listContainer = choiceNode.closest("ol.opts") ||            // まずは .opts を持つ <ol> を最優先で探す
+                            choiceNode.closest("ol") ||                 // 見つからなければ汎用的な <ol> を対象とする
+                            choiceNode.closest("ul");                   // それでも無ければ <ul> を対象にする
+          }
+          if (listContainer && listContainer.nodeType === 1) {
+            choiceNode = listContainer;                                 // ハイライト対象をリストコンテナ全体に差し替える
+          } else {
+            choiceNode = null;                                          // 親リストが見つからない場合は選択肢のハイライトは諦める
+          }
+        }
       }
 
       // ハイライト対象が何も渡されていない場合は処理不要
@@ -73,7 +93,7 @@
         targets.push(questionNode); // 有効な問題文ノードを登録
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);   // 有効な選択肢ノードを登録
+        targets.push(choiceNode);   // 有効な選択肢コンテナノードを登録
       }
 
       // それぞれの対象ノードを「今見えている位置」に固定して body 直下に持ち上げる
