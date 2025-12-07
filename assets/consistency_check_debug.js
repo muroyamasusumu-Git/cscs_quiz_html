@@ -779,7 +779,8 @@
       if (titleEl) {
         var severityForHeader = titleEl.getAttribute("data-severity-mark") || "";
         var baseLabel = "整合性チェック結果";
-        var linkText = "[" + baseLabel + (severityForHeader ? "：" + severityForHeader : "") + (open ? " を閉じる" : " 詳細を見る") + "]";
+        // 閉じているときの文言を「詳細↓」に変更し、開いているときは「を閉じる」を維持
+        var linkText = "[" + baseLabel + (severityForHeader ? "：" + severityForHeader : "") + (open ? " を閉じる" : " 詳細↓") + "]";
 
         // ヘッダー内のリンク（パネルのタイトル部分）
         titleEl.innerHTML = '<a href="#" id="cscs-consistency-toggle-link">' + linkText + "</a>";
@@ -789,7 +790,7 @@
         }
 
         // ★ 解説ブロック内のメニュー (<div class="explain_menu">) 末尾にも
-        //    「[整合性チェック結果：◎ 詳細を見る / を閉じる]」と
+        //    「[整合性チェック結果：◎ 詳細↓ / を閉じる]」と
         //    「[自動チェックON/OFF]」の2つのリンクを並べて表示する
         var explainDiv = document.querySelector(".explain");
         if (explainDiv) {
