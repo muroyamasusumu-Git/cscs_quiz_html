@@ -10,11 +10,13 @@
         // qid = YYYYMMDD-NNN を URL から取得（Aページ限定）
         // 例: /_build_cscs_20250926/slides/q013_a.html → qid = "20250926-013"
         const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
-        const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_a(?:\.html)?(?:\/)?$/i);
+        const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_([ab])(?:\.html)?(?:\/)?$/i);
         // 対象のパス形式でなければ何もしない
         if (!mDay || !mStem) return;
         const day  = mDay[1];
         const num3 = mStem[1].slice(1);
+        const part = (mStem[2] || "").toLowerCase(); // "a" or "b" を取得
+        const isAPage = (part === "a");              // Aパートかどうかのフラグ
         const qid  = `${day}-${num3}`;
 
         // デバッグログ用（画面にはパネルを出さず、コンソールにだけ出す）
@@ -43,6 +45,13 @@
     width: auto;
     text-align: center;
     margin-left: 0;            /* topmeta-left 内で他要素と軽く間隔を取る */
+}
+
+/* Bパート用：ODOA ボタンを「押せないラベル」にしつつ白黒反転させる */
+#cscs-odoa-toggle.cscs-odoa-readonly {
+    pointer-events: none;        /* クリックを無効化して完全なラベル扱いにする */
+    cursor: default;             /* ポインタ形状も通常矢印に固定する */
+    filter: invert(1);           /* 既存スタイルをそのまま反転（白⇔黒の反転効果） */
 }
             `;
             document.head.appendChild(style);
@@ -340,24 +349,32 @@
             }
           };
 
-          btn.addEventListener("click", function(){
-            const prev = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
-            const next = prev === "on" ? "off" : "on";
-            window.CSCS_ODOA_MODE = next;
-            if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
-              window.__cscsUpdateOdoaBtnLabel();
-            }
-            dlog("O.D.O.A: button clicked, mode changed:", { prev, next });
+          if (!isAPage) {
+            // Bパートでは ODOA ボタンを「表示専用ラベル」として扱う
+            // - クラスを付与して白黒反転＋クリック無効のスタイルを適用する
+            // - リスナーを登録せず、画面上のモード表示だけを共有する
+            btn.classList.add("cscs-odoa-readonly");
+          } else {
+            // Aパートのみ、クリックで ODOA モードをトグルできるボタンとして動作させる
+            btn.addEventListener("click", function(){
+              const prev = window.CSCS_ODOA_MODE === "on" ? "on" : "off";
+              const next = prev === "on" ? "off" : "on";
+              window.CSCS_ODOA_MODE = next;
+              if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
+                window.__cscsUpdateOdoaBtnLabel();
+              }
+              dlog("O.D.O.A: button clicked, mode changed:", { prev, next });
 
-            // モード変更直後に、一括書き換えを試みる
-            try{
-              rewriteAnchorsForOdoaIfNeeded();
-            }catch(e){
-              dlog("O.D.O.A: bulk rewrite after button click failed:", String(e));
-            }
+              // モード変更直後に、一括書き換えを試みる
+              try{
+                rewriteAnchorsForOdoaIfNeeded();
+              }catch(e){
+                dlog("O.D.O.A: bulk rewrite after button click failed:", String(e));
+              }
 
-            sendOdoaModeToSync(next);
-          });
+              sendOdoaModeToSync(next);
+            });
+          }
 
           wrapper.appendChild(btn);
 
@@ -383,6 +400,13 @@
         // 起動時にボタン生成処理を登録し、SYNC state の取得もウォームアップしておく
         setupOdoaModeButtonOnce();
         loadSyncStateForOdoaIfNeeded();
+
+        // Bパートでは A→B ナビゲーションガード（トークン保存＋遷移ブロック）は不要なので、
+        // ここで処理を打ち切り、ODOA の「表示専用ラベル」機能だけを有効にする。
+        if (!isAPage) {
+          dlog("B-part detected. Nav-guard logic is skipped; ODOA label is read-only on B-part.");
+          return;
+        }
 
         // トークン生成関数
         // crypto.getRandomValues が使える場合はランダムな 2つの 32bit 値からトークン生成
