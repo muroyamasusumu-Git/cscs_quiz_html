@@ -54,18 +54,18 @@
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      // 既存のレイヤーがあれば一旦削除
+      // すでにハイライトレイヤーが存在している場合は一度取り除いてクリーンな状態にする
       var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
         existing.parentNode.removeChild(existing);
       }
 
-      // ハイライト対象が一切なければ何もしない
+      // 問題文も選択肢も指定されていない場合はレイヤーを作らず、そのまま終了する
       if (!questionNode && !choiceNode) {
         return null;
       }
 
-      // フルスクリーンのハイライトレイヤー（オーバーレイより1段高い z-index）
+      // 画面全体を覆うフルスクリーンのハイライトレイヤーを作成する（黒幕の一段上に配置）
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -73,90 +73,95 @@
       layer.style.top = "0";
       layer.style.right = "0";
       layer.style.bottom = "0";
-      layer.style.zIndex = "9999";          // フェードオーバーレイ(9998)よりも上
-      layer.style.pointerEvents = "none";   // ハイライト中も操作はブロック済みなのでイベントは通さない
+      layer.style.zIndex = "9999";          // フェードオーバーレイ(9998)よりも上に重ねる
+      layer.style.pointerEvents = "none";   // ここではブロックせず、既にフェード側で操作を止めている前提
       layer.style.display = "flex";
       layer.style.alignItems = "center";
       layer.style.justifyContent = "center";
 
-      // 中央に表示するコンテナ
+      // 中央にテキストをまとめて表示するためのコンテナを作成
       var inner = document.createElement("div");
       inner.id = "cscs-fade-highlight-inner";
       inner.style.maxWidth = "80%";
       inner.style.fontSize = "1em";
 
-      // 問題文のクローン
+      // 問題文の DOM をそのままクローンし、中央コンテナに挿入する
       if (questionNode && questionNode.nodeType === 1) {
         var qClone = questionNode.cloneNode(true);
         inner.appendChild(qClone);
       }
 
-      // 選択肢のクローン
+      // 選択肢（クリックされた<li>など）もクローンし、少し下に余白を空けて表示する
       if (choiceNode && choiceNode.nodeType === 1) {
         var cClone = choiceNode.cloneNode(true);
         cClone.style.marginTop = "16px";
         inner.appendChild(cClone);
       }
 
+      // レイヤーにコンテナを追加し、最後に body の最前面にマウントする
       layer.appendChild(inner);
       document.body.appendChild(layer);
       return layer;
     } catch (_e) {
+      // 何らかの例外が発生した場合は安全に null を返し、フェード自体は継続させる
       return null;
     }
   }
 
   function fadeOutTo(nextUrl, reason) {
     if (!nextUrl) {
-      return; // URLが無ければ何もしない
+      // 遷移先 URL が無い場合はフェード処理自体を行わない
+      return;
     }
 
-    // フェード用オーバーレイを準備（無ければ作る）
+    // フェード用オーバーレイを準備（既存があれば再利用、無ければ作成）
     var overlay = getOrCreateFadeOverlay();
-    overlay.style.opacity = "0";              // まず透明からスタート
-    overlay.style.pointerEvents = "auto";     // フェード中は操作できないようにブロック
+    overlay.style.opacity = "0";              // 最初は完全に透明な状態からスタートする
+    overlay.style.pointerEvents = "auto";     // フェード中は画面操作を一括でブロックする
     overlay.style.transition =
       "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
 
-    // 少しだけ遅らせてから opacity を変更 → CSSトランジションが発火して、ふわっと暗くなる
+    // 少しだけ遅らせて opacity を上げ、CSS トランジションによるふわっとした暗転を発生させる
     window.setTimeout(function () {
-      overlay.style.opacity = String(FADE_MAX_OPACITY);  // 指定の暗さまでフェード
+      overlay.style.opacity = String(FADE_MAX_OPACITY);  // 設定された暗さまで徐々に暗転させる
     }, 20);
 
-    // フェードが終わるタイミングで、sessionStorage にフラグを置いてからページ遷移
+    // フェード完了のタイミングで sessionStorage に「フェード中だった」情報を残し、その後に実際の遷移を行う
     window.setTimeout(function () {
       try {
-        // 遷移理由やタイムスタンプをペイロードとして保存
         var payload = {
           reason: reason || "",
           timestamp: Date.now()
         };
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
       } catch (_e) {
-        // sessionStorage が使えない環境では何もしない
+        // sessionStorage が利用できない環境でもフェードと遷移は継続させる
       }
-      // 実際のページ遷移
+      // 実際のページ遷移をここで実行する
       location.href = nextUrl;
-    }, FADE_DURATION_MS + 40); // フェード完了後＋ちょっと余裕を持たせる
+    }, FADE_DURATION_MS + 40); // フェード時間より少しだけ長く待ち、完全に暗くなってから遷移する
   }
 
   /**
    * ハイライト対象（問題文＋選択肢）を指定してフェードアウト遷移するための拡張API。
+   * 実際のフェード処理は既存の fadeOutTo に一元化し、ここではハイライトレイヤーの生成だけを担当する。
    *
-   * @param {string} nextUrl
-   * @param {string} reason
-   * @param {Object} highlightTargets
-   *   highlightTargets.questionNode … 問題文DOMノード
-   *   highlightTargets.choiceNode   … 選択肢DOMノード
+   * @param {string} nextUrl                         遷移先URL
+   * @param {string} reason                          ログや復路判定用の任意の文字列
+   * @param {Object} highlightTargets                ハイライト対象の DOM ノードセット
+   *   highlightTargets.questionNode … 問題文DOMノード (例: <h1>…)
+   *   highlightTargets.choiceNode   … 選択肢DOMノード (例: <li>…)
    */
   function fadeOutToWithHighlight(nextUrl, reason, highlightTargets) {
     if (!nextUrl) {
+      // 遷移先 URL が無い場合はハイライトもフェードも行わない
       return;
     }
 
     var questionNode = null;
     var choiceNode = null;
 
+    // 呼び出し側から渡されたオブジェクトから、安全に DOM ノードだけを取り出す
     try {
       if (highlightTargets && typeof highlightTargets === "object") {
         if (highlightTargets.questionNode && highlightTargets.questionNode.nodeType === 1) {
@@ -167,15 +172,17 @@
         }
       }
     } catch (_e) {
+      // 途中で例外が出てもフェード処理自体は継続させるため、ここでは握りつぶして初期値(null)のままにする
       questionNode = null;
       choiceNode = null;
     }
 
+    // 問題文または選択肢のどちらかが取得できていれば、フェード用オーバーレイの上にハイライトレイヤーを作成する
     if (questionNode || choiceNode) {
       createHighlightLayer(questionNode, choiceNode);
     }
 
-    // 実際のフェードアウト処理は既存の fadeOutTo に委譲する
+    // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
     fadeOutTo(nextUrl, reason);
   }
 
@@ -235,9 +242,13 @@
   // =========================================
   // 外部から使えるAPIをグローバルに公開
   // - CSCS_FADE.fadeOutTo(url, reason)
+  //     通常のフェードアウト → ページ遷移を行う基本API
   // - CSCS_FADE.fadeOutToWithHighlight(url, reason, { questionNode, choiceNode })
+  //     問題文＋選択肢を画面中央にハイライト表示したままフェードアウト → 遷移する拡張API
   // - CSCS_FADE.runFadeInIfNeeded()
+  //     前ページからのフェード情報を見て、必要な場合だけフェードイン演出を行う
   // - CSCS_FADE.fadeReload(reason)
+  //     現在ページをフェード付きでリロードするヘルパー
   // =========================================
   window.CSCS_FADE = {
     fadeOutTo: fadeOutTo,

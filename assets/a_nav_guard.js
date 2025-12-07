@@ -561,7 +561,7 @@
 
         // SAVE.ok が true であることを前提に、保存済みの href に遷移する
         // 可能であれば CSCS_FADE を使ってフェードアウト遷移し、
-        // その際に問題文＋選択肢をハイライトレイヤーとして前面に残す。
+        // その際に問題文(<h1>)＋選択肢(<li>)をハイライトレイヤーとして前面に残す。
         // フェード機構が無い場合は従来どおり location.assign を使う。
         function navigateIfSaved(a){
           if (!SAVE.ok){
@@ -570,23 +570,25 @@
           }
 
           try{
-            const rawHref = SAVE.lastHref || a.getAttribute('href') || '';
-            const url = new URL(rawHref, location.href);
+            // 保存済み href を絶対URLに変換して、最終的な遷移先文字列を用意する
+            const rawHref  = SAVE.lastHref || (a && a.getAttribute && a.getAttribute('href')) || '';
+            const url      = new URL(rawHref, location.href);
             const finalUrl = url.toString();
 
-            // ハイライト対象となる DOM ノードを推定する
-            // - 問題文: よく使われるクラス名の中から最初に見つかったもの
-            // - 選択肢: クリックされた a 要素の親 li 要素
+            // ハイライト対象となる問題文(<h1>)を取得する
+            // - Aパートでは問題文は単一の <h1> で描画されている前提
             let questionNode = null;
             try{
-              questionNode =
-                document.querySelector(".question-text") ||
-                document.querySelector(".question") ||
-                document.querySelector(".q-text");
+              const h1 = document.querySelector("h1");
+              if (h1 && h1.nodeType === 1) {
+                questionNode = h1;
+              }
             }catch(_){
               questionNode = null;
             }
 
+            // ハイライト対象となる選択肢(<li>)を取得する
+            // - クリックされた <a> 要素から一番近い親の <li> をたどる
             let choiceNode = null;
             try{
               if (a && typeof a.closest === "function") {
@@ -599,32 +601,34 @@
               choiceNode = null;
             }
 
-            // CSCS_FADE.fadeOutToWithHighlight が使える場合はそれを優先
+            // CSCS_FADE.fadeOutToWithHighlight が利用可能な場合は、
+            // 問題文＋選択肢をハイライトしたままフェードアウト遷移する
             if (window.CSCS_FADE &&
                 typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
               window.CSCS_FADE.fadeOutToWithHighlight(finalUrl, "a_nav_guard", {
                 questionNode: questionNode,
-                choiceNode: choiceNode
+                choiceNode:   choiceNode
               });
               return;
             }
 
-            // ハイライト対応が無い場合でも、通常のフェードアウトがあればそれを使う
+            // ハイライト付き API が無い場合でも、通常のフェードアウトがあればそれを使う
             if (window.CSCS_FADE &&
                 typeof window.CSCS_FADE.fadeOutTo === "function") {
               window.CSCS_FADE.fadeOutTo(finalUrl, "a_nav_guard");
               return;
             }
 
-            // フェード機構が存在しなければ、従来どおり直接遷移
+            // どちらのフェードAPIも無ければ、最小構成として直接遷移だけを行う
             requestAnimationFrame(function(){
               location.assign(finalUrl);
             });
           }catch(e){
+            // URL 変換などで例外が出た場合も、最後は直接遷移だけは試みる
             dlog("navigateIfSaved exception, fallback to direct assign:", String(e));
             try{
-              const rawHref = SAVE.lastHref || (a && a.getAttribute && a.getAttribute('href')) || '';
-              const url = new URL(rawHref || location.href, location.href);
+              const rawHref  = SAVE.lastHref || (a && a.getAttribute && a.getAttribute('href')) || '';
+              const url      = new URL(rawHref || location.href, location.href);
               const finalUrl = url.toString();
               requestAnimationFrame(function(){
                 location.assign(finalUrl);
