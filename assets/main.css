@@ -496,7 +496,7 @@ margin-left: 10px;
 
 #cc-check-wrapper {
     position: fixed;
-    right: 0;
+    right: 40px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -627,7 +627,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_view_b {
   position: fixed;
   right: 0;                /* 右寄せ */
-  top: 150px;
+  top: 200px;
   opacity: 0.20;           /* 透明度 */
   background: transparent;
   color: #eee;
