@@ -104,7 +104,7 @@
       "  border: 1px solid rgba(255, 200, 200, 0.18);\n" +
       "  padding: 2px 4px;\n" +
       "  text-align: left;\n" +
-      "  font-size: 10px;\n" +
+      "  font-size: 13px;\n" +
       "}\n" +
       "#cscs-consistency-ng-panel th {\n" +
       "  background: rgba(255, 120, 120, 0.15);\n" +
