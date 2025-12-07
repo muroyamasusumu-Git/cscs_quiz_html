@@ -1175,6 +1175,7 @@
   // =========================
   // 「次の問題へ」リンク（back-to-top ボタン）の生成
   // - A/B 共通のコンテナ（.wrap または #root）の末尾に a.back-to-top を追加する
+  // - 見た目は .back-to-top の CSS に完全委譲する
   // - クリック時は ODOA と同じ NEXT_URL を使って遷移する
   // =========================
   function createBackToTopLink() {
@@ -1196,18 +1197,10 @@
       return null;
     }
 
-    // a.back-to-top 要素を生成
+    // a.back-to-top 要素を生成（見た目は CSS の .back-to-top に任せる）
     var link = document.createElement("a");
     link.className = "back-to-top";
     link.textContent = "［次の問題へ］";
-
-    // 最低限の見た目調整（レイアウト本体は CSS 側で上書きする前提）
-    link.style.display = "inline-block";
-    link.style.marginTop = "12px";
-    link.style.fontSize = "13px";
-    link.style.color = "rgb(200, 200, 200)";
-    link.style.cursor = "pointer";
-    link.style.textDecoration = "underline";
 
     // クリック時に ODOA と同じ NEXT_URL へ遷移させる
     link.addEventListener("click", function (ev) {
