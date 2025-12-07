@@ -1244,6 +1244,13 @@
       }
     }
 
+    // 左下の待ち時間ボタン表示も、実際に使う待ち時間に合わせて同期する
+    var durationBtn = document.getElementById("auto-next-duration-toggle");
+    if (durationBtn) {
+      var secNowForButton = Math.round(effectiveMs / 1000);
+      durationBtn.textContent = "[" + secNowForButton + "秒]";
+    }
+
     // 現在時刻と終了時刻を記録（有効待ち時間を使用）
     startTime = Date.now();
     endTime = startTime + effectiveMs;
