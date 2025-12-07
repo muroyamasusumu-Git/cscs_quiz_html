@@ -239,6 +239,36 @@
     return !!hasEntry;
   }
 
+  // consistency_status の status_mark / severity_mark が「×」かどうか
+  // true の場合 = 整合性NG問題として自動遷移候補から除外する
+  async function isConsistencyNg(qid) {
+    var json = await ensureSyncStateLoaded();
+    var statusRoot = json && json.consistency_status;
+    if (!statusRoot || typeof statusRoot !== "object") {
+      syncLog("consistency_status is missing or not object for NG check.", { qid: qid });
+      return false;
+    }
+    var key = qidToConsistencyKey(qid);
+    if (!key) {
+      syncLog("qidToConsistencyKey failed for NG check.", { qid: qid });
+      return false;
+    }
+    if (!Object.prototype.hasOwnProperty.call(statusRoot, key)) {
+      // エントリ自体が無ければ NG ではない
+      return false;
+    }
+    var value = statusRoot[key] || {};
+    var mark = value.status_mark || value.severity_mark || "";
+    var isNg = mark === "×";
+    syncLog("consistency NG check.", {
+      qid: qid,
+      key: key,
+      mark: mark,
+      isNg: isNg
+    });
+    return isNg;
+  }
+
   // 必要であれば他スクリプトからも再利用できるように公開
   window.CSCS_SYNC_COMMON = window.CSCS_SYNC_COMMON || {};
   if (!window.CSCS_SYNC_COMMON.getCurrentOdoaMode) {
@@ -249,6 +279,9 @@
   }
   if (!window.CSCS_SYNC_COMMON.isConsistencyChecked) {
     window.CSCS_SYNC_COMMON.isConsistencyChecked = isConsistencyChecked;
+  }
+  if (!window.CSCS_SYNC_COMMON.isConsistencyNg) {
+    window.CSCS_SYNC_COMMON.isConsistencyNg = isConsistencyNg;
   }
 
   // =========================
@@ -774,7 +807,21 @@
             qid: candidateQid
           });
         } else {
-          // ▼ 通常時: oncePerDayToday で「本日すでに計測済み」の問題をスキップ
+          // ▼ 通常時: まず consistency_status で「×」判定された問題を除外する
+          var isNg = await isConsistencyNg(candidateQid);
+          if (isNg) {
+            syncLog("ODOA sequential: skip consistency NG (×) qid.", {
+              qid: candidateQid
+            });
+            // 次の候補へ進める
+            currentDay = nextDay;
+            currentIdx = nextIdx;
+            currentPart = "a";
+            safetySeq++;
+            continue;
+          }
+
+          // ▼ 次に oncePerDayToday で「本日すでに計測済み」の問題をスキップ
           var answered = await isOncePerDayAnswered(candidateQid);
 
           if (!answered) {
@@ -849,7 +896,17 @@
           });
         }
       } else {
-        // ▼ 通常時: oncePerDayToday 未回答 かつ 直近履歴に無い qid のみ採用
+        // ▼ 通常時: まず consistency_status で「×」判定された問題を除外
+        var isNgRand = await isConsistencyNg(candidateQidRand);
+        if (isNgRand) {
+          syncLog("ODOA random: skip consistency NG (×) qid.", {
+            qid: candidateQidRand
+          });
+          safetyRand++;
+          continue;
+        }
+
+        // ▼ 次に oncePerDayToday 未回答 かつ 直近履歴に無い qid のみ採用
         var answeredRand = await isOncePerDayAnswered(candidateQidRand);
 
         if (!answeredRand && !inHistoryRand) {
