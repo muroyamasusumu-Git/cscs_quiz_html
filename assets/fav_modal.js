@@ -45,26 +45,38 @@
   }
 
   // =========================
-  // SYNC から現在問題の「お気に入り状態」を読み取る
+  // SYNC から現在問題の「お気に入り状態」を読み取る（SYNC専用）
   // - 期待構造: syncRoot.fav[qid] = "unset" | "understood" | "unanswered" | "none" | 数値(1〜3)
-  // - 見つからない場合は null を返す（ローカル側の状態に委ねる）
+  // - 見つからない場合やエラー時も "unset" を返す（ローカルには一切フォールバックしない）
   // =========================
   function getFavFromSync(){
     var qid = getQid();
+    var val = "unset"; // デフォルトは常に "unset"
     try{
+      // SYNCルートから fav セクションを取得
       var root = getSyncRootForFav();
       if (!root || !root.fav || typeof root.fav !== "object") {
-        return null;
+        try{
+          console.log("fav_modal.js: getFavFromSync → no fav section in SYNC. qid:", qid);
+        }catch(_){}
+        return val;
       }
-      if (!Object.prototype.hasOwnProperty.call(root.fav, qid)) {
-        return null;
-      }
-      var raw = root.fav[qid];
-      var val = null;
 
+      // qid が存在しなければ "unset" のまま返す
+      if (!Object.prototype.hasOwnProperty.call(root.fav, qid)) {
+        try{
+          console.log("fav_modal.js: getFavFromSync → no entry for qid in SYNC. qid:", qid);
+        }catch(_){}
+        return val;
+      }
+
+      var raw = root.fav[qid];
+
+      // 文字列表現はそのまま優先
       if (raw === "unset" || raw === "understood" || raw === "unanswered" || raw === "none") {
         val = raw;
       } else if (typeof raw === "number") {
+        // 数値表現(1/2/3)も受け取り、文字列にマッピング
         if (raw === 1) {
           val = "understood";
         } else if (raw === 2) {
@@ -84,10 +96,11 @@
 
       return val;
     }catch(e){
+      // 例外時もフォールバックは行わず、"unset" を返す
       try{
-        console.error("fav_modal.js: getFavFromSync error.", e);
+        console.error("fav_modal.js: getFavFromSync error.", { qid: qid, error: e });
       }catch(_){}
-      return null;
+      return val;
     }
   }
 
@@ -203,51 +216,31 @@
   }
 
   // =========================
-  // 現在問題の「お気に入り状態」を読み取る（ローカル専用）
+  // 現在問題の「お気に入り状態」を読み取る（SYNC専用）
+  // - window.CSCS_SYNC_DATA に読み込まれた fav 情報のみを参照する
+  // - ローカル(localStorage)へは一切フォールバックしない
   // =========================
   function loadFav(){
-    return getFavFromLocal();
+    // SYNCに保存されている値をそのまま採用する
+    return getFavFromSync();
   }
 
   // =========================
-  // 現在問題の「お気に入り状態」を保存
-  // - 文字列表現: cscs_fav
-  // - 数値表現:   cscs_fav_map（互換用）
-  //   1:理解済 / 2:要復習 / 3:重要高 / 0:未設定
+  // 現在問題の「お気に入り状態」を保存（SYNC専用）
+  // - /api/sync/merge に対して fav 情報だけを送信する
+  // - localStorage(cscs_fav / cscs_fav_map) は一切更新しない
   // =========================
   function saveFav(val){
-    const KEY="cscs_fav";
-    let obj={}; 
-    try{ 
-      obj=JSON.parse(localStorage.getItem(KEY)||"{}"); 
-    }catch(_){ 
-      obj={}; 
-    }
-    const qid=getQid();
-    obj[qid]=val;
-    localStorage.setItem(KEY, JSON.stringify(obj));
+    var qid = getQid();
 
-    // 互換：数値形式（cscs_fav_map）も更新しておく（1:理解済, 2:要復習, 3:重要高, 0/未定義:未設定）
-    const MAP_KEY="cscs_fav_map";
-    const toNum = (s)=>{
-      switch(s){
-        case "understood": return 1;
-        case "unanswered": return 2; // 要復習
-        case "none":       return 3; // 重要高
-        default:           return 0; // 未設定
-      }
-    };
-    let legacy={}; 
-    try{ 
-      legacy=JSON.parse(localStorage.getItem(MAP_KEY)||"{}"); 
-    }catch(_){ 
-      legacy={}; 
-    }
-    legacy[getQid()] = toNum(val);
-    localStorage.setItem(MAP_KEY, JSON.stringify(legacy));
+    // デバッグログで、どの qid に何を送るかを確認
+    try{
+      console.log("fav_modal.js: saveFav(SYNC only) → sendFavToSync", { qid: qid, val: val });
+    }catch(_){}
 
-    // デバッグログ（どのqidが何に設定されたかを確認）
-    try{ console.log("⭐ saved fav (local-only):", qid, "→", val); }catch(_){}
+    // SYNCサーバーにお気に入り状態を送信
+    // 成功時には sendFavToSync 内で window.CSCS_SYNC_DATA が更新される
+    sendFavToSync(val);
   }
 
   // =========================
@@ -281,7 +274,7 @@
   // 現在ページの qid に対する「お気に入り状態」を取得して
   // { qid, label, type } 形式で返すユーティリティ
   // type は "unset" / "understood" / "unanswered" / "none" のいずれか
-  // ★ ローカル専用: localStorage(cscs_fav / cscs_fav_map) だけを見る
+  // ★ SYNC専用: window.CSCS_SYNC_DATA 上の fav を見る（localStorage には依存しない）
   function readFavLabelAndTypeForCurrentQid(){
     var qid = getQid();
     if (!qid) {
@@ -291,23 +284,26 @@
     var type = "unset";
 
     try{
-      type = getFavFromLocal();
+      // SYNCから現在の状態を取得
+      type = loadFav();
       if (type !== "understood" && type !== "unanswered" && type !== "none" && type !== "unset") {
         type = "unset";
       }
 
-      console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(local-only)", {
+      console.log("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC)", {
         qid: qid,
         mappedType: type
       });
     }catch(e){
-      console.error("fav_modal.js: readFavLabelAndTypeForCurrentQid(local-only) error", {
+      // 例外時は "unset" に戻してから返す
+      console.error("fav_modal.js: readFavLabelAndTypeForCurrentQid(SYNC) error", {
         qid: qid,
         error: e
       });
       type = "unset";
     }
 
+    // バッジ表示用のラベルへ変換
     var label = favLabelFromStringForBadge(type);
     return { qid: qid, label: label, type: type };
   }
@@ -587,19 +583,25 @@
   }
 
   // =========================
-  // DOM構築完了後に hook() を実行して
-  // お気に入りモーダルを使えるようにする
-  // 先に SYNC 状態を取得しておくことで、開いた瞬間から
-  // 他端末での更新も反映されたお気に入り状態が使える
-  // あわせて topmeta-left のお気に入りバッジも描画する
+  // DOM構築完了後に SYNC状態を取得してから
+  // お気に入りモーダルのトリガーとバッジ描画を行う
+  // - /api/sync/state から取得した内容を window.CSCS_SYNC_DATA に反映
+  // - 取得に失敗した場合もフォールバックは行わず、"unset" として扱う
   // =========================
   window.addEventListener("DOMContentLoaded", function(){
     try{
-      console.log("fav_modal.js: DOMContentLoaded → local-only mode (no SYNC).");
+      console.log("fav_modal.js: DOMContentLoaded → SYNC mode (fav only).");
     }catch(_){}
-    hook();
-    try{
-      renderFavBadgeForCurrentQid();
-    }catch(_){}
+
+    // 1) SYNC状態を取得して window.CSCS_SYNC_DATA を更新
+    fetchSyncStateForFav().then(function(){
+      // 2) SYNC結果をもとにバッジを描画
+      try{
+        renderFavBadgeForCurrentQid();
+      }catch(_){}
+
+      // 3) クリックトリガーを仕込む（モーダル自体は SYNC が無くても開ける）
+      hook();
+    });
   });
 })();
