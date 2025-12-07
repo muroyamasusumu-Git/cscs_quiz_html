@@ -1234,14 +1234,10 @@
       return;
     }
 
-    // 「選択肢の部分」のコンテナ候補セレクタ
-    // 実際のクラス名に合わせて調整可能
+    // 「選択肢の部分」のコンテナセレクタ
+    // 現在のテンプレでは ol.opts が選択肢エリア
     var selectors = [
-      ".choices",
-      ".choice-list",
-      ".choice-container",
-      ".question-choices",
-      ".quiz-choices"
+      "ol.opts"
     ];
 
     var targets = [];
