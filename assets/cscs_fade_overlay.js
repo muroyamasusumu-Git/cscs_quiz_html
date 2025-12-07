@@ -56,47 +56,32 @@
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      // 質問文ブロック用のYオフセット（h1 をまとめて上下に微調整したいとき用）
-      var QUESTION_OFFSET_Y_PX = -15;
-
-      // 選択肢4つを li ごとに個別調整するための設定
-      // インデックス: 0=A, 1=B, 2=C, 3=D
-
-      // X方向オフセット（px）: 左右位置の微調整用
-      var CHOICE_OFFSET_X_PX_LIST = [0, 0, 0, 0];
-
-      // Y方向オフセット（px）: 上下位置の微調整用
-      var CHOICE_OFFSET_Y_PX_LIST = [-15, -15, -15, -15];
-
-      // 行間補正（line-height 倍率）: 1.0 が元のまま、それ以外で行間を広げたり狭めたりできる
-      var CHOICE_LINE_HEIGHT_LIST = [1.0, 1.0, 1.0, 1.0];
-
       var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
         existing.parentNode.removeChild(existing);
       }
 
-      // choiceNode が li の場合のみ、親の ol.opts / ol / ul を取ってくる
-      var listContainer = null;
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
+          var listContainer = null;
           if (typeof choiceNode.closest === "function") {
             listContainer = choiceNode.closest("ol.opts") ||
                             choiceNode.closest("ol") ||
                             choiceNode.closest("ul");
           }
-        } else if (tag === "ol" || tag === "ul") {
-          listContainer = choiceNode;
+          if (listContainer && listContainer.nodeType === 1) {
+            choiceNode = listContainer;
+          } else {
+            choiceNode = null;
+          }
         }
       }
 
-      // 質問文も選択肢リストも無ければ何もしない
-      if (!questionNode && !listContainer) {
+      if (!questionNode && !choiceNode) {
         return null;
       }
 
-      // フェード用のハイライトレイヤーを作成（黒幕より前面に置く）
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -108,59 +93,31 @@
       layer.style.pointerEvents = "none";
       document.body.appendChild(layer);
 
-      // ============================
-      // 1) 質問文(h1)のクローンを配置
-      // ============================
+      var targets = [];
       if (questionNode && questionNode.nodeType === 1) {
-        var qrect = questionNode.getBoundingClientRect();
-        var qclone = questionNode.cloneNode(true);
-
-        var qw = document.createElement("div");
-        qw.style.position = "fixed";
-        qw.style.left = String(qrect.left) + "px";
-        qw.style.top = String(qrect.top + QUESTION_OFFSET_Y_PX) + "px";
-        qw.style.width = String(qrect.width) + "px";
-        qw.style.margin = "0";
-        qw.style.padding = "0";
-        qw.style.pointerEvents = "none";
-
-        qw.appendChild(qclone);
-        layer.appendChild(qw);
+        targets.push(questionNode);
+      }
+      if (choiceNode && choiceNode.nodeType === 1) {
+        targets.push(choiceNode);
       }
 
-      // ============================
-      // 2) 選択肢 li を1つずつクローンして配置
-      // ============================
-      if (listContainer) {
-        var items = listContainer.querySelectorAll("li");
-        for (var i = 0; i < items.length; i++) {
-          var li = items[i];
-          var rect = li.getBoundingClientRect();
-          var clone = li.cloneNode(true);
+      for (var i = 0; i < targets.length; i++) {
+        var node = targets[i];
+        var rect = node.getBoundingClientRect();
+        var clone = node.cloneNode(true);
 
-          // 個別の X/Y オフセットと行間補正を取得（設定が無ければ 0 / 1.0 を使う）
-          var offsetX = CHOICE_OFFSET_X_PX_LIST[i] || 0;
-          var offsetY = CHOICE_OFFSET_Y_PX_LIST[i] || 0;
-          var lineHeightFactor = CHOICE_LINE_HEIGHT_LIST[i] || 1.0;
+        var wrapper = document.createElement("div");
+        wrapper.style.position = "fixed";
+        wrapper.style.left = String(rect.left) + "px";
+        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
+        wrapper.style.top = String(rect.top - 15) + "px";
+        wrapper.style.width = String(rect.width) + "px";
+        wrapper.style.margin = "0";
+        wrapper.style.padding = "0";
+        wrapper.style.pointerEvents = "none";
 
-          // クローン側に行間補正を適用
-          if (lineHeightFactor && lineHeightFactor !== 1.0) {
-            clone.style.lineHeight = String(lineHeightFactor);
-          }
-
-          // クローンを固定配置するためのラッパーを作成
-          var wrap = document.createElement("div");
-          wrap.style.position = "fixed";
-          wrap.style.left = String(rect.left + offsetX) + "px";
-          wrap.style.top = String(rect.top + offsetY) + "px";
-          wrap.style.width = String(rect.width) + "px";
-          wrap.style.margin = "0";
-          wrap.style.padding = "0";
-          wrap.style.pointerEvents = "none";
-
-          wrap.appendChild(clone);
-          layer.appendChild(wrap);
-        }
+        wrapper.appendChild(clone);
+        layer.appendChild(wrapper);
       }
 
       return layer;
@@ -168,6 +125,12 @@
       return null;
     }
   }
+
+  function fadeOutTo(nextUrl, reason) {
+    if (!nextUrl) {
+      // 遷移先 URL が無い場合はフェード処理自体を行わない
+      return;
+    }
 
     // フェード用オーバーレイを準備（既存があれば再利用、無ければ作成）
     var overlay = getOrCreateFadeOverlay();
