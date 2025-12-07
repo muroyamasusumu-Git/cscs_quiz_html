@@ -81,7 +81,6 @@ margin-right: 0 !important;
 }
 
 
-
 .topmeta {
 margin-bottom: 0 !important;
 gap: 0 !important;
@@ -89,8 +88,10 @@ margin-right: 0 !important;
     display: block !important;
     opacity: 0.6 !important;
     font-size: 19px !important;
-    height: 16px !important;
+    height: 18px !important;
+    vertical-align: bottom !important;
 }
+
 
 .topmeta-left {
     display: flex ;
