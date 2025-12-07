@@ -50,6 +50,7 @@
    * - 元 DOM は一切動かさず、そのクローンをフェード用オーバーレイ内部の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
    * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標に position: fixed でクローンを貼り付ける。
    * - ハイライトレイヤーは常に「黒幕オーバーレイの内側かつ最前面」に置くことで、スタッキングコンテキスト競合を避ける。
+   * - choiceNode に <li> が渡ってきた場合、その li だけを強調し、同じリスト内の他の li は opacity:0 で隠す。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
    * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
@@ -63,12 +64,16 @@
         existing.parentNode.removeChild(existing); // 古いレイヤーをオーバーレイ内部から取り除く
       }
 
+      // 選択された li を保持するための変数（<li> → 親リスト昇格後も、どの li が選択されていたかを覚えておく）
+      var selectedListItem = null;
+
       // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
       // - 番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出すための前処理
       // - 親リストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバックなし）
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
+          selectedListItem = choiceNode; // どの li が選ばれていたかを控えておく（後でクローン側の li に対応付ける）
           var listContainer = null;
           if (typeof choiceNode.closest === "function") {
             listContainer = choiceNode.closest("ol.opts") ||
@@ -134,12 +139,33 @@
           }
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
-          // - 元 DOM は一切触らず、クローン専用のスタイルとして margin を足す
+          // かつ、「選択された li 以外の li は opacity:0」で見えなくする。
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
             clone.style.marginLeft = "18px";    // 左寄せのズレを吸収するためのクローン専用左マージン
             clone.style.marginBottom = "15px";  // 下方向の詰まりを防ぐためのクローン専用のボトムマージン
-            clone.style.lineHeight = "1";// line-height 等を追加したい場合は、クローン専用スタイルとしてここに限定的に足していく
+
+            // 元のリスト内で「選択されていた li が何番目か」を調べ、そのインデックス以外の li をクローン側で非表示にする
+            if (selectedListItem && node === choiceNode) {
+              var originalLis = node.querySelectorAll("li"); // 元の <ol> 内の li 一覧
+              var selectedIndex = -1;
+              for (var j = 0; j < originalLis.length; j++) {
+                if (originalLis[j] === selectedListItem) {
+                  selectedIndex = j;            // 選択されていた li のインデックスを特定
+                  break;
+                }
+              }
+
+              // 対応するクローン側の li を取得し、選択されていたもの以外は opacity:0 にする
+              if (selectedIndex >= 0) {
+                var cloneLis = clone.querySelectorAll("li");
+                for (var k = 0; k < cloneLis.length; k++) {
+                  if (k !== selectedIndex) {
+                    cloneLis[k].style.opacity = "0"; // 選択されていない li は完全に透明にする
+                  }
+                }
+              }
+            }
           }
         }
 
