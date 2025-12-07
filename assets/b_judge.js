@@ -42,6 +42,7 @@
  *  5. UI更新
  *     - 常に userChoice / correct の比較結果を #judge に描画。
  *     - トークン有無に関わらず視覚出力を保証（責務分離: UIと集計）。
+ *     - 不正解の場合は、元の選択肢リスト上のユーザー選択に取り消し線スタイルを付与。
  *
  *  6. トークン破棄
  *     - tally() 後に localStorage[Kt] および sessionStorage[KsT/KsC] を削除。
@@ -265,12 +266,27 @@
         return raw;
       }
 
+      // 誤答時に、元の選択肢リスト上の該当 li に取り消し線を付ける
+      function markWrongChoiceOnList(letter){
+        try{
+          if(!letter) return;
+          const idx = 'ABCDE'.indexOf(letter.toUpperCase());
+          if(idx<0) return;
+          const li = document.querySelector(`ol.opts li:nth-child(${idx+1})`);
+          if(!li) return;
+          li.style.textDecoration = 'line-through';
+        }catch(e){
+          wlog('markWrongChoiceOnList fail', e);
+        }
+      }
+
       if(result==='correct'){
         host.style.color='rgb(255,243,77)';
         host.style.fontSize='1.1em';
         host.textContent='◎ 正解!!';
       }else if(result==='wrong'){
         const text=findChoiceText(choice);
+        markWrongChoiceOnList(choice);
         host.innerHTML=
           '<span class="judge-msg judge-msg-wrong">× 不正解</span>' +
           '<span class="your-choice">' +
