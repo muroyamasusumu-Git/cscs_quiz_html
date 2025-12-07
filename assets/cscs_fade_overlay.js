@@ -120,14 +120,30 @@
           }
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
-          // - choiceNode が <ol class="opts"> の場合にだけ効く。<li> 単体の場合はそのままの行間・マージンを使う。
+          // - choiceNode が <ol class="opts"> の場合にだけ効く。<li> 単体の場合は computedStyle をコピーして再現する。
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
+
+          // --- <ol class="opts"> の場合（従来の位置調整） ---
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "18px";    // 左寄せのズレを吸収するためのクローン専用左マージン
-            clone.style.marginBottom = "15px";  // 下方向の詰まりを防ぐためのクローン専用のボトムマージン
-            // clone.style.lineHeight などを追加したい場合は、ここに限定して書く（元DOMは変更しない）
+            clone.style.marginLeft = "18px";     // クローン専用マージン（元DOMは変更しない）
+            clone.style.marginBottom = "15px";   // クローン専用のボトム余白
           }
-        }
+
+          // --- <li> の場合：computedStyle をコピーして完全再現する ---
+          if (cloneTag === "li") {
+            var origStyle = window.getComputedStyle(node);
+
+            // 必要最小限のプロパティだけを安全にコピー
+            clone.style.fontSize = origStyle.fontSize;
+            clone.style.lineHeight = origStyle.lineHeight;
+            clone.style.marginTop = origStyle.marginTop;
+            clone.style.marginBottom = origStyle.marginBottom;
+            clone.style.paddingLeft = origStyle.paddingLeft;
+            clone.style.listStyleType = origStyle.listStyleType;
+            clone.style.listStylePosition = origStyle.listStylePosition;
+            clone.style.fontWeight = origStyle.fontWeight;
+            clone.style.color = origStyle.color;
+          }
 
         // クローンを配置するためのラッパーを作成し、元の位置に固定する
         var wrapper = document.createElement("div");
