@@ -58,7 +58,7 @@
     try {
       var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing);
+        existing.parentNode.removeChild(existing); // 以前のハイライトレイヤーが残っていれば一度破棄してクリーンな状態に戻す
       }
 
       if (choiceNode && choiceNode.nodeType === 1) {
@@ -71,15 +71,15 @@
                             choiceNode.closest("ul");
           }
           if (listContainer && listContainer.nodeType === 1) {
-            choiceNode = listContainer;
+            choiceNode = listContainer;      // <li> ではなく、親のリストコンテナ全体をハイライト対象に昇格させる
           } else {
-            choiceNode = null;
+            choiceNode = null;               // 親リストが見つからない場合は選択肢側のハイライトは行わない（フォールバックなし）
           }
         }
       }
 
       if (!questionNode && !choiceNode) {
-        return null;
+        return null;                         // 問題文・選択肢の両方が無ければ何もせず終了
       }
 
       var layer = document.createElement("div");
@@ -91,20 +91,39 @@
       layer.style.bottom = "0";
       layer.style.zIndex = "9999";
       layer.style.pointerEvents = "none";
-      document.body.appendChild(layer);
+      document.body.appendChild(layer);      // 黒幕オーバーレイより前面に、ハイライト専用レイヤーをマウントする
 
       var targets = [];
       if (questionNode && questionNode.nodeType === 1) {
-        targets.push(questionNode);
+        targets.push(questionNode);          // 有効な問題文ノードをハイライト対象として登録
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);
+        targets.push(choiceNode);            // 有効な選択肢コンテナノードをハイライト対象として登録
       }
 
       for (var i = 0; i < targets.length; i++) {
         var node = targets[i];
-        var rect = node.getBoundingClientRect();
-        var clone = node.cloneNode(true);
+        var rect = node.getBoundingClientRect(); // 元DOMの画面上の位置・幅を取得する
+        var clone = node.cloneNode(true);        // 元DOMは動かさず、クローンだけをハイライト用に利用する
+
+        // クローンであることを示す専用クラスを付与しておく（CSS からクローンだけを調整するためのフック）
+        if (clone && clone.nodeType === 1) {
+          if (clone.classList) {
+            clone.classList.add("cscs-fade-highlight-clone"); // クローン共通の識別用クラスを追加
+          } else {
+            var cls = clone.getAttribute("class") || "";
+            if (cls.indexOf("cscs-fade-highlight-clone") === -1) {
+              clone.setAttribute("class", (cls ? cls + " " : "") + "cscs-fade-highlight-clone"); // classList が無い場合は属性経由でクラスを付与
+            }
+          }
+
+          // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
+          var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
+          if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
+            clone.style.marginLeft = "10px";    // 元の nav レイアウトで付与されている左マージン分をクローン側にも足して位置を合わせる
+            clone.style.marginBottom = "10px";  // 下方向にも少しマージンを入れて行間の詰まりを防ぐ（元DOMは変更しない）
+          }
+        }
 
         var wrapper = document.createElement("div");
         wrapper.style.position = "fixed";
@@ -114,15 +133,15 @@
         wrapper.style.width = String(rect.width) + "px";
         wrapper.style.margin = "0";
         wrapper.style.padding = "0";
-        wrapper.style.pointerEvents = "none";
+        wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない
 
-        wrapper.appendChild(clone);
-        layer.appendChild(wrapper);
+        wrapper.appendChild(clone);              // クローンを wrapper に入れて
+        layer.appendChild(wrapper);              // wrapper ごとハイライトレイヤーに追加する
       }
 
-      return layer;
+      return layer;                              // 作成したハイライトレイヤー要素を返す
     } catch (_e) {
-      return null;
+      return null;                               // 例外発生時もフェード自体は続行できるように null を返しておく
     }
   }
 
