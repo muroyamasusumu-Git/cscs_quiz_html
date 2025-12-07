@@ -85,9 +85,10 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   }
 
   // -----------------------------
-  // 4) streak3Today / oncePerDayToday の存在/内容チェック
+  // 4) streak3Today / oncePerDayToday / fav / O.D.O.A Mode の存在/内容チェック
   //    - streak3Today は「存在確認のみ（上書き禁止）」
-  //    - oncePerDayToday は「day / results の簡易整合チェック」を行う
+  //    - oncePerDayToday は「day / results の簡易整合チェック」
+  //    - fav は「構造と値が想定どおりかどうか」を確認（補正は行わない）
   // -----------------------------
   let hasProp = Object.prototype.hasOwnProperty.call(out, "streak3Today");
   let rawSt3 = hasProp ? out.streak3Today : undefined;
@@ -121,6 +122,41 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     if (rawOnce.results && typeof rawOnce.results === "object") {
       onceResultsKeysLength = Object.keys(rawOnce.results as any).length;
     }
+  }
+
+  // fav 側の簡易チェック（fav_modal.js / merge.ts と同じ値セットかどうかを確認）
+  // - fav はプレーンオブジェクトであることを期待
+  // - 値は "unset" / "understood" / "unanswered" / "none" のいずれかであることを確認
+  // - ここでは補正や削除は行わず、「不正が混ざっているかどうか」をログするだけに留める
+  const hasFavPropForLog = Object.prototype.hasOwnProperty.call(out, "fav");
+  const rawFav: any = hasFavPropForLog ? (out as any).fav : undefined;
+
+  let favKeysLength = 0;
+  let favAllValuesValid: boolean | null = null;
+
+  if (rawFav && typeof rawFav === "object" && !Array.isArray(rawFav)) {
+    const entries = Object.entries(rawFav as any);
+    favKeysLength = entries.length;
+    favAllValuesValid = true;
+
+    for (const [qid, v] of entries) {
+      if (typeof qid !== "string" || !qid) {
+        favAllValuesValid = false;
+        break;
+      }
+      if (
+        v !== "unset" &&
+        v !== "understood" &&
+        v !== "unanswered" &&
+        v !== "none"
+      ) {
+        favAllValuesValid = false;
+        break;
+      }
+    }
+  } else if (hasFavPropForLog) {
+    // fav プロパティ自体は存在しているが、想定したプレーンオブジェクトでない場合
+    favAllValuesValid = false;
   }
 
   // O.D.O.A Mode 側の簡易チェック
@@ -168,6 +204,11 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       day: onceDayNum,
       resultsKeysLength: onceResultsKeysLength
     });
+
+    console.log("[SYNC/state] --- fav Check ---");
+    console.log("[SYNC/state] hasFavProp          :", hasFavPropForLog);
+    console.log("[SYNC/state] favKeysLength       :", favKeysLength);
+    console.log("[SYNC/state] favAllValuesValid   :", favAllValuesValid);
 
     console.log("[SYNC/state] --- O.D.O.A Mode Check ---");
     console.log("[SYNC/state] hasOdoaModeProp      :", hasOdoaModePropForLog);
