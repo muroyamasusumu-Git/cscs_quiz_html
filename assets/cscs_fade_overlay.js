@@ -56,15 +56,11 @@
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      // 旧仕様で使っていたハイライト用レイヤー(#cscs-fade-highlight-layer)が残っていれば掃除しておく
       var existing = document.getElementById("cscs-fade-highlight-layer");
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing); // 旧レイヤーを DOM から完全に取り除く
+        existing.parentNode.removeChild(existing);
       }
 
-      // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
-      // - これにより、番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出せる
-      // - 親のリストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバック無し）
       if (choiceNode && choiceNode.nodeType === 1) {
         var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
         if (tag === "li") {
@@ -75,19 +71,17 @@
                             choiceNode.closest("ul");
           }
           if (listContainer && listContainer.nodeType === 1) {
-            choiceNode = listContainer; // ハイライト対象をリストコンテナ全体に差し替える
+            choiceNode = listContainer;
           } else {
-            choiceNode = null;          // 親リストが見つからない場合は選択肢のハイライトは諦める
+            choiceNode = null;
           }
         }
       }
 
-      // ハイライト対象が何も渡されていない場合は処理不要
       if (!questionNode && !choiceNode) {
         return null;
       }
 
-      // ハイライトレイヤー本体を作成する（黒幕オーバーレイより前面に固定表示）
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -95,48 +89,39 @@
       layer.style.top = "0";
       layer.style.right = "0";
       layer.style.bottom = "0";
-      layer.style.zIndex = "9999";        // フェードオーバーレイ(9998)よりも前面に配置
-      layer.style.pointerEvents = "none"; // フェード中はハイライトに対してはクリックさせない
-      document.body.appendChild(layer);   // body 直下にレイヤーをマウント
+      layer.style.zIndex = "9999";
+      layer.style.pointerEvents = "none";
+      document.body.appendChild(layer);
 
-      // ハイライト対象を配列にまとめる（共通ロジックで処理するため）
       var targets = [];
       if (questionNode && questionNode.nodeType === 1) {
-        targets.push(questionNode); // 有効な問題文ノードを登録
+        targets.push(questionNode);
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);   // 有効な選択肢コンテナノードを登録
+        targets.push(choiceNode);
       }
 
-      // 各対象ノードについて、現在の画面上の位置・幅を基にクローンを固定配置する
       for (var i = 0; i < targets.length; i++) {
         var node = targets[i];
-
-        // 画面上での位置とサイズを取得する（ビューポート基準）
         var rect = node.getBoundingClientRect();
-
-        // 元 DOM をそのままにしておくため、クローンを作成してハイライト用に利用する
         var clone = node.cloneNode(true);
 
-        // クローンを配置するためのラッパーを作成し、rect の位置に固定する
         var wrapper = document.createElement("div");
         wrapper.style.position = "fixed";
-        wrapper.style.left = String(rect.left) + "px";   // 現在の left 座標に固定
-        wrapper.style.top = String(rect.top) + "px";     // 現在の top 座標に固定
-        wrapper.style.width = String(rect.width) + "px"; // 現在の描画幅をそのまま固定
+        wrapper.style.left = String(rect.left) + "px";
+        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
+        wrapper.style.top = String(rect.top - 10) + "px";
+        wrapper.style.width = String(rect.width) + "px";
         wrapper.style.margin = "0";
         wrapper.style.padding = "0";
-        wrapper.style.pointerEvents = "none";            // ハイライト側ではイベントを拾わない
+        wrapper.style.pointerEvents = "none";
 
-        // クローンされた要素をラッパーの中に入れて、ハイライトレイヤー上に貼り付ける
         wrapper.appendChild(clone);
         layer.appendChild(wrapper);
       }
 
-      // 作成したハイライトレイヤー要素を返す
       return layer;
     } catch (_e) {
-      // 予期せぬ例外が発生してもフェード処理自体は継続させたいので null を返して終了
       return null;
     }
   }
