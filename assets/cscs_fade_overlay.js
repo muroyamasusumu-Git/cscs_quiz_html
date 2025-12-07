@@ -46,99 +46,76 @@
   // =========================================
 
   /**
-   * 問題文＋選択肢を「画面上の見た目を極力そのまま」に前面へ浮かせる処理。
-   * - 元 DOM は一切動かさず、そのクローンを body 直下の専用レイヤー(#cscs-fade-highlight-layer)に配置する。
-   * - getBoundingClientRect() で現在の表示位置・幅を取得し、その座標に position: fixed でクローンを貼り付ける。
+   * 問題文＋選択肢を「元レイアウトのまま」前面に浮かせる処理。
+   * - DOM ツリーの位置は一切変更せず、position / z-index / pointer-events だけを操作する。
+   * - position が未指定または static の場合のみ relative にし、z-index を効かせる。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
-   * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
-   * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
+   * @param {Element|null} choiceNode    元の選択肢DOMノード(<li> など。li の場合も li のまま扱う)
+   * @returns {null}                     独立レイヤー要素は作らないので常に null
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
       // 旧仕様で使っていたハイライト用レイヤー(#cscs-fade-highlight-layer)が残っていれば掃除しておく
-      var existing = document.getElementById("cscs-fade-highlight-layer");
+      var existing = document.getElementById("cscs-fade-highlight-layer"); // 旧レイヤー要素を取得
       if (existing && existing.parentNode) {
         existing.parentNode.removeChild(existing); // 旧レイヤーを DOM から完全に取り除く
       }
 
-      // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
-      // - これにより、番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出せる
-      // - 親のリストコンテナが見つからない場合は、選択肢側のハイライトは行わない（フォールバック無し）
-      if (choiceNode && choiceNode.nodeType === 1) {
-        var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
-        if (tag === "li") {
-          var listContainer = null;
-          if (typeof choiceNode.closest === "function") {
-            listContainer = choiceNode.closest("ol.opts") ||
-                            choiceNode.closest("ol") ||
-                            choiceNode.closest("ul");
-          }
-          if (listContainer && listContainer.nodeType === 1) {
-            choiceNode = listContainer; // ハイライト対象をリストコンテナ全体に差し替える
-          } else {
-            choiceNode = null;          // 親リストが見つからない場合は選択肢のハイライトは諦める
-          }
-        }
-      }
-
       // ハイライト対象が何も渡されていない場合は処理不要
       if (!questionNode && !choiceNode) {
-        return null;
+        return null; // どちらも null なら何もせず終了
       }
 
-      // ハイライトレイヤー本体を作成する（黒幕オーバーレイより前面に固定表示）
-      var layer = document.createElement("div");
-      layer.id = "cscs-fade-highlight-layer";
-      layer.style.position = "fixed";
-      layer.style.left = "0";
-      layer.style.top = "0";
-      layer.style.right = "0";
-      layer.style.bottom = "0";
-      layer.style.zIndex = "9999";        // フェードオーバーレイ(9998)よりも前面に配置
-      layer.style.pointerEvents = "none"; // フェード中はハイライトに対してはクリックさせない
-      document.body.appendChild(layer);   // body 直下にレイヤーをマウント
-
       // ハイライト対象を配列にまとめる（共通ロジックで処理するため）
-      var targets = [];
+      var targets = []; // 前面に出す対象ノード一覧
       if (questionNode && questionNode.nodeType === 1) {
         targets.push(questionNode); // 有効な問題文ノードを登録
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);   // 有効な選択肢コンテナノードを登録
+        targets.push(choiceNode);   // 有効な選択肢ノード（クリックされた <li> など）を登録
       }
 
-      // 各対象ノードについて、現在の画面上の位置・幅を基にクローンを固定配置する
+      // それぞれの対象ノードに対して「前面に浮かせるための最小限のスタイル」だけを付与する
       for (var i = 0; i < targets.length; i++) {
-        var node = targets[i];
+        var node = targets[i]; // 現在処理中のノード
 
-        // 画面上での位置とサイズを取得する（ビューポート基準）
-        var rect = node.getBoundingClientRect();
+        // 一度ハイライト処理を適用したノードに対しては二重適用を避ける
+        if (node.getAttribute("data-cscs-highlight-applied") === "1") {
+          continue; // data-cscs-highlight-applied="1" があればスキップ
+        }
 
-        // 元 DOM をそのままにしておくため、クローンを作成してハイライト用に利用する
-        var clone = node.cloneNode(true);
+        // ハイライト適用済みであることを data 属性に記録しておく
+        node.setAttribute("data-cscs-highlight-applied", "1"); // 再処理防止フラグをセット
 
-        // クローン側の margin を 0 にリセットして、
-        // getBoundingClientRect() で取得したボーダーボックスの位置とズレないようにする
-        clone.style.margin = "0";
+        // 元の inline style の値を退避しておく（必要になればデバッグ等で参照できるようにする）
+        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || "");        // 元の position を保存
+        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");            // 元の z-index を保存
+        node.setAttribute("data-cscs-highlight-orig-pointer-events", node.style.pointerEvents || ""); // 元の pointer-events を保存
 
-        // クローンを配置するためのラッパーを作成し、rect の位置に固定する
-        var wrapper = document.createElement("div");
-        wrapper.style.position = "fixed";
-        wrapper.style.left = String(rect.left) + "px";   // 現在の left 座標に固定
-        wrapper.style.top = String(rect.top) + "px";     // 現在の top 座標に固定
-        wrapper.style.width = String(rect.width) + "px"; // 現在の描画幅をそのまま固定
-        wrapper.style.margin = "0";
-        wrapper.style.padding = "0";
-        wrapper.style.pointerEvents = "none";            // ハイライト側ではイベントを拾わない
+        // 現在の position を取得し、未指定または static の場合のみ relative に変更する
+        // （z-index が効くようにするための最小限の変更。元々 relative 等ならそのまま維持）
+        var currentPosition = node.style.position;
+        if (!currentPosition) {
+          try {
+            var cs = window.getComputedStyle(node);              // 実際の計算済みスタイルを取得
+            currentPosition = cs && cs.position ? cs.position : ""; // position の実値を反映
+          } catch (_e2) {
+            currentPosition = currentPosition || "";             // getComputedStyle 失敗時は inline 値だけを見る
+          }
+        }
+        if (!currentPosition || currentPosition === "static") {
+          node.style.position = "relative";                      // 未指定 / static の場合のみ relative を付与
+        }
 
-        // クローンされた要素をラッパーの中に入れて、ハイライトレイヤー上に貼り付ける
-        wrapper.appendChild(clone);
-        layer.appendChild(wrapper);
+        // フェードオーバーレイ(z-index:9998)より前面に出すための z-index を付与する
+        node.style.zIndex = "9999";                              // 他要素より前に重ねて表示する
+        // フェード中にクリック等のイベントを拾わないよう、ポインタイベントを無効化する
+        node.style.pointerEvents = "none";                       // 見た目だけ残し、操作は全て無効にする
       }
 
-      // 作成したハイライトレイヤー要素を返す
-      return layer;
+      // DOM の位置は一切変更していないため、独立のレイヤー要素は生成せず null を返す
+      return null;
     } catch (_e) {
       // 予期せぬ例外が発生してもフェード処理自体は継続させたいので null を返して終了
       return null;
