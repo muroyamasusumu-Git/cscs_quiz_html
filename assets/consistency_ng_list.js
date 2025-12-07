@@ -18,6 +18,9 @@
   var cngListCache = null;
   var cngFetchError = null;
   var cngPanelVisible = false;
+  // 現在のソートモードを保持する（"mark_x_first" = ×優先, "mark_delta_first" = △優先）
+  // 初期状態では × を上に並べるモードでスタートさせる
+  var cngSortMode = "mark_x_first";
 
   // =========================
   // スタイル挿入
@@ -221,7 +224,47 @@
   // パネルHTML生成
   // =========================
 
-  function buildConsistencyNgPanelHtml(list) {
+  // ソートモードと QID に従って、表示用のリストを並び替える
+  // - cngSortMode が "mark_x_first" の場合: 記号 "×" を上に、その次に "△" を並べる
+  // - cngSortMode が "mark_delta_first" の場合: 記号 "△" を上に、その次に "×" を並べる
+  // - 同じ記号同士は QID 昇順でソートする
+  function getSortedListForRender(list) {
+    if (!Array.isArray(list)) {
+      return [];
+    }
+
+    // 元配列を書き換えないようにコピーを作成する
+    var sorted = list.slice();
+
+    sorted.sort(function (a, b) {
+      var ma = a.status_mark || "";
+      var mb = b.status_mark || "";
+
+      // まずは記号の優先順位でソート
+      if (ma !== mb) {
+        if (cngSortMode === "mark_delta_first") {
+          // △優先モード: △ → × → その他
+          if (ma === "△") return -1;
+          if (mb === "△") return 1;
+          if (ma === "×") return -1;
+          if (mb === "×") return 1;
+        } else {
+          // ×優先モード: × → △ → その他
+          if (ma === "×") return -1;
+          if (mb === "×") return 1;
+          if (ma === "△") return -1;
+          if (mb === "△") return 1;
+        }
+      }
+
+      // 記号が同じ場合は QID 文字列の昇順でソートする
+      return String(a.qid).localeCompare(String(b.qid));
+    });
+
+    return sorted;
+  }
+
+  function buildConsistencyNgPanelHtml(list, sortMode) {
     var html = "";
 
     html += "<h3>× / △ 整合性要対応問題リスト（SYNC）</h3>";
@@ -232,10 +275,23 @@
     }
 
     // × と △ の件数をカウント
-var countX = list.filter(function (x) { return x.status_mark === "×"; }).length;
-var countD = list.filter(function (x) { return x.status_mark === "△"; }).length;
+    var countX = list.filter(function (x) { return x.status_mark === "×"; }).length;
+    var countD = list.filter(function (x) { return x.status_mark === "△"; }).length;
 
-html += `<div class="cng-summary">SYNCに保存されている ×:<strong>${countX}</strong> 件 / △:<strong>${countD}</strong> 件（計 <strong>${list.length}</strong> 件）</div>`;
+    // 現在のソートモードに応じてラベルを切り替える
+    var isXFirst = sortMode === "mark_x_first";
+    var xLabel = isXFirst ? "×→△（現在）" : "×→△";
+    var dLabel = !isXFirst ? "△→×（現在）" : "△→×";
+
+    // 件数と、並び替えトグルリンクをまとめて表示する
+    html += '<div class="cng-summary">';
+    html += "SYNCに保存されている ×:<strong>" + countX + "</strong> 件 / ";
+    html += "△:<strong>" + countD + "</strong> 件（計 <strong>" + list.length + "</strong> 件）";
+    html += " / 並び替え: ";
+    html += '<a href="#" id="cng-sort-x-first">' + xLabel + "</a>";
+    html += " | ";
+    html += '<a href="#" id="cng-sort-d-first">' + dLabel + "</a>";
+    html += "</div>";
 
     html += "<table><thead><tr>";
     html += "<th>QID</th>";
@@ -257,12 +313,12 @@ html += `<div class="cng-summary">SYNCに保存されている ×:<strong>${coun
       }
 
       html += "<tr>";
-      html += `<td class="cng-qid">${row.qid}</td>`;
-      html += `<td>${row.status_mark}</td>`;
-      html += `<td>${row.status_label}</td>`;
-      html += `<td>${row.classification_code}</td>`;
-      html += `<td>${detail}</td>`;
-      html += `<td>${formatSavedAt(row.saved_at)}</td>`;
+      html += '<td class="cng-qid">' + row.qid + "</td>";
+      html += "<td>" + row.status_mark + "</td>";
+      html += "<td>" + row.status_label + "</td>";
+      html += "<td>" + row.classification_code + "</td>";
+      html += "<td>" + detail + "</td>";
+      html += "<td>" + formatSavedAt(row.saved_at) + "</td>";
       html += "</tr>";
     }
 
@@ -278,7 +334,34 @@ html += `<div class="cng-summary">SYNCに保存されている ×:<strong>${coun
 
   function renderConsistencyNgPanel(list) {
     var panel = ensureConsistencyNgPanel();
-    panel.innerHTML = buildConsistencyNgPanelHtml(list);
+
+    // 現在のソートモードに従って、表示用のリストを並び替える
+    var sorted = getSortedListForRender(list);
+
+    // 並び替え済みのリストと現在のソートモードを渡して HTML を生成する
+    panel.innerHTML = buildConsistencyNgPanelHtml(sorted, cngSortMode);
+
+    // 「×→△」「△→×」のトグルリンクにクリックイベントを付与する
+    var sortX = panel.querySelector("#cng-sort-x-first");
+    var sortD = panel.querySelector("#cng-sort-d-first");
+
+    if (sortX) {
+      sortX.addEventListener("click", function (e) {
+        e.preventDefault();
+        // ソートモードを「×優先」に変更してパネルを再描画する
+        cngSortMode = "mark_x_first";
+        renderConsistencyNgPanel(cngListCache);
+      });
+    }
+
+    if (sortD) {
+      sortD.addEventListener("click", function (e) {
+        e.preventDefault();
+        // ソートモードを「△優先」に変更してパネルを再描画する
+        cngSortMode = "mark_delta_first";
+        renderConsistencyNgPanel(cngListCache);
+      });
+    }
   }
 
   // =========================
