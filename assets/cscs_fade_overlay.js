@@ -46,73 +46,86 @@
   // =========================================
 
   /**
-   * 問題文＋選択肢を「元レイアウトのまま」前面に浮かせる処理。
-   * - DOM ツリーは一切動かさず、対象ノードに position / z-index / pointer-events だけを付与する。
-   * - choiceNode が <li> 以外の要素の場合は、最近傍の <li> をハイライト対象として昇格させる。
+   * 問題文＋選択肢を「画面上の見た目を一切変えず」に前面へ浮かせる処理。
+   * - クローンは作らず、渡された DOM ノードそのものに z-index を付与してオーバーレイより前面に出す。
+   * - DOMツリー上の位置や left/top/width/margin は一切変更しない。
+   * - choiceNode が <li> の場合は、ここで親の <ol class="opts"> などのリストコンテナに昇格させる。
    *
    * @param {Element|null} questionNode  元の問題文DOMノード(<h1>など)
-   * @param {Element|null} choiceNode    クリックされた選択肢の DOM ノード(<li> またはその子要素想定)
+   * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここで昇格させる)
    * @returns {null}                     独立レイヤー要素は作らないので常に null
    */
   function createHighlightLayer(questionNode, choiceNode) {
     try {
-      var existing = document.getElementById("cscs-fade-highlight-layer");
+      // 旧仕様で使っていたハイライト用レイヤー(#cscs-fade-highlight-layer)が残っていれば掃除しておく
+      var existing = document.getElementById("cscs-fade-highlight-layer"); // 旧レイヤー要素を取得
       if (existing && existing.parentNode) {
-        existing.parentNode.removeChild(existing);
+        existing.parentNode.removeChild(existing); // 旧レイヤーを DOM から完全に取り除く
       }
 
-      // choiceNode が <li> 以外（例: <span>）の場合は、最近傍の <li> を選択肢ノードとして扱う
+      // choiceNode が <li> の場合は、親の <ol class="opts"> / <ol> / <ul> を探して、リスト全体をハイライト対象に昇格させる
+      // これにより、番号・インデント・行間を含めて「選択肢ブロック丸ごと」を前面に出せる
       if (choiceNode && choiceNode.nodeType === 1) {
-        var tagName = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
-        if (tagName !== "li" && typeof choiceNode.closest === "function") {
-          var liNode = choiceNode.closest("li");
-          if (liNode && liNode.nodeType === 1) {
-            choiceNode = liNode; // 実際に浮かせる対象を <li> に統一する
+        var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
+        if (tag === "li") {
+          var listContainer = null;                              // 昇格先のリストコンテナを一時保持
+          if (typeof choiceNode.closest === "function") {
+            listContainer = choiceNode.closest("ol.opts") ||     // まずは .opts を持つ <ol> を優先
+                            choiceNode.closest("ol") ||          // 次に汎用的な <ol>
+                            choiceNode.closest("ul");            // それでも無ければ <ul> を対象とする
+          }
+          if (listContainer && listContainer.nodeType === 1) {
+            choiceNode = listContainer;                          // ハイライト対象をリストコンテナ全体に差し替え
+          } else {
+            choiceNode = null;                                   // 親リストが見つからない場合は選択肢側のハイライトは行わない
           }
         }
       }
 
+      // ハイライト対象が何も渡されていない場合は処理不要
       if (!questionNode && !choiceNode) {
-        return null;
+        return null; // どちらも null なら何もせず終了
       }
 
-      var targets = [];
+      // ハイライト対象を配列にまとめる（共通ロジックで処理するため）
+      var targets = []; // 前面に出す対象ノード一覧
       if (questionNode && questionNode.nodeType === 1) {
-        targets.push(questionNode);
+        targets.push(questionNode); // 有効な問題文ノードを登録
       }
       if (choiceNode && choiceNode.nodeType === 1) {
-        targets.push(choiceNode);
+        targets.push(choiceNode);   // 有効な選択肢コンテナノードを登録
       }
 
+      // それぞれの対象ノードに対して、レイアウトはそのままに z-index のみを上げる
       for (var i = 0; i < targets.length; i++) {
-        var node = targets[i];
+        var node = targets[i]; // 現在処理中のノード
 
-        // 既にハイライト適用済みなら二重適用を避ける
-        if (node.getAttribute("data-cscs-highlight-applied") === "1") {
-          continue;
+        // 一度ハイライト適用済みのノードに対しては二重に処理を掛けない
+        if (node.getAttribute("data-cscs-highlight-fixed") === "1") {
+          continue; // data-cscs-highlight-fixed="1" があればスキップ
         }
 
-        // もともとの position / z-index を退避しておく（必要に応じてデバッグ確認用）
-        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || "");
-        node.setAttribute("data-cscs-highlight-orig-zindex", node.style.zIndex || "");
+        // 元の inline style 値を退避しておく（必要になればデバッグ用に確認できるようにする）
+        node.setAttribute("data-cscs-highlight-orig-position", node.style.position || ""); // 元々の position を保存
+        node.setAttribute("data-cscs-highlight-orig_zindex", node.style.zIndex || "");    // 元々の z-index を保存
 
-        // position は「未指定なら relative」にする。それ以外は元の値を尊重。
+        // このノードにはハイライト用処理を適用済みであることをマークする
+        node.setAttribute("data-cscs-highlight-fixed", "1"); // 再処理防止フラグをセット
+
+        // position が未指定（inline style 上で空）の場合だけ relative を付けて z-index を有効にする
         if (!node.style.position) {
-          node.style.position = "relative";
+          node.style.position = "relative";                   // レイアウトを崩さずにスタッキングコンテキストだけ作る
         }
 
-        // 黒いオーバーレイ(z-index:9998)より前に出す
-        node.style.zIndex = "9999";
-
-        // フェード中はクリックなどを受け付けないようにする
-        node.style.pointerEvents = "none";
-
-        // 一度処理したことをマーク
-        node.setAttribute("data-cscs-highlight-applied", "1");
+        // フェードオーバーレイ(z-index:9998)より前面に出すための z-index を付与し、見た目はそのままに手前へ浮かせる
+        node.style.zIndex = "9999";                           // 暗転オーバーレイより前に表示させる
+        node.style.pointerEvents = "none";                    // フェード中はクリック・タップを拾わないようイベントを無効化する
       }
 
+      // 独立したレイヤー要素は生成していないので戻り値は null
       return null;
     } catch (_e) {
+      // 予期せぬ例外が発生してもフェード処理自体は継続させたいので null を返して終了
       return null;
     }
   }
