@@ -608,12 +608,14 @@ body.mode-b #cc-check-wrapper {
   display: block;
   flex-wrap: wrap;
   margin-bottom: 4px;
+  z-index: 99999;
 }
 
 
 /* reset 行は下マージンなしにしたい場合はこちらで上書き */
 #cscs_sync_monitor_a .sync-reset-row {
   margin-bottom: 0;
+  z-index: 99999;
 }
 
 /* テストボタン／リセットボタン共通 */
