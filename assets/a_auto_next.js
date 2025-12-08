@@ -299,7 +299,6 @@
   var verifyModeAutoRestartTimerId = null;         // 検証モード自動再開用 setTimeout ID
   var verifyModeAutoRestartDeadline = 0;           // 自動再開予定時刻（Date.now() 基準のタイムスタンプ）
   var verifyModeAutoRestartIntervalId = null;      // 検証モード再開カウントダウン表示用 setInterval ID
-  var verifyModeAutoRestartTimerId = null;         // 検証モード自動再開用タイマー ID
 
   // =========================
   // 自動送り ON/OFF の読み書き
@@ -427,7 +426,7 @@
       var v = localStorage.getItem(AUTO_ADVANCE_MS_KEY);
       var ms = parseInt(v, 10);
       if (!ms || ms <= 0) {
-        // 保存が無い・不正値なら最初の候補（20秒）にフォールバック
+        // 保存が無い・不正値なら最初の候補（10秒）にフォールバック
         return AUTO_ADVANCE_MS_CANDIDATES[0];
       }
       // 保存値が候補の中にあるかチェック
@@ -1268,9 +1267,9 @@
       }
       var remainingSec = Math.ceil(remainingMs / 1000);
       if (counterEl) {
-        // 自動送りOFF状態の案内＋検証AUTO再開までの残り秒数
+        // 検証再開までの残り秒数だけを表示
         counterEl.textContent =
-          "自動送りは OFF です / 検証AUTO再開まで " + remainingSec + " 秒";
+          "検証再開まで " + remainingSec + " 秒";
       }
     }
 
