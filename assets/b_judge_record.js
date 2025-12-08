@@ -16,8 +16,8 @@
  */
 // assets/b_judge_record.js
 // -------------------------------------------
-// Bパート：正誤判定＋日替わり集計＋問題別3連正解トラッキング
-// JST対応・問題別総試行／計測済み／未計測・問題別連続正解＋1日1回制限用結果マップ付き
+// Bパート：正誤判定＋日替わり集計＋問題別3連正解／3連不正解トラッキング
+// JST対応・問題別総試行／計測済み／未計測・問題別連続正解／連続不正解＋1日1回制限用結果マップ付き
 // -------------------------------------------
 // ===========================================================
 // 📊 CSCS 計測仕様サマリー（b_judge_record.js）
@@ -55,6 +55,13 @@
 // │             │ cscs_q_correct_streak_len:{qid}       │ その問題における現在の連続正解数                           │
 // │             │ cscs_q_correct_streak3_total:{qid}    │ その問題における3連正解達成回数の累計                     │
 // │             │ cscs_q_correct_streak3_log:{qid}      │ その問題で3連正解を達成した履歴。{ts,qid,day,choice} の配列 │
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 連続不正解 │ cscs_wrong_streak_len                 │ 現在の連続不正解数                                         │
+// │             │ cscs_wrong_streak3_total              │ 3連不正解達成回数の累計                                   │
+// │             │ cscs_wrong_streak3_log                │ 3連不正解達成履歴。{ts,qid,day,choice} の配列              │
+// │             │ cscs_q_wrong_streak_len:{qid}         │ その問題における現在の連続不正解数                         │
+// │             │ cscs_q_wrong_streak3_total:{qid}      │ その問題における3連不正解達成回数の累計                   │
+// │             │ cscs_q_wrong_streak3_log:{qid}        │ その問題で3連不正解を達成した履歴。{ts,qid,day,choice} の配列 │
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 // │ 実行メタ   │ cscs_current_runId_<日付>            │ その日の一意ランID（セッション識別用）                     │
 // │             │ cscs_last_seen_day                   │ 直近に計測した日付（JST基準）                              │
@@ -147,6 +154,11 @@
 // ・CSCS問題集全体の総問題数を「cscs_total_questions」として localStorage に一元管理する。
 // ・総問題数は manifest.json の days.length × 30 を唯一のソースとし、b_judge_record.js 起動時に必要に応じて計算・保存する。
 // ・他ファイルや SYNC Worker は、このキーを参照して「全体の分母」として利用し、フォールバック値や別ソースは持たない。
+// 🆕 2025-12-08 追加
+// ・連続不正解トラッキング機能を追加（正解ストリークと同一方式で「3連続で1カウント」する非重複カウント）。
+// ・全体用キー: cscs_wrong_streak_len / cscs_wrong_streak3_total / cscs_wrong_streak3_log。
+// ・問題別キー: cscs_q_wrong_streak_len:{qid} / cscs_q_wrong_streak3_total:{qid} / cscs_q_wrong_streak3_log:{qid}。
+// ・正解が出たタイミングで不正解ストリークをリセットし、不正解が出たタイミングで正解ストリークをリセットする対称設計とする。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -693,6 +705,26 @@
           }catch(_){}
         }catch(_){}
 
+        // ★ 追加: 正解が出たタイミングで「連続不正解ストリーク」をリセット
+        //   - cscs_wrong_streak_len / cscs_q_wrong_streak_len:{qid} を 0 に戻す
+        //   - コンソールログでリセット前後の値を確認できるようにする
+        try{
+          var beforeWrongStreakGlobal = getIntLS("cscs_wrong_streak_len");
+          var beforeWrongStreakQ = getIntLS("cscs_q_wrong_streak_len:" + qid);
+
+          setIntLS("cscs_wrong_streak_len", 0);
+          setIntLS("cscs_q_wrong_streak_len:" + qid, 0);
+
+          console.log("[B:streak3_wrong/reset_on_correct] RESET wrong streak by correct answer", {
+            qid: qid,
+            day: dayPlay,
+            wrong_streak_global_before: beforeWrongStreakGlobal,
+            wrong_streak_q_before: beforeWrongStreakQ,
+            wrong_streak_global_after: getIntLS("cscs_wrong_streak_len"),
+            wrong_streak_q_after: getIntLS("cscs_q_wrong_streak_len:" + qid)
+          });
+        }catch(_){}
+
         // ログ（day単位）※選択肢も保持
         try{
           var ck = "cscs_correct_attempt_log_" + dayPlay;
@@ -721,7 +753,98 @@
           incIntLS("cscs_q_wrong_uncounted_total:" + qid, 1);
         }
 
-        // 不正解が出たらストリークはリセット
+        // ★ 追加: 3連不正解ストリーク（全体＋問題別。正解ストリークと対称の非重複カウント）
+        //   - cscs_wrong_streak_len / cscs_wrong_streak3_total / cscs_wrong_streak3_log
+        //   - cscs_q_wrong_streak_len:{qid} / cscs_q_wrong_streak3_total:{qid} / cscs_q_wrong_streak3_log:{qid}
+        //   - 3回連続不正解ごとに +1 し、達成時にストリーク長を 0 にリセットする
+        try{
+          // 全体ストリーク（debug 付き）
+          var wLen = getIntLS("cscs_wrong_streak_len");
+          var beforeGlobalWrongStreak3Total = getIntLS("cscs_wrong_streak3_total");
+
+          console.log("[B:streak3_wrong/global] BEFORE", {
+            qid: qid,
+            day: dayPlay,
+            wrong_streak_len: wLen,
+            wrong_streak3_total: beforeGlobalWrongStreak3Total
+          });
+
+          wLen += 1;
+          if(wLen >= 3){
+            incIntLS("cscs_wrong_streak3_total", 1);
+
+            var afterGlobalWrongStreak3Total = getIntLS("cscs_wrong_streak3_total");
+            console.log("[B:streak3_wrong/global] HIT 3連不正解", {
+              qid: qid,
+              day: dayPlay,
+              wrong_streak3_total_before: beforeGlobalWrongStreak3Total,
+              wrong_streak3_total_after: afterGlobalWrongStreak3Total
+            });
+
+            var wLogKey = "cscs_wrong_streak3_log";
+            var wLog = []; try{ wLog = JSON.parse(localStorage.getItem(wLogKey)||"[]"); }catch(_){ wLog = []; }
+            wLog.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
+            localStorage.setItem(wLogKey, JSON.stringify(wLog));
+
+            // 非重複カウントとするため 3連達成時にストリーク長をリセット
+            wLen = 0;
+          }
+          setIntLS("cscs_wrong_streak_len", wLen);
+
+          console.log("[B:streak3_wrong/global] AFTER", {
+            qid: qid,
+            day: dayPlay,
+            wrong_streak_len: wLen,
+            wrong_streak3_total: getIntLS("cscs_wrong_streak3_total")
+          });
+
+          // 問題別ストリーク（debug 付き）
+          var wKeyQ = "cscs_q_wrong_streak_len:" + qid;
+          var wLenQ = getIntLS(wKeyQ);
+          var wrongStreak3KeyQ = "cscs_q_wrong_streak3_total:" + qid;
+          var beforeWrongStreak3TotalQ = getIntLS(wrongStreak3KeyQ);
+
+          console.log("[B:streak3_wrong/q] BEFORE", {
+            qid: qid,
+            day: dayPlay,
+            wrong_streak_len_q: wLenQ,
+            wrong_streak3_total_q: beforeWrongStreak3TotalQ
+          });
+
+          wLenQ += 1;
+          if(wLenQ >= 3){
+            incIntLS(wrongStreak3KeyQ, 1);
+
+            var afterWrongStreak3TotalQ = getIntLS(wrongStreak3KeyQ);
+            console.log("[B:streak3_wrong/q] HIT 3連不正解", {
+              qid: qid,
+              day: dayPlay,
+              wrong_streak_len_q_before: wLenQ,
+              wrong_streak3_total_q_before: beforeWrongStreak3TotalQ,
+              wrong_streak3_total_q_after: afterWrongStreak3TotalQ
+            });
+
+            var wLogKeyQ = "cscs_q_wrong_streak3_log:" + qid;
+            var wLogQ = []; try{ wLogQ = JSON.parse(localStorage.getItem(wLogKeyQ)||"[]"); }catch(_){ wLogQ = []; }
+            wLogQ.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
+            localStorage.setItem(wLogKeyQ, JSON.stringify(wLogQ));
+
+            // 非重複カウントとするため 3連達成時にストリーク長をリセット
+            wLenQ = 0;
+          }
+          setIntLS(wKeyQ, wLenQ);
+
+          console.log("[B:streak3_wrong/q] AFTER", {
+            qid: qid,
+            day: dayPlay,
+            wrong_streak_len_q: wLenQ,
+            wrong_streak3_total_q: getIntLS(wrongStreak3KeyQ)
+          });
+        }catch(_){}
+
+        // 不正解が出たら正解ストリークはリセット
+        //   - cscs_correct_streak_len / cscs_q_correct_streak_len:{qid} を 0 に戻す
+        //   - SYNC 側の streakLen 更新と連動させる
         try{
           setIntLS("cscs_correct_streak_len", 0);
           setIntLS("cscs_q_correct_streak_len:" + qid, 0);
