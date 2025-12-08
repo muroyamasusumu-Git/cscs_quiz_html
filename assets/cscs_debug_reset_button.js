@@ -465,112 +465,145 @@
 
     // ▼ ALL（従来の挙動：全ての計測系カテゴリをまとめてリセット）
     createResetButton(
-      "[ALL] 全計測リセット",
-      "【全キーが対象】\n" +
+      "[ALL] 全計測（Local＋SYNC｜日次＋累計＋ストリーク＋トークン）",
+      "【対象：LocalStorage 全計測キー ＋ SYNC 全計測キー】\n" +
       "日次系(cscs_correct_attempts_* / cscs_wrong_attempts_* / done / attempt_log)、\n" +
-      "問題別累計(cscs_q_correct_total:* / wrong_total:* など)、\n" +
-      "ストリーク(cscs_q_correct_streak_len:* / wrong_streak_len:* など)、\n" +
-      "Streak3Today / WrongToday、1日1回計測、A→Bトークンをすべて削除します。",
+      "問題別累計(cscs_q_correct_total:* / wrong_total:* / counted / uncounted)、\n" +
+      "問題別ストリーク(cscs_q_correct_streak_len:* / wrong_streak_len:* / streak3_* など)、\n" +
+      "Streak3Today / Streak3WrongToday、1日1回計測、A→Bトークンの\n" +
+      "LocalStorage と SYNC state の両方を削除します。",
       resetLocalCounters,
       resetSyncOnServer
     );
 
     // ▼ 日次系
     createResetButton(
-      "日次系のみ",
-      "【対象キー】\n" +
+      "日次系のみ（Local＋SYNC｜YYYYMMDD別の当日集計）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_correct_attempts_YYYYMMDD\n" +
       "- cscs_wrong_attempts_YYYYMMDD\n" +
       "- cscs_correct_done:YYYYMMDD / cscs_wrong_done:YYYYMMDD\n" +
-      "- cscs_correct_attempt_log_YYYYMMDD / wrong_attempt_log_YYYYMMDD",
+      "- cscs_correct_attempt_log_YYYYMMDD / wrong_attempt_log_YYYYMMDD\n" +
+      "[SYNC]\n" +
+      "- server.daily(correct/incorrect/done/log)",
       resetDailyLocal,
       resetDailySync
     );
 
     // ▼ 問題別累計
     createResetButton(
-      "問題別累計のみ",
-      "【対象キー】\n" +
+      "問題別累計のみ（Local＋SYNC｜qid別 正/誤 累計）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_q_correct_total:qid\n" +
       "- cscs_q_wrong_total:qid\n" +
       "- cscs_q_correct_counted_total:qid / wrong_counted_total:qid\n" +
-      "- cscs_q_correct_uncounted_total:qid / wrong_uncounted_total:qid",
+      "- cscs_q_correct_uncounted_total:qid / wrong_uncounted_total:qid\n" +
+      "[SYNC]\n" +
+      "- server.correct[qid]\n" +
+      "- server.incorrect[qid]",
       resetQTotalsLocal,
       resetQTotalsSync
     );
 
     // ▼ 問題別ストリーク
     createResetButton(
-      "問題別ストリークのみ",
-      "【対象キー】\n" +
+      "問題別ストリークのみ（Local＋SYNC｜qid別 連続正解/不正解）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_q_correct_streak_len:qid\n" +
-      "- cscs_q_correct_streak3_total:qid / streak3_log:qid\n" +
+      "- cscs_q_correct_streak3_total:qid / cscs_q_correct_streak3_log:qid\n" +
       "- cscs_q_wrong_streak_len:qid\n" +
-      "- cscs_q_wrong_streak3_total:qid / streak3_log:qid",
+      "- cscs_q_wrong_streak3_total:qid / cscs_q_wrong_streak3_log:qid\n" +
+      "[SYNC]\n" +
+      "- server.streakLen[qid]\n" +
+      "- server.streak3[qid]\n" +
+      "- server.streakWrongLen[qid]\n" +
+      "- server.streak3Wrong[qid]",
       resetQStreaksLocal,
       resetQStreaksSync
     );
 
     // ▼ 全体ストリーク
     createResetButton(
-      "全体ストリークのみ",
-      "【対象キー】\n" +
+      "全体ストリークのみ（Local＋SYNC｜当日のグローバル連続）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_correct_streak_len\n" +
       "- cscs_correct_streak3_total\n" +
-      "- cscs_correct_streak3_log",
+      "- cscs_correct_streak3_log\n" +
+      "[SYNC]\n" +
+      "- server.globalStreak(len / streak3 / log)",
       resetGlobalStreakLocal,
       resetGlobalStreakSync
     );
 
     // ▼ その他メタ
     createResetButton(
-      "その他メタのみ",
-      "【対象キー】\n" +
+      "その他メタのみ（Local＋SYNC｜ログ/最終閲覧日など）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_wrong_log\n" +
-      "- cscs_last_seen_day",
+      "- cscs_last_seen_day\n" +
+      "[SYNC]\n" +
+      "- server.meta（※ consistency_status / fav は含まれない）",
       resetMetaLocal,
       resetMetaSync
     );
 
     // ▼ Streak3Today
     createResetButton(
-      "Streak3Todayのみ",
-      "【対象キー】\n" +
+      "Streak3Todayのみ（Local＋SYNC｜本日の⭐️ユニーク）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_streak3_today_day\n" +
       "- cscs_streak3_today_qids\n" +
-      "- cscs_streak3_today_unique_count",
+      "- cscs_streak3_today_unique_count\n" +
+      "[SYNC]\n" +
+      "- server.streak3Today(day / qids / count)",
       resetStreak3TodayLocal,
       resetStreak3TodaySync
     );
 
     // ▼ Streak3WrongToday
     createResetButton(
-      "Streak3WrongTodayのみ",
-      "【対象キー】\n" +
+      "Streak3WrongTodayのみ（Local＋SYNC｜本日の3連続不正解）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_streak3_wrong_today_day\n" +
       "- cscs_streak3_wrong_today_qids\n" +
-      "- cscs_streak3_wrong_today_unique_count",
+      "- cscs_streak3_wrong_today_unique_count\n" +
+      "[SYNC]\n" +
+      "- server.streak3WrongToday(day / qids / count)",
       resetStreak3WrongTodayLocal,
       resetStreak3WrongTodaySync
     );
 
     // ▼ oncePerDayToday
     createResetButton(
-      "1日1回計測のみ",
-      "【対象キー】\n" +
+      "1日1回計測のみ（Local＋SYNC｜oncePerDayToday）",
+      "【対象キー：LocalStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_once_per_day_today_day\n" +
-      "- cscs_once_per_day_today_results",
+      "- cscs_once_per_day_today_results\n" +
+      "[SYNC]\n" +
+      "- server.oncePerDayToday(day / results[qid])",
       resetOncePerDayLocal,
       resetOncePerDaySync
     );
 
     // ▼ A→B トークン
     createResetButton(
-      "A→Bトークンのみ",
-      "【対象キー】\n" +
+      "A→Bトークンのみ（Local＋SYNC｜ページ間連携）",
+      "【対象キー：LocalStorage + sessionStorage + SYNC】\n" +
+      "[Local]\n" +
       "- cscs_from_a:qid\n" +
       "- cscs_from_a_token:qid\n" +
-      "- sessionStorage 内の同名キー",
+      "[Session]\n" +
+      "- cscs_from_a:* / cscs_from_a_token:*\n" +
+      "[SYNC]\n" +
+      "- server.token_from_a（存在する場合）",
       resetTokenLocal,
       resetTokenSync
     );
