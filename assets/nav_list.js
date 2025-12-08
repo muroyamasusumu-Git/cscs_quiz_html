@@ -1,4 +1,36 @@
-/* nav_list.js —：問題一覧（nav_manifest.json版 / 2カラム表示） */
+/**
+ * nav_list.js —：問題一覧（nav_manifest.json版 / 2カラム表示）
+ *
+ * このファイルで使用する LocalStorage / SYNC(JSON) のキー対応表をここに一覧する。
+ *
+ * 【重要：開発ルール（恒久）】
+ *   📌 このファイル内で LocalStorage / SYNC のキー名に
+ *       「変更」または「新規追加」が発生した場合は、
+ *       必ずこのキー対応表コメントを更新すること。
+ *
+ * ▼ LocalStorage キー
+ *   - "cscs_fav"
+ *   - "cscs_fav_map"
+ *   - "cscs_results"
+ *   - "cscs_wrong_log"
+ *   - "cscs_q_correct_total:" + qid      // b_judge_record.js 由来の問題別「正解」累計
+ *   - "cscs_q_wrong_total:"   + qid      // b_judge_record.js 由来の問題別「不正解」累計
+ *   - "cscs_exam_date"                    // 試験日カレンダー用
+ *
+ * ▼ SYNC state(JSON) 内で参照するキー
+ *   - root.streak3[qid]                   // 3連続「正解」達成回数（累計）
+ *   - root.streakLen[qid]                 // 現在の連続「正解」長
+ *   - root.streak3Wrong[qid]              // 3連続「不正解」達成回数（累計）
+ *   - root.streakWrongLen[qid]            // 現在の連続「不正解」長
+ *   - root.consistency_status[qidJp].status_mark  // 整合性チェックの記号（◎/○/△/×など）
+ *   - root.oncePerDayToday.day
+ *   - root.oncePerDayToday.results[qid]   // 本日の oncePerDay 計測結果
+ *   - root.global.totalQuestions          // 全問題数（任意）
+ *   - root.exam_date                      // 試験日 (ISO8601文字列)
+ *
+ *   ※ window.CSCS_SYNC_DATA.data が存在する場合はそれを root として扱い、
+ *     無い場合は window.CSCS_SYNC_DATA を root として扱う。
+ */
 (function(){
   "use strict";
 
@@ -1139,20 +1171,34 @@
       const qid = day + "-" + n3;
       const qidJp = toJpDateQid(day, n3);
 
-      // SYNCから、その問題の「現在のストリーク長 (0〜3)」を取得
+      // SYNCから、その問題の「現在の連続正解数 (streakLen[qid])」を取得
       const streakLenSync =
         syncRoot && syncRoot.streakLen && Object.prototype.hasOwnProperty.call(syncRoot.streakLen, qid)
           ? Number(syncRoot.streakLen[qid] || 0)
           : 0;
 
-      // SYNCから、その問題の「累積3連続正解回数」を取得
+      // SYNCから、その問題の「累積3連続正解回数 (streak3[qid])」を取得
       const streakTotalSync =
         syncRoot && syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)
           ? Number(syncRoot.streak3[qid] || 0)
           : 0;
 
+      // SYNCから、その問題の「現在の連続不正解数 (streakWrongLen[qid])」を取得
+      const wrongStreakLenSync =
+        syncRoot && syncRoot.streakWrongLen && Object.prototype.hasOwnProperty.call(syncRoot.streakWrongLen, qid)
+          ? Number(syncRoot.streakWrongLen[qid] || 0)
+          : 0;
+
+      // SYNCから、その問題の「累積3連続不正解回数 (streak3Wrong[qid])」を取得
+      const wrongStreakTotalSync =
+        syncRoot && syncRoot.streak3Wrong && Object.prototype.hasOwnProperty.call(syncRoot.streak3Wrong, qid)
+          ? Number(syncRoot.streak3Wrong[qid] || 0)
+          : 0;
+
       // SYNCから oncePerDayToday（cscs_sync_view_b.js と同じ { day, results } 構造）を参照し、
       // この qid の本日の oncePerDayStatus ("correct" / "wrong" / "nocount"...) を取得
+      // ※ correct_star.js の優先順位ルールでは oncePerDay は表示切り替え条件には含まれないが、
+      //    デバッグ用の補足情報としてここでも読み込んでおく。
       let oncePerDayStatus = null;
       (function () {
         try {
@@ -1171,38 +1217,102 @@
         }
       })();
 
-      // ランクシンボル（⭐️/🌟/💫/⚡️/✨/🖋️） or まだなし
-      let streakMark = "—";
+      /**
+       * correct_star.js に定義されている表示ルールと同じ優先順位で
+       * 「現在の連続正解数 / 連続不正解数 / 累積3連続正解 / 累積3連続不正解」から
+       * 表示用マーカー絵文字を決定するヘルパー。
+       *
+       * 優先度：
+       *  1) 連続不正解 (streakWrongLen)
+       *       1連続不正解  → 🔧
+       *       2連続不正解  → 🛠️
+       *       3連続以上    → 💣
+       *  2) 不正解側 3連続累計 (streak3Wrong)
+       *       累計 1〜2回   → 💣
+       *       累計 3〜8回   → 💥
+       *       累計 9回以上  → 🔥
+       *  3) 正解側 3連続累計 (streak3)
+       *       累計 1〜2回   → ⭐️
+       *       累計 3〜8回   → 🌟
+       *       累計 9回以上  → 💫
+       *  4) 上記いずれにも該当しない場合
+       *       2連続正解中  → ⚡️
+       *       1連続正解中  → ✨
+       *       それ以外      → ⭐️（OFF状態）
+       */
+      function decideStreakMarkFromStats(streakLenCorrect, streakLenWrong, correct3Total, wrong3Total) {
+        var cLen = Number(streakLenCorrect || 0);
+        var wLen = Number(streakLenWrong || 0);
+        var c3   = Number(correct3Total || 0);
+        var w3   = Number(wrong3Total || 0);
 
-      // oncePerDayStatus === "wrong" の場合は、3連続正解の有無に関わらず 🖋️ を最優先で表示
-      const isWrongToday = oncePerDayStatus === "wrong";
+        if (!Number.isFinite(cLen) || cLen < 0) cLen = 0;
+        if (!Number.isFinite(wLen) || wLen < 0) wLen = 0;
+        if (!Number.isFinite(c3)   || c3   < 0) c3   = 0;
+        if (!Number.isFinite(w3)   || w3   < 0) w3   = 0;
 
-      if (isWrongToday) {
-        // 本日の oncePerDayToday 正誤記録が "wrong" → 🖋️
-        streakMark = "🖋️";
-      } else if (streakTotalSync === 0) {
-        // ⭐️未獲得（streak3累積0）の場合は、現在のストリーク長で ✨ / ⚡️ を表示
-        if (streakLenSync === 2) {
-          // 2連続正解中 → リーチ⚡️
-          streakMark = "⚡️";
-        } else if (streakLenSync === 1) {
-          // 1回正解中 → ✨
-          streakMark = "✨";
+        // 1) 不正解ストリーク優先
+        if (wLen >= 1) {
+          if (wLen >= 3) {
+            return "💣"; // 3連続以上不正解
+          }
+          if (wLen === 2) {
+            return "🛠️"; // 2連続不正解
+          }
+          return "🔧";    // 1連続不正解
         }
-      } else if (typeof window !== "undefined" && typeof window.cscsGetStarSymbolFromStreakCount === "function") {
-        // ⭐️獲得済み（streak3累積 > 0）の場合は、従来どおり ⭐️/🌟/💫 を表示
-        var starSymbol = window.cscsGetStarSymbolFromStreakCount(streakTotalSync);
-        streakMark = starSymbol || "⭐️";
+
+        // 2) 不正解側 3連続累計
+        if (w3 >= 1) {
+          if (w3 >= 9) {
+            return "🔥"; // 9回以上 3連続不正解達成
+          }
+          if (w3 >= 3) {
+            return "💥"; // 3〜8回 3連続不正解達成
+          }
+          return "💣";   // 1〜2回 3連続不正解達成
+        }
+
+        // 3) 正解側 3連続累計
+        if (c3 >= 1) {
+          if (c3 >= 9) {
+            return "💫"; // 9回以上 3連続正解達成
+          }
+          if (c3 >= 3) {
+            return "🌟"; // 3〜8回 3連続正解達成
+          }
+          return "⭐️";   // 1〜2回 3連続正解達成
+        }
+
+        // 4) まだ3連続達成なし & 連続不正解も 0 → 正解ストリークのみで評価
+        if (cLen >= 2) {
+          return "⚡️";   // 2連続正解中
+        }
+        if (cLen === 1) {
+          return "✨";   // 1連続正解中
+        }
+        return "⭐️";     // ベース状態（OFF）
       }
 
+      // correct_star.js の優先順位ルールに基づいてマーカーを決定
+      const streakMark = decideStreakMarkFromStats(
+        streakLenSync,
+        wrongStreakLenSync,
+        streakTotalSync,
+        wrongStreakTotalSync
+      );
+
+      // 進捗表示は従来どおり「連続正解数 / 3」をそのまま用いる
       const streakProgress = "(" + streakLenSync + "/3)";
 
-      // デバッグ用ログ（ナビリスト行ごとに、本日の oncePerDayStatus とマークを確認）
+      // デバッグ用ログ（ナビリスト行ごとに、各ストリーク情報とマークを確認）
       if (DEBUG_NAV_LIST_STREAK_LOG) {
-        console.log("nav_list.js: streak/oncePerDay マーク決定", {
+        console.log("nav_list.js: streak マーク決定 (correct_star.js ルール準拠)", {
           qid: qid,
           streakLenSync: streakLenSync,
           streakTotalSync: streakTotalSync,
+          wrongStreakLenSync: wrongStreakLenSync,
+          wrongStreakTotalSync: wrongStreakTotalSync,
           oncePerDayStatus: oncePerDayStatus,
           streakMark: streakMark
         });
