@@ -35,6 +35,7 @@
    *       ⇔ SYNC state: state.streak3Wrong[qid]
    *   - localStorage: "cscs_q_wrong_streak_len:" + qid
    *       ⇔ SYNC state: state.streakWrongLen[qid]
+   *   - payload(merge): streak3WrongDelta[qid] / streakWrongLenDelta[qid]
    *
    * ▼ 今日の⭐️ユニーク数（Streak3Today）
    *   - localStorage: "cscs_streak3_today_day"
@@ -508,16 +509,36 @@
     var diffWrong = params.diffWrong;          // local - server の「不正解」増分
     var diffStreak3 = params.diffStreak3 || 0; // local streak3 達成の増分（3連続正解の+1）
     var diffStreakLen = params.diffStreakLen || 0;
+    // ★ 不正解側: 3連続不正解の増分と、連続不正解長の差分（0 以上の増分）
+    var diffStreak3Wrong = params.diffStreak3Wrong || 0;
+    var diffWrongStreakLen = params.diffWrongStreakLen || 0;
 
     var localCorrect = params.localCorrect;    // localStorage 側の正解累計値
     var localWrong = params.localWrong;        // localStorage 側の不正解累計値
     var localStreak3 = params.localStreak3 || 0;
     var localStreakLen = params.localStreakLen || 0;
+    // ★ 不正解側: localStorage の 3連続不正解回数 / 連続不正解長
+    var localStreak3Wrong = params.localStreak3Wrong || 0;
+    var localWrongStreakLen = params.localWrongStreakLen || 0;
 
     var serverCorrect = params.serverCorrect;  // サーバー側 snapshot の正解累計
     var serverWrong = params.serverWrong;
     var serverStreak3 = params.serverStreak3 || 0;
     var serverStreakLen = params.serverStreakLen || 0;
+    // ★ 不正解側: サーバー側 snapshot の 3連続不正解回数 / 連続不正解長
+    var serverStreak3Wrong = params.serverStreak3Wrong || 0;
+    var serverWrongStreakLen = params.serverWrongStreakLen || 0;
+
+    // ★ コンソールで送信前の不正解ストリーク状態を確認できるようにログ出力
+    console.log("[SYNC-B] sendDiffToServer: wrong-streak params", {
+      qid: qid,
+      diffStreak3Wrong: diffStreak3Wrong,
+      diffWrongStreakLen: diffWrongStreakLen,
+      localStreak3Wrong: localStreak3Wrong,
+      localWrongStreakLen: localWrongStreakLen,
+      serverStreak3Wrong: serverStreak3Wrong,
+      serverWrongStreakLen: serverWrongStreakLen
+    });
 
     // ★ O.D.O.A Mode 表示用テキスト（refreshAndSend から渡される）
     var odoaModeText = params.odoaModeText || "不明";
@@ -541,7 +562,9 @@
     if (diffCorrect <= 0 &&
         diffWrong <= 0 &&
         diffStreak3 <= 0 &&
+        diffStreak3Wrong <= 0 &&
         localStreakLen === serverStreakLen &&
+        localWrongStreakLen === serverWrongStreakLen &&
         !oncePerDayDelta) {
 
       var odoaStatusTextForPanel;
@@ -607,6 +630,8 @@
     var incorrectDeltaObj = {};
     var streak3DeltaObj = {};
     var streakLenDeltaObj = {};
+    var streak3WrongDeltaObj = {};
+    var streakWrongLenDeltaObj = {};
 
     if (diffCorrect > 0) {
       correctDeltaObj[qid] = diffCorrect;
@@ -616,6 +641,14 @@
     }
     if (diffStreak3 > 0) {
       streak3DeltaObj[qid] = diffStreak3;
+    }
+    // ★ 不正解側: 3連続不正解の増分があれば delta として送信
+    if (diffStreak3Wrong > 0) {
+      streak3WrongDeltaObj[qid] = diffStreak3Wrong;
+      console.log("[SYNC-B] streak3WrongDelta set:", {
+        qid: qid,
+        diffStreak3Wrong: diffStreak3Wrong
+      });
     }
 
     // ====== ⑤ streakLenDelta（連続正解長）の扱い ======
@@ -638,13 +671,33 @@
       });
     }
 
+    // ★ 不正解側: streakWrongLenDelta（連続不正解長）の扱い
+    //   - local と server が同じ連続不正解長なら送らない
+    //   - 違う場合のみ「最新値」として送る
+    if (localWrongStreakLen !== serverWrongStreakLen) {
+      streakWrongLenDeltaObj[qid] = localWrongStreakLen;
+      console.log("[SYNC-B] streakWrongLenDelta set (local != server):", {
+        qid: qid,
+        localWrongStreakLen: localWrongStreakLen,
+        serverWrongStreakLen: serverWrongStreakLen
+      });
+    } else {
+      console.log("[SYNC-B] streakWrongLenDelta not set (local == server):", {
+        qid: qid,
+        localWrongStreakLen: localWrongStreakLen,
+        serverWrongStreakLen: serverWrongStreakLen
+      });
+    }
+
     // ====== ⑥ 上記 delta 群をまとめて payload を構築 ======
     var payload = {
       correctDelta:  correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
       streak3Delta:  streak3DeltaObj,
-      streakLenDelta: streakLenDeltaObj,  // streakLen は上書き
-      updatedAt: Date.now()              // クライアント側での更新時刻
+      streakLenDelta: streakLenDeltaObj,       // streakLen は上書き
+      streak3WrongDelta: streak3WrongDeltaObj, // 不正解側 3連続の増分
+      streakWrongLenDelta: streakWrongLenDeltaObj, // 不正解側 連続長の最新値
+      updatedAt: Date.now()                    // クライアント側での更新時刻
     };
 
     // ★ 追加: 総問題数（cscs_total_questions）を global.totalQuestions として付与
@@ -674,6 +727,8 @@
     var hasIncorrectDeltaInPayload = Object.prototype.hasOwnProperty.call(incorrectDeltaObj, qid);
     var hasStreak3DeltaInPayload = Object.prototype.hasOwnProperty.call(streak3DeltaObj, qid);
     var hasStreakLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakLenDeltaObj, qid);
+    var hasStreak3WrongDeltaInPayload = Object.prototype.hasOwnProperty.call(streak3WrongDeltaObj, qid);
+    var hasStreakWrongLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakWrongLenDeltaObj, qid);
     var hasOncePerDayDeltaInPayload = !!oncePerDayDelta;
     var hasGlobalTotalQuestionsInPayload =
       !!(payload.global &&
@@ -685,6 +740,8 @@
       !hasIncorrectDeltaInPayload &&
       !hasStreak3DeltaInPayload &&
       !hasStreakLenDeltaInPayload &&
+      !hasStreak3WrongDeltaInPayload &&
+      !hasStreakWrongLenDeltaInPayload &&
       !hasOncePerDayDeltaInPayload &&
       !hasGlobalTotalQuestionsInPayload
     ) {
@@ -770,6 +827,8 @@
       var newServerWrong = serverWrong;
       var newServerStreak3 = serverStreak3;
       var newServerStreakLen = serverStreakLen;
+      var newServerStreak3Wrong = serverStreak3Wrong;
+      var newServerWrongStreakLen = serverWrongStreakLen;
 
       if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
         if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
@@ -807,10 +866,31 @@
         }
       }
 
+      // ★ 不正解側: merge レスポンスの streak3Wrong / streakWrongLen も拾う
+      if (data && data.streak3Wrong && typeof data.streak3Wrong === "object" && data.streak3Wrong !== null) {
+        if (Object.prototype.hasOwnProperty.call(data.streak3Wrong, qid)) {
+          var s3wVal = data.streak3Wrong[qid];
+          if (typeof s3wVal === "number" && Number.isFinite(s3wVal) && s3wVal >= 0) {
+            newServerStreak3Wrong = s3wVal;
+          }
+        }
+      }
+
+      if (data && data.streakWrongLen && typeof data.streakWrongLen === "object" && data.streakWrongLen !== null) {
+        if (Object.prototype.hasOwnProperty.call(data.streakWrongLen, qid)) {
+          var slwVal = data.streakWrongLen[qid];
+          if (typeof slwVal === "number" && Number.isFinite(slwVal) && slwVal >= 0) {
+            newServerWrongStreakLen = slwVal;
+          }
+        }
+      }
+
       var newDiffCorrect = Math.max(0, localCorrect - newServerCorrect);
       var newDiffWrong = Math.max(0, localWrong - newServerWrong);
       var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
       var newDiffStreakLen = Math.max(0, localStreakLen - newServerStreakLen);
+      var newDiffStreak3Wrong = Math.max(0, localStreak3Wrong - newServerStreak3Wrong);
+      var newDiffWrongStreakLen = Math.max(0, localWrongStreakLen - newServerWrongStreakLen);
 
       // ★ merge 成功後に /api/sync/state を再取得して、
       //    「保存されたか」「state に反映されたか」を diff ベースで確認する
@@ -824,6 +904,8 @@
         var refreshedServerWrong = newServerWrong;
         var refreshedServerStreak3 = newServerStreak3;
         var refreshedServerStreakLen = newServerStreakLen;
+        var refreshedServerStreak3Wrong = newServerStreak3Wrong;
+        var refreshedServerWrongStreakLen = newServerWrongStreakLen;
 
         if (stateAfter && stateAfter.correct && stateAfter.correct[qid] != null) {
           refreshedServerCorrect = stateAfter.correct[qid];
@@ -837,18 +919,40 @@
         if (stateAfter && stateAfter.streakLen && stateAfter.streakLen[qid] != null) {
           refreshedServerStreakLen = stateAfter.streakLen[qid];
         }
+        // ★ 不正解側: stateAfter.streak3Wrong / streakWrongLen も確認
+        if (stateAfter && stateAfter.streak3Wrong && stateAfter.streak3Wrong[qid] != null) {
+          refreshedServerStreak3Wrong = stateAfter.streak3Wrong[qid];
+        }
+        if (stateAfter && stateAfter.streakWrongLen && stateAfter.streakWrongLen[qid] != null) {
+          refreshedServerWrongStreakLen = stateAfter.streakWrongLen[qid];
+        }
 
         var refreshedDiffCorrect = Math.max(0, localCorrect - refreshedServerCorrect);
         var refreshedDiffWrong = Math.max(0, localWrong - refreshedServerWrong);
         var refreshedDiffStreak3 = Math.max(0, localStreak3 - refreshedServerStreak3);
         var refreshedDiffStreakLen = Math.max(0, localStreakLen - refreshedServerStreakLen);
+        var refreshedDiffStreak3Wrong = Math.max(0, localStreak3Wrong - refreshedServerStreak3Wrong);
+        var refreshedDiffWrongStreakLen = Math.max(0, localWrongStreakLen - refreshedServerWrongStreakLen);
+
+        // ★ console から不正解ストリークの同期状況を確認しやすくするログ
+        console.log("[SYNC-B] wrong-streak after merge+state:", {
+          qid: qid,
+          refreshedServerStreak3Wrong: refreshedServerStreak3Wrong,
+          localStreak3Wrong: localStreak3Wrong,
+          refreshedDiffStreak3Wrong: refreshedDiffStreak3Wrong,
+          refreshedServerWrongStreakLen: refreshedServerWrongStreakLen,
+          localWrongStreakLen: localWrongStreakLen,
+          refreshedDiffWrongStreakLen: refreshedDiffWrongStreakLen
+        });
 
         var statusMsg = "merge ok / state synced (保存・反映完了)";
         if (
           refreshedDiffCorrect > 0 ||
           refreshedDiffWrong > 0 ||
           refreshedDiffStreak3 > 0 ||
-          refreshedDiffStreakLen > 0
+          refreshedDiffStreakLen > 0 ||
+          refreshedDiffStreak3Wrong > 0 ||
+          refreshedDiffWrongStreakLen > 0
         ) {
           statusMsg = "merge ok / state に未反映の差分あり";
         }
@@ -1008,6 +1112,8 @@
         var serverWrong = 0;
         var serverStreak3 = 0;
         var serverStreakLen = 0;
+        var serverStreak3Wrong = 0;
+        var serverWrongStreakLen = 0;
 
         if (state && state.correct && state.correct[info.qid] != null) {
           serverCorrect = state.correct[info.qid];
@@ -1021,16 +1127,40 @@
         if (state && state.streakLen && state.streakLen[info.qid] != null) {
           serverStreakLen = state.streakLen[info.qid];
         }
+        // ★ 不正解側: サーバーの 3連続不正解回数と現在の連続不正解長を取得
+        if (state && state.streak3Wrong && state.streak3Wrong[info.qid] != null) {
+          serverStreak3Wrong = state.streak3Wrong[info.qid];
+        }
+        if (state && state.streakWrongLen && state.streakWrongLen[info.qid] != null) {
+          serverWrongStreakLen = state.streakWrongLen[info.qid];
+        }
 
         var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
         var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
         var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
         var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
+        // ★ 不正解側: localStorage の 3連続不正解回数と現在の連続不正解長を取得
+        var localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + info.qid);
+        var localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + info.qid);
 
         var diffCorrect = Math.max(0, localCorrect - serverCorrect);
         var diffWrong = Math.max(0, localWrong - serverWrong);
         var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
         var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
+        // ★ 不正解側: SYNC と local の差分（0 以上の増分）を計算
+        var diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
+        var diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
+
+        // ★ コンソールで不正解ストリーク同期対象を確認できるようにログ出力
+        console.log("[SYNC-B] wrong-streak diff (local vs server):", {
+          qid: info.qid,
+          serverStreak3Wrong: serverStreak3Wrong,
+          localStreak3Wrong: localStreak3Wrong,
+          diffStreak3Wrong: diffStreak3Wrong,
+          serverWrongStreakLen: serverWrongStreakLen,
+          localWrongStreakLen: localWrongStreakLen,
+          diffWrongStreakLen: diffWrongStreakLen
+        });
 
         // ★ O.D.O.A Mode の状態を SYNC state から読み取る
         //   - Workers 側で実際にどこに保存しているかに合わせてここを書き換えること
@@ -1171,19 +1301,21 @@
           serverWrong: serverWrong,
           serverStreak3: serverStreak3,
           serverStreakLen: serverStreakLen,
+          serverStreak3Wrong: serverStreak3Wrong,
+          serverWrongStreakLen: serverWrongStreakLen,
           localCorrect: localCorrect,
           localWrong: localWrong,
           localStreak3: localStreak3,
           localStreakLen: localStreakLen,
+          localStreak3Wrong: localStreak3Wrong,
+          localWrongStreakLen: localWrongStreakLen,
           diffCorrect: diffCorrect,
           diffWrong: diffWrong,
           diffStreak3: diffStreak3,
           diffStreakLen: diffStreakLen,
-          // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を渡す
-          syncState: state,
-          // ★ O.D.O.A Mode 表示用テキストも sendDiffToServer に引き継ぎ
-          odoaModeText: odoaModeText
-        });
+          diffStreak3Wrong: diffStreak3Wrong,
+          diffWrongStreakLen: diffWrongStreakLen,
+          // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を
       })
       .catch(function (e) {
         console.error("[SYNC-B] state fetch error:", e);
