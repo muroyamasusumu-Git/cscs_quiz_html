@@ -1045,6 +1045,14 @@
       box.id = "cscs_sync_monitor_a";
       box.innerHTML = `
         <div class="sync-header">SYNC(A): <span class="sync-qid"></span></div>
+        <div class="sync-reset-row">            
+          <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
+          <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
+          <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
+          <button id="cscs_sync_onceperday_reset" type="button" class="sync-reset-button">reset oncePerDay</button>
+          <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
+          <!-- <button id="cscs_sync_all_qid_reset" type="button" class="sync-reset-button">⚠︎reset all qid</button> -->
+        </div>        
         <div id="cscs_sync_totals" class="sync-line sync-totals" data-server-c="0" data-server-i="0">server 0 / 0</div>
         <div class="sync-line sync-local">local  0 / 0</div>
         <div class="sync-line sync-queue">+Δ    0 / 0</div>
