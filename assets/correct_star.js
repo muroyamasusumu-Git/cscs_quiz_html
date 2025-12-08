@@ -14,12 +14,12 @@
  *       ⇔ SYNC state: streakLen[qid]
  *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
  *
- * ▼ 問題別 3 連続不正解（🛠️用）
+ * ▼ 問題別 3 連続不正解（💣/💥/🔥 用の累計カウンタ）
  *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
  *       ⇔ SYNC state: streak3Wrong[qid]
  *       ⇔ delta payload: streak3WrongDelta[qid]
  *
- * ▼ 問題別「現在の連続不正解数」（🔧/🔨/🛠️ 用）
+ * ▼ 問題別「現在の連続不正解数」（🔧/🛠️/💣 用）
  *   - localStorage: "cscs_q_wrong_streak_len:" + qid
  *       ⇔ SYNC state: streakWrongLen[qid]
  *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
@@ -34,7 +34,8 @@
  *
  * 役割：
  * - 現在表示中の問題の qid を取得する
- * - localStorage の 3連続正解累計（cscs_q_correct_streak3_total:{qid}）を読む
+ * - localStorage の 3連続正解累計（cscs_q_correct_streak3_total:{qid}）、
+ *   3連続不正解累計（cscs_q_wrong_streak3_total:{qid}）を読む
  * - SYNC state (/api/sync/state) から
  *     streakLen[qid]       … 現在の連続正解数
  *     streakWrongLen[qid]  … 現在の連続不正解数
@@ -43,17 +44,22 @@
  * - .qno 内の <span class="correct_star">…</span> の表示内容を
  *   以下の優先順位で切り替える：
  *
- *   1) 不正解ストリーク（streakWrongLen）:
+ *   1) 不正解ストリーク（streakWrongLen[qid]）:
  *        1連続不正解  → 🔧
- *        2連続不正解  → 🔨
- *        3連続以上    → 🛠️
+ *        2連続不正解  → 🛠️
+ *        3連続以上    → 💣
  *
- *   2) 正解側 3連続累計（cscs_q_correct_streak3_total / streak3）:
+ *   2) 不正解側 3連続累計（cscs_q_wrong_streak3_total / streak3Wrong[qid]）:
+ *        累計 1〜2回   → 💣
+ *        累計 3〜8回   → 💥
+ *        累計 9回以上  → 🔥
+ *
+ *   3) 正解側 3連続累計（cscs_q_correct_streak3_total / streak3[qid]）:
  *        累計 1〜2回   → ⭐️
  *        累計 3〜8回   → 🌟
  *        累計 9回以上  → 💫
  *
- *   3) 正解側「現在の連続正解数」（streakLen）:
+ *   4) 上記いずれにも該当しない場合（まだ 3連続達成が無く、連続不正解も 0）のとき：
  *        2連続正解中  → ⚡️
  *        1連続正解中  → ✨
  *        それ以外      → ⭐️（OFF状態）
@@ -134,6 +140,36 @@
     return n;
   }
 
+  // ===== 3連続不正解カウント取得 =====
+  function getWrongStreak3Count(qid) {
+    if (!qid) {
+      return 0;
+    }
+
+    // 問題別の3連不正解累計キー
+    // 例: "cscs_q_wrong_streak3_total:20250926-001"
+    var key = "cscs_q_wrong_streak3_total:" + qid;
+    var raw = null;
+
+    try {
+      raw = window.localStorage.getItem(key);
+    } catch (e) {
+      // localStorage が使えない環境では 0 回扱い
+      return 0;
+    }
+
+    if (raw === null || raw === undefined || raw === "") {
+      return 0;
+    }
+
+    var n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 0) {
+      return 0;
+    }
+
+    return n;
+  }
+
   // ===== 現在の連続正解数 / 連続不正解数 と oncePerDayToday ステータスを SYNC から取得 =====
   /**
    * SYNC (/api/sync/state) から
@@ -149,13 +185,6 @@
    *    oncePerDayStatus: null
    *  }
    * を返す。
-   *
-   * oncePerDayToday の構造は cscs_sync_view_b.js と同じく:
-   *   oncePerDayToday: {
-   *     day: number,              // 例: 20251204
-   *     results: { qid: string }  // 例: { "20250926-022": "wrong", ... }
-   *   }
-   * を想定する。
    */
   async function getCurrentStreakInfoFromSync(qid) {
     if (!qid) {
@@ -215,7 +244,7 @@
         console.warn("correct_star.js: SYNC に streakWrongLen がありません(不正解ストリーク用)");
       }
 
-      // oncePerDayToday 部分の取得（cscs_sync_view_b.js と同じ { day, results } 構造）
+      // oncePerDayToday 部分の取得（{ day, results } 構造）
       var oncePerDayStatus = null;
       var onceMap = root.oncePerDayToday;
       var onceDay = null;
@@ -281,7 +310,28 @@
     return "⭐️";
   }
 
-  // nav_list.js など他スクリプトからも利用できるように公開
+  // 不正解側 3連続累計 → マーカー絵文字 変換ヘルパー
+  function getWrongSymbolFromStreak3Count(count) {
+    var n = Number(count || 0);
+    if (!Number.isFinite(n) || n < 0) {
+      n = 0;
+    }
+
+    if (n >= 9) {
+      // 9回以上 3連続不正解達成で 🔥
+      return "🔥";
+    } else if (n >= 3) {
+      // 3〜8回達成で 💥
+      return "💥";
+    } else if (n >= 1) {
+      // 1〜2回達成で 💣
+      return "💣";
+    }
+
+    return null;
+  }
+
+  // nav_list.js など他スクリプトからも利用できるように公開（正解側のみ）
   if (typeof window !== "undefined") {
     window.cscsGetStarSymbolFromStreakCount = getStarSymbolFromStreakCount;
   }
@@ -293,16 +343,21 @@
    * 優先度の高いルール：
    *
    *  1) 不正解ストリーク（streakWrongLen[qid]）が 1 以上のとき：
-   *       1連続不正解  → 🖋️
-   *       2連続不正解  → 🖌️
-   *       3連続以上    → 🖍️
+   *       1連続不正解  → 🔧
+   *       2連続不正解  → 🛠️
+   *       3連続以上    → 💣
    *
-   *  2) 不正解ストリークが 0 の場合で、一度でも 3連続正解を達成していれば：
-   *       累積 1〜2回   → ⭐️
-   *       累積 3〜8回   → 🌟
-   *       累積 9回以上  → 💫
+   *  2) 不正解ストリークが 0 かつ「不正解側 3連続累計」が 1 以上のとき：
+   *       累計 1〜2回   → 💣
+   *       累計 3〜8回   → 💥
+   *       累計 9回以上  → 🔥
    *
-   *  3) 上記どちらにも該当しない場合（まだ 3連続正解未達成かつ連続不正解も 0）のとき：
+   *  3) 上記に該当せず、正解側 3連続累計が 1 以上のとき：
+   *       累計 1〜2回   → ⭐️
+   *       累計 3〜8回   → 🌟
+   *       累計 9回以上  → 💫
+   *
+   *  4) それ以外（まだ3連続達成なし & 連続不正解も 0）のとき：
    *       2連続正解中  → ⚡️
    *       1連続正解中  → ✨
    *       それ以外      → ⭐️（OFF状態）
@@ -319,11 +374,13 @@
       return;
     }
 
-    // 3連続正解達成回数（累積）
-    var count = getStreak3Count(qid);
+    // 正解側 3連続正解達成回数（累積）
+    var correct3Total = getStreak3Count(qid);
+    var symbolFromCorrectTotal = getStarSymbolFromStreakCount(correct3Total);
 
-    // 3連続正解の累積回数に応じた基本シンボル（⭐️/🌟/💫）
-    var symbolFromTotal = getStarSymbolFromStreakCount(count);
+    // 不正解側 3連続不正解達成回数（累積）
+    var wrong3Total = getWrongStreak3Count(qid);
+    var symbolFromWrongTotal = getWrongSymbolFromStreak3Count(wrong3Total);
 
     // 現在の連続正解数 / 連続不正解数 / oncePerDayToday ステータスを SYNC から取得
     var currentStreakLenCorrect = 0;
@@ -349,37 +406,37 @@
       }
     }
 
-    var finalSymbol = symbolFromTotal;
+    var finalSymbol = symbolFromCorrectTotal;
     var state = "off";
 
-    // 1) 不正解ストリークが 1 以上あれば、正解側より優先して 🔧/🔨/🛠️ を表示
+    // 1) 不正解ストリーク優先（🔧 / 🛠️ / 💣）
     if (currentStreakLenWrong >= 1) {
       if (currentStreakLenWrong >= 3) {
-        finalSymbol = "🛠️"; // 3連続以上の不正解
+        finalSymbol = "💣"; // 3連続以上の不正解
       } else if (currentStreakLenWrong === 2) {
-        finalSymbol = "🔨"; // 2連続不正解
+        finalSymbol = "🛠️"; // 2連続不正解
       } else {
         finalSymbol = "🔧"; // 1連続不正解
       }
       state = "on";
-    } else if (count >= 1) {
-      // 2) 不正解ストリークが 0 で、一度でも3連続正解を達成していれば累積シンボルをそのまま表示
-      finalSymbol = symbolFromTotal;
+    } else if (symbolFromWrongTotal) {
+      // 2) 不正解側 3連続累計（💣 / 💥 / 🔥）
+      finalSymbol = symbolFromWrongTotal;
+      state = "on";
+    } else if (correct3Total >= 1) {
+      // 3) 正解側 3連続累計（⭐️ / 🌟 / 💫）
+      finalSymbol = symbolFromCorrectTotal;
       state = "on";
     } else {
-      // 3) まだ3連続正解は未達成 & 連続不正解も 0 の場合のみ、
-      //    正解側の連続回数に応じて ⚡️ / ✨ / ⭐️ を表示
+      // 4) まだ3連続達成なし & 連続不正解も 0 → 正解ストリークのみで評価
       if (currentStreakLenCorrect >= 2) {
-        // リーチ⚡️（2連続正解中）
-        finalSymbol = "⚡️";
+        finalSymbol = "⚡️"; // 2連続正解中
         state = "on";
       } else if (currentStreakLenCorrect === 1) {
-        // あと1回でリーチ✨（1連続正解中）
-        finalSymbol = "✨";
+        finalSymbol = "✨"; // 1連続正解中
         state = "on";
       } else {
-        // 本日未回答など、連続正解も不正解もない場合は従来どおりの ⭐️ + OFF
-        finalSymbol = "⭐️";
+        finalSymbol = "⭐️"; // 何もついていないベース状態
         state = "off";
       }
     }
@@ -389,7 +446,8 @@
 
     console.log("correct_star.js: スター表示を更新しました", {
       qid: qid,
-      streak3Total: count,
+      correct3Total: correct3Total,
+      wrong3Total: wrong3Total,
       currentStreakLenCorrect: currentStreakLenCorrect,
       currentStreakLenWrong: currentStreakLenWrong,
       oncePerDayStatus: oncePerDayStatus,
