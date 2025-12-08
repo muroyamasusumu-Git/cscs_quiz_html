@@ -120,7 +120,12 @@ body.mode-b .opts .is-correct {
 opacity: 1 !important;
 }
 
-
+.answer .opt-small {
+    font-size: 0.75em;
+    line-height: 1.25;
+    opacity: 0.95;
+    margin-left: 10px;
+}
 
 #judge {
 margin-top: 10px;
