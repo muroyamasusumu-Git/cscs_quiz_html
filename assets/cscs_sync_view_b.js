@@ -9,6 +9,14 @@
    * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
    * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
    *
+   * 【重要：開発ルール（恒久）】
+   *   📌 このファイルで使用する LocalStorage / SYNC キー名に
+   *       「変更」または「新規追加」が発生した場合は、
+   *       必ず **本キー対応表コメントに追記すること**。
+   *   - b_judge_record.js・SYNC Worker（merge/state.ts）側と
+   *     キー仕様の不整合が生じることを防ぐ目的。
+   *   - ここに書かれていないキーは原則として使用禁止。
+   *
    * ▼ 問題別累計
    *   - localStorage: "cscs_q_correct_total:" + qid
    *       ⇔ SYNC state: state.correct[qid]
