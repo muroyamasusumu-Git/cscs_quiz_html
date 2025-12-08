@@ -407,7 +407,7 @@
       btn.type = "button";
       btn.style.padding = "4px 6px";
       btn.style.fontSize = "11px";
-      btn.style.background = "#ef4444"; // 以前の #b91c1c より少し淡い赤
+      btn.style.background = "#7f1d1d";
       btn.style.color = "#fff";
       btn.style.border = "none";
       btn.style.borderRadius = "3px";
