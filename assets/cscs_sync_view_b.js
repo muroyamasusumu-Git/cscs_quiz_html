@@ -5,6 +5,56 @@
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
 
+  /**
+   * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
+   * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
+   *
+   * ▼ 問題別累計
+   *   - localStorage: "cscs_q_correct_total:" + qid
+   *       ⇔ SYNC state: state.correct[qid]
+   *   - localStorage: "cscs_q_wrong_total:" + qid
+   *       ⇔ SYNC state: state.incorrect[qid]
+   *
+   * ▼ 問題別 3 連続正解（⭐️用）
+   *   - localStorage: "cscs_q_correct_streak3_total:" + qid
+   *       ⇔ SYNC state: state.streak3[qid]
+   *   - localStorage: "cscs_q_correct_streak_len:" + qid
+   *       ⇔ SYNC state: state.streakLen[qid]
+   *   - payload(merge): streak3Delta[qid] / streakLenDelta[qid]
+   *
+   * ▼ 問題別 3 連続不正解
+   *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
+   *       ⇔ SYNC state: state.streak3Wrong[qid]
+   *   - localStorage: "cscs_q_wrong_streak_len:" + qid
+   *       ⇔ SYNC state: state.streakWrongLen[qid]
+   *
+   * ▼ 今日の⭐️ユニーク数（Streak3Today）
+   *   - localStorage: "cscs_streak3_today_day"
+   *       ⇔ SYNC state: state.streak3Today.day
+   *   - localStorage: "cscs_streak3_today_qids"
+   *       ⇔ SYNC state: state.streak3Today.qids
+   *   - localStorage: "cscs_streak3_today_unique_count"
+   *       ⇔ SYNC state: state.streak3Today.unique_count
+   *   - payload(merge): streak3TodayDelta { day, qids }
+   *
+   * ▼ 1 日 1 回計測モード（oncePerDayToday）
+   *   - localStorage: "cscs_once_per_day_today_day"
+   *       ⇔ SYNC state: state.oncePerDayToday.day
+   *   - localStorage: "cscs_once_per_day_today_results"
+   *       ⇔ SYNC state: state.oncePerDayToday.results[qid]
+   *   - payload(merge): oncePerDayTodayDelta { day, results }
+   *
+   * ▼ グローバル情報
+   *   - localStorage: "cscs_total_questions"
+   *       ⇔ payload(merge): global.totalQuestions
+   *
+   * ▼ O.D.O.A / 検証モード関連
+   *   - SYNC state: state.odoaMode / state.odoa_mode / state.ODOA_MODE
+   *   - SYNC state: state.debug.odoaMode / state.debug.odoa_mode / state.debug.ODOA_MODE
+   *   - SYNC state: state.navGuard.odoaMode / state.navGuard.odoa_mode
+   *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
+   */
+
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
   var LAST_ODOA_STATUS = "";
 
@@ -242,14 +292,93 @@
       var serverProgress = serverStreakLen % 3;
       var localProgress = localStreakLen % 3;
 
+      // ★ 3連続不正解用のサマリを server / local / diff から計算して HUD に追加表示する
+      //   - server 側: window.__cscs_sync_state.streak3Wrong / streakWrongLen（存在すれば使用）
+      //   - local 側: localStorage の cscs_q_wrong_streak3_total:{qid}, cscs_q_wrong_streak_len:{qid}
+      var qidForStreakWrong = info && info.qid ? info.qid : null;
+      var serverStreak3Wrong = 0;
+      var localStreak3Wrong = 0;
+      var diffStreak3Wrong = 0;
+      var serverWrongStreakLen = 0;
+      var localWrongStreakLen = 0;
+      var diffWrongStreakLen = 0;
+      var serverWrongProgress = 0;
+      var localWrongProgress = 0;
+
+      try {
+        if (qidForStreakWrong) {
+          var stateForWrong = null;
+          try {
+            stateForWrong = window.__cscs_sync_state || null;
+          } catch (_eStateWrong) {
+            stateForWrong = null;
+          }
+
+          // サーバ側の 3連続不正解回数（存在する場合のみ採用）
+          if (
+            stateForWrong &&
+            stateForWrong.streak3Wrong &&
+            typeof stateForWrong.streak3Wrong === "object" &&
+            stateForWrong.streak3Wrong[qidForStreakWrong] != null
+          ) {
+            var s3w = stateForWrong.streak3Wrong[qidForStreakWrong];
+            if (typeof s3w === "number" && Number.isFinite(s3w) && s3w >= 0) {
+              serverStreak3Wrong = s3w;
+            }
+          }
+
+          // サーバ側の「現在の連続不正解長」（存在する場合のみ採用）
+          if (
+            stateForWrong &&
+            stateForWrong.streakWrongLen &&
+            typeof stateForWrong.streakWrongLen === "object" &&
+            stateForWrong.streakWrongLen[qidForStreakWrong] != null
+          ) {
+            var slw = stateForWrong.streakWrongLen[qidForStreakWrong];
+            if (typeof slw === "number" && Number.isFinite(slw) && slw >= 0) {
+              serverWrongStreakLen = slw;
+            }
+          }
+
+          // localStorage 側の 3連続不正解回数 / 現在の連続不正解長
+          localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + qidForStreakWrong);
+          localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + qidForStreakWrong);
+
+          // SYNC と local の diff と 3回に対する進捗（0〜2/3）を計算
+          diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
+          diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
+
+          serverWrongProgress = serverWrongStreakLen % 3;
+          localWrongProgress = localWrongStreakLen % 3;
+
+          console.log("[SYNC-B:view] wrong-streak status", {
+            qid: qidForStreakWrong,
+            serverStreak3Wrong: serverStreak3Wrong,
+            localStreak3Wrong: localStreak3Wrong,
+            diffStreak3Wrong: diffStreak3Wrong,
+            serverWrongStreakLen: serverWrongStreakLen,
+            localWrongStreakLen: localWrongStreakLen,
+            diffWrongStreakLen: diffWrongStreakLen,
+            serverWrongProgress: serverWrongProgress,
+            localWrongProgress: localWrongProgress
+          });
+        }
+      } catch (eWrong) {
+        console.error("[SYNC-B:view] wrong-streak status error:", eWrong);
+      }
+
       var text = "";
       text += "server " + serverCorrect + " / " + serverWrong + "\n";
       text += "local  " + localCorrect + " / " + localWrong + "\n";
       text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
       text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
+      text += "s3W    " + serverStreak3Wrong + " / " + localStreak3Wrong + " (+" + diffStreak3Wrong + ")\n";
       text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
+      text += "sLenW  " + serverWrongStreakLen + " / " + localWrongStreakLen + " (+" + diffWrongStreakLen + ")\n";
       text += "3連続正解回数 (進捗):\n";
       text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)\n";
+      text += "3連続不正解回数 (進捗):\n";
+      text += "SYNC " + serverStreak3Wrong + " (" + serverWrongProgress + "/3) / local " + localStreak3Wrong + " (" + localWrongProgress + "/3)\n";
 
       var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
         ? window.__cscs_sync_state.streak3Today.day : "-";
