@@ -407,21 +407,18 @@
       btn.type = "button";
       btn.style.padding = "4px 6px";
       btn.style.fontSize = "11px";
-      btn.style.background = "#fee2e2";        // 薄いピンク系
-      btn.style.color = "#991b1b";             // 少し濃い赤文字
-      btn.style.border = "1px solid #fecaca";  // 薄い赤のボーダー
+      btn.style.background = "#ef4444"; // 以前の #b91c1c より少し淡い赤
+      btn.style.color = "#fff";
+      btn.style.border = "none";
       btn.style.borderRadius = "3px";
       btn.style.cursor = "pointer";
+      btn.style.opacity = "0.9";
       btn.style.textAlign = "left";
-
       btn.addEventListener("mouseenter", function () {
-        btn.style.background = "#fecaca";      // ほんの少しだけ濃く
-        btn.style.borderColor = "#fca5a5";
+        btn.style.opacity = "1";
       });
-
       btn.addEventListener("mouseleave", function () {
-        btn.style.background = "#fee2e2";      // 元の薄い色に戻す
-        btn.style.borderColor = "#fecaca";
+        btn.style.opacity = "0.9";
       });
     }
 
