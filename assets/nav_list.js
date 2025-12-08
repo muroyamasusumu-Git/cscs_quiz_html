@@ -1238,7 +1238,12 @@
        *  4) 上記いずれにも該当しない場合
        *       2連続正解中  → ⚡️
        *       1連続正解中  → ✨
-       *       それ以外      → ⭐️（OFF状態）
+       *       それ以外      → OFF状態
+       *
+       *   ※ correct_star.js 本体では OFF 状態も「⭐️」で表示しているが、
+       *      nav_list.js の一覧ビューでは「まだ何も起きていない問題」を
+       *      視覚的に区別しやすくするため "—" で表示する。
+       *      （優先順位と閾値ロジック自体は correct_star.js と完全に同じ）
        */
       function decideStreakMarkFromStats(streakLenCorrect, streakLenWrong, correct3Total, wrong3Total) {
         var cLen = Number(streakLenCorrect || 0);
@@ -1291,7 +1296,7 @@
         if (cLen === 1) {
           return "✨";   // 1連続正解中
         }
-        return "⭐️";     // ベース状態（OFF）
+        return "—";       // nav_list 一覧上の「完全OFF」状態
       }
 
       // correct_star.js の優先順位ルールに基づいてマーカーを決定
