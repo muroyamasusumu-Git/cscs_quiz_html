@@ -550,11 +550,12 @@
     trigger.type = "button";
     trigger.textContent = "🗑️";
     trigger.title = "CSCS 計測リセットパネルを表示 / 非表示";
-    trigger.style.marginLeft = "4px";
-    trigger.style.padding = "0 4px";
+    trigger.style.marginLeft = "-4px";
+    trigger.style.marginRight = "-4px";
+    trigger.style.padding = "0px 0px";
     trigger.style.fontSize = "14px";
-    trigger.style.background = "transparent";
-    trigger.style.border = "none";
+    trigger.style.background = "none";
+    trigger.style.border = "medium";
     trigger.style.cursor = "pointer";
     trigger.style.color = "inherit";
     trigger.style.lineHeight = "1";

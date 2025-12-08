@@ -92,19 +92,6 @@ margin-right: 0 !important;
     vertical-align: bottom !important;
 }
 
-#cscs-debug-reset-trigger {
-    margin-left: -4px;
-    padding: 0px 0px;
-    font-size: 14px;
-    background: none;
-    border: medium;
-    cursor: pointer;
-    color: inherit;
-    line-height: 1;
-    margin-right: -4px;
-}
-
-
 .topmeta-left {
     display: flex ;
     flex-wrap: wrap;
