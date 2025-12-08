@@ -21,7 +21,7 @@
  *       ⇔ SYNC state: streakLen[qid]
  *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
  *
- * ▼ 問題別 3 連続不正解（🖍️用）
+ * ▼ 問題別 3 連続不正解（💣用）
  *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
  *       ⇔ SYNC state: streak3Wrong[qid]
  *       ⇔ delta payload: streak3WrongDelta[qid]
@@ -239,8 +239,8 @@
       );
     }
 
-    // 3連続不正解側のステータス（🖍️）
-    console.log("--- 3連続不正解(🖍️) ---");
+    // 3連続不正解側のステータス（💣）
+    console.log("--- 3連続不正解(💣) ---");
     console.log("localStorage[KEY_S3_WRONG] =", localStorage.getItem(KEY_S3_WRONG), "→", localTotalWrong);
     console.log("localStorage[KEY_LAST_S3_WRONG] =", localStorage.getItem(KEY_LAST_S3_WRONG), "→", syncedTotalWrong);
 
