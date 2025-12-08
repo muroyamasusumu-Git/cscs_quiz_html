@@ -41,6 +41,17 @@
  *       ⇔ SYNC state: streak3Today.unique_count
  *       ⇔ delta payload: streak3TodayDelta.unique_count（省略可）
  *
+ * ▼ Streak3WrongToday（本日の3連続不正解ユニーク数）
+ *   - localStorage: "cscs_streak3_wrong_today_day"
+ *       ⇔ SYNC state: streak3WrongToday.day
+ *       ⇔ delta payload: streak3WrongTodayDelta.day
+ *   - localStorage: "cscs_streak3_wrong_today_qids"
+ *       ⇔ SYNC state: streak3WrongToday.qids
+ *       ⇔ delta payload: streak3WrongTodayDelta.qids
+ *   - localStorage: "cscs_streak3_wrong_today_unique_count"
+ *       ⇔ SYNC state: streak3WrongToday.unique_count
+ *       ⇔ delta payload: streak3WrongTodayDelta.unique_count（省略可）
+ *
  * ▼ oncePerDayToday（1日1回まで計測）
  *   - localStorage: "cscs_once_per_day_today_day"
  *       ⇔ SYNC state: oncePerDayToday.day
@@ -134,7 +145,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     global: {},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
     odoa_mode: "off",
-    // ★ここでは streak3Today を追加しない（消失確認のため上書き禁止）
+    // ★ここでは streak3Today / streak3WrongToday / oncePerDayToday を追加しない（消失確認のため上書き禁止）
     updatedAt: 0
   };
 
@@ -165,8 +176,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   }
 
   // -----------------------------
-  // 4) streak3Today / oncePerDayToday / fav / O.D.O.A Mode の存在/内容チェック
-  //    - streak3Today は「存在確認のみ（上書き禁止）」
+  // 4) streak3Today / streak3WrongToday / oncePerDayToday / fav / O.D.O.A Mode の存在/内容チェック
+  //    - streak3Today / streak3WrongToday は「存在確認のみ（上書き禁止）」
   //    - oncePerDayToday は「day / results の簡易整合チェック」
   //    - fav は「構造と値が想定どおりかどうか」を確認（補正は行わない）
   // -----------------------------
@@ -185,6 +196,27 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     if (typeof rawSt3.unique_count === "number") {
       const n = rawSt3.unique_count;
       parsedCount = Number.isFinite(n) && n >= 0 ? n : null;
+    }
+  }
+
+  // ★ Streak3WrongToday 側の存在チェックと簡易パース
+  //   - KV に保存されている「本日の3連続不正解ユニーク情報」が、
+  //     day / unique_count / qids の3つとも想定どおりの形かどうかを確認する
+  const hasWrongTodayProp = Object.prototype.hasOwnProperty.call(out, "streak3WrongToday");
+  const rawSt3Wrong: any = hasWrongTodayProp ? (out as any).streak3WrongToday : undefined;
+
+  let parsedWrongDay: string | null = null;
+  let parsedWrongCount: number | null = null;
+
+  if (hasWrongTodayProp && rawSt3Wrong && typeof rawSt3Wrong === "object") {
+    parsedWrongDay =
+      typeof rawSt3Wrong.day === "string"
+        ? rawSt3Wrong.day
+        : null;
+
+    if (typeof rawSt3Wrong.unique_count === "number") {
+      const nw = rawSt3Wrong.unique_count;
+      parsedWrongCount = Number.isFinite(nw) && nw >= 0 ? nw : null;
     }
   }
 
@@ -277,6 +309,31 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       isConsistent
     });
 
+    // ★ Streak3WrongToday の内容チェックログ
+    //   - day / unique_count / qids 配列の整合性（unique_count === qids.length）を確認する
+    const qidsWrongRaw =
+      hasWrongTodayProp && rawSt3Wrong && typeof rawSt3Wrong === "object"
+        ? (rawSt3Wrong as any).qids
+        : undefined;
+    const qidsWrongIsArray = Array.isArray(qidsWrongRaw);
+    const qidsWrongLength = qidsWrongIsArray ? (qidsWrongRaw as any[]).length : 0;
+    const isWrongConsistent =
+      qidsWrongIsArray && parsedWrongCount !== null
+        ? parsedWrongCount === qidsWrongLength
+        : null;
+
+    console.log("[SYNC/state] --- streak3WrongToday Check ---");
+    console.log("[SYNC/state] hasWrongTodayProp        :", hasWrongTodayProp);
+    console.log("[SYNC/state] out.streak3WrongToday(raw):", rawSt3Wrong);
+    console.log("[SYNC/state] out.streak3WrongToday.qids:", qidsWrongRaw);
+    console.log("[SYNC/state] out.streak3WrongToday(parsed):", {
+      day: parsedWrongDay,
+      unique_count: parsedWrongCount,
+      qidsIsArray: qidsWrongIsArray,
+      qidsLength: qidsWrongLength,
+      isConsistent: isWrongConsistent
+    });
+
     console.log("[SYNC/state] --- oncePerDayToday Check ---");
     console.log("[SYNC/state] hasOncePerDayProp:", hasOncePerDayProp);
     console.log("[SYNC/state] out.oncePerDayToday (raw):", rawOnce);
@@ -308,6 +365,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
     console.log("[SYNC/state] hasFav               :", !!out.fav);
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
+    console.log("[SYNC/state] hasStreak3WrongToday :", hasWrongTodayProp);
     console.log("[SYNC/state] hasOncePerDayToday   :", hasOncePerDayProp);
     console.log("[SYNC/state] hasOdoaMode          :", hasOdoaModePropForLog);
 
