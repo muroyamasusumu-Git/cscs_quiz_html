@@ -1,4 +1,79 @@
 // state.ts
+/**
+ * CSCS SYNC state 取得エンドポイント（Workers 側）
+ *
+ * 【キー対応表（LocalStorage ⇔ SYNC state ⇔ delta payload）】
+ *  ※merge.ts と同じキー設計を共有する。state.ts / merge.ts のどちらかで
+ *    新しくキーを追加／既存キー名を変更した場合は、両方の表を必ず更新すること（恒久ルール）。
+ *
+ * ▼ 問題別累計
+ *   - localStorage: "cscs_q_correct_total:" + qid
+ *       ⇔ SYNC state: correct[qid]
+ *       ⇔ delta payload: correctDelta[qid]
+ *   - localStorage: "cscs_q_wrong_total:" + qid
+ *       ⇔ SYNC state: incorrect[qid]
+ *       ⇔ delta payload: incorrectDelta[qid]
+ *
+ * ▼ 問題別 3 連続正解（⭐️用）
+ *   - localStorage: "cscs_q_correct_streak3_total:" + qid
+ *       ⇔ SYNC state: streak3[qid]
+ *       ⇔ delta payload: streak3Delta[qid]
+ *   - localStorage: "cscs_q_correct_streak_len:" + qid
+ *       ⇔ SYNC state: streakLen[qid]
+ *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
+ *
+ * ▼ 問題別 3 連続不正解（🖍️用）
+ *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
+ *       ⇔ SYNC state: streak3Wrong[qid]
+ *       ⇔ delta payload: streak3WrongDelta[qid]
+ *   - localStorage: "cscs_q_wrong_streak_len:" + qid
+ *       ⇔ SYNC state: streakWrongLen[qid]
+ *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
+ *
+ * ▼ Streak3Today（本日の⭐️ユニーク数）
+ *   - localStorage: "cscs_streak3_today_day"
+ *       ⇔ SYNC state: streak3Today.day
+ *       ⇔ delta payload: streak3TodayDelta.day
+ *   - localStorage: "cscs_streak3_today_qids"
+ *       ⇔ SYNC state: streak3Today.qids
+ *       ⇔ delta payload: streak3TodayDelta.qids
+ *   - localStorage: "cscs_streak3_today_unique_count"
+ *       ⇔ SYNC state: streak3Today.unique_count
+ *       ⇔ delta payload: streak3TodayDelta.unique_count（省略可）
+ *
+ * ▼ oncePerDayToday（1日1回まで計測）
+ *   - localStorage: "cscs_once_per_day_today_day"
+ *       ⇔ SYNC state: oncePerDayToday.day
+ *       ⇔ delta payload: oncePerDayTodayDelta.day
+ *   - localStorage: "cscs_once_per_day_today_results"
+ *       ⇔ SYNC state: oncePerDayToday.results[qid]
+ *       ⇔ delta payload: oncePerDayTodayDelta.results[qid]
+ *
+ * ▼ お気に入り状態
+ *   - localStorage: （fav_modal.js 内部管理）
+ *       ⇔ SYNC state: fav[qid]
+ *       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+ *
+ * ▼ グローバル情報
+ *   - localStorage: "cscs_total_questions"
+ *       ⇔ SYNC state: global.totalQuestions
+ *       ⇔ delta payload: global.totalQuestions
+ *
+ * ▼ 整合性ステータス（consistency_status）
+ *   - localStorage: （直接保存はしない / SYNC 専用）
+ *       ⇔ SYNC state: consistency_status[qid]
+ *       ⇔ delta payload: consistencyStatusDelta[qid]
+ *
+ * ▼ 試験日設定（exam_date）
+ *   - localStorage: （直接保存はしない / SYNC 専用）
+ *       ⇔ SYNC state: exam_date (YYYY-MM-DD)
+ *       ⇔ delta payload: exam_date_iso (YYYY-MM-DD)
+ *
+ * ▼ O.D.O.A / 検証モード関連
+ *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
+ *       ⇔ SYNC state: odoa_mode ("on" / "off")
+ *       ⇔ delta payload: odoa_mode
+ */
 export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   // ★ Origin チェック（同一ドメイン＋ローカル開発のみ許可）
   const origin = request.headers.get("Origin");
@@ -49,6 +124,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     incorrect: {},
     streak3: {},
     streakLen: {},
+    // 3連続不正解の累計・現在ストリークも SYNC に必ず載せるための初期構造
+    streak3Wrong: {},
+    streakWrongLen: {},
     consistency_status: {},
     // お気に入り状態（fav_modal.js 用）
     fav: {},
@@ -70,6 +148,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.incorrect) out.incorrect = {};
   if (!out.streak3) out.streak3 = {};
   if (!out.streakLen) out.streakLen = {};
+  if (!out.streak3Wrong) out.streak3Wrong = {};
+  if (!out.streakWrongLen) out.streakWrongLen = {};
   if (!out.consistency_status) out.consistency_status = {};
   if (!out.fav || typeof out.fav !== "object") out.fav = {};
   if (!out.global || typeof out.global !== "object") out.global = {};
@@ -222,6 +302,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] hasIncorrect         :", !!out.incorrect);
     console.log("[SYNC/state] hasStreak3           :", !!out.streak3);
     console.log("[SYNC/state] hasStreakLen         :", !!out.streakLen);
+    // 3連続不正解系の有無も SYNC snapshot から確認できるようにする
+    console.log("[SYNC/state] hasStreak3Wrong      :", !!out.streak3Wrong);
+    console.log("[SYNC/state] hasStreakWrongLen    :", !!out.streakWrongLen);
     console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
     console.log("[SYNC/state] hasFav               :", !!out.fav);
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
@@ -235,6 +318,13 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         : null;
     console.log("[SYNC/state] hasGlobal            :", hasGlobal);
     console.log("[SYNC/state] global.totalQuestions:", totalQuestions);
+
+    // exam_date が SYNC 上に正しく載っているかを簡易チェック
+    const examDateRaw = (out as any).exam_date;
+    const hasExamDate =
+      typeof examDateRaw === "string" && examDateRaw.length > 0;
+    console.log("[SYNC/state] hasExamDate          :", hasExamDate);
+    console.log("[SYNC/state] exam_date            :", hasExamDate ? examDateRaw : null);
 
     console.log("[SYNC/state] === onRequestGet END ===");
     console.log("====================================================");
