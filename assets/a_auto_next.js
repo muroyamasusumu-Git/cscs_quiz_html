@@ -295,6 +295,11 @@
   var autoTimeoutId = null;                        // setTimeout ID
   var startTime = 0;                               // カウント開始時間
   var endTime = 0;                                 // カウント終了予定時間
+  var VERIFY_MODE_AUTO_RESTART_DELAY_MS = 3 * 60 * 1000; // 検証モード自動再開までの待ち時間（ms）
+  var verifyModeAutoRestartTimerId = null;         // 検証モード自動再開用 setTimeout ID
+  var verifyModeAutoRestartDeadline = 0;           // 自動再開予定時刻（Date.now() 基準のタイムスタンプ）
+  var verifyModeAutoRestartIntervalId = null;      // 検証モード再開カウントダウン表示用 setInterval ID
+  var verifyModeAutoRestartTimerId = null;         // 検証モード自動再開用タイマー ID
 
   // =========================
   // 自動送り ON/OFF の読み書き
@@ -1219,9 +1224,112 @@
   // =========================
   window.CSCS_VERIFY_MODE_HELPER = window.CSCS_VERIFY_MODE_HELPER || {};
 
+  // 検証モード自動再開関連のタイマーをすべてクリア
+  function clearVerifyModeAutoRestartTimers() {
+    if (verifyModeAutoRestartTimerId) {
+      try {
+        window.clearTimeout(verifyModeAutoRestartTimerId);
+      } catch (_e) {}
+      verifyModeAutoRestartTimerId = null;
+    }
+    if (verifyModeAutoRestartIntervalId) {
+      try {
+        window.clearInterval(verifyModeAutoRestartIntervalId);
+      } catch (_e2) {}
+      verifyModeAutoRestartIntervalId = null;
+    }
+    verifyModeAutoRestartDeadline = 0;
+  }
+
+  // 検証モード自動再開までの残り秒数を左下に表示する
+  function startVerifyModeAutoRestartVisualCountdown() {
+    if (!counterEl) {
+      counterEl = createAutoNextCounterElement();
+    }
+
+    function update() {
+      if (!verifyModeAutoRestartDeadline) {
+        return;
+      }
+      var now = Date.now();
+      var remainingMs = verifyModeAutoRestartDeadline - now;
+      if (remainingMs <= 0) {
+        if (counterEl) {
+          counterEl.textContent = "検証AUTOの再開を試行中…";
+        }
+        // ここでは interval だけ止めて、実際の再開処理は setTimeout 側で実行
+        if (verifyModeAutoRestartIntervalId) {
+          try {
+            window.clearInterval(verifyModeAutoRestartIntervalId);
+          } catch (_e2) {}
+          verifyModeAutoRestartIntervalId = null;
+        }
+        return;
+      }
+      var remainingSec = Math.ceil(remainingMs / 1000);
+      if (counterEl) {
+        // 自動送りOFF状態の案内＋検証AUTO再開までの残り秒数
+        counterEl.textContent =
+          "自動送りは OFF です / 検証AUTO再開まで " + remainingSec + " 秒";
+      }
+    }
+
+    // 即時更新
+    update();
+
+    // すでに別のカウントが動いていれば一旦止める
+    if (verifyModeAutoRestartIntervalId) {
+      try {
+        window.clearInterval(verifyModeAutoRestartIntervalId);
+      } catch (_e3) {}
+      verifyModeAutoRestartIntervalId = null;
+    }
+    verifyModeAutoRestartIntervalId = window.setInterval(update, COUNTER_INTERVAL_MS);
+  }
+
+  // 検証モード自動再開（3分後に turnOnVerifyMode を呼ぶ）を予約
+  function scheduleVerifyModeAutoRestart(reasonStr) {
+    clearVerifyModeAutoRestartTimers();
+
+    verifyModeAutoRestartDeadline = Date.now() + VERIFY_MODE_AUTO_RESTART_DELAY_MS;
+
+    try {
+      syncLog(
+        "VerifyMode: schedule auto-restart after " +
+          (VERIFY_MODE_AUTO_RESTART_DELAY_MS / 1000) +
+          "s.",
+        {
+          reason: reasonStr || "auto-restart"
+        }
+      );
+    } catch (_e) {}
+
+    verifyModeAutoRestartTimerId = window.setTimeout(function () {
+      // タイマー本体が発火したら、ここでタイマーをクリアした上で検証モードONへ
+      clearVerifyModeAutoRestartTimers();
+      try {
+        syncLog("VerifyMode: auto-restart timer fired, turning ON verify mode.", {
+          reason: reasonStr || "auto-restart"
+        });
+      } catch (_e2) {}
+      if (
+        window.CSCS_VERIFY_MODE_HELPER &&
+        typeof window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode === "function"
+      ) {
+        window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode("auto-restart");
+      }
+    }, VERIFY_MODE_AUTO_RESTART_DELAY_MS);
+
+    // 残り秒数のカウント表示も開始
+    startVerifyModeAutoRestartVisualCountdown();
+  }
+
   // 検証モードを強制ONにする（[検証AUTO:ON] ＋ [自動送り ON]）
   if (!window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode) {
     window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode = function (reason) {
+      // 検証モードON時は、自動再開用タイマーは不要なのですべてクリア
+      clearVerifyModeAutoRestartTimers();
+
       // 検証モードを "on" にして UI と localStorage を同期
       setVerifyModeAndSyncUI("on", {
         reason: reason || "external-turn-on"
@@ -1254,9 +1362,15 @@
   // 検証モードを強制OFFにする
   if (!window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode) {
     window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode = function (reason) {
+      var reasonStr = typeof reason === "string" ? reason : "";
+      var isUserToggle = reasonStr === "user-toggle";
+
+      // まず既存の自動再開タイマーをクリア（後で必要なら再スケジュール）
+      clearVerifyModeAutoRestartTimers();
+
       // 検証モードを "off" にして UI と localStorage を同期
       setVerifyModeAndSyncUI("off", {
-        reason: reason || "external-turn-off"
+        reason: reasonStr || "external-turn-off"
       });
 
       // ★ 検証モードOFF時は、自動送りも必ず OFF に揃える
@@ -1269,6 +1383,18 @@
 
       // カウントダウンや自動遷移も停止し、「OFF」表示にしておく
       cancelAutoAdvanceCountdown(true);
+
+      // ▼ 「自動OFF」とみなせる場合のみ、3分後に自動ONを予約
+      //   - user-toggle 以外の reason はすべて「自動OFF」とみなす
+      if (!isUserToggle) {
+        scheduleVerifyModeAutoRestart(reasonStr || "auto-restart");
+      } else {
+        try {
+          syncLog("VerifyMode: turned off by user-toggle; no auto-restart.", {
+            reason: reasonStr || "user-toggle"
+          });
+        } catch (_e3) {}
+      }
     };
   }
 
