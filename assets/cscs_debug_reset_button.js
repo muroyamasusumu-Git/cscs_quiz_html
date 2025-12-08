@@ -466,8 +466,11 @@
     // ▼ ALL（従来の挙動：全ての計測系カテゴリをまとめてリセット）
     createResetButton(
       "[ALL] 全計測リセット",
-      "全ての計測系（ローカル＋SYNC）のデータをリセットします。\n" +
-      "日次系・問題別累計・ストリーク・Streak3Today / Streak3WrongToday・1日1回計測・A→Bトークンが対象です。",
+      "【全キーが対象】\n" +
+      "日次系(cscs_correct_attempts_* / cscs_wrong_attempts_* / done / attempt_log)、\n" +
+      "問題別累計(cscs_q_correct_total:* / wrong_total:* など)、\n" +
+      "ストリーク(cscs_q_correct_streak_len:* / wrong_streak_len:* など)、\n" +
+      "Streak3Today / WrongToday、1日1回計測、A→Bトークンをすべて削除します。",
       resetLocalCounters,
       resetSyncOnServer
     );
@@ -475,7 +478,11 @@
     // ▼ 日次系
     createResetButton(
       "日次系のみ",
-      "各日付ごとの正解数 / 不正解数 / done フラグ / attempt_log をリセットします。",
+      "【対象キー】\n" +
+      "- cscs_correct_attempts_YYYYMMDD\n" +
+      "- cscs_wrong_attempts_YYYYMMDD\n" +
+      "- cscs_correct_done:YYYYMMDD / cscs_wrong_done:YYYYMMDD\n" +
+      "- cscs_correct_attempt_log_YYYYMMDD / wrong_attempt_log_YYYYMMDD",
       resetDailyLocal,
       resetDailySync
     );
@@ -483,7 +490,11 @@
     // ▼ 問題別累計
     createResetButton(
       "問題別累計のみ",
-      "各問題 qid ごとの累計正解 / 不正解（counted / uncounted を含む）をリセットします。",
+      "【対象キー】\n" +
+      "- cscs_q_correct_total:qid\n" +
+      "- cscs_q_wrong_total:qid\n" +
+      "- cscs_q_correct_counted_total:qid / wrong_counted_total:qid\n" +
+      "- cscs_q_correct_uncounted_total:qid / wrong_uncounted_total:qid",
       resetQTotalsLocal,
       resetQTotalsSync
     );
@@ -491,7 +502,11 @@
     // ▼ 問題別ストリーク
     createResetButton(
       "問題別ストリークのみ",
-      "各問題 qid ごとの連続正解 / 連続不正解、および 3 連続達成回数・ログをリセットします。",
+      "【対象キー】\n" +
+      "- cscs_q_correct_streak_len:qid\n" +
+      "- cscs_q_correct_streak3_total:qid / streak3_log:qid\n" +
+      "- cscs_q_wrong_streak_len:qid\n" +
+      "- cscs_q_wrong_streak3_total:qid / streak3_log:qid",
       resetQStreaksLocal,
       resetQStreaksSync
     );
@@ -499,7 +514,10 @@
     // ▼ 全体ストリーク
     createResetButton(
       "全体ストリークのみ",
-      "その日の全体としての連続正解情報（global streak）をリセットします。",
+      "【対象キー】\n" +
+      "- cscs_correct_streak_len\n" +
+      "- cscs_correct_streak3_total\n" +
+      "- cscs_correct_streak3_log",
       resetGlobalStreakLocal,
       resetGlobalStreakSync
     );
@@ -507,7 +525,9 @@
     // ▼ その他メタ
     createResetButton(
       "その他メタのみ",
-      "cscs_wrong_log / cscs_last_seen_day などの補助的メタ情報をリセットします。",
+      "【対象キー】\n" +
+      "- cscs_wrong_log\n" +
+      "- cscs_last_seen_day",
       resetMetaLocal,
       resetMetaSync
     );
@@ -515,7 +535,10 @@
     // ▼ Streak3Today
     createResetButton(
       "Streak3Todayのみ",
-      "本日の 3 連続正解ユニーク数（Streak3Today）の日付・qid 一覧・カウントをリセットします。",
+      "【対象キー】\n" +
+      "- cscs_streak3_today_day\n" +
+      "- cscs_streak3_today_qids\n" +
+      "- cscs_streak3_today_unique_count",
       resetStreak3TodayLocal,
       resetStreak3TodaySync
     );
@@ -523,7 +546,10 @@
     // ▼ Streak3WrongToday
     createResetButton(
       "Streak3WrongTodayのみ",
-      "本日の 3 連続不正解ユニーク数（Streak3WrongToday）の日付・qid 一覧・カウントをリセットします。",
+      "【対象キー】\n" +
+      "- cscs_streak3_wrong_today_day\n" +
+      "- cscs_streak3_wrong_today_qids\n" +
+      "- cscs_streak3_wrong_today_unique_count",
       resetStreak3WrongTodayLocal,
       resetStreak3WrongTodaySync
     );
@@ -531,7 +557,9 @@
     // ▼ oncePerDayToday
     createResetButton(
       "1日1回計測のみ",
-      "oncePerDayToday（1日1回まで計測）の日付と結果をリセットします。",
+      "【対象キー】\n" +
+      "- cscs_once_per_day_today_day\n" +
+      "- cscs_once_per_day_today_results",
       resetOncePerDayLocal,
       resetOncePerDaySync
     );
@@ -539,7 +567,10 @@
     // ▼ A→B トークン
     createResetButton(
       "A→Bトークンのみ",
-      "Aパートから Bパートへ渡しているトークン情報（ローカル＋SYNC）をリセットします。",
+      "【対象キー】\n" +
+      "- cscs_from_a:qid\n" +
+      "- cscs_from_a_token:qid\n" +
+      "- sessionStorage 内の同名キー",
       resetTokenLocal,
       resetTokenSync
     );
