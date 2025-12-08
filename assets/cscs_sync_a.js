@@ -1083,15 +1083,6 @@
         </div>
 
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
-        
-        <div class="sync-reset-row">            
-          <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
-          <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
-          <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
-          <button id="cscs_sync_onceperday_reset" type="button" class="sync-reset-button">reset oncePerDay</button>
-          <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
-          <!-- <button id="cscs_sync_all_qid_reset" type="button" class="sync-reset-button">⚠︎reset all qid</button> -->
-        </div>
       `;
       const wrap = document.querySelector("div.wrap");
       if (wrap) {
