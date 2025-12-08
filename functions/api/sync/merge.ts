@@ -1,4 +1,79 @@
 // merge.ts
+/**
+ * CSCS SYNC merge 実装（Workers 側）
+ *
+ * 【キー対応表（LocalStorage ⇔ SYNC state ⇔ delta payload）】
+ *  ※このファイルで「新しくキーを追加／既存キー名を変更」した場合は、
+ *    必ずこの表を更新すること（恒久ルール）。
+ *
+ * ▼ 問題別累計
+ *   - localStorage: "cscs_q_correct_total:" + qid
+ *       ⇔ SYNC state: server.correct[qid]
+ *       ⇔ delta payload: correctDelta[qid]
+ *   - localStorage: "cscs_q_wrong_total:" + qid
+ *       ⇔ SYNC state: server.incorrect[qid]
+ *       ⇔ delta payload: incorrectDelta[qid]
+ *
+ * ▼ 問題別 3 連続正解（⭐️用）
+ *   - localStorage: "cscs_q_correct_streak3_total:" + qid
+ *       ⇔ SYNC state: server.streak3[qid]
+ *       ⇔ delta payload: streak3Delta[qid]
+ *   - localStorage: "cscs_q_correct_streak_len:" + qid
+ *       ⇔ SYNC state: server.streakLen[qid]
+ *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
+ *
+ * ▼ 問題別 3 連続不正解（🖍️用）
+ *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
+ *       ⇔ SYNC state: server.streak3Wrong[qid]
+ *       ⇔ delta payload: streak3WrongDelta[qid]
+ *   - localStorage: "cscs_q_wrong_streak_len:" + qid
+ *       ⇔ SYNC state: server.streakWrongLen[qid]
+ *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
+ *
+ * ▼ Streak3Today（本日の⭐️ユニーク数）
+ *   - localStorage: "cscs_streak3_today_day"
+ *       ⇔ SYNC state: server.streak3Today.day
+ *       ⇔ delta payload: streak3TodayDelta.day
+ *   - localStorage: "cscs_streak3_today_qids"
+ *       ⇔ SYNC state: server.streak3Today.qids
+ *       ⇔ delta payload: streak3TodayDelta.qids
+ *   - localStorage: "cscs_streak3_today_unique_count"
+ *       ⇔ SYNC state: server.streak3Today.unique_count
+ *       ⇔ delta payload: streak3TodayDelta.unique_count（省略可）
+ *
+ * ▼ oncePerDayToday（1日1回まで計測）
+ *   - localStorage: "cscs_once_per_day_today_day"
+ *       ⇔ SYNC state: server.oncePerDayToday.day
+ *       ⇔ delta payload: oncePerDayTodayDelta.day
+ *   - localStorage: "cscs_once_per_day_today_results"
+ *       ⇔ SYNC state: server.oncePerDayToday.results[qid]
+ *       ⇔ delta payload: oncePerDayTodayDelta.results[qid]
+ *
+ * ▼ お気に入り状態
+ *   - localStorage: （fav_modal.js 内部管理）
+ *       ⇔ SYNC state: server.fav[qid]
+ *       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+ *
+ * ▼ グローバル情報
+ *   - localStorage: "cscs_total_questions"
+ *       ⇔ SYNC state: server.global.totalQuestions
+ *       ⇔ delta payload: global.totalQuestions
+ *
+ * ▼ 整合性ステータス（consistency_status）
+ *   - localStorage: （直接保存はしない / SYNC 専用）
+ *       ⇔ SYNC state: server.consistency_status[qid]
+ *       ⇔ delta payload: consistencyStatusDelta[qid]
+ *
+ * ▼ 試験日設定（exam_date）
+ *   - localStorage: （直接保存はしない / SYNC 専用）
+ *       ⇔ SYNC state: server.exam_date (YYYY-MM-DD)
+ *       ⇔ delta payload: exam_date_iso (YYYY-MM-DD)
+ *
+ * ▼ O.D.O.A / 検証モード関連
+ *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
+ *       ⇔ SYNC state: server.odoa_mode ("on" / "off")
+ *       ⇔ delta payload: odoa_mode
+ */
 export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   // ★ Origin チェック（同一ドメイン＋ローカル開発のみ許可）
   const origin = request.headers.get("Origin");
@@ -54,6 +129,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       incorrect: {},
       streak3: {},
       streakLen: {},
+      streak3Wrong: {},
+      streakWrongLen: {},
       consistency_status: {},
       // お気に入り状態（fav_modal.js からの同期先）
       fav: {},
@@ -72,6 +149,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.incorrect) server.incorrect = {};
   if (!server.streak3) server.streak3 = {};
   if (!server.streakLen) server.streakLen = {};
+  if (!server.streak3Wrong) server.streak3Wrong = {};
+  if (!server.streakWrongLen) server.streakWrongLen = {};
   if (!server.consistency_status) server.consistency_status = {};
   if (!server.fav || typeof server.fav !== "object") server.fav = {};
   if (!(server as any).streak3Today) {
@@ -201,6 +280,37 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     if (!server.streakLen) server.streakLen = {};
     server.streakLen[qid] = v;
   }
+
+  // streak3WrongDelta: 各 qid の「3連続不正解達成回数」の増分をサーバー側に加算
+  for (const [qid, n] of Object.entries((delta as any).streak3WrongDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v <= 0) continue;
+    if (!server.streak3Wrong) server.streak3Wrong = {};
+    server.streak3Wrong[qid] = (server.streak3Wrong[qid] || 0) + v;
+  }
+
+  // streakWrongLenDelta: 各 qid の「現在の連続不正解長」をサーバー側に上書き
+  // - これは累積ではなく「最新値」であり、そのままセットする
+  for (const [qid, n] of Object.entries((delta as any).streakWrongLenDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v < 0) continue;
+    if (!server.streakWrongLen) server.streakWrongLen = {};
+    server.streakWrongLen[qid] = v;
+  }
+
+  // 3連続不正解関連 delta のサマリログ（どの qid に対して更新が入ったかを確認する用）
+  try {
+    const rawStreak3Wrong = (delta as any).streak3WrongDelta || {};
+    const rawStreakWrongLen = (delta as any).streakWrongLenDelta || {};
+    const keysStreak3Wrong = Object.keys(rawStreak3Wrong);
+    const keysStreakWrongLen = Object.keys(rawStreakWrongLen);
+    console.log("[SYNC/merge] (2-w) streak3WrongDelta / streakWrongLenDelta merged:", {
+      hasStreak3WrongDelta: keysStreak3Wrong.length > 0,
+      hasStreakWrongLenDelta: keysStreakWrongLen.length > 0,
+      streak3WrongDeltaKeys: keysStreak3Wrong,
+      streakWrongLenDeltaKeys: keysStreakWrongLen
+    });
+  } catch (_eLogWrong) {}
 
   // consistencyStatusDelta: consistency_status の差分反映
   // - payload が null の場合はキー削除
