@@ -1,4 +1,86 @@
 // assets/cscs_sync_a.js
+/**
+ * CSCS SYNC(A) — Aパート用 SYNC モニタ＆送信キュー
+ *
+ * このファイルで使用する LocalStorage / SYNC(JSON) / payload の
+ * キー対応表をここに一覧する。
+ *
+ * 【重要：開発ルール（恒久）】
+ *   📌 このファイル内で LocalStorage / SYNC / payload のキー名に
+ *       「変更」または「新規追加」が発生した場合は、
+ *       必ず **このキー対応表コメントを更新すること**。
+ *
+ *   - b_judge_record.js・SYNC Worker（merge/state.ts）側と
+ *     キー仕様の不整合が生じることを防ぐ目的。
+ *   - ここに書かれていないキーは原則として使用禁止。
+ *
+ * ▼ 問題別累計（正解 / 不正解）
+ *   - localStorage:
+ *       "cscs_q_correct_total:" + qid
+ *       "cscs_q_wrong_total:"   + qid
+ *   - SYNC state:
+ *       state.correct[qid]
+ *       state.incorrect[qid]
+ *   - payload(merge):
+ *       correctDelta[qid]
+ *       incorrectDelta[qid]
+ *
+ * ▼ 問題別 3 連続正解（⭐️用）
+ *   - localStorage:
+ *       "cscs_q_correct_streak3_total:" + qid
+ *       "cscs_q_correct_streak_len:"    + qid
+ *   - SYNC state:
+ *       state.streak3[qid]
+ *       state.streakLen[qid]
+ *   - payload(merge):
+ *       streak3Delta[qid]
+ *       streakLenDelta[qid]   // 「増分」ではなく「最新値」を送る
+ *
+ * ▼ 問題別 3 連続不正解
+ *   - localStorage:
+ *       "cscs_q_wrong_streak3_total:" + qid
+ *       "cscs_q_wrong_streak_len:"    + qid
+ *   - SYNC state:
+ *       state.streak3Wrong[qid]
+ *       state.streakWrongLen[qid]
+ *   - payload(merge):
+ *       streak3WrongDelta[qid]
+ *       streakWrongLenDelta[qid]   // 「増分」ではなく「最新値」を送る
+ *
+ * ▼ 今日の⭐️ユニーク数（Streak3Today）
+ *   - localStorage:
+ *       "cscs_streak3_today_day"
+ *       "cscs_streak3_today_unique_count"
+ *       "cscs_streak3_today_qids"
+ *   - SYNC state:
+ *       state.streak3Today.day
+ *       state.streak3Today.unique_count
+ *       state.streak3Today.qids
+ *
+ * ▼ 1 日 1 回計測モード（oncePerDayToday）
+ *   - localStorage:
+ *       "cscs_once_per_day_today_day"
+ *       "cscs_once_per_day_today_results"
+ *   - SYNC state:
+ *       state.oncePerDayToday.day
+ *       state.oncePerDayToday.results[qid]
+ *
+ * ▼ デバッグ用ローカルログ
+ *   - localStorage:
+ *       "cscs_sync_last_c:"  + qid
+ *       "cscs_sync_last_w:"  + qid
+ *       "cscs_sync_last_s3:" + qid
+ *       "cscs_correct_streak3_log"
+ *
+ * ▼ 使用する主な API エンドポイント
+ *   - GET  /api/sync/state
+ *   - POST /api/sync/merge
+ *   - POST /api/sync/reset_qid
+ *   - POST /api/sync/reset_streak3_qid
+ *   - POST /api/sync/reset_streak3_today
+ *   - POST /api/sync/reset_once_per_day_today
+ *   - POST /api/sync/reset_all_qid
+ */
 (function(){
   // === ① QID検出（Aパート） ===
   function detectQidFromLocationA() {
@@ -12,13 +94,29 @@
   const QID = detectQidFromLocationA();
 
   // === ② 差分キュー（Aパート専用） ===
-  const queue = { correctDelta: {}, incorrectDelta: {}, streak3Delta: {}, streakLenDelta: {} };
+  //   - correctDelta / incorrectDelta: 正解・不正解の累計差分
+  //   - streak3Delta / streakLenDelta: 3連続「正解」回数と現在の連続正解長
+  //   - streak3WrongDelta / streakWrongLenDelta: 3連続「不正解」回数と現在の連続不正解長
+  const queue = {
+    correctDelta: {},
+    incorrectDelta: {},
+    streak3Delta: {},
+    streakLenDelta: {},
+    streak3WrongDelta: {},
+    streakWrongLenDelta: {}
+  };
   let sendTimer = null;
 
   // SYNCモニタ用ステータス
   let lastSyncStatus = "idle";   // "idle" | "sending" | "ok" | "error" | "offline"
   let lastSyncTime   = null;     // "HH:MM:SS"
   let lastSyncError  = "";
+
+  // ★ デバッグUI方針ログ用フラグ
+  //   - 「不正解ストリークはまだモニタに出していない」ポリシーを
+  //     コンソールに一度だけ明示するための状態。
+  //   - updateMonitor() 内で一度だけ true にして以降はログを出さない。
+  let loggedWrongStreakUiPolicy = false;
 
   // 空欄を「（データなし）」などで埋めるための共通ヘルパー
   function toDisplayText(value, emptyLabel){
@@ -65,6 +163,30 @@
     }
   }
 
+  // ★ 不正解側: localStorage から「3連続不正解回数」を読み取る
+  //   - b_judge_record.js が "cscs_q_wrong_streak3_total:{qid}" に加算した値をそのまま利用
+  function readLocalWrongStreak3ForQid(qid){
+    try{
+      const kS = "cscs_q_wrong_streak3_total:" + qid;
+      const s  = parseInt(localStorage.getItem(kS) || "0", 10) || 0;
+      return s;
+    }catch(_){
+      return 0;
+    }
+  }
+
+  // ★ 不正解側: localStorage から「現在の連続不正解長」を読み取る
+  //   - b_judge_record.js が "cscs_q_wrong_streak_len:{qid}" に保存している最新値
+  function readLocalWrongStreakLenForQid(qid){
+    try{
+      const kL = "cscs_q_wrong_streak_len:" + qid;
+      const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
+      return l;
+    }catch(_){
+      return 0;
+    }
+  }
+
   function setServerTotalsForQid(c, i, s3, sLen){
     const el = document.getElementById("cscs_sync_totals");
     if (el) {
@@ -84,6 +206,21 @@
       if (!QID) return;
       const box = document.getElementById("cscs_sync_monitor_a");
       const totalsEl = document.getElementById("cscs_sync_totals");
+
+      // ★ デバッグUI方針: 現時点では「不正解ストリーク」はモニタに表示しない。
+      //   - モニタが扱うストリークは「正解ストリーク」のみ。
+      //   - 将来、不正解ストリークも表示したくなった場合は、
+      //     ・readLocalWrongStreak3ForQid(QID)
+      //     ・readLocalWrongStreakLenForQid(QID)
+      //     をここで呼び出し、専用 DOM 行を追加するだけで拡張できる。
+      //   - このポリシーが効いているかどうかを確認するため、
+      //     初回だけコンソールにログを出す。
+      if (!loggedWrongStreakUiPolicy) {
+        console.log("[SYNC-A] monitor uses ONLY correct streak; wrong-streak UI is intentionally hidden for now. Extend updateMonitor() with readLocalWrongStreak3ForQid / readLocalWrongStreakLenForQid when visualization is needed.", {
+          qid: QID
+        });
+        loggedWrongStreakUiPolicy = true;
+      }
 
       const dC = queue.correctDelta[QID]   || 0;
       const dI = queue.incorrectDelta[QID] || 0;
@@ -234,11 +371,17 @@
   }
 
   async function sendDelta(){
-    const hasC  = Object.keys(queue.correctDelta).length>0;
-    const hasI  = Object.keys(queue.incorrectDelta).length>0;
-    const hasS3 = Object.keys(queue.streak3Delta).length>0;
-    const hasSL = Object.keys(queue.streakLenDelta).length>0;
-    if (!hasC && !hasI && !hasS3 && !hasSL) return;
+    const hasC   = Object.keys(queue.correctDelta).length>0;
+    const hasI   = Object.keys(queue.incorrectDelta).length>0;
+    const hasS3  = Object.keys(queue.streak3Delta).length>0;
+    const hasSL  = Object.keys(queue.streakLenDelta).length>0;
+    const hasS3W = Object.keys(queue.streak3WrongDelta).length>0;
+    const hasSLW = Object.keys(queue.streakWrongLenDelta).length>0;
+
+    // ★ 6種類のいずれの delta も空なら、送信する意味がないので終了
+    if (!hasC && !hasI && !hasS3 && !hasSL && !hasS3W && !hasSLW) {
+      return;
+    }
 
     const payload = {
       qid: QID || null,
@@ -246,8 +389,23 @@
       incorrectDelta: queue.incorrectDelta,
       streak3Delta: queue.streak3Delta,
       streakLenDelta: queue.streakLenDelta,
+      // ★ 追加: 不正解側ストリークの delta も Workers へ送る
+      streak3WrongDelta: queue.streak3WrongDelta,
+      streakWrongLenDelta: queue.streakWrongLenDelta,
       updatedAt: Date.now()
     };
+
+    // 送信前に、今回送る delta の中身をコンソールで確認できるようにする
+    console.log("[SYNC-A] sendDelta payload(prepare)", {
+      qid: QID,
+      hasCorrectDelta: hasC,
+      hasIncorrectDelta: hasI,
+      hasStreak3Delta: hasS3,
+      hasStreakLenDelta: hasSL,
+      hasStreak3WrongDelta: hasS3W,
+      hasStreakWrongLenDelta: hasSLW,
+      payload: payload
+    });
 
     lastSyncStatus = "sending";
     lastSyncError  = "";
@@ -261,10 +419,12 @@
       });
       if (!res.ok) throw new Error(String(res.status));
 
-      queue.correctDelta    = {};
-      queue.incorrectDelta  = {};
-      queue.streak3Delta    = {};
-      queue.streakLenDelta  = {};
+      queue.correctDelta       = {};
+      queue.incorrectDelta     = {};
+      queue.streak3Delta       = {};
+      queue.streakLenDelta     = {};
+      queue.streak3WrongDelta  = {};
+      queue.streakWrongLenDelta = {};
 
       const latest = await res.json();
 
@@ -274,11 +434,25 @@
       }catch(_){}
 
       if (QID){
-        const c   = (latest.correct   && latest.correct[QID])   || 0;
-        const i   = (latest.incorrect && latest.incorrect[QID]) || 0;
-        const s3  = (latest.streak3   && latest.streak3[QID])   || 0;
-        const sl  = (latest.streakLen && latest.streakLen[QID]) || 0;
+        const c   = (latest.correct       && latest.correct[QID])       || 0;
+        const i   = (latest.incorrect     && latest.incorrect[QID])     || 0;
+        const s3  = (latest.streak3       && latest.streak3[QID])       || 0;
+        const sl  = (latest.streakLen     && latest.streakLen[QID])     || 0;
+        const s3W = (latest.streak3Wrong  && latest.streak3Wrong[QID])  || 0;
+        const slW = (latest.streakWrongLen && latest.streakWrongLen[QID]) || 0;
+
         setServerTotalsForQid(c, i, s3, sl);
+
+        // ★ 不正解ストリークのサーバー側最新値もコンソールに出しておく
+        console.log("[SYNC-A] sendDelta merged server snapshot for this QID", {
+          qid: QID,
+          correctTotal: c,
+          wrongTotal: i,
+          streak3Correct: s3,
+          streakLenCorrect: sl,
+          streak3Wrong: s3W,
+          streakLenWrong: slW
+        });
       }
       lastSyncStatus = "ok";
       lastSyncTime   = new Date().toLocaleTimeString();
@@ -292,16 +466,29 @@
   }
 
   window.CSCS_SYNC = {
+    // ★ 正解1回分の計測を SYNC キューに積む（累計 correctDelta）
     recordCorrect(){
       if (!QID) return;
       queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
+      console.log("[SYNC-A] recordCorrect queued", {
+        qid: QID,
+        delta: queue.correctDelta[QID]
+      });
       scheduleSend();
     },
+
+    // ★ 不正解1回分の計測を SYNC キューに積む（累計 incorrectDelta）
     recordIncorrect(){
       if (!QID) return;
       queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+      console.log("[SYNC-A] recordIncorrect queued", {
+        qid: QID,
+        delta: queue.incorrectDelta[QID]
+      });
       scheduleSend();
     },
+
+    // ★ 3連続「正解」達成回数を 1 回分キューに積む
     recordStreak3(){
       if (!QID) return;
       queue.streak3Delta[QID] = (queue.streak3Delta[QID] || 0) + 1;
@@ -314,18 +501,71 @@
         });
         window.dispatchEvent(ev);
       }catch(_){}
+      console.log("[SYNC-A] recordStreak3 queued", {
+        qid: QID,
+        delta: queue.streak3Delta[QID]
+      });
       scheduleSend();
     },
+
+    // ★ 3連続「不正解」達成回数を 1 回分キューに積む
+    recordWrongStreak3(){
+      if (!QID) return;
+      queue.streak3WrongDelta[QID] = (queue.streak3WrongDelta[QID] || 0) + 1;
+      try{
+        var ev = new CustomEvent("cscs:wrong-streak3-earned", {
+          detail: {
+            qid: QID,
+            ts: Date.now()
+          }
+        });
+        window.dispatchEvent(ev);
+      }catch(_){}
+      console.log("[SYNC-A] recordWrongStreak3 queued", {
+        qid: QID,
+        delta: queue.streak3WrongDelta[QID]
+      });
+      scheduleSend();
+    },
+
+    // ★ 現在の「連続正解長」を SYNC 側 streakLen[qid] に同期するための値としてキューに積む
     recordStreakLen(){
       if (!QID) return;
       const currentLen = readLocalStreakLenForQid(QID);
       queue.streakLenDelta[QID] = currentLen;
+      console.log("[SYNC-A] recordStreakLen queued", {
+        qid: QID,
+        streakLen: currentLen
+      });
       scheduleSend();
     },
+
+    // ★ 現在の「連続不正解長」を SYNC 側 streakWrongLen[qid] に同期するための値としてキューに積む
+    recordWrongStreakLen(){
+      if (!QID) return;
+      const currentLenWrong = readLocalWrongStreakLenForQid(QID);
+      queue.streakWrongLenDelta[QID] = currentLenWrong;
+      console.log("[SYNC-A] recordWrongStreakLen queued", {
+        qid: QID,
+        streakWrongLen: currentLenWrong
+      });
+      scheduleSend();
+    },
+
+    // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
     async fetchServer(){
       const r = await fetch("/api/sync/state");
       if(!r.ok) throw new Error(r.statusText);
-      return r.json();
+      const json = await r.json();
+      console.log("[SYNC-A] fetchServer state fetched", {
+        hasCorrect: !!(json && json.correct),
+        hasIncorrect: !!(json && json.incorrect),
+        hasStreak3: !!(json && json.streak3),
+        hasStreakLen: !!(json && json.streakLen),
+        hasStreak3Wrong: !!(json && json.streak3Wrong),
+        hasStreakWrongLen: !!(json && json.streakWrongLen)
+      });
+      return json;
     }
   };
 
@@ -333,10 +573,12 @@
     if (!QID) return;
     try{
       const s  = await CSCS_SYNC.fetchServer();
-      const c  = (s.correct   && s.correct[QID])   || 0;
-      const i  = (s.incorrect && s.incorrect[QID]) || 0;
-      const s3 = (s.streak3   && s.streak3[QID])   || 0;
-      const sl = (s.streakLen && s.streakLen[QID]) || 0;
+      const c  = (s.correct       && s.correct[QID])       || 0;
+      const i  = (s.incorrect     && s.incorrect[QID])     || 0;
+      const s3 = (s.streak3       && s.streak3[QID])       || 0;
+      const sl = (s.streakLen     && s.streakLen[QID])     || 0;
+      const s3W = (s.streak3Wrong && s.streak3Wrong[QID])  || 0;
+      const slW = (s.streakWrongLen && s.streakWrongLen[QID]) || 0;
 
       window.__cscs_sync_state = s;
 
@@ -426,6 +668,18 @@
         localStorage.setItem("cscs_q_wrong_total:"   + QID, String(i));
         localStorage.setItem("cscs_q_correct_streak3_total:" + QID, String(s3));
         localStorage.setItem("cscs_q_correct_streak_len:" + QID, String(sl));
+        // ★ 不正解ストリークも SYNC 側を正として localStorage に初期同期する
+        localStorage.setItem("cscs_q_wrong_streak3_total:" + QID, String(s3W));
+        localStorage.setItem("cscs_q_wrong_streak_len:" + QID, String(slW));
+        console.log("[SYNC-A] initialFetch synced streak values from server to localStorage", {
+          qid: QID,
+          correctTotal: c,
+          wrongTotal: i,
+          streak3Correct: s3,
+          streakLenCorrect: sl,
+          streak3Wrong: s3W,
+          streakLenWrong: slW
+        });
       }catch(_){}
 
       lastSyncStatus = "pulled";
@@ -669,6 +923,8 @@
           "cscs_q_wrong_total:",
           "cscs_q_correct_streak3_total:",
           "cscs_q_correct_streak_len:",
+          "cscs_q_wrong_streak3_total:",
+          "cscs_q_wrong_streak_len:",
           "cscs_sync_last_c:",
           "cscs_sync_last_w:",
           "cscs_sync_last_s3:"
