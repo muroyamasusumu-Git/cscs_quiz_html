@@ -566,7 +566,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_monitor_a {
   position: fixed;
   right: 0;
-  top: 125px;
+  bottom: 0;
   background: transparent;
   color: #eee;
   border: 0 solid #444;
