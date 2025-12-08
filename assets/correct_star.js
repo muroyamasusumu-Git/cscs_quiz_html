@@ -362,14 +362,14 @@
    *
    *  3) 上記どちらのストリークも 0 のときにのみ、
    *     累計の 3 連続達成回数を表示する：
-   *       不正解側 3連続累計（cscs_q_wrong_streak3_total / streak3Wrong[qid]）:
-   *         累計 1〜2回   → 💣
-   *         累計 3〜8回   → 💥
-   *         累計 9回以上  → 🔥
    *       正解側 3連続累計（cscs_q_correct_streak3_total / streak3[qid]）:
    *         累計 1〜2回   → ⭐️
    *         累計 3〜8回   → 🌟
    *         累計 9回以上  → 💫
+   *       不正解側 3連続累計（cscs_q_wrong_streak3_total / streak3Wrong[qid]）:
+   *         累計 1〜2回   → 💣
+   *         累計 3〜8回   → 💥
+   *         累計 9回以上  → 🔥
    *
    *  4) それ以外（ストリークも累計も 0）のとき：
    *       表示なし（空欄：OFF状態）
@@ -441,13 +441,13 @@
         finalSymbol = "✨"; // 1連続正解中
       }
       state = "on";
-    } else if (symbolFromWrongTotal) {
-      // 3-1) ストリークが両方 0 のときの「不正解側 3連続累計」（💣 / 💥 / 🔥）
-      finalSymbol = symbolFromWrongTotal;
-      state = "on";
     } else if (correct3Total >= 1) {
-      // 3-2) ストリークが両方 0 のときの「正解側 3連続累計」（⭐️ / 🌟 / 💫）
+      // 3-1) ストリークが両方 0 のときの「正解側 3連続累計」（⭐️ / 🌟 / 💫）
       finalSymbol = symbolFromCorrectTotal;
+      state = "on";
+    } else if (symbolFromWrongTotal) {
+      // 3-2) ストリークが両方 0 のときの「不正解側 3連続累計」（💣 / 💥 / 🔥）
+      finalSymbol = symbolFromWrongTotal;
       state = "on";
     } else {
       // 4) ストリークも累計も 0 のときは OFF（空欄）
