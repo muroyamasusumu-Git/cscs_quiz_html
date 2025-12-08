@@ -22,7 +22,7 @@
  *       ⇔ SYNC state: server.streakLen[qid]
  *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
  *
- * ▼ 問題別 3 連続不正解（🖍️用）
+ * ▼ 問題別 3 連続不正解（💣用）
  *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
  *       ⇔ SYNC state: server.streak3Wrong[qid]
  *       ⇔ delta payload: streak3WrongDelta[qid]
