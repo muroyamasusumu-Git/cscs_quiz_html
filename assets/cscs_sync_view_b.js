@@ -1315,7 +1315,11 @@
           diffStreakLen: diffStreakLen,
           diffStreak3Wrong: diffStreak3Wrong,
           diffWrongStreakLen: diffWrongStreakLen,
-          // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を
+          // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を渡す
+          syncState: state,
+          // ★ O.D.O.A Mode 表示用テキストも sendDiffToServer に引き継ぎ
+          odoaModeText: odoaModeText
+        });
       })
       .catch(function (e) {
         console.error("[SYNC-B] state fetch error:", e);
