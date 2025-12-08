@@ -10,7 +10,7 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2025-12-05
+ * 最終更新: 2025-12-09
  *
  * === SPEC CONTENT ===
  */
@@ -58,7 +58,7 @@
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 // │ 連続不正解 │ cscs_wrong_streak_len                 │ 現在の連続不正解数                                         │
 // │             │ cscs_wrong_streak3_total              │ 3連不正解達成回数の累計                                   │
-// │             │ cscs_wrong_streak3_log                │ 3連不正解達成履歴。{ts,qid,day,choice} の配列              │
+// │             │ cscc_wrong_streak3_log                │ 3連不正解達成履歴。{ts,qid,day,choice} の配列              │
 // │             │ cscs_q_wrong_streak_len:{qid}         │ その問題における現在の連続不正解数                         │
 // │             │ cscs_q_wrong_streak3_total:{qid}      │ その問題における3連不正解達成回数の累計                   │
 // │             │ cscs_q_wrong_streak3_log:{qid}        │ その問題で3連不正解を達成した履歴。{ts,qid,day,choice} の配列 │
@@ -159,6 +159,17 @@
 // ・全体用キー: cscs_wrong_streak_len / cscs_wrong_streak3_total / cscs_wrong_streak3_log。
 // ・問題別キー: cscs_q_wrong_streak_len:{qid} / cscs_q_wrong_streak3_total:{qid} / cscs_q_wrong_streak3_log:{qid}。
 // ・正解が出たタイミングで不正解ストリークをリセットし、不正解が出たタイミングで正解ストリークをリセットする対称設計とする。
+// 🆕 2025-12-09 追加
+// ・「今日、新規に💣（3連続不正解）を達成した問題数（ユニーク qid 数）」を計測。
+// ・対象は、問題別3連不正解回数 cscs_q_wrong_streak3_total:{qid} が 2→3 となる瞬間ごとに、同一日内で一度だけカウントする。
+// ・JST の各日について、localStorage 上で以下のキーを管理：
+//     cscs_streak3_wrong_today_day
+//     cscs_streak3_wrong_today_qids
+//     cscs_streak3_wrong_today_unique_count
+// ・cscs_streak3_wrong_today_qids には、その日に 3連続不正解を初めて達成した qid をユニークに追加し、
+//   cscs_streak3_wrong_today_unique_count には配列長と整合する値を保持する。
+// ・CSCS_SYNC.recordStreak3WrongTodayUnique() を通じて /api/sync/merge の streak3WrongTodayDelta に反映し、
+//   サーバ側 state.streak3WrongToday（{ day, qids }）と HUD 側の「今日の3連続不正解ユニーク数」表示に利用する。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -824,10 +835,61 @@
               wrong_streak3_total_q_after: afterWrongStreak3TotalQ
             });
 
+            // 3連続不正解を達成した履歴を問題別ログに追加する
             var wLogKeyQ = "cscs_q_wrong_streak3_log:" + qid;
             var wLogQ = []; try{ wLogQ = JSON.parse(localStorage.getItem(wLogKeyQ)||"[]"); }catch(_){ wLogQ = []; }
             wLogQ.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(wLogKeyQ, JSON.stringify(wLogQ));
+
+            // ★ 追加: 「今日新しく3連続不正解を達成した問題」を日別ユニークとして記録する
+            //   - JST dayPlay 単位で、初めて3連続不正解になった qid を配列に積む
+            //   - HUD / SYNC 側の streak3WrongToday（今日の💣ユニーク数）と連携するためのローカル集計
+            try{
+              var wrongTodayDayKey   = "cscs_streak3_wrong_today_day";
+              var wrongTodayQidsKey  = "cscs_streak3_wrong_today_qids";
+              var wrongTodayCountKey = "cscs_streak3_wrong_today_unique_count";
+
+              // 日付が変わっていたら、その日の集計として day / qids / count をリセットする
+              var storedWrongTodayDay = null;
+              try{ storedWrongTodayDay = localStorage.getItem(wrongTodayDayKey); }catch(_){}
+              if(storedWrongTodayDay !== dayPlay){
+                try{ localStorage.setItem(wrongTodayDayKey, dayPlay); }catch(_){}
+                try{ localStorage.removeItem(wrongTodayQidsKey); }catch(_){}
+                try{ localStorage.setItem(wrongTodayCountKey, "0"); }catch(_){}
+              }
+
+              // その日の「3連続不正解を初めて達成した qid 配列」を取得する
+              var wrongTodayQids = [];
+              try{ wrongTodayQids = JSON.parse(localStorage.getItem(wrongTodayQidsKey) || "[]"); }catch(_){ wrongTodayQids = []; }
+              if(!Array.isArray(wrongTodayQids)){ wrongTodayQids = []; }
+
+              // まだ登録されていない qid なら配列に追加し、ユニークカウンタを +1 する
+              if(wrongTodayQids.indexOf(qid) === -1){
+                wrongTodayQids.push(qid);
+                try{ localStorage.setItem(wrongTodayQidsKey, JSON.stringify(wrongTodayQids)); }catch(_){}
+                incIntLS(wrongTodayCountKey, 1);
+              }
+
+              // デバッグ用に「今日の💣ユニーク集計」のスナップショットを出す
+              var wrongTodayCountVal = 0;
+              try{
+                wrongTodayCountVal = parseInt(localStorage.getItem(wrongTodayCountKey) || "0", 10);
+                if(!Number.isFinite(wrongTodayCountVal)) wrongTodayCountVal = 0;
+              }catch(_){ wrongTodayCountVal = 0; }
+
+              console.log("[B:streak3_wrong/q] TODAY UNIQUE WRONG +1", {
+                day: dayPlay,
+                qid: qid,
+                today_day: localStorage.getItem(wrongTodayDayKey),
+                today_qids: wrongTodayQids,
+                today_count: wrongTodayCountVal
+              });
+
+              // SYNC 側に「今日の3連続不正解ユニーク」を送るトリガーを投げる
+              if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3WrongTodayUnique === "function") {
+                window.CSCS_SYNC.recordStreak3WrongTodayUnique();
+              }
+            }catch(_){}
 
             // 非重複カウントとするため 3連達成時にストリーク長をリセット
             wLenQ = 0;
