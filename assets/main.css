@@ -566,7 +566,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_monitor_a {
   position: fixed;
   right: 0;
-  bottom: 5px;
+  bottom: 0;
   background: transparent;
   color: #eee;
   border: 0 solid #444;
@@ -580,7 +580,7 @@ body.mode-b #cc-check-wrapper {
 
 /* 見出し行： "SYNC(A): <qid>" */
 #cscs_sync_monitor_a .sync-header {
-  margin-bottom: 1px;
+  margin-bottom: 5px;
   opacity: 0.8;
 }
 
@@ -614,7 +614,7 @@ body.mode-b #cc-check-wrapper {
 
 /* reset 行は下マージンなしにしたい場合はこちらで上書き */
 #cscs_sync_monitor_a .sync-reset-row {
-  margin-bottom: 0;
+  margin-bottom: -5px;
   z-index: 99999;
 }
 
