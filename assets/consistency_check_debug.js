@@ -2021,18 +2021,6 @@
     // ★ 遷移時に SYNC を確認し、未チェックなら自動で整合性チェックを実行
     autoRunConsistencyIfNeeded(meta, q, hasLocalResult);
 
-    var btn = document.createElement("button");
-    btn.id = "cc-check-btn";
-    btn.type = "button";
-    btn.textContent = "整合性チェック";
-
-    btn.addEventListener("click", function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      // 追加: デバッグ用ボタンからの実行も完全に手動なので isManual=true を渡す
-      window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true, { isManual: true });
-    });
-
     var clearBtn = document.createElement("button");
     clearBtn.id = "cc-sync-clear-btn";
     clearBtn.type = "button";
@@ -2052,7 +2040,6 @@
       wrapperParent.appendChild(wrapper);
     }
 
-    wrapper.appendChild(btn);
     wrapper.appendChild(clearBtn);
   });
 
