@@ -56,6 +56,20 @@
  *       state.streak3Today.day
  *       state.streak3Today.unique_count
  *       state.streak3Today.qids
+ *   - payload(merge):
+ *       streak3TodayDelta { day, qids }
+ *
+ * ▼ 今日の3連続不正解ユニーク数（Streak3WrongToday）
+ *   - localStorage:
+ *       "cscs_streak3_wrong_today_day"
+ *       "cscs_streak3_wrong_today_qids"
+ *       "cscs_streak3_wrong_today_unique_count"
+ *   - SYNC state:
+ *       state.streak3WrongToday.day
+ *       state.streak3WrongToday.qids
+ *       state.streak3WrongToday.unique_count
+ *   - payload(merge):
+ *       streak3WrongTodayDelta { day, qids }
  *
  * ▼ 1 日 1 回計測モード（oncePerDayToday）
  *   - localStorage:
@@ -293,6 +307,24 @@
         }
       }catch(_){}
 
+      // ★ 今日の3連続不正解ユニーク数（Streak3WrongToday）を SYNC state と localStorage から読み込む
+      //   - SYNC 側: state.streak3WrongToday.{day, unique_count, qids}
+      //   - local 側: cscs_streak3_wrong_today_day / _unique_count をそのまま表示に使う
+      const streak3WrongToday = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday)
+        ? window.__cscs_sync_state.streak3WrongToday
+        : { day: "", unique_count: 0 };
+
+      let localWrongStreakDay = "";
+      let localWrongStreakCount = 0;
+      try{
+        localWrongStreakDay = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+        const rawLocalWrongCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
+        const parsedLocalWrongCnt = rawLocalWrongCnt == null ? NaN : parseInt(rawLocalWrongCnt, 10);
+        if (Number.isFinite(parsedLocalWrongCnt) && parsedLocalWrongCnt >= 0) {
+          localWrongStreakCount = parsedLocalWrongCnt;
+        }
+      }catch(_){}
+
       if (box) {
         const qEl  = box.querySelector(".sync-qid");
 
@@ -312,6 +344,28 @@
         if (s3tLocalEl) {
           s3tLocalEl.textContent = toDisplayText(
             Number.isFinite(localStreakCount) ? localStreakCount : "",
+            "（データなし）"
+          );
+        }
+
+        // ★ 今日の3連続不正解ユニーク数をモニタUIに反映する
+        //   - day: state.streak3WrongToday.day
+        //   - unique: sync 側 unique_count と localStorage 側の値を並列表記
+        const s3wtDayEl   = box.querySelector(".sync-streak3wrongtoday-day");
+        const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
+        const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
+        if (s3wtDayEl) {
+          s3wtDayEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
+        }
+        if (s3wtSyncEl) {
+          s3wtSyncEl.textContent = toDisplayText(
+            typeof streak3WrongToday.unique_count === "number" ? streak3WrongToday.unique_count : "",
+            "（データなし）"
+          );
+        }
+        if (s3wtLocalEl) {
+          s3wtLocalEl.textContent = toDisplayText(
+            Number.isFinite(localWrongStreakCount) ? localWrongStreakCount : "",
             "（データなし）"
           );
         }
@@ -607,13 +661,17 @@
       const r = await fetch("/api/sync/state");
       if(!r.ok) throw new Error(r.statusText);
       const json = await r.json();
+      // ★ 取得した SYNC state が、3連正解系 / 3連不正解系 / 今日の3連ユニーク系を
+      //   すべて持っているかどうかをデバッグログに出す
       console.log("[SYNC-A] fetchServer state fetched", {
         hasCorrect: !!(json && json.correct),
         hasIncorrect: !!(json && json.incorrect),
         hasStreak3: !!(json && json.streak3),
         hasStreakLen: !!(json && json.streakLen),
         hasStreak3Wrong: !!(json && json.streak3Wrong),
-        hasStreakWrongLen: !!(json && json.streakWrongLen)
+        hasStreakWrongLen: !!(json && json.streakWrongLen),
+        hasStreak3Today: !!(json && json.streak3Today),
+        hasStreak3WrongToday: !!(json && json.streak3WrongToday)
       });
       return json;
     }
@@ -687,6 +745,8 @@
       }
 
       // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
+      //   - state.streak3Today を唯一のソースとして、
+      //     「今日の⭐️ユニーク数」関連の localStorage を上書きする。
       const streak3Today = (s && s.streak3Today)
         ? s.streak3Today
         : { day: "", unique_count: 0, qids: [] };
@@ -708,6 +768,35 @@
           );
         } else {
           localStorage.removeItem("cscs_streak3_today_qids");
+        }
+      }catch(_){}
+
+      // ★ 追加: SYNC 側 streak3WrongToday を正として localStorage 側も同期する
+      //   - state.streak3WrongToday を唯一のソースとして、
+      //     「今日の3連続不正解ユニーク数」関連の localStorage を上書きする。
+      //   - フォールバックは行わず、state.streak3WrongToday が無ければ
+      //     「day: 空 / unique_count: 0 / qids: 空配列」とみなす。
+      const streak3WrongToday = (s && s.streak3WrongToday)
+        ? s.streak3WrongToday
+        : { day: "", unique_count: 0, qids: [] };
+
+      try{
+        if (streak3WrongToday.day) {
+          localStorage.setItem("cscs_streak3_wrong_today_day", String(streak3WrongToday.day));
+        } else {
+          localStorage.removeItem("cscs_streak3_wrong_today_day");
+        }
+        localStorage.setItem(
+          "cscs_streak3_wrong_today_unique_count",
+          String(streak3WrongToday.unique_count || 0)
+        );
+        if (Array.isArray(streak3WrongToday.qids)) {
+          localStorage.setItem(
+            "cscs_streak3_wrong_today_qids",
+            JSON.stringify(streak3WrongToday.qids)
+          );
+        } else {
+          localStorage.removeItem("cscs_streak3_wrong_today_qids");
         }
       }catch(_){}
 
@@ -996,6 +1085,11 @@
           "cscs_streak3_today_day",
           "cscs_streak3_today_unique_count",
           "cscs_streak3_today_qids",
+          // ★ 今日の3連続不正解ユニーク数（Streak3WrongToday）関連キーも一括削除対象に含める
+          //   - reset_all_qid 実行時に「今日の3連続不正解ユニーク数」のローカル状態も完全リセットする。
+          "cscs_streak3_wrong_today_day",
+          "cscs_streak3_wrong_today_unique_count",
+          "cscs_streak3_wrong_today_qids",
           "cscs_once_per_day_today_day",
           "cscs_once_per_day_today_results",
           "cscs_correct_streak3_log"
@@ -1080,6 +1174,12 @@
           Streak3TodayUnique:<br>
           day: <span class="sync-streak3today-day">-</span><br>
           unique: sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span>
+        </div>
+
+        <div class="sync-line sync-streak3wrongtoday">
+          Streak3WrongTodayUnique:<br>
+          day: <span class="sync-streak3wrongtoday-day">-</span><br>
+          unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
         </div>
 
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
