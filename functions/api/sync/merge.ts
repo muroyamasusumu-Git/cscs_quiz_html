@@ -41,6 +41,17 @@
  *       ⇔ SYNC state: server.streak3Today.unique_count
  *       ⇔ delta payload: streak3TodayDelta.unique_count（省略可）
  *
+ * ▼ Streak3WrongToday（本日の3連続不正解ユニーク数）
+ *   - localStorage: "cscs_streak3_wrong_today_day"
+ *       ⇔ SYNC state: server.streak3WrongToday.day
+ *       ⇔ delta payload: streak3WrongTodayDelta.day
+ *   - localStorage: "cscs_streak3_wrong_today_qids"
+ *       ⇔ SYNC state: server.streak3WrongToday.qids
+ *       ⇔ delta payload: streak3WrongTodayDelta.qids
+ *   - localStorage: "cscs_streak3_wrong_today_unique_count"
+ *       ⇔ SYNC state: server.streak3WrongToday.unique_count
+ *       ⇔ delta payload: streak3WrongTodayDelta.unique_count（省略可）
+ *
  * ▼ oncePerDayToday（1日1回まで計測）
  *   - localStorage: "cscs_once_per_day_today_day"
  *       ⇔ SYNC state: server.oncePerDayToday.day
@@ -138,8 +149,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       global: {},
       // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
       odoa_mode: "off",
-      // ここでは初期値として streak3Today / oncePerDayToday を用意する（「無からの初回保存」を許可）
+      // ここでは初期値として streak3Today / streak3WrongToday / oncePerDayToday を用意する（「無からの初回保存」を許可）
       streak3Today: { day: "", unique_count: 0, qids: [] },
+      streak3WrongToday: { day: "", unique_count: 0, qids: [] },
       oncePerDayToday: { day: 0, results: {} },
       updatedAt: 0
     };
@@ -155,6 +167,11 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.fav || typeof server.fav !== "object") server.fav = {};
   if (!(server as any).streak3Today) {
     (server as any).streak3Today = { day: "", unique_count: 0, qids: [] };
+  }
+  // ★ streak3WrongToday が欠けている既存ユーザーのデータを補完
+  //   - 旧フォーマットからの移行時に、構造を壊さずに「空の3連続不正解ユニーク情報」を用意する
+  if (!(server as any).streak3WrongToday) {
+    (server as any).streak3WrongToday = { day: "", unique_count: 0, qids: [] };
   }
   if (!(server as any).oncePerDayToday || typeof (server as any).oncePerDayToday !== "object") {
     (server as any).oncePerDayToday = { day: 0, results: {} };
@@ -178,12 +195,19 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       ? (delta as any).streak3TodayDelta
       : undefined;
 
+  // ★ 今日の3連続不正解ユニーク（💣）用の delta を取り出す
+  //   - クライアント側から streak3WrongTodayDelta が送られてきた場合のみ処理対象にする
+  const streak3WrongTodayDelta =
+    delta && typeof delta === "object"
+      ? (delta as any).streak3WrongTodayDelta
+      : undefined;
+
   const oncePerDayTodayDelta =
     delta && typeof delta === "object"
       ? (delta as any).oncePerDayTodayDelta
       : undefined;
 
-  // streak3TodayDelta / oncePerDayTodayDelta の構造検査用ログ
+  // streak3TodayDelta / streak3WrongTodayDelta / oncePerDayTodayDelta の構造検査用ログ
   try {
     const hasStreak3Delta =
       streak3TodayDelta && typeof streak3TodayDelta === "object" ? true : false;
@@ -214,6 +238,35 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       day: dayDebug,
       qidsIsArray,
       qidsLength: qidsLen
+    });
+
+    // ★ Streak3WrongTodayDelta 側の構造チェック（day / qids の有無だけ確認）
+    const hasStreak3WrongDelta =
+      streak3WrongTodayDelta && typeof streak3WrongTodayDelta === "object" ? true : false;
+    let wrongDayDebug = "";
+    let wrongQidsRawDebug: unknown = undefined;
+    let wrongQidsIsArray = false;
+    let wrongQidsLen = 0;
+
+    if (hasStreak3WrongDelta) {
+      wrongDayDebug =
+        typeof (streak3WrongTodayDelta as any).day === "string"
+          ? (streak3WrongTodayDelta as any).day
+          : "";
+      wrongQidsRawDebug = (streak3WrongTodayDelta as any).qids;
+      wrongQidsIsArray = Array.isArray(wrongQidsRawDebug);
+      wrongQidsLen = wrongQidsIsArray ? (wrongQidsRawDebug as any[]).length : 0;
+    }
+
+    console.log(
+      "[SYNC/merge] (1-2w) delta.streak3WrongTodayDelta 受信:",
+      JSON.stringify(streak3WrongTodayDelta ?? null)
+    );
+    console.log("[SYNC/merge] (1-2w) streak3WrongTodayDelta 詳細:", {
+      hasDelta: hasStreak3WrongDelta,
+      day: wrongDayDebug,
+      qidsIsArray: wrongQidsIsArray,
+      qidsLength: wrongQidsLen
     });
 
     // oncePerDayTodayDelta 側の簡易ログ（day / results の有無だけ確認）
@@ -526,13 +579,122 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.log("[SYNC/merge] (2-1) streak3Today: delta なし（更新スキップ）");
   }
 
-  // (2-2) AFTER: マージ後の server.streak3Today をログ
-  // - 上記のマージ処理の結果、サーバー側の streak3Today がどうなったかの最終確認
+  // ★ Streak3WrongTodayDelta のマージ処理
+  //   - 本日の3連続不正解ユニーク（💣）の一覧をサーバー側に反映する
+  //   - streak3WrongTodayDelta が送られてきた場合だけ検証し、day / qids / unique_count をチェックする
+  if (streak3WrongTodayDelta && typeof streak3WrongTodayDelta === "object") {
+    console.log("[SYNC/merge] (2-1w) streak3WrongToday: delta あり（検証開始）");
+
+    const dayValueW = (streak3WrongTodayDelta as any).day;
+    const qidsRawW = (streak3WrongTodayDelta as any).qids;
+    const uniqueCountRawW = (streak3WrongTodayDelta as any).unique_count;
+
+    // マージ前の構造チェック用ログ（💣版）
+    try {
+      const tmpDayW =
+        typeof dayValueW === "string"
+          ? dayValueW
+          : "";
+      const tmpQidsW = Array.isArray(qidsRawW) ? qidsRawW : [];
+      console.log("[SYNC/merge] (2-1w-1) streak3WrongTodayDelta マージ前チェック:", {
+        day: tmpDayW,
+        qidsIsArray: Array.isArray(qidsRawW),
+        qidsLength: tmpQidsW.length,
+        uniqueCountRaw: uniqueCountRawW
+      });
+    } catch (_eW) {}
+
+    // ---- fail-fast 検証（💣版）----
+
+    // day は「非空の文字列」であることを要求する
+    if (typeof dayValueW !== "string" || !dayValueW) {
+      console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.day が不正のため更新中断:", {
+        dayValueW
+      });
+      return new Response("invalid streak3WrongTodayDelta: day", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    // qids は配列であることを要求する
+    if (!Array.isArray(qidsRawW)) {
+      console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.qids が配列ではないため更新中断:", {
+        qidsRawW
+      });
+      return new Response("invalid streak3WrongTodayDelta: qids", {
+        status: 400,
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    // qids の各要素は文字列（qid）であることを要求する
+    for (const q of qidsRawW) {
+      if (typeof q !== "string") {
+        console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.qids 内に文字列以外の要素があるため更新中断:", {
+          invalidElement: q
+        });
+        return new Response("invalid streak3WrongTodayDelta: qids element", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
+      }
+    }
+
+    const qidsW = qidsRawW as string[];
+    const dayW = dayValueW as string;
+
+    // unique_count が送られてきている場合は、qids.length と完全一致していることを要求する
+    if (uniqueCountRawW !== undefined && uniqueCountRawW !== null) {
+      const ucNumW = Number(uniqueCountRawW);
+      if (!Number.isFinite(ucNumW) || ucNumW < 0 || ucNumW !== qidsW.length) {
+        console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.unique_count が不整合のため更新中断:", {
+          uniqueCountRawW,
+          qidsLength: qidsW.length
+        });
+        return new Response("invalid streak3WrongTodayDelta: unique_count", {
+          status: 400,
+          headers: { "content-type": "text/plain" }
+        });
+      }
+    }
+
+    // ここまで到達したら検証は全て OK → streak3WrongToday をフル上書きする
+    (server as any).streak3WrongToday = {
+      day: dayW,
+      unique_count: qidsW.length,
+      qids: qidsW
+    };
+
+    // 上書き後の内容を詳細にログ出力して、コンソール上から成功を確認できるようにする
+    try {
+      console.log("[SYNC/merge] (2-1w-2) streak3WrongToday バリデーション成功 → 上書き完了:", {
+        day: (server as any).streak3WrongToday.day,
+        unique_count: (server as any).streak3WrongToday.unique_count,
+        qidsLength: Array.isArray((server as any).streak3WrongToday.qids)
+          ? (server as any).streak3WrongToday.qids.length
+          : -1
+      });
+    } catch (_eW2) {}
+  } else {
+    // 今回の delta には streak3WrongTodayDelta が含まれていない場合
+    console.log("[SYNC/merge] (2-1w) streak3WrongToday: delta なし（更新スキップ）");
+  }
+
+  // (2-2) AFTER: マージ後の server.streak3Today / server.streak3WrongToday をログ
+  // - 上記のマージ処理の結果、サーバー側の「今日の⭐️ / 💣 ユニーク情報」がどうなったかの最終確認
   try {
     const afterSt3 = (server as any).streak3Today || null;
     console.log("[SYNC/merge] (2-3) AFTER server.streak3Today:", JSON.stringify(afterSt3));
   } catch (_e) {
     console.warn("[SYNC/merge] ★logging error (AFTER streak3Today)");
+  }
+
+  try {
+    const afterSt3Wrong = (server as any).streak3WrongToday || null;
+    console.log("[SYNC/merge] (2-3w) AFTER server.streak3WrongToday:", JSON.stringify(afterSt3Wrong));
+  } catch (_eW3) {
+    console.warn("[SYNC/merge] ★logging error (AFTER streak3WrongToday)");
   }
 
   // ---- oncePerDayTodayDelta のマージ ----
@@ -720,6 +882,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       const hasDeltaForToday =
         streak3TodayDelta && typeof streak3TodayDelta === "object" ? true : false;
 
+      const beforeGuardSt3Wrong = (server as any).streak3WrongToday || null;
+      const hasDeltaForTodayWrong =
+        streak3WrongTodayDelta && typeof streak3WrongTodayDelta === "object" ? true : false;
+
       const beforeGuardOnce = (server as any).oncePerDayToday || null;
       const hasOncePerDayDelta =
         oncePerDayTodayDelta && typeof oncePerDayTodayDelta === "object" ? true : false;
@@ -729,13 +895,18 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         willUpdate: hasDeltaForToday,
         streak3TodaySnapshot: beforeGuardSt3
       });
+      console.log("[SYNC/merge][guard] streak3WrongTodayDelta 判定:", {
+        hasDelta: hasDeltaForTodayWrong,
+        willUpdate: hasDeltaForTodayWrong,
+        streak3WrongTodaySnapshot: beforeGuardSt3Wrong
+      });
       console.log("[SYNC/merge][guard] oncePerDayTodayDelta 判定:", {
         hasDelta: hasOncePerDayDelta,
         willUpdate: hasOncePerDayDelta,
         oncePerDayTodaySnapshot: beforeGuardOnce
       });
     } catch (_e) {
-      console.warn("[SYNC/merge][guard] logging error (streak3Today / oncePerDayToday snapshot)");
+      console.warn("[SYNC/merge][guard] logging error (streak3Today / streak3WrongToday / oncePerDayToday snapshot)");
     }
 
     const jsonStr = JSON.stringify(server);
@@ -748,6 +919,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     });
 
     // streak3Today フィールドが「unique_count === qids.length」を満たしているかの自己整合性チェック
+    // - 本日の3連続正解ユニーク数について、保存された配列長とカウント値が一致しているかを確認する
     try {
       const s3 = (server as any).streak3Today || null;
       const qlen =
@@ -763,6 +935,25 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
     } catch (_e2) {
       console.warn("[SYNC/merge] (3-1 err) streak3Today 整合性ログ失敗");
+    }
+
+    // streak3WrongToday フィールドが「unique_count === qids.length」を満たしているかの自己整合性チェック
+    // - 本日の3連続不正解ユニーク数についても、サーバー保存直後に配列長とカウント値の整合を確認する
+    try {
+      const s3w = (server as any).streak3WrongToday || null;
+      const qlenW =
+        s3w && Array.isArray(s3w.qids) ? (s3w.qids as any[]).length : -1;
+      console.log("[SYNC/merge] (3-1w) streak3WrongToday 整合性チェック:", {
+        day: s3w ? s3w.day : null,
+        unique_count: s3w ? s3w.unique_count : null,
+        qidsLength: qlenW,
+        isConsistent:
+          s3w && Array.isArray(s3w.qids)
+            ? s3w.unique_count === qlenW
+            : false
+      });
+    } catch (_e3) {
+      console.warn("[SYNC/merge] (3-1w err) streak3WrongToday 整合性ログ失敗");
     }
 
     // (4) 保存直後に KV から再取得 → parsed.streak3Today を確認
