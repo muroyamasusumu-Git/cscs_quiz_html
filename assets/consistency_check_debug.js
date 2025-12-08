@@ -276,12 +276,16 @@
    * @param {Object} payload.meta
    * @param {Object} payload.question
    * @param {boolean} [payload.strict]
+   * @param {Object} [options]                // 追加: 実行モードを制御するためのオプション
+   * @param {boolean} [options.isManual]      // 追加: true のときは「手動実行」として扱う（再検証モードに入れない）
    * @returns {Promise<Object>}  // Gemini からの JSON 応答
    */
-  async function requestConsistencyCheck(payload) {
+  async function requestConsistencyCheck(payload, options) {
     var meta = payload.meta;
     var q = payload.question;
     var strict = typeof payload.strict === "boolean" ? payload.strict : STRICT_MODE_DEFAULT;
+    // 追加: 手動実行かどうかのフラグ（429 時に VerifyMode を触るかどうかの判定に使う）
+    var isManual = options && options.isManual === true;
 
     var prompt = buildConsistencyPrompt(meta, q, strict);
 
@@ -315,35 +319,40 @@
     if (!response.ok) {
       console.error("整合性チェック API 生レスポンス:", text);
 
-      // ★ HTTP 429（クォータ超過など）の場合は、自動整合性チェックモードそのものをOFFにする
+      // ★ HTTP 429（クォータ超過など）の場合の扱いを「自動実行」と「手動実行」で分岐させる
       if (response.status === 429) {
-        // 1) localStorage ベースの自動実行フラグをOFFにする
-        try {
-          setAutoConsistencyEnabled(false);
-        } catch (autoFlagError) {
-          console.error("自動整合性チェックOFF状態への切り替えに失敗しました:", autoFlagError);
-        }
-        // 2) 既存の VerifyMode ヘルパーもあればOFFに倒す
-        try {
-          if (
-            window.CSCS_VERIFY_MODE_HELPER &&
-            typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function"
-          ) {
-            window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("consistency-api-http-429");
+        if (!isManual) {
+          // 追加: 自動実行時のみ、自動整合性チェック全体をOFFにし、VerifyMode 側も停止させる
+          //      → 検証AUTOモードが勝手に再検証カウントダウンへ入らないように制御する
+          // 1) localStorage ベースの自動実行フラグをOFFにする
+          try {
+            setAutoConsistencyEnabled(false);
+          } catch (autoFlagError) {
+            console.error("自動整合性チェックOFF状態への切り替えに失敗しました:", autoFlagError);
           }
-        } catch (verifyOffError) {
-          console.error("VerifyMode 強制OFF処理中にエラーが発生しました:", verifyOffError);
-        }
+          // 2) 既存の VerifyMode ヘルパーもあればOFFに倒す
+          try {
+            if (
+              window.CSCS_VERIFY_MODE_HELPER &&
+              typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function"
+            ) {
+              window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("consistency-api-http-429");
+            }
+          } catch (verifyOffError) {
+            console.error("VerifyMode 強制OFF処理中にエラーが発生しました:", verifyOffError);
+          }
 
-        // 3) 画面上の [自動チェックON/OFF] ラベルも OFF に更新する
-        try {
-          var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
-          if (autoToggleLink) {
-            autoToggleLink.textContent = "[自動チェックOFF]";
+          // 3) 画面上の [自動チェックON/OFF] ラベルも OFF に更新する
+          try {
+            var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
+            if (autoToggleLink) {
+              autoToggleLink.textContent = "[自動チェックOFF]";
+            }
+          } catch (labelError) {
+            console.error("自動チェック表記のOFF反映に失敗しました:", labelError);
           }
-        } catch (labelError) {
-          console.error("自動チェック表記のOFF反映に失敗しました:", labelError);
         }
+        // 追加: 手動実行時は上記の OFF 処理を一切行わず、エラーだけを上位に投げる
       }
 
       throw new Error("整合性チェック API エラー: HTTP " + response.status + " / body: " + text);
@@ -436,15 +445,17 @@
    * @param {string} q.explanation
    *
    * @param {boolean} [strict]
+   * @param {Object} [options]           // 追加: 手動実行かどうかなどを伝えるオプション
    * @returns {Promise<Object>}
    */
-  function runConsistencyCheck(meta, q, strict) {
+  function runConsistencyCheck(meta, q, strict, options) {
     var payload = {
       meta: meta,
       question: q,
       strict: strict
     };
-    return requestConsistencyCheck(payload);
+    // 追加: 実行モード情報（isManual）を requestConsistencyCheck へそのまま橋渡しする
+    return requestConsistencyCheck(payload, options);
   }
 
   /**
@@ -868,7 +879,8 @@
         e.stopPropagation();
         e.preventDefault();
         var useStrict = typeof strict === "boolean" ? strict : STRICT_MODE_DEFAULT;
-        window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, useStrict);
+        // 追加: パネルの「更新」は完全に手動操作なので isManual=true を渡して再実行する
+        window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, useStrict, { isManual: true });
       });
     }
 
@@ -1376,14 +1388,20 @@
    * @param {Object} meta
    * @param {Object} q
    * @param {boolean} [strict]
+   * @param {Object} [options]           // 追加: 実行モード（手動/自動）を制御するオプション
    * @returns {Promise<void>}
    */
-  async function runAndShowConsistencyCheck(meta, q, strict) {
+  async function runAndShowConsistencyCheck(meta, q, strict, options) {
     var panel = getConsistencyPanelContainer();
     panel.innerHTML = '<div style="font-size:16px;margin-top:10px;">整合性チェックを実行中です。少し待ってください。</div>';
 
+    // 追加: この一連のチェックが「手動実行」かどうかの判定
+    //       → requestConsistencyCheck まで渡して、429 エラー時の VerifyMode 制御に使う
+    var isManual = options && options.isManual === true;
+
     try {
-      var result = await runConsistencyCheck(meta, q, strict);
+      // 追加: options を runConsistencyCheck に渡して、下流の requestConsistencyCheck まで isManual を伝える
+      var result = await runConsistencyCheck(meta, q, strict, { isManual: isManual });
 
       var usedStrict = typeof strict === "boolean" ? strict : STRICT_MODE_DEFAULT;
       if (typeof localStorage !== "undefined") {
@@ -1554,27 +1572,36 @@
 
       showConsistencyResultPanel(meta, q, result, usedStrict, true);
       updateConsistencyCheckStatus(meta, q);
+// 置換後（手動実行時は自動チェックOFFにしない）
+
     } catch (e) {
       var msg = String(e && e.message ? e.message : e);
 
       // ★ HTTP 429（利用上限超過など）の場合は詳細エラーを出さず、シンプルなメッセージのみ表示
       if (msg.indexOf("HTTP 429") !== -1) {
         console.error("整合性チェック中に HTTP 429（Gemini API 利用上限超過）が発生しました:", msg);
-        panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">Gemini API の利用上限を超えたので自動検証モードはOFFに切り替えました。</div>';
 
-        // ラベル側も念のため OFF に揃えておく（requestConsistencyCheck 側で OFF 済みだが二重実行でも問題なし）
-        try {
-          setAutoConsistencyEnabled(false);
-        } catch (autoFlagError) {
-          console.error("自動整合性チェックOFF状態への再設定に失敗しました:", autoFlagError);
-        }
-        try {
-          var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
-          if (autoToggleLink) {
-            autoToggleLink.textContent = "[自動チェックOFF]";
+        // 自動モードからの実行時のみ、自動整合性チェックをOFFに倒す
+        if (!isManual) {
+          panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">Gemini API の利用上限を超えたので自動検証モードはOFFに切り替えました。</div>';
+
+          // ラベル側も念のため OFF に揃えておく（requestConsistencyCheck 側で OFF 済みだが二重実行でも問題なし）
+          try {
+            setAutoConsistencyEnabled(false);
+          } catch (autoFlagError) {
+            console.error("自動整合性チェックOFF状態への再設定に失敗しました:", autoFlagError);
           }
-        } catch (labelError) {
-          console.error("自動チェック表記のOFF反映に失敗しました(runAndShowConsistencyCheck):", labelError);
+          try {
+            var autoToggleLink = document.getElementById("cscs-consistency-auto-toggle-link");
+            if (autoToggleLink) {
+              autoToggleLink.textContent = "[自動チェックOFF]";
+            }
+          } catch (labelError) {
+            console.error("自動チェック表記のOFF反映に失敗しました(runAndShowConsistencyCheck):", labelError);
+          }
+        } else {
+          // 手動実行時は自動モードの状態を変えず、シンプルな案内だけを表示する
+          panel.innerHTML = '<div style="font-size:14px;color:#ff8080;">Gemini API の利用上限を超えました（手動実行）。少し時間を空けてから、もう一度お試しください。</div>';
         }
 
         return;
@@ -1643,8 +1670,8 @@
       startLink.addEventListener("click", function(e) {
         e.preventDefault();
         e.stopPropagation();
-        // 初回実行：厳格モードで開始
-        window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+        // 初回実行：厳格モードで開始（手動実行扱いにして、エラー時に再検証モードへ入らないようにする）
+        window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true, { isManual: true });
       });
     }
 
@@ -1702,7 +1729,8 @@
 
         // SYNC にも整合性ステータスが無い場合のみ、自動で厳格モードの整合性チェックを実行
         if (!hasSyncStatus) {
-          window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+          // 追加: 自動実行であることを明示（isManual:false）
+          window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true, { isManual: false });
         }
       }).catch(function(e) {
         console.error("autoRunConsistencyIfNeeded で SYNC 状態取得に失敗しました:", e);
@@ -2001,7 +2029,8 @@
     btn.addEventListener("click", function(e) {
       e.stopPropagation();
       e.preventDefault();
-      window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true);
+      // 追加: デバッグ用ボタンからの実行も完全に手動なので isManual=true を渡す
+      window.CSCSConsistencyCheck.runAndShowConsistencyCheck(meta, q, true, { isManual: true });
     });
 
     var clearBtn = document.createElement("button");
