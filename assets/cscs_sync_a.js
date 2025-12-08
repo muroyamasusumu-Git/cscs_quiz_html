@@ -112,6 +112,11 @@
   let lastSyncTime   = null;     // "HH:MM:SS"
   let lastSyncError  = "";
 
+  // ★ 不正解ストリーク表示の初回ログ用フラグ
+  //   - updateMonitor() 内で一度だけ「不正解ストリーク UI が有効になっている」ことを
+  //     コンソールに出すための状態。
+  let loggedWrongStreakUiOnce = false;
+
   // ★ デバッグUI方針ログ用フラグ
   //   - 「不正解ストリークはまだモニタに出していない」ポリシーを
   //     コンソールに一度だけ明示するための状態。
@@ -207,21 +212,6 @@
       const box = document.getElementById("cscs_sync_monitor_a");
       const totalsEl = document.getElementById("cscs_sync_totals");
 
-      // ★ デバッグUI方針: 現時点では「不正解ストリーク」はモニタに表示しない。
-      //   - モニタが扱うストリークは「正解ストリーク」のみ。
-      //   - 将来、不正解ストリークも表示したくなった場合は、
-      //     ・readLocalWrongStreak3ForQid(QID)
-      //     ・readLocalWrongStreakLenForQid(QID)
-      //     をここで呼び出し、専用 DOM 行を追加するだけで拡張できる。
-      //   - このポリシーが効いているかどうかを確認するため、
-      //     初回だけコンソールにログを出す。
-      if (!loggedWrongStreakUiPolicy) {
-        console.log("[SYNC-A] monitor uses ONLY correct streak; wrong-streak UI is intentionally hidden for now. Extend updateMonitor() with readLocalWrongStreak3ForQid / readLocalWrongStreakLenForQid when visualization is needed.", {
-          qid: QID
-        });
-        loggedWrongStreakUiPolicy = true;
-      }
-
       const dC = queue.correctDelta[QID]   || 0;
       const dI = queue.incorrectDelta[QID] || 0;
 
@@ -231,6 +221,14 @@
 
       const ls = readLocalStreak3ForQid(QID);
       const ll = readLocalStreakLenForQid(QID);
+
+      // ★ 不正解ストリーク（localStorage）の読み取り
+      //   - b_judge_record.js が書き込んでいる
+      //     "cscs_q_wrong_streak3_total:{qid}"
+      //     "cscs_q_wrong_streak_len:{qid}"
+      //     をそのまま UI に出す。
+      const lsWrong = readLocalWrongStreak3ForQid(QID);
+      const llWrong = readLocalWrongStreakLenForQid(QID);
 
       let sc = 0, si = 0, ss = 0, sl = 0;
       if (totalsEl) {
@@ -243,6 +241,42 @@
 
       const serverProgress = sl % 3;
       const localProgress  = ll % 3;
+
+      // ★ 不正解ストリーク（SYNC 側）の最新値を __cscs_sync_state から取得
+      let ssWrong = 0;
+      let slWrong = 0;
+      try{
+        const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+        if (state && state.streak3Wrong && typeof state.streak3Wrong === "object") {
+          const v = state.streak3Wrong[QID];
+          if (typeof v === "number" && v >= 0) {
+            ssWrong = v;
+          }
+        }
+        if (state && state.streakWrongLen && typeof state.streakWrongLen === "object") {
+          const v2 = state.streakWrongLen[QID];
+          if (typeof v2 === "number" && v2 >= 0) {
+            slWrong = v2;
+          }
+        }
+      }catch(_){}
+
+      const serverWrongProgress = slWrong % 3;
+      const localWrongProgress  = llWrong % 3;
+
+      // ★ 初回だけ、不正解ストリーク UI の値をコンソールにログ出し
+      if (!loggedWrongStreakUiOnce) {
+        console.log("[SYNC-A] wrong-streak monitor enabled", {
+          qid: QID,
+          localWrongStreak3Total: lsWrong,
+          localWrongStreakLen: llWrong,
+          serverWrongStreak3Total: ssWrong,
+          serverWrongStreakLen: slWrong
+        });
+        loggedWrongStreakUiOnce = true;
+      }
 
       const streak3Today = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today)
         ? window.__cscs_sync_state.streak3Today
@@ -292,6 +326,14 @@
         const slsProgEl = box.querySelector(".sync-streaklen-server-progress");
         const sllProgEl = box.querySelector(".sync-streaklen-local-progress");
 
+        // ★ 不正解ストリーク用 DOM 取得
+        const s3wEl  = box.querySelector(".sync-wrong-streak3-val");
+        const s3wsEl = box.querySelector(".sync-wrong-streak3-server");
+        const slwEl  = box.querySelector(".sync-wrong-streaklen-val");
+        const slwsEl = box.querySelector(".sync-wrong-streaklen-server");
+        const slwsProgEl = box.querySelector(".sync-wrong-streaklen-server-progress");
+        const sllwProgEl = box.querySelector(".sync-wrong-streaklen-local-progress");
+
         if (qEl)   qEl.textContent  = QID ? QID : "（データなし）";
         if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
         if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
@@ -302,6 +344,14 @@
         if (slsEl)       slsEl.textContent       = String(sl);
         if (slsProgEl)   slsProgEl.textContent   = String(serverProgress);
         if (sllProgEl)   sllProgEl.textContent   = String(localProgress);
+
+        // ★ 不正解ストリークの値を UI に反映
+        if (s3wEl)  s3wEl.textContent  = String(lsWrong);
+        if (s3wsEl) s3wsEl.textContent = String(ssWrong);
+        if (slwEl)  slwEl.textContent  = String(llWrong);
+        if (slwsEl) slwsEl.textContent = String(slWrong);
+        if (slwsProgEl) slwsProgEl.textContent = String(serverWrongProgress);
+        if (sllwProgEl) sllwProgEl.textContent  = String(localWrongProgress);
 
         const time = lastSyncTime ? lastSyncTime : "-";
         const err  = lastSyncError ? (" err:" + lastSyncError) : "";
@@ -1006,6 +1056,16 @@
           3連続正解回数 (進捗):<br>
           SYNC <span class="sync-streaklen-server">0</span> (<span class="sync-streaklen-server-progress">0</span>/3) /
           local <span class="sync-streaklen-val">0</span> (<span class="sync-streaklen-local-progress">0</span>/3)
+        </div>
+
+        <div class="sync-line sync-wrong-streak3">
+          3連続不正解回数:<br>
+          SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
+        </div>
+        <div class="sync-line sync-wrong-streaklen">
+          3連続不正解回数 (進捗):<br>
+          SYNC <span class="sync-wrong-streaklen-server">0</span> (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
+          local <span class="sync-wrong-streaklen-val">0</span> (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
         </div>
 
         <div class="sync-line sync-streak3today">
