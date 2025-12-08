@@ -433,8 +433,8 @@
 
       text += "\nStreak3TodayUnique:\n";
       if (s3TodaySyncDay === "-" || s3TodaySyncCnt === 0) {
-        // ★ 本日はまだ★獲得なし
-        text += "本日はまだ★獲得なし\n";
+        // ★ 本日はまだ⭐️獲得なし
+        text += "本日はまだ⭐️獲得なし\n";
       } else {
         // ★ 通常の表示
         text += "day: " + s3TodaySyncDay + "\n";
@@ -443,8 +443,8 @@
 
       text += "\nStreak3WrongTodayUnique:\n";
       if (s3WrongTodaySyncDay === "-" || s3WrongTodaySyncCnt === 0) {
-        // ★ 本日はまだ3連続不正解による💣獲得なし
-        text += "本日はまだ3連続不正解による💣獲得なし\n";
+        // ★ 本日はまだ💣獲得なし
+        text += "本日はまだ💣獲得なし\n";
       } else {
         // ★ 通常の表示
         text += "day: " + s3WrongTodaySyncDay + "\n";
