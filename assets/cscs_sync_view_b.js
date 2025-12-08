@@ -46,6 +46,15 @@
    *       ⇔ SYNC state: state.streak3Today.unique_count
    *   - payload(merge): streak3TodayDelta { day, qids }
    *
+   * ▼ 今日の3連続不正解ユニーク数（Streak3WrongToday）
+   *   - localStorage: "cscs_streak3_wrong_today_day"
+   *       ⇔ SYNC state: state.streak3WrongToday.day
+   *   - localStorage: "cscs_streak3_wrong_today_qids"
+   *       ⇔ SYNC state: state.streak3WrongToday.qids
+   *   - localStorage: "cscs_streak3_wrong_today_unique_count"
+   *       ⇔ SYNC state: state.streak3WrongToday.unique_count
+   *   - payload(merge): streak3WrongTodayDelta { day, qids }
+   *
    * ▼ 1 日 1 回計測モード（oncePerDayToday）
    *   - localStorage: "cscs_once_per_day_today_day"
    *       ⇔ SYNC state: state.oncePerDayToday.day
@@ -405,6 +414,23 @@
         }
       } catch(_e) {}
 
+      // ★ 3連続不正解（Streak3WrongToday）の SYNC / local 状態も取得
+      var s3WrongTodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.day) 
+        ? window.__cscs_sync_state.streak3WrongToday.day : "-";
+      var s3WrongTodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.unique_count) 
+        ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0;
+
+      var localS3WrongTodayDay = "";
+      var localS3WrongTodayCnt = 0;
+      try {
+        localS3WrongTodayDay = localStorage.getItem("cscs_streak3_wrong_today_day") || "-";
+        var rawLocalWrongCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
+        var parsedLocalWrongCnt = rawLocalWrongCnt == null ? NaN : parseInt(rawLocalWrongCnt, 10);
+        if (Number.isFinite(parsedLocalWrongCnt) && parsedLocalWrongCnt >= 0) {
+          localS3WrongTodayCnt = parsedLocalWrongCnt;
+        }
+      } catch(_e2) {}
+
       text += "\nStreak3TodayUnique:\n";
       if (s3TodaySyncDay === "-" || s3TodaySyncCnt === 0) {
         // ★ 本日はまだ★獲得なし
@@ -413,6 +439,16 @@
         // ★ 通常の表示
         text += "day: " + s3TodaySyncDay + "\n";
         text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
+      }
+
+      text += "\nStreak3WrongTodayUnique:\n";
+      if (s3WrongTodaySyncDay === "-" || s3WrongTodaySyncCnt === 0) {
+        // ★ 本日はまだ3連続不正解による💣獲得なし
+        text += "本日はまだ3連続不正解による💣獲得なし\n";
+      } else {
+        // ★ 通常の表示
+        text += "day: " + s3WrongTodaySyncDay + "\n";
+        text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
       }
 
       updateSyncBody(text);
@@ -1376,23 +1412,38 @@
           //    → 最初の refreshAndSend では「現在の state」に基づく HUD を表示するだけ
           refreshAndSend(box, { suppressDiffSend: true });
 
-          // ② Local streak3Today 情報を「手動送信」するテスト用トリガー
-          //    - merge 完了後にもう一度 HUD を更新して、
-          //      /api/sync/state に反映された最新の streak3Today を HUD に出す
+          // ② Local streak3Today / streak3WrongToday 情報を「手動送信」するテスト用トリガー
+          //    - それぞれの merge 完了後にもう一度 HUD を更新して、
+          //      /api/sync/state に反映された最新の streak3Today / streak3WrongToday を HUD に出す
+          var promises = [];
+
           if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
             console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button (diff POST suppressed)");
-            var p = window.CSCS_SYNC.recordStreak3TodayUnique();
-            // recordStreak3TodayUnique は async 関数なので、Promise っぽければ完了を待って HUD 再描画
-            if (p && typeof p.then === "function") {
-              p.then(function () {
-                console.log("[SYNC-B:HUD] streak3Today merge completed → HUD 再取得＋再描画（diff POST 抑制）");
-                refreshAndSend(box, { suppressDiffSend: true });
-              }).catch(function (e) {
-                console.error("[SYNC-B:HUD] streak3Today manual send error:", e);
-              });
+            var pToday = window.CSCS_SYNC.recordStreak3TodayUnique();
+            if (pToday && typeof pToday.then === "function") {
+              promises.push(pToday);
             }
           } else {
             console.warn("[SYNC-B:HUD] recordStreak3TodayUnique is not available (手動送信不可)");
+          }
+
+          if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3WrongTodayUnique === "function") {
+            console.log("[SYNC-B:HUD] manual streak3WrongToday SEND requested from button (diff POST suppressed)");
+            var pWrongToday = window.CSCS_SYNC.recordStreak3WrongTodayUnique();
+            if (pWrongToday && typeof pWrongToday.then === "function") {
+              promises.push(pWrongToday);
+            }
+          } else {
+            console.warn("[SYNC-B:HUD] recordStreak3WrongTodayUnique is not available (手動送信不可)");
+          }
+
+          if (promises.length > 0) {
+            Promise.all(promises).then(function () {
+              console.log("[SYNC-B:HUD] streak3Today / streak3WrongToday merge completed → HUD 再取得＋再描画（diff POST 抑制）");
+              refreshAndSend(box, { suppressDiffSend: true });
+            }).catch(function (e) {
+              console.error("[SYNC-B:HUD] streak3Today / streak3WrongToday manual send error:", e);
+            });
           }
         });
       }
@@ -1564,6 +1615,152 @@
     } catch (e) {
       // 想定外の例外が起きた場合も握りつぶさずログに出す
       console.error("[SYNC-B:streak3Today] fatal error:", e);
+    }
+  };
+
+  // ★ 不正解版: 今日の3連続不正解ユニーク（Streak3WrongToday）を SYNC 側に送信する
+  window.CSCS_SYNC.recordStreak3WrongTodayUnique = async function () {
+    try {
+      // ★ 追加ガード: O.D.O.A が nocount のときは streak3WrongToday を一切送らない
+      var state = null;
+      try {
+        state = window.__cscs_sync_state || null;
+      } catch(_e) {
+        state = null;
+      }
+      if (state && (state.odoaMode === "on_nocount" || state.odoa_mode === "on_nocount")) {
+        // 補足: nocount 中に streak3WrongToday が送信されると
+        //       「正誤を計測していないのに💣だけ増える事故」が発生するため、ここで必ずブロックする。
+        console.log("[SYNC-B:streak3WrongToday] skip because O.D.O.A = on_nocount");
+        return;
+      }
+
+      // 1) オフラインならそもそも送信しない（Bパートからの streak3WrongTodayDelta は「オンライン時だけ」）
+      if (!navigator.onLine) {
+        console.warn("[SYNC-B:streak3WrongToday] offline → 送信スキップ");
+        return;
+      }
+
+      // 2) localStorage に溜まっている「今日の3連続不正解情報」を読み出すための一時変数
+      var day = "";
+      var qids = [];
+      var localCount = 0;
+
+      try {
+        // 2-1) 「今日が何日か」を表す文字列（例: "20251201"）
+        day = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+        // 2-2) 今日💣を新規獲得した qid の配列をシリアライズした文字列
+        var rawQids = localStorage.getItem("cscs_streak3_wrong_today_qids");
+        // 2-3) 今日の3連続不正解ユニーク数（local 側カウンタ）
+        var rawCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
+
+        // 2-4) qids の JSON をパースして「妥当な文字列だけ」の配列にクリーンアップ
+        if (rawQids) {
+          var parsed = JSON.parse(rawQids);
+          if (Array.isArray(parsed)) {
+            qids = parsed.filter(function (x) {
+              return typeof x === "string" && x;
+            });
+          }
+        }
+
+        // 2-5) ユニーク数を数値にパース（不正値や負数は 0 扱い）
+        var cnt = parseInt(rawCnt || "0", 10);
+        if (Number.isFinite(cnt) && cnt >= 0) {
+          localCount = cnt;
+        }
+      } catch (_e2) {
+        // localStorage / JSON パースのどこかで失敗した場合は「空データ」として扱う
+        day = "";
+        qids = [];
+        localCount = 0;
+      }
+
+      // 3) 読み出したローカル状態をコンソールにフル出力（デバッグ用）
+      console.group("[SYNC-B:streak3WrongToday] recordStreak3WrongTodayUnique CALLED");
+      console.log("local.day =", day);
+      console.log("local.qids =", qids);
+      console.log("local.unique_count =", localCount);
+      console.groupEnd();
+
+      // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
+      //    - 初回起動直後など「まだ streak3WrongToday 情報が無い」ケースは正常なスキップとして扱う
+      if (!day || qids.length === 0) {
+        console.log("[SYNC-B:streak3WrongToday] day 又は qids が空 → 正常スキップ（まだ送るべきデータがない）", {
+          day: day,
+          qidsLength: qids.length
+        });
+        return;
+      }
+
+      // 5) Workers 側の merge.ts に渡す streak3WrongTodayDelta のペイロードを組み立て
+      //    - day: "YYYYMMDD" 形式
+      //    - qids: その日に💣を初めて取った問題の qid 配列
+      var payload = {
+        streak3WrongTodayDelta: {
+          day: day,
+          qids: qids
+        },
+        updatedAt: Date.now()
+      };
+
+      // 6) 送信直前の payload を丸ごとログに出しておく
+      console.group("[SYNC-B:streak3WrongToday] SEND payload");
+      console.log(payload);
+      console.groupEnd();
+
+      // 7) /api/sync/merge に対して streak3WrongTodayDelta 専用のリクエストを送信
+      var res = await fetch(SYNC_MERGE_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+
+      // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
+      if (!res.ok) {
+        console.error("[SYNC-B:streak3WrongToday] merge FAILED:", res.status);
+        return;
+      }
+
+      // 9) merge.ts が返してきた最新の SYNC スナップショットを取得（失敗しても致命的ではない）
+      var merged = null;
+      try {
+        merged = await res.json();
+      } catch (_e3) {
+        merged = null;
+      }
+
+      // 10) merge のレスポンスをログに残しておく（Workers 側でどう保存されたかの確認用）
+      console.group("[SYNC-B:streak3WrongToday] MERGE result");
+      console.log("mergeResponse =", merged);
+      console.groupEnd();
+
+      // 11) さらに /api/sync/state を叩いて、KV に反映された最終形の streak3WrongToday を確認する
+      try {
+        var stateAfter = await fetchState();
+        try {
+          // 11-1) 取得した state 全体をグローバルに保持して、
+          //       Bパート HUD や他のビューからも streak3WrongToday を参照できるようにする
+          window.__cscs_sync_state = stateAfter;
+        } catch (_e4) {}
+
+        // 11-2) stateAfter.streak3WrongToday の中身をそのままログに出して、
+        //       「day / unique_count / qids がどのように保存されたか」を確認できるようにする
+        console.group("[SYNC-B:streak3WrongToday] UPDATED state.streak3WrongToday");
+        console.log(stateAfter && stateAfter.streak3WrongToday);
+        console.groupEnd();
+
+      } catch (e5) {
+        // state の再取得自体が失敗したケース（merge 自体は成功している可能性あり）
+        console.error("[SYNC-B:streak3WrongToday] state refresh ERROR:", e5);
+      }
+
+    } catch (e) {
+      // 想定外の例外が起きた場合も握りつぶさずログに出す
+      console.error("[SYNC-B:streak3WrongToday] fatal error:", e);
     }
   };
 
