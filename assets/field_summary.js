@@ -906,15 +906,45 @@
           var name = row.field;
           var qids = getQidsForFieldInline(name);
 
-          qidInlineBox.innerHTML = "";
+          // すでにこの分野を開いていた場合はトグルで閉じる
+          if (
+            qidInlineBox.dataset.currentField &&
+            qidInlineBox.dataset.currentField === name
+          ) {
+            qidInlineBox.innerHTML = "";
+            qidInlineBox.dataset.currentField = "";
+            return;
+          }
 
+          qidInlineBox.innerHTML = "";
+          qidInlineBox.dataset.currentField = name;
+
+          // 見出し（右端に［閉じる］を追加）
           var heading = document.createElement("div");
-          heading.textContent =
-            "▶ " + name + " の qid 一覧（" + String(qids.length) + "問）";
+          heading.style.display = "flex";
+          heading.style.justifyContent = "space-between";
+          heading.style.alignItems = "center";
           heading.style.marginBottom = "4px";
           heading.style.fontWeight = "600";
           heading.style.fontSize = "11px";
           heading.style.opacity = "0.95";
+
+          var titleSpan = document.createElement("span");
+          titleSpan.textContent =
+            "▶ " + name + " の qid 一覧（" + String(qids.length) + "問）";
+
+          var closeBtn = document.createElement("span");
+          closeBtn.textContent = "[閉じる]";
+          closeBtn.style.cursor = "pointer";
+          closeBtn.style.opacity = "0.8";
+          closeBtn.style.marginLeft = "8px";
+          closeBtn.onclick = function () {
+            qidInlineBox.innerHTML = "";
+            qidInlineBox.dataset.currentField = "";
+          };
+
+          heading.appendChild(titleSpan);
+          heading.appendChild(closeBtn);
           qidInlineBox.appendChild(heading);
 
           if (!qids.length) {
@@ -923,14 +953,47 @@
             empty.style.fontSize = "11px";
             empty.style.opacity = "0.8";
             qidInlineBox.appendChild(empty);
-          } else {
-            var body = document.createElement("div");
-            body.style.fontSize = "11px";
-            body.style.whiteSpace = "normal";
-            body.style.wordBreak = "break-all";
-            body.textContent = qids.join(" ／ ");
-            qidInlineBox.appendChild(body);
+            return;
           }
+
+          // qidリンク一覧
+          var body = document.createElement("div");
+          body.style.fontSize = "11px";
+          body.style.whiteSpace = "normal";
+          body.style.wordBreak = "break-all";
+
+          qids.forEach(function (qid, index) {
+            var parts = String(qid).split("-");
+            var day = parts[0];
+            var n3 = parts[1];
+
+            if (day && n3) {
+              var a = document.createElement("a");
+              a.href =
+                "/_build_cscs_" +
+                day +
+                "/slides/q" +
+                n3 +
+                "_a.html?nav=manual";
+              a.textContent = qid;
+              a.style.textDecoration = "underline";
+              a.style.cursor = "pointer";
+              a.style.marginRight = "4px";
+              body.appendChild(a);
+            } else {
+              var spanFallback = document.createElement("span");
+              spanFallback.textContent = qid;
+              body.appendChild(spanFallback);
+            }
+
+            if (index < qids.length - 1) {
+              var sep = document.createElement("span");
+              sep.textContent = " ／ ";
+              body.appendChild(sep);
+            }
+          });
+
+          qidInlineBox.appendChild(body);
 
           console.log("field_summary.js: field qid list inline updated", {
             field: name,
