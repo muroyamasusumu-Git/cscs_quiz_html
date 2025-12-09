@@ -124,6 +124,25 @@
 //       ⇔ SYNC state: server.fav[qid]
 //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
 //   → このボタンでは fav を初期化しない（お気に入り状態は維持する）
+////
+// ▼ グローバル情報
+//   - localStorage: "cscs_total_questions"
+//       ⇔ SYNC state: server.global.totalQuestions
+//       ⇔ delta payload: global.totalQuestions
+//   → このボタンでは totalQuestions などのグローバル情報も初期化しない（全体統計は維持する）。
+//
+// ▼ 試験日設定（exam_date）
+//   - localStorage: （直接保存はしない / SYNC 専用）
+//       ⇔ SYNC state: server.exam_date (YYYY-MM-DD)
+//       ⇔ delta payload: exam_date_iso (YYYY-MM-DD)
+//   → このボタンでは exam_date を初期化しない（試験日設定は維持する）。
+//
+// ▼ O.D.O.A / 検証モード関連
+//   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
+//       ⇔ SYNC state: server.odoa_mode ("on" / "off")
+//       ⇔ delta payload: odoa_mode
+//   → このボタンでは ODOA モード（検証モード）も一切変更しない。
+//
 (function () {
   "use strict";
 

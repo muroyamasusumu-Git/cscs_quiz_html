@@ -89,10 +89,13 @@
 //
 // -----------------------------------------------------------------------------
 // ⚠️【SYNC state で絶対にリセットしてはいけない対象】⚠️
-//   - server.consistency_status     （整合性チェック結果）
-//   - server.fav                    （お気に入り状態）
-//   - server.examDate               （試験日）
+//   - server.consistency_status        （整合性チェック結果）
+//   - server.fav                       （お気に入り状態）
+//   - server.exam_date                 （試験日設定：YYYY-MM-DD）
+//   - server.global.totalQuestions     （全問題数などのグローバル統計）
+//   - server.odoa_mode                 （O.D.O.A / 検証モードの状態）
 //   → reset.ts 内では、これらのフィールドを絶対に上書き・削除しないこと。
+//      （/api/sync/reset は計測系のみを初期化し、設定系には一切触れない）
 // -----------------------------------------------------------------------------
 
 export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
