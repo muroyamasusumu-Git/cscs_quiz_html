@@ -123,7 +123,7 @@
       rows = meta;
     } else {
       // どれにも該当しない場合は空で返す
-      return { names: [], totals: {}, qidToField: {} };
+      return { names: [], totals: {}, qidToField: {}, qidToQuestion: {} };
     }
 
     // Field 名一覧（重複なし）
@@ -132,6 +132,8 @@
     var totals = Object.create(null);
     // qid → Field の対応表（streak3 のキーと結びつけるために必須）
     var qidMap = Object.create(null);
+    // qid → Question の対応表（ローカルステージのメタから取得）
+    var qTextMap = Object.create(null);
 
     rows.forEach(function (x) {
       // Field 名を取得（大文字小文字・プロパティ名違いの吸収）
@@ -170,11 +172,26 @@
         }
       }
 
-      // day と n3 が揃っていれば qid を作成し、Field を紐付ける
+      // day と n3 が揃っていれば qid を作成し、Field と Question を紐付ける
       if (day && n3) {
         var qid = day + "-" + n3;
         if (!qidMap[qid]) {
           qidMap[qid] = f;
+        }
+
+        // Question テキスト（候補: Question / question / Stem）
+        var qtext =
+          x.Question != null
+            ? x.Question
+            : x.question != null
+            ? x.question
+            : x.Stem != null
+            ? x.Stem
+            : "";
+
+        qtext = String(qtext == null ? "" : qtext).trim();
+        if (!qTextMap[qid]) {
+          qTextMap[qid] = qtext;
         }
       }
     });
@@ -185,7 +202,9 @@
       // 分野別の総問題数
       totals: totals,
       // 問題ID(qid)→分野名
-      qidToField: qidMap
+      qidToField: qidMap,
+      // 問題ID(qid)→問題文
+      qidToQuestion: qTextMap
     };
   }
 
@@ -227,6 +246,7 @@
       // グローバル変数に保存（後で使う）
       fieldTotals = info.totals || {};
       qidToField = info.qidToField || {};
+      qidToQuestion = info.qidToQuestion || {};
       return info.names;
     } catch (e) {
       console.error("field_summary.js: meta 読み込み失敗", e);
@@ -515,6 +535,7 @@
   var fieldNames = null;               // 分野名一覧
   var fieldTotals = null;              // 分野別の総問題数
   var qidToField = null;               // qid→Field
+  var qidToQuestion = null;            // qid→問題文（ローカルステージのメタ情報由来）
   var starFieldCounts = null;          // 分野別の「★獲得済み問題数」
   var starTotalSolvedQuestions = 0;    // 全体で★済みの問題数
   var starRemainingDays = 0;           // 締切までの残り日数
@@ -572,6 +593,26 @@
       star = Number(starFieldCounts[name]) || 0;
     }
     return { field: name, star: star, total: total };
+  }
+  
+  // qid(YYYYMMDD-NNN) から問題文を取得するヘルパー
+  //  - cscs_meta_all.json → normalizeMetaForFields() → qidToQuestion に保存された内容を参照
+  //  - 見つからなければ空文字を返す
+  function getQuestionTextForQid(qid) {
+    try {
+      var map = qidToQuestion;
+      if (!map || typeof map !== "object") {
+        return "";
+      }
+      var text = map[String(qid)] || "";
+      if (text == null) {
+        text = "";
+      }
+      return String(text);
+    } catch (e) {
+      console.error("field_summary.js: getQuestionTextForQid error", e);
+      return "";
+    }
   }
 
   // 分野別の進捗リスト（後で一度だけ計算してキャッシュ）
@@ -899,12 +940,12 @@
         row.star + " / " + row.total +
         "(" + rate + "%)";
 
-      // 分野名クリックで qid 一覧をパネル最下部にインライン表示
+      // 分野名クリックで qid 一覧をパネル最下部にインライン表示（テーブル＋30件ずつ）
       label.style.cursor = "pointer";
       label.addEventListener("click", function () {
         try {
           var name = row.field;
-          var qids = getQidsForFieldInline(name);
+          var qids = getQidsForFieldInline(name) || [];
 
           // すでにこの分野を開いていた場合はトグルで閉じる
           if (
@@ -916,6 +957,7 @@
             return;
           }
 
+          // 別の分野を開くので中身をリセット
           qidInlineBox.innerHTML = "";
           qidInlineBox.dataset.currentField = name;
 
@@ -956,49 +998,199 @@
             return;
           }
 
-          // qidリンク一覧
+          // 一覧本体コンテナ
           var body = document.createElement("div");
           body.style.fontSize = "11px";
           body.style.whiteSpace = "normal";
-          body.style.wordBreak = "break-all";
+          body.style.wordBreak = "normal";
+          body.style.marginTop = "4px";
 
-          qids.forEach(function (qid, index) {
-            var parts = String(qid).split("-");
-            var day = parts[0];
-            var n3 = parts[1];
+          // テーブル本体の作成
+          var table = document.createElement("table");
+          table.style.width = "100%";
+          table.style.borderCollapse = "collapse";
+          table.style.borderSpacing = "0";
+          table.style.color = "#fff";
 
-            if (day && n3) {
-              var a = document.createElement("a");
-              a.href =
-                "/_build_cscs_" +
-                day +
-                "/slides/q" +
-                n3 +
-                "_a.html?nav=manual";
-              a.textContent = qid;
-              a.style.color = "#fff";
-              a.style.textDecoration = "underline";
-              a.style.cursor = "pointer";
-              a.style.marginRight = "4px";
-              body.appendChild(a);
-            } else {
-              var spanFallback = document.createElement("span");
-              spanFallback.textContent = qid;
-              body.appendChild(spanFallback);
-            }
+          var thead = document.createElement("thead");
+          var headTr = document.createElement("tr");
 
-            if (index < qids.length - 1) {
-              var sep = document.createElement("span");
-              sep.textContent = " ／ ";
-              body.appendChild(sep);
-            }
-          });
+          var thQid = document.createElement("th");
+          thQid.textContent = "qid";
+          thQid.style.textAlign = "left";
+          thQid.style.fontWeight = "600";
+          thQid.style.fontSize = "11px";
+          thQid.style.padding = "2px 4px";
+          thQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thQid.style.whiteSpace = "nowrap";
+
+          var thQuestion = document.createElement("th");
+          thQuestion.textContent = "問題文";
+          thQuestion.style.textAlign = "left";
+          thQuestion.style.fontWeight = "600";
+          thQuestion.style.fontSize = "11px";
+          thQuestion.style.padding = "2px 4px";
+          thQuestion.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+
+          headTr.appendChild(thQid);
+          headTr.appendChild(thQuestion);
+          thead.appendChild(headTr);
+
+          var tbody = document.createElement("tbody");
+
+          table.appendChild(thead);
+          table.appendChild(tbody);
+          body.appendChild(table);
+
+          // ページングUI（30件ずつ）
+          var pager = document.createElement("div");
+          pager.style.marginTop = "4px";
+          pager.style.display = "flex";
+          pager.style.justifyContent = "center";
+          pager.style.alignItems = "center";
+          pager.style.gap = "8px";
+
+          var prevBtn = document.createElement("button");
+          prevBtn.type = "button";
+          prevBtn.textContent = "◀ 前の30件";
+          prevBtn.style.fontSize = "10px";
+          prevBtn.style.padding = "2px 6px";
+          prevBtn.style.background = "#222";
+          prevBtn.style.color = "#fff";
+          prevBtn.style.border = "1px solid #444";
+          prevBtn.style.borderRadius = "4px";
+          prevBtn.style.cursor = "pointer";
+
+          var pageInfo = document.createElement("span");
+          pageInfo.style.fontSize = "10px";
+          pageInfo.style.opacity = "0.85";
+
+          var nextBtn = document.createElement("button");
+          nextBtn.type = "button";
+          nextBtn.textContent = "次の30件 ▶";
+          nextBtn.style.fontSize = "10px";
+          nextBtn.style.padding = "2px 6px";
+          nextBtn.style.background = "#222";
+          nextBtn.style.color = "#fff";
+          nextBtn.style.border = "1px solid #444";
+          nextBtn.style.borderRadius = "4px";
+          nextBtn.style.cursor = "pointer";
+
+          pager.appendChild(prevBtn);
+          pager.appendChild(pageInfo);
+          pager.appendChild(nextBtn);
+
+          body.appendChild(pager);
 
           qidInlineBox.appendChild(body);
 
-          console.log("field_summary.js: field qid list inline updated", {
+          var pageSize = 30;
+          var currentPage = 0;
+          var totalPages = Math.max(1, Math.ceil(qids.length / pageSize));
+
+          function renderPage(pageIndex) {
+            if (pageIndex < 0) {
+              pageIndex = 0;
+            }
+            if (pageIndex > totalPages - 1) {
+              pageIndex = totalPages - 1;
+            }
+            currentPage = pageIndex;
+
+            // tbody をクリア
+            while (tbody.firstChild) {
+              tbody.removeChild(tbody.firstChild);
+            }
+
+            var startIndex = currentPage * pageSize;
+            var endIndex = Math.min(startIndex + pageSize, qids.length);
+
+            for (var i = startIndex; i < endIndex; i++) {
+              var qid = qids[i];
+              var parts = String(qid).split("-");
+              var day = parts[0];
+              var n3 = parts[1];
+
+              var tr = document.createElement("tr");
+
+              // qid セル（リンク付き）
+              var tdQid = document.createElement("td");
+              tdQid.style.padding = "2px 4px";
+              tdQid.style.verticalAlign = "top";
+              tdQid.style.whiteSpace = "nowrap";
+              tdQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+
+              if (day && n3) {
+                var a = document.createElement("a");
+                a.href =
+                  "/_build_cscs_" +
+                  day +
+                  "/slides/q" +
+                  n3 +
+                  "_a.html?nav=manual";
+                a.textContent = qid;
+                a.style.color = "#fff";
+                a.style.textDecoration = "underline";
+                a.style.cursor = "pointer";
+                tdQid.appendChild(a);
+              } else {
+                tdQid.textContent = qid;
+              }
+
+              // 問題文セル
+              var tdQuestion = document.createElement("td");
+              tdQuestion.style.padding = "2px 4px";
+              tdQuestion.style.verticalAlign = "top";
+              tdQuestion.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdQuestion.style.width = "100%";
+              tdQuestion.style.wordBreak = "break-word";
+
+              var qText = getQuestionTextForQid(qid);
+              if (!qText) {
+                qText = "";
+              }
+              tdQuestion.textContent = qText;
+
+              tr.appendChild(tdQid);
+              tr.appendChild(tdQuestion);
+              tbody.appendChild(tr);
+            }
+
+            // ページ情報表示更新
+            pageInfo.textContent =
+              "ページ " +
+              String(currentPage + 1) +
+              " / " +
+              String(totalPages) +
+              " （" +
+              String(startIndex + 1) +
+              "〜" +
+              String(endIndex) +
+              "件）";
+
+            // ボタン活性制御
+            prevBtn.disabled = currentPage <= 0;
+            nextBtn.disabled = currentPage >= totalPages - 1;
+            prevBtn.style.opacity = prevBtn.disabled ? "0.4" : "1.0";
+            nextBtn.style.opacity = nextBtn.disabled ? "0.4" : "1.0";
+          }
+
+          // ページングボタンのイベント
+          prevBtn.addEventListener("click", function () {
+            renderPage(currentPage - 1);
+          });
+          nextBtn.addEventListener("click", function () {
+            renderPage(currentPage + 1);
+          });
+
+          // 最初のページを描画
+          renderPage(0);
+
+          console.log("field_summary.js: field qid list inline updated (table + paging)", {
             field: name,
-            qids: qids
+            totalQids: qids.length,
+            pageSize: pageSize,
+            totalPages: totalPages
           });
         } catch (e) {
           console.error("field_summary.js: qid inline list update failed", e);
