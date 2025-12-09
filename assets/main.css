@@ -515,7 +515,7 @@ body.mode-a #cc-check-wrapper {
 }
 
 body.mode-b #cc-check-wrapper {
-    top: 280px;
+    bottom: 280px;
     opacity: 0.6 !important;
 }
 
