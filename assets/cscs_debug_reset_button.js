@@ -132,6 +132,32 @@
   }
   window.CSCS_DEBUG_RESET_BUTTON_INSTALLED = true;
 
+  // 直近リセット記録の保存キー
+  var LAST_RESET_STORAGE_KEY = "cscs_debug_reset_last";
+
+  // JST 現在時刻を "YYYY-MM-DD HH:mm:ss (JST)" 形式で返す
+  function getNowJSTString() {
+    try {
+      var now = new Date();
+      // UTC から +9時間ずらした JST を作成
+      var jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      var y = jst.getUTCFullYear();
+      var m = jst.getUTCMonth() + 1;
+      var d = jst.getUTCDate();
+      var hh = jst.getUTCHours();
+      var mm = jst.getUTCMinutes();
+      var ss = jst.getUTCSeconds();
+      function pad(n) { return n < 10 ? "0" + n : "" + n; }
+      return (
+        y + "-" + pad(m) + "-" + pad(d) +
+        " " + pad(hh) + ":" + pad(mm) + ":" + pad(ss) +
+        " (JST)"
+      );
+    } catch (e) {
+      return "";
+    }
+  }
+
   // ---- 共通ユーティリティ ----
   function deleteByPrefix(storage, prefix) {
     var keys = [];
@@ -402,6 +428,23 @@
     panel.style.gap = "4px";
     panel.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
 
+    // パネル下部の「直近リセット記録」表示要素（後で実体を代入）
+    var lastResetInfoEl = null;
+
+    // 「直近リセット記録」を localStorage に保存しつつ表示を更新するヘルパー
+    function updateLastResetInfo(label) {
+      var nowText = getNowJSTString();
+      var combined = nowText ? nowText + " ｜ " + label : label;
+      try {
+        window.localStorage.setItem(LAST_RESET_STORAGE_KEY, combined);
+      } catch (e) {
+        console.warn("[DEBUG-RESET] failed to save LAST_RESET_STORAGE_KEY:", e);
+      }
+      if (lastResetInfoEl) {
+        lastResetInfoEl.textContent = "直近の最終リセット: " + combined;
+      }
+    }
+
     // 共通のボタンスタイルを適用するヘルパー
     function styleButton(btn) {
       btn.type = "button";
@@ -453,10 +496,12 @@
         if (typeof resetSyncFn === "function") {
           resetSyncFn().then(function () {
             console.log("=== CSCS DEBUG RESET: [" + label + "] done ===");
+            updateLastResetInfo(label);
             window.alert(label + " のリセットが完了しました。");
           });
         } else {
           console.log("=== CSCS DEBUG RESET: [" + label + "] done (local only) ===");
+          updateLastResetInfo(label);
           window.alert(label + " のリセットが完了しました。");
         }
       });
@@ -607,6 +652,27 @@
       resetTokenLocal,
       resetTokenSync
     );
+
+    // 直近リセット記録の表示エリアをボタン群の下に追加
+    lastResetInfoEl = document.createElement("div");
+    lastResetInfoEl.style.marginTop = "4px";
+    lastResetInfoEl.style.paddingTop = "4px";
+    lastResetInfoEl.style.borderTop = "1px solid rgba(255,255,255,0.25)";
+    lastResetInfoEl.style.color = "#dddddd";
+    lastResetInfoEl.style.fontSize = "10px";
+
+    var storedLast = "";
+    try {
+      storedLast = window.localStorage.getItem(LAST_RESET_STORAGE_KEY) || "";
+    } catch (e) {
+      storedLast = "";
+    }
+    if (storedLast) {
+      lastResetInfoEl.textContent = "直近の最終リセット: " + storedLast;
+    } else {
+      lastResetInfoEl.textContent = "直近の最終リセット: 未記録";
+    }
+    panel.appendChild(lastResetInfoEl);
 
     // 3) 🗑️ トリガーボタンを topmeta-left に挿入する（閉じタグ直前の子要素として追加）
     var trigger = document.createElement("button");
