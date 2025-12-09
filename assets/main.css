@@ -290,7 +290,7 @@ margin-left: 10px;
   --cc-font-scale: 1.1;     /* 全体スケール（0.9 や 1.1 などに変える） */
   font-size: calc(var(--cc-base-font) * var(--cc-font-scale));
   color: rgb(238, 238, 238);
-    width: 97% !important;
+    width: 68.5% !important;
     padding: 0 5px;
     font-size: 12px;
     line-height: 14px;
