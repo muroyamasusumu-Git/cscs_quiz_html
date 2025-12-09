@@ -179,9 +179,11 @@
           qidMap[qid] = f;
         }
 
-        // Question テキスト（候補: Question / question / Stem）
+        // Question テキスト（候補: text / Question / question / Stem）
         var qtext =
-          x.Question != null
+          x.text != null
+            ? x.text
+            : x.Question != null
             ? x.Question
             : x.question != null
             ? x.question
