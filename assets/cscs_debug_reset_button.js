@@ -333,8 +333,16 @@
   }
 
   // その他メタ情報（必要に応じてサーバー側で定義）を SYNC 側でリセットする
+  // ※ consistency_status / fav / 試験日設定などの「設定系」が巻き込まれるリスクを避けるため、
+  //    このデバッグボタンからは SYNC 側の meta スコープには一切触れない。
+  //    （LocalStorage 側の meta は resetMetaLocal() でのみ削除する）
   function resetMetaSync() {
-    return postSyncReset("meta");
+    console.log(
+      "[DEBUG-RESET] SYNC meta reset is intentionally disabled to protect " +
+      "consistency_status / fav / exam date."
+    );
+    // SYNC には何も送らず、呼び出し元とのインターフェースを保つために即時 resolve だけ返す
+    return Promise.resolve();
   }
 
   // Streak3Today（本日の⭐️ユニーク数）を SYNC 側でリセットする
@@ -359,19 +367,24 @@
 
   // 全カテゴリを一括リセットするヘルパー（従来の resetSyncOnServer 相当）
   function resetSyncOnServer() {
-    // ※ consistency_status / fav はサーバー側で scope 対象に含めない実装にしておくこと
+    // ※ consistency_status / fav / 試験日などの「設定系」は、
+    //    サーバー実装だけでなくクライアント側からも reset 対象に含めない。
+    //    そのため ALL 実行時も meta スコープ（設定系と混在しやすい領域）には触れない。
     return Promise.all([
       resetDailySync(),
       resetQTotalsSync(),
       resetQStreaksSync(),
       resetGlobalStreakSync(),
-      resetMetaSync(),
+      // resetMetaSync() は「設定系を誤って消さない」ため ALL からは呼ばない
       resetStreak3TodaySync(),
       resetStreak3WrongTodaySync(),
       resetOncePerDaySync(),
       resetTokenSync()
     ]).then(function () {
-      console.log("[DEBUG-RESET] SYNC reset (all metric scopes, without consistency_status/fav) done.");
+      console.log(
+        "[DEBUG-RESET] SYNC reset (all metric scopes, explicitly excluding meta / " +
+        "consistency_status / fav / exam date) done."
+      );
     });
   }
 
