@@ -432,13 +432,15 @@
       } catch(_e2) {}
 
       text += "\nStreak3TodayUnique:\n";
-      // ★ 計測記録がない場合も含め、常に day / unique を表示する
-      text += "day: " + s3TodaySyncDay + "\n";
+      // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
+      var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "（データなし）" : String(s3TodaySyncDay));
+      text += "day: " + s3TodayDayLabel + "\n";
       text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
 
       text += "\nStreak3WrongTodayUnique:\n";
-      // ★ 計測記録がない場合も含め、常に day / unique を表示する
-      text += "day: " + s3WrongTodaySyncDay + "\n";
+      // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
+      var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "（データなし）" : String(s3WrongTodaySyncDay));
+      text += "day: " + s3WrongTodayDayLabel + "\n";
       text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
 
       updateSyncBody(text);
