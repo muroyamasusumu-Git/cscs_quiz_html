@@ -1,3 +1,100 @@
+// ============================================================================
+// CSCS SYNC reset API
+// ※ cscs_debug_reset_button.js と完全に整合する仕様を必ず維持すること。
+// 
+// ▼ この API（/api/sync/reset）は「計測系のみを初期化」するためのもの。
+// ▼ consistency_status / fav / examDate などの設定系は絶対に削除しない。
+// ▼ 設定系は取り扱い禁止（この API では触らない）。
+//
+// -----------------------------------------------------------------------------
+// 【localStorage / sessionStorage 側でリセットされる対象（参考：デバッグボタン側）】
+//
+// ▼ 日次系
+//   - cscs_correct_attempts_YYYYMMDD
+//   - cscs_wrong_attempts_YYYYMMDD
+//   - cscs_correct_done:YYYYMMDD
+//   - cscs_wrong_done:YYYYMMDD
+//   - cscs_correct_attempt_log_YYYYMMDD
+//   - cscs_wrong_attempt_log_YYYYMMDD
+//
+// ▼ 問題別累計（ローカルキャッシュ）
+//   - cscs_q_correct_total:qid
+//   - cscs_q_wrong_total:qid
+//   - cscs_q_correct_counted_total:qid
+//   - cscs_q_wrong_counted_total:qid
+//   - cscs_q_correct_uncounted_total:qid
+//   - cscs_q_wrong_uncounted_total:qid
+//
+// ▼ 問題別 3 連続正解 / 不正解（ローカル）
+//   - cscs_q_correct_streak3_total:qid
+//   - cscs_q_correct_streak_len:qid
+//   - cscs_q_correct_streak3_log:qid
+//   - cscs_q_wrong_streak3_total:qid
+//   - cscs_q_wrong_streak_len:qid
+//   - cscs_q_wrong_streak3_log:qid
+//
+// ▼ グローバルストリーク
+//   - cscs_correct_streak_len
+//   - cscs_correct_streak3_total
+//   - cscs_correct_streak3_log
+//
+// ▼ その他メタ（local のみ）
+//   - cscs_wrong_log
+//   - cscs_last_seen_day
+//
+// ▼ Streak3Today
+//   - cscs_streak3_today_day
+//   - cscs_streak3_today_qids
+//   - cscs_streak3_today_unique_count
+//
+// ▼ Streak3WrongToday
+//   - cscs_streak3_wrong_today_day
+//   - cscs_streak3_wrong_today_qids
+//   - cscs_streak3_wrong_today_unique_count
+//
+// ▼ oncePerDayToday
+//   - cscs_once_per_day_today_day
+//   - cscs_once_per_day_today_results
+//
+// ▼ A→B トークン
+//   - cscs_from_a:qid
+//   - cscs_from_a_token:qid
+//   - sessionStorage 同名キー
+//
+// -----------------------------------------------------------------------------
+// 【SYNC state 側でリセットされる対象】
+//
+// ▼ 問題別累計
+//   - server.correct[qid]
+//   - server.incorrect[qid]
+//
+// ▼ 問題別 3 連続正解
+//   - server.streak3[qid]
+//   - server.streakLen[qid]
+//
+// ▼ 問題別 3 連続不正解
+//   - server.streak3Wrong[qid]
+//   - server.streakWrongLen[qid]
+//
+// ▼ Streak3Today
+//   - server.streak3Today(day / qids / unique_count)
+//
+// ▼ Streak3WrongToday
+//   - server.streak3WrongToday(day / qids / unique_count)
+//
+// ▼ oncePerDayToday
+//   - server.oncePerDayToday(day / results)
+//
+// ▼ token_from_a（存在すれば）
+//
+// -----------------------------------------------------------------------------
+// ⚠️【SYNC state で絶対にリセットしてはいけない対象】⚠️
+//   - server.consistency_status     （整合性チェック結果）
+//   - server.fav                    （お気に入り状態）
+//   - server.examDate               （試験日）
+//   → reset.ts 内では、これらのフィールドを絶対に上書き・削除しないこと。
+// -----------------------------------------------------------------------------
+
 export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   const user = await getUserIdFromAccess(request);
   const key = `sync:${user}`;
