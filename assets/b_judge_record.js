@@ -164,6 +164,14 @@
 // ・問題別キー: cscs_q_wrong_streak_len:{qid} / cscs_q_wrong_streak3_total:{qid} / cscs_q_wrong_streak3_log:{qid}。
 // ・正解が出たタイミングで不正解ストリークをリセットし、不正解が出たタイミングで正解ストリークをリセットする対称設計とする。
 // 🆕 2025-12-09 追加
+// ・各問題ごとの「最終学習日」「最終正解日」「最終不正解日」を記録する per-problem 日付情報を追加。
+// ・localStorage 上で以下のキーを管理：
+//     cscs_q_last_seen_day:{qid}      … その問題を最後に解いたJST日付（YYYYMMDD）。正誤を問わず毎回更新。
+//     cscs_q_last_correct_day:{qid}   … その問題で最後に正解したJST日付（YYYYMMDD）。正解時のみ更新。
+//     cscs_q_last_wrong_day:{qid}     … その問題で最後に不正解となったJST日付（YYYYMMDD）。不正解時のみ更新。
+// ・値はすべて dayPlay（実際にプレイしたJST "YYYYMMDD"）を保存する。
+// ・HUD や field_summary.js などから「最終記録日」「最終正解日／最終不正解日」を表示・集計する際の唯一のソースとする。
+// 🆕 2025-12-09 追加
 // ・「今日、新規に💣（3連続不正解）を達成した問題数（ユニーク qid 数）」を計測。
 // ・対象は、問題別3連不正解回数 cscs_q_wrong_streak3_total:{qid} が 2→3 となる瞬間ごとに、同一日内で一度だけカウントする。
 // ・JST の各日について、localStorage 上で以下のキーを管理：
