@@ -976,6 +976,7 @@
                 n3 +
                 "_a.html?nav=manual";
               a.textContent = qid;
+              a.style.color = "#fff";
               a.style.textDecoration = "underline";
               a.style.cursor = "pointer";
               a.style.marginRight = "4px";
