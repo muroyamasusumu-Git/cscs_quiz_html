@@ -580,7 +580,7 @@ body.mode-b #cc-check-wrapper {
 
 /* 見出し行： "SYNC(A): <qid>" */
 #cscs_sync_monitor_a .sync-header {
-  margin-bottom: 5px;
+  margin-bottom: 0px;
   opacity: 0.8;
 }
 
