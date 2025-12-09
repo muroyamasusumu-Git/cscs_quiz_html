@@ -2027,6 +2027,7 @@
     // ★ 遷移時に SYNC を確認し、未チェックなら自動で整合性チェックを実行
     autoRunConsistencyIfNeeded(meta, q, hasLocalResult);
 
+    /*
     var clearBtn = document.createElement("button");
     clearBtn.id = "cc-sync-clear-btn";
     clearBtn.type = "button";
@@ -2047,6 +2048,7 @@
     }
 
     wrapper.appendChild(clearBtn);
+    */
   });
 
 })();
