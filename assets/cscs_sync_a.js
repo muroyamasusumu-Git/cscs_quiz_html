@@ -1139,14 +1139,6 @@
       box.id = "cscs_sync_monitor_a";
       box.innerHTML = `
         <div class="sync-header">SYNC(A): <span class="sync-qid"></span></div>
-        <div class="sync-reset-row">            
-          <button id="cscs_sync_test_reset" type="button" class="sync-reset-button">reset this qid</button>
-          <button id="cscs_sync_star_reset" type="button" class="sync-reset-button">reset stars</button>
-          <button id="cscs_sync_streak3today_reset" type="button" class="sync-reset-button">reset today streak</button>
-          <button id="cscs_sync_onceperday_reset" type="button" class="sync-reset-button">reset oncePerDay</button>
-          <button id="cscs_sync_all_reset" type="button" class="sync-reset-button">reset all</button>
-          <!-- <button id="cscs_sync_all_qid_reset" type="button" class="sync-reset-button">⚠︎reset all qid</button> -->
-        </div>        
         <div id="cscs_sync_totals" class="sync-line sync-totals" data-server-c="0" data-server-i="0">server 0 / 0</div>
         <div class="sync-line sync-local">local  0 / 0</div>
         <div class="sync-line sync-queue">+Δ    0 / 0</div>
@@ -1193,63 +1185,6 @@
 
       const btnOk   = document.getElementById("cscs_sync_test_ok");
       const btnNg   = document.getElementById("cscs_sync_test_ng");
-      const btnReset  = document.getElementById("cscs_sync_test_reset");
-      const btnStarReset = document.getElementById("cscs_sync_star_reset");
-      const btnStreakTodayReset = document.getElementById("cscs_sync_streak3today_reset");
-      const btnOncePerDayReset = document.getElementById("cscs_sync_onceperday_reset");
-      const btnAllReset = document.getElementById("cscs_sync_all_reset");
-      const btnAllQidReset = document.getElementById("cscs_sync_all_qid_reset");
-
-      if (btnReset) {
-        btnReset.addEventListener("click", async function(){
-          await resetSyncForThisQid(true, false);
-          location.reload();
-        });
-      }
-
-      if (btnStarReset) {
-        btnStarReset.addEventListener("click", async function(){
-          await resetStarForThisQid(true);
-          location.reload();
-        });
-      }
-
-      if (btnStreakTodayReset) {
-        btnStreakTodayReset.addEventListener("click", async function(){
-          await resetStreak3TodayAll(true);
-          location.reload();
-        });
-      }
-
-      if (btnOncePerDayReset) {
-        btnOncePerDayReset.addEventListener("click", async function(){
-          await resetOncePerDayTodayAll(true);
-          location.reload();
-        });
-      }
-
-      if (btnAllReset) {
-        btnAllReset.addEventListener("click", async function(){
-          if (!QID) return;
-          const ok = window.confirm("この問題のSYNCカウンタ・星・今日の3連続正解ユニーク数・oncePerDayToday をすべてリセットします。よろしいですか？");
-          if (!ok) return;
-          await resetSyncForThisQid(false, false);
-          await resetStarForThisQid(false);
-          await resetStreak3TodayAll(false);
-          await resetOncePerDayTodayAll(false);
-          alert("この問題に関するSYNCカウンタ・星・今日の3連続正解ユニーク数・oncePerDayToday をすべてリセットしました。");
-          location.reload();
-        });
-      }
-
-      if (btnAllQidReset) {
-        btnAllQidReset.addEventListener("click", async function(){
-          const ok = window.confirm("⚠︎本当に、全ての問題(qid)の計測系 SYNC と local 記録をリセットしますか？\n\nこの操作はデバッグ専用であり、本番利用は想定していません。");
-          if (!ok) return;
-          await resetAllQidSyncAndLocal(true);
-          location.reload();
-        });
-      }
 
       if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
       if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
