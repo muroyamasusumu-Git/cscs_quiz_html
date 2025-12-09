@@ -442,14 +442,14 @@
           ) {
             const r = once.results[QID];
             if (r === "correct" || r === "wrong") {
-              onceLabel = " / oncePerDayToday: 計測済(" + r + ")";
+              onceLabel = "\noncePerDayToday:\n計測済(" + r + ")";
             } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
-              onceLabel = " / oncePerDayToday: 計測済(unknown)";
+              onceLabel = "\noncePerDayToday:\n計測済(unknown)";
             } else {
-              onceLabel = " / oncePerDayToday: 未計測";
+              onceLabel = "\noncePerDayToday:\n未計測(データなし)";
             }
           } else {
-            onceLabel = " / oncePerDayToday: 未計測";
+            onceLabel = "\noncePerDayToday:\n未計測(データなし)";
           }
         }catch(_eOnce){
           // oncePerDayToday 表示に失敗してもステータス自体は出す
