@@ -432,24 +432,14 @@
       } catch(_e2) {}
 
       text += "\nStreak3TodayUnique:\n";
-      if (s3TodaySyncDay === "-" || s3TodaySyncCnt === 0) {
-        // ★ 本日はまだ⭐️獲得なし
-        text += "本日はまだ⭐️獲得なし\n";
-      } else {
-        // ★ 通常の表示
-        text += "day: " + s3TodaySyncDay + "\n";
-        text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
-      }
+      // ★ 計測記録がない場合も含め、常に day / unique を表示する
+      text += "day: " + s3TodaySyncDay + "\n";
+      text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
 
       text += "\nStreak3WrongTodayUnique:\n";
-      if (s3WrongTodaySyncDay === "-" || s3WrongTodaySyncCnt === 0) {
-        // ★ 本日はまだ💣獲得なし
-        text += "本日はまだ💣獲得なし\n";
-      } else {
-        // ★ 通常の表示
-        text += "day: " + s3WrongTodaySyncDay + "\n";
-        text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
-      }
+      // ★ 計測記録がない場合も含め、常に day / unique を表示する
+      text += "day: " + s3WrongTodaySyncDay + "\n";
+      text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
 
       updateSyncBody(text);
 
