@@ -474,6 +474,16 @@
         incorrectMap = root.incorrect;
       }
 
+      // SYNCから取得した正解/不正解マップをモジュール内共有変数に保存（最終正誤表示用）
+      syncCorrectMap = correctMap || {};
+      syncIncorrectMap = incorrectMap || {};
+      if (root.streakLen && typeof root.streakLen === "object") {
+        // 連続正解回数マップも共有（qid一覧テーブルの「連続回数」表示に利用）
+        syncStreakLenMap = root.streakLen;
+      } else {
+        syncStreakLenMap = null;
+      }
+
       var everCorrectCount = 0;               // 一度でも正解したことがある問題数
       var appearedSet = new Set();           // 一度でも正解 or 不正解として登場した qid の集合
 
@@ -624,6 +634,11 @@
   // - 取得できなかった場合のみ DUMMY_TOTAL を暫定使用
   var totalQuestionsGlobal = DUMMY_TOTAL;
 
+  // SYNC状態から取得した正解・不正解・連続正解マップ（最終正誤結果 / 連続回数の表示用）
+  var syncCorrectMap = null;           // state.correct の生データ参照
+  var syncIncorrectMap = null;         // state.incorrect の生データ参照
+  var syncStreakLenMap = null;         // state.streakLen の生データ参照
+
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
     var seg = (segments && Number.isFinite(segments)) ? segments : 10;
@@ -722,6 +737,80 @@
     } catch (e) {
       console.error("field_summary.js: getLevelForQid error", e);
       return "";
+    }
+  }
+
+  // qid(YYYYMMDD-NNN) から「最終正誤結果」と「現在の連続正解回数」を取得するヘルパー
+  //  - state.correct / state.incorrect / state.streakLen をもとに決定し、解答履歴が無ければ空を返す
+  function getLastResultInfoForQid(qid) {
+    // 結果が存在しない場合にも、呼び出し側で扱いやすい固定フォーマットで返す
+    var info = {
+      symbol: "",
+      text: "",
+      streak: 0
+    };
+
+    try {
+      if (!syncCorrectMap && !syncIncorrectMap && !syncStreakLenMap) {
+        return info;
+      }
+
+      var key = String(qid);
+
+      // state.correct / state.incorrect から合計回数を取り出すユーティリティ
+      function extractTotal(v) {
+        if (v && typeof v === "object" && Object.prototype.hasOwnProperty.call(v, "total")) {
+          var t = Number(v.total);
+          return Number.isFinite(t) && t > 0 ? t : 0;
+        }
+        var n = Number(v);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      }
+
+      var correctEntry = syncCorrectMap && Object.prototype.hasOwnProperty.call(syncCorrectMap, key)
+        ? syncCorrectMap[key]
+        : null;
+      var incorrectEntry = syncIncorrectMap && Object.prototype.hasOwnProperty.call(syncIncorrectMap, key)
+        ? syncIncorrectMap[key]
+        : null;
+
+      var correctTotal = extractTotal(correctEntry);
+      var incorrectTotal = extractTotal(incorrectEntry);
+
+      // 一度も解答履歴が無い場合は空のまま返す
+      if (correctTotal === 0 && incorrectTotal === 0) {
+        return info;
+      }
+
+      var streakLen = 0;
+      if (syncStreakLenMap && Object.prototype.hasOwnProperty.call(syncStreakLenMap, key)) {
+        var rawStreak = Number(syncStreakLenMap[key]);
+        if (Number.isFinite(rawStreak) && rawStreak > 0) {
+          streakLen = rawStreak;
+        }
+      }
+
+      // 連続正解回数が 1 以上であれば、直近は必ず「正解」となる
+      if (streakLen > 0) {
+        info.symbol = "○";
+        info.text = "正解";
+        info.streak = streakLen;
+        return info;
+      }
+
+      // 正解ストリークが 0 で、かつ不正解履歴が存在する場合は「直近が不正解」とみなす
+      if (incorrectTotal > 0) {
+        info.symbol = "×";
+        info.text = "不正解";
+        info.streak = 0;  // ここでは「連続正解回数」を扱うため、不正解時は 0 としておく
+        return info;
+      }
+
+      // 上記いずれにも当てはまらない場合（不整合ケース）は記号のみ空のまま返す
+      return info;
+    } catch (e) {
+      console.error("field_summary.js: getLastResultInfoForQid error", e);
+      return info;
     }
   }
 
@@ -1213,6 +1302,24 @@
           thQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thQid.style.whiteSpace = "nowrap";
 
+          var thLast = document.createElement("th");
+          thLast.textContent = "最終";
+          thLast.style.textAlign = "left";
+          thLast.style.fontWeight = "600";
+          thLast.style.fontSize = "11px";
+          thLast.style.padding = "2px 4px";
+          thLast.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thLast.style.whiteSpace = "nowrap";
+
+          var thStreak = document.createElement("th");
+          thStreak.textContent = "連続正解";
+          thStreak.style.textAlign = "left";
+          thStreak.style.fontWeight = "600";
+          thStreak.style.fontSize = "11px";
+          thStreak.style.padding = "2px 4px";
+          thStreak.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thStreak.style.whiteSpace = "nowrap";
+
           var thLevel = document.createElement("th");
           thLevel.textContent = "レベル";
           thLevel.style.textAlign = "left";
@@ -1231,6 +1338,8 @@
           thQuestion.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
 
           headTr.appendChild(thQid);
+          headTr.appendChild(thLast);
+          headTr.appendChild(thStreak);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
           thead.appendChild(headTr);
@@ -1343,6 +1452,34 @@
                 tdQid.textContent = qid;
               }
 
+              // 最終正誤セル（○ / ×）と連続正解回数セル
+              var lastInfo = getLastResultInfoForQid(qid);
+
+              var tdLast = document.createElement("td");
+              tdLast.style.padding = "2px 4px";
+              tdLast.style.verticalAlign = "top";
+              tdLast.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdLast.style.whiteSpace = "nowrap";
+              if (lastInfo.symbol) {
+                tdLast.textContent = lastInfo.symbol;
+              } else {
+                tdLast.textContent = "";
+              }
+              if (lastInfo.text) {
+                tdLast.title = lastInfo.text;
+              }
+
+              var tdStreak = document.createElement("td");
+              tdStreak.style.padding = "2px 4px";
+              tdStreak.style.verticalAlign = "top";
+              tdStreak.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdStreak.style.whiteSpace = "nowrap";
+              if (lastInfo.streak > 0) {
+                tdStreak.textContent = String(lastInfo.streak);
+              } else {
+                tdStreak.textContent = "";
+              }
+
               // レベルセル
               var tdLevel = document.createElement("td");
               tdLevel.style.padding = "2px 4px";
@@ -1370,6 +1507,8 @@
               tdQuestion.textContent = qText;
 
               tr.appendChild(tdQid);
+              tr.appendChild(tdLast);
+              tr.appendChild(tdStreak);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
               tbody.appendChild(tr);
