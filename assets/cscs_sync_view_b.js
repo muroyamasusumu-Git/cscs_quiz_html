@@ -275,15 +275,18 @@
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
 
-    var btn = document.createElement("button");
-    btn.id = "cscs_sync_view_b_send_btn";
-    btn.type = "button";
-    btn.textContent = "SYNC送信";
+    // var btn = document.createElement("button");
+    // btn.id = "cscs_sync_view_b_send_btn";
+    // btn.type = "button";
+    // btn.textContent = "SYNC送信";
 
     box.appendChild(title);
     box.appendChild(body);
     box.appendChild(statusDiv);
-    box.appendChild(btn);
+
+    // ★ SYNC送信ボタンは非表示化（コメントアウトで保持）
+    // box.appendChild(btn);
+
     return box;
   }
 
