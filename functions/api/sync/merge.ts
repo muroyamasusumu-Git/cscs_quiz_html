@@ -60,6 +60,17 @@
  *       ⇔ SYNC state: server.oncePerDayToday.results[qid]
  *       ⇔ delta payload: oncePerDayTodayDelta.results[qid]
  *
+ * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
+ *   - localStorage: "cscs_q_last_seen_day:" + qid
+ *       ⇔ SYNC state: server.lastSeenDay[qid]
+ *       ⇔ delta payload: lastSeenDayDelta[qid]
+ *   - localStorage: "cscs_q_last_correct_day:" + qid
+ *       ⇔ SYNC state: server.lastCorrectDay[qid]
+ *       ⇔ delta payload: lastCorrectDayDelta[qid]
+ *   - localStorage: "cscs_q_last_wrong_day:" + qid
+ *       ⇔ SYNC state: server.lastWrongDay[qid]
+ *       ⇔ delta payload: lastWrongDayDelta[qid]
+ *
  * ▼ お気に入り状態
  *   - localStorage: （fav_modal.js 内部管理）
  *       ⇔ SYNC state: server.fav[qid]
@@ -142,6 +153,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streakLen: {},
       streak3Wrong: {},
       streakWrongLen: {},
+      lastSeenDay: {},
+      lastCorrectDay: {},
+      lastWrongDay: {},
       consistency_status: {},
       // お気に入り状態（fav_modal.js からの同期先）
       fav: {},
@@ -163,6 +177,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.streakLen) server.streakLen = {};
   if (!server.streak3Wrong) server.streak3Wrong = {};
   if (!server.streakWrongLen) server.streakWrongLen = {};
+  if (!server.lastSeenDay) server.lastSeenDay = {};
+  if (!server.lastCorrectDay) server.lastCorrectDay = {};
+  if (!server.lastWrongDay) server.lastWrongDay = {};
   if (!server.consistency_status) server.consistency_status = {};
   if (!server.fav || typeof server.fav !== "object") server.fav = {};
   if (!(server as any).streak3Today) {
@@ -349,6 +366,39 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     if (!Number.isFinite(v) || v < 0) continue;
     if (!server.streakWrongLen) server.streakWrongLen = {};
     server.streakWrongLen[qid] = v;
+  }
+
+  // lastSeenDayDelta: 各 qid の「最終閲覧日」をサーバー側に反映（YYYYMMDD 数値）
+  for (const [qid, n] of Object.entries((delta as any).lastSeenDayDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v <= 0) continue;
+    if (!server.lastSeenDay) server.lastSeenDay = {};
+    const prev = typeof server.lastSeenDay[qid] === "number" ? server.lastSeenDay[qid] : 0;
+    if (v > prev) {
+      server.lastSeenDay[qid] = v;
+    }
+  }
+
+  // lastCorrectDayDelta: 各 qid の「最終正解日」をサーバー側に反映（YYYYMMDD 数値）
+  for (const [qid, n] of Object.entries((delta as any).lastCorrectDayDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v <= 0) continue;
+    if (!server.lastCorrectDay) server.lastCorrectDay = {};
+    const prev = typeof server.lastCorrectDay[qid] === "number" ? server.lastCorrectDay[qid] : 0;
+    if (v > prev) {
+      server.lastCorrectDay[qid] = v;
+    }
+  }
+
+  // lastWrongDayDelta: 各 qid の「最終不正解日」をサーバー側に反映（YYYYMMDD 数値）
+  for (const [qid, n] of Object.entries((delta as any).lastWrongDayDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v <= 0) continue;
+    if (!server.lastWrongDay) server.lastWrongDay = {};
+    const prev = typeof server.lastWrongDay[qid] === "number" ? server.lastWrongDay[qid] : 0;
+    if (v > prev) {
+      server.lastWrongDay[qid] = v;
+    }
   }
 
   // 3連続不正解関連 delta のサマリログ（どの qid に対して更新が入ったかを確認する用）
