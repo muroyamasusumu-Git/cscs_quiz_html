@@ -794,6 +794,25 @@
     });
 
     // 分野別の一覧を <ul> として作成
+    // あわせて「分野名クリック時に qid 一覧をインライン表示するコンテナ」も用意する
+
+    // qidToField を使って、指定の Field に属する qid 一覧を取得するヘルパー
+    function getQidsForFieldInline(fieldName) {
+      var result = [];
+      if (!qidToField || typeof qidToField !== "object") {
+        return result;
+      }
+      var keys = Object.keys(qidToField);
+      for (var i = 0; i < keys.length; i++) {
+        var qid = keys[i];
+        if (qidToField[qid] === fieldName) {
+          result.push(qid);
+        }
+      }
+      result.sort();
+      return result;
+    }
+
     var list = document.createElement("ul");
     list.style.listStyleType = "disc";
     list.style.listStylePosition = "outside";
@@ -805,6 +824,16 @@
     list.style.gridTemplateColumns = "repeat(3, 1fr)";
     list.style.columnGap = "0";
     list.style.rowGap = "2px";
+
+    // 分野名クリック時の qid 一覧表示用コンテナ
+    var qidInlineBox = document.createElement("div");
+    qidInlineBox.id = "cscs-field-qid-inline";
+    qidInlineBox.style.marginTop = "10px";
+    qidInlineBox.style.paddingTop = "6px";
+    qidInlineBox.style.borderTop = "1px solid rgba(255,255,255,0.18)";
+    qidInlineBox.style.fontSize = "11px";
+    qidInlineBox.style.lineHeight = "1.4";
+    qidInlineBox.style.opacity = "0.85";
 
     // 各 Field ごとに1行（ラベル + 小さな横棒グラフ）を描画
     dummyFieldStats.forEach(function (row) {
@@ -869,6 +898,48 @@
         ": " +
         row.star + " / " + row.total +
         "(" + rate + "%)";
+
+      // 分野名クリックで qid 一覧をパネル最下部にインライン表示
+      label.style.cursor = "pointer";
+      label.addEventListener("click", function () {
+        try {
+          var name = row.field;
+          var qids = getQidsForFieldInline(name);
+
+          qidInlineBox.innerHTML = "";
+
+          var heading = document.createElement("div");
+          heading.textContent =
+            "▶ " + name + " の qid 一覧（" + String(qids.length) + "問）";
+          heading.style.marginBottom = "4px";
+          heading.style.fontWeight = "600";
+          heading.style.fontSize = "11px";
+          heading.style.opacity = "0.95";
+          qidInlineBox.appendChild(heading);
+
+          if (!qids.length) {
+            var empty = document.createElement("div");
+            empty.textContent = "対象の qid は 0 件です。";
+            empty.style.fontSize = "11px";
+            empty.style.opacity = "0.8";
+            qidInlineBox.appendChild(empty);
+          } else {
+            var body = document.createElement("div");
+            body.style.fontSize = "11px";
+            body.style.whiteSpace = "normal";
+            body.style.wordBreak = "break-all";
+            body.textContent = qids.join(" ／ ");
+            qidInlineBox.appendChild(body);
+          }
+
+          console.log("field_summary.js: field qid list inline updated", {
+            field: name,
+            qids: qids
+          });
+        } catch (e) {
+          console.error("field_summary.js: qid inline list update failed", e);
+        }
+      });
 
       // 横棒グラフの外枠（灰色）
       var barOuter = document.createElement("div");
@@ -962,6 +1033,7 @@
 
     // パネルにリストを追加し、.wrap の直後に挿入
     panel.appendChild(list);
+    panel.appendChild(qidInlineBox);
     wrapContainer.insertAdjacentElement("afterend", panel);
   }
 
