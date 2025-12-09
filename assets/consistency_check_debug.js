@@ -472,10 +472,16 @@
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
 
-    // ★ .wrap の末端に入れる。なければ #root、その次に body にフォールバック。
+    // ★ .wrap の「直後」に挿入する。なければ #root、その次に body にフォールバック。
     var wrap = document.querySelector(".wrap");
-    if (wrap) {
-      wrap.appendChild(div);
+    if (wrap && wrap.parentNode) {
+      // wrap の次の兄弟ノードの直前に挿入（= wrap のすぐ後ろ）
+      if (wrap.nextSibling) {
+        wrap.parentNode.insertBefore(div, wrap.nextSibling);
+      } else {
+        // wrap が末尾なら、親の末尾にそのまま追加
+        wrap.parentNode.appendChild(div);
+      }
     } else {
       var root = document.getElementById("root");
       if (root) {
