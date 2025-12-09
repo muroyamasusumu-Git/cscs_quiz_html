@@ -443,17 +443,17 @@
             const r = once.results[QID];
             if (r === "correct" || r === "wrong") {
               // 計測済（correct / wrong）
-              onceLabel = "<br>oncePerDayToday: 計測済(" + r + ")";
+              onceLabel = "<br>oncePerDayToday:<br>計測済(" + r + ")";
             } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
               // 何かしら値はあるが unknown の場合
-              onceLabel = "<br>oncePerDayToday: 計測済(unknown)";
+              onceLabel = "<br>oncePerDayToday:<br>計測済(unknown)";
             } else {
               // 今日の日付だがこの QID は未計測
-              onceLabel = "<br>oncePerDayToday: 未計測(データなし)";
+              onceLabel = "<br>oncePerDayToday:<br>未計測(データなし)";
             }
           } else {
             // oncePerDayToday 自体が今日ではない or データなし
-            onceLabel = "<br>oncePerDayToday: 未計測(データなし)";
+            onceLabel = "<br>oncePerDayToday:<br>未計測(データなし)";
           }
         }catch(_eOnce){
           // oncePerDayToday 表示に失敗してもステータス自体は出す
