@@ -442,21 +442,25 @@
           ) {
             const r = once.results[QID];
             if (r === "correct" || r === "wrong") {
-              onceLabel = "\noncePerDayToday:\n計測済(" + r + ")";
+              // 計測済（correct / wrong）
+              onceLabel = "<br>oncePerDayToday: 計測済(" + r + ")";
             } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
-              onceLabel = "\noncePerDayToday:\n計測済(unknown)";
+              // 何かしら値はあるが unknown の場合
+              onceLabel = "<br>oncePerDayToday: 計測済(unknown)";
             } else {
-              onceLabel = "\noncePerDayToday:\n未計測(データなし)";
+              // 今日の日付だがこの QID は未計測
+              onceLabel = "<br>oncePerDayToday: 未計測(データなし)";
             }
           } else {
-            onceLabel = "\noncePerDayToday:\n未計測(データなし)";
+            // oncePerDayToday 自体が今日ではない or データなし
+            onceLabel = "<br>oncePerDayToday: 未計測(データなし)";
           }
         }catch(_eOnce){
           // oncePerDayToday 表示に失敗してもステータス自体は出す
           onceLabel = "";
         }
 
-        if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err + onceLabel;
+        if (stEl) stEl.innerHTML = lastSyncStatus + " (" + time + ")" + err + onceLabel;
       }
     }catch(_){
       // UI更新失敗は握りつぶし
