@@ -509,8 +509,8 @@ margin-left: 10px;
 }
 
 body.mode-a #cc-check-wrapper {
-    bottom: 0;
-    right: 130px;
+    bottom: 280px;
+    right: 0px;
     opacity: 0.6 !important;
 }
 
