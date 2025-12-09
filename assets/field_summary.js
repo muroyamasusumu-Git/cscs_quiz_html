@@ -107,7 +107,7 @@
   // 2. メタ情報（cscs_meta_all.json）から
   //    ・Field名リスト
   //    ・Fieldごとの総問題数
-  //    ・qid(YYYYMMDD-NNN) → Field のマップ
+  //    ・qid(YYYYMMDD-NNN) → Field / Theme / Level / Question のマップ
   //    を作る
   // =========================
   function normalizeMetaForFields(meta) {
@@ -123,7 +123,7 @@
       rows = meta;
     } else {
       // どれにも該当しない場合は空で返す
-      return { names: [], totals: {}, qidToField: {}, qidToQuestion: {} };
+      return { names: [], totals: {}, qidToField: {}, qidToQuestion: {}, qidToTheme: {}, qidToLevel: {} };
     }
 
     // Field 名一覧（重複なし）
@@ -134,6 +134,10 @@
     var qidMap = Object.create(null);
     // qid → Question の対応表（ローカルステージのメタから取得）
     var qTextMap = Object.create(null);
+    // qid → Theme の対応表（分野内でのソート用）
+    var qThemeMap = Object.create(null);
+    // qid → Level の対応表（分野内でのソート用）
+    var qLevelMap = Object.create(null);
 
     rows.forEach(function (x) {
       // Field 名を取得（大文字小文字・プロパティ名違いの吸収）
@@ -172,7 +176,7 @@
         }
       }
 
-      // day と n3 が揃っていれば qid を作成し、Field と Question を紐付ける
+      // day と n3 が揃っていれば qid を作成し、Field / Theme / Level / Question を紐付ける
       if (day && n3) {
         var qid = day + "-" + n3;
         if (!qidMap[qid]) {
@@ -190,10 +194,23 @@
             : x.Stem != null
             ? x.Stem
             : "";
-
         qtext = String(qtext == null ? "" : qtext).trim();
         if (!qTextMap[qid]) {
           qTextMap[qid] = qtext;
+        }
+
+        // Theme テキスト（候補: Theme / theme）
+        var themeRaw = x.Theme != null ? x.Theme : x.theme != null ? x.theme : "";
+        var themeText = String(themeRaw == null ? "" : themeRaw).trim();
+        if (!qThemeMap[qid]) {
+          qThemeMap[qid] = themeText;
+        }
+
+        // Level テキスト（候補: Level / level）
+        var levelRaw = x.Level != null ? x.Level : x.level != null ? x.level : "";
+        var levelText = String(levelRaw == null ? "" : levelRaw).trim();
+        if (!qLevelMap[qid]) {
+          qLevelMap[qid] = levelText;
         }
       }
     });
@@ -206,7 +223,11 @@
       // 問題ID(qid)→分野名
       qidToField: qidMap,
       // 問題ID(qid)→問題文
-      qidToQuestion: qTextMap
+      qidToQuestion: qTextMap,
+      // 問題ID(qid)→テーマ
+      qidToTheme: qThemeMap,
+      // 問題ID(qid)→レベル
+      qidToLevel: qLevelMap
     };
   }
 
@@ -249,6 +270,9 @@
       fieldTotals = info.totals || {};
       qidToField = info.qidToField || {};
       qidToQuestion = info.qidToQuestion || {};
+      // ▼ 分野内ソートで使うテーマ / レベルのマップも保持する
+      qidToTheme = info.qidToTheme || {};
+      qidToLevel = info.qidToLevel || {};
       return info.names;
     } catch (e) {
       console.error("field_summary.js: meta 読み込み失敗", e);
@@ -538,6 +562,8 @@
   var fieldTotals = null;              // 分野別の総問題数
   var qidToField = null;               // qid→Field
   var qidToQuestion = null;            // qid→問題文（ローカルステージのメタ情報由来）
+  var qidToTheme = null;               // qid→テーマ（分野内ソート用）
+  var qidToLevel = null;               // qid→レベル（分野内ソート用）
   var starFieldCounts = null;          // 分野別の「★獲得済み問題数」
   var starTotalSolvedQuestions = 0;    // 全体で★済みの問題数
   var starRemainingDays = 0;           // 締切までの残り日数
@@ -613,6 +639,44 @@
       return String(text);
     } catch (e) {
       console.error("field_summary.js: getQuestionTextForQid error", e);
+      return "";
+    }
+  }
+
+  // qid(YYYYMMDD-NNN) からテーマを取得するヘルパー
+  //  - meta 正規化時に作った qidToTheme から参照し、見つからなければ空文字を返す
+  function getThemeForQid(qid) {
+    try {
+      var map = qidToTheme;
+      if (!map || typeof map !== "object") {
+        return "";
+      }
+      var text = map[String(qid)] || "";
+      if (text == null) {
+        text = "";
+      }
+      return String(text);
+    } catch (e) {
+      console.error("field_summary.js: getThemeForQid error", e);
+      return "";
+    }
+  }
+
+  // qid(YYYYMMDD-NNN) からレベルを取得するヘルパー
+  //  - meta 正規化時に作った qidToLevel から参照し、見つからなければ空文字を返す
+  function getLevelForQid(qid) {
+    try {
+      var map = qidToLevel;
+      if (!map || typeof map !== "object") {
+        return "";
+      }
+      var text = map[String(qid)] || "";
+      if (text == null) {
+        text = "";
+      }
+      return String(text);
+    } catch (e) {
+      console.error("field_summary.js: getLevelForQid error", e);
       return "";
     }
   }
@@ -1007,6 +1071,49 @@
           body.style.wordBreak = "normal";
           body.style.marginTop = "4px";
 
+          // ▼ ソート用コントロール（各分野の一覧内で qid/テーマ/レベル順を切り替える）
+          var sortBox = document.createElement("div");
+          sortBox.style.display = "flex";
+          sortBox.style.justifyContent = "flex-end";
+          sortBox.style.alignItems = "center";
+          sortBox.style.gap = "6px";
+          sortBox.style.marginBottom = "2px";
+
+          var sortLabel = document.createElement("span");
+          sortLabel.textContent = "ソート:";
+          sortLabel.style.fontSize = "10px";
+          sortLabel.style.opacity = "0.85";
+
+          var sortSelect = document.createElement("select");
+          sortSelect.style.fontSize = "10px";
+          sortSelect.style.padding = "1px 4px";
+          sortSelect.style.background = "#222";
+          sortSelect.style.color = "#fff";
+          sortSelect.style.border = "1px solid #444";
+          sortSelect.style.borderRadius = "4px";
+          sortSelect.style.cursor = "pointer";
+
+          var optQid = document.createElement("option");
+          optQid.value = "qid";
+          optQid.textContent = "qid順";
+
+          var optTheme = document.createElement("option");
+          optTheme.value = "theme";
+          optTheme.textContent = "テーマ順";
+
+          var optLevel = document.createElement("option");
+          optLevel.value = "level";
+          optLevel.textContent = "レベル順";
+
+          sortSelect.appendChild(optQid);
+          sortSelect.appendChild(optTheme);
+          sortSelect.appendChild(optLevel);
+          sortSelect.value = "qid";
+
+          sortBox.appendChild(sortLabel);
+          sortBox.appendChild(sortSelect);
+          body.appendChild(sortBox);
+
           // テーブル本体の作成
           var table = document.createElement("table");
           table.style.width = "100%";
@@ -1026,6 +1133,23 @@
           thQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thQid.style.whiteSpace = "nowrap";
 
+          var thTheme = document.createElement("th");
+          thTheme.textContent = "テーマ";
+          thTheme.style.textAlign = "left";
+          thTheme.style.fontWeight = "600";
+          thTheme.style.fontSize = "11px";
+          thTheme.style.padding = "2px 4px";
+          thTheme.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+
+          var thLevel = document.createElement("th");
+          thLevel.textContent = "レベル";
+          thLevel.style.textAlign = "left";
+          thLevel.style.fontWeight = "600";
+          thLevel.style.fontSize = "11px";
+          thLevel.style.padding = "2px 4px";
+          thLevel.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thLevel.style.whiteSpace = "nowrap";
+
           var thQuestion = document.createElement("th");
           thQuestion.textContent = "問題文";
           thQuestion.style.textAlign = "left";
@@ -1035,6 +1159,8 @@
           thQuestion.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
 
           headTr.appendChild(thQid);
+          headTr.appendChild(thTheme);
+          headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
           thead.appendChild(headTr);
 
@@ -1086,10 +1212,14 @@
 
           qidInlineBox.appendChild(body);
 
+          // ▼ 一覧に対するページングとソート状態
           var pageSize = 30;
           var currentPage = 0;
-          var totalPages = Math.max(1, Math.ceil(qids.length / pageSize));
+          var totalPages = 1;
+          var currentSortKey = "qid";        // "qid" / "theme" / "level"
+          var qidsSorted = qids.slice();     // ソート後の並びを保持する配列
 
+          // 1ページ分の行を描画する
           function renderPage(pageIndex) {
             if (pageIndex < 0) {
               pageIndex = 0;
@@ -1105,10 +1235,10 @@
             }
 
             var startIndex = currentPage * pageSize;
-            var endIndex = Math.min(startIndex + pageSize, qids.length);
+            var endIndex = Math.min(startIndex + pageSize, qidsSorted.length);
 
             for (var i = startIndex; i < endIndex; i++) {
-              var qid = qids[i];
+              var qid = qidsSorted[i];
               var parts = String(qid).split("-");
               var day = parts[0];
               var n3 = parts[1];
@@ -1139,6 +1269,29 @@
                 tdQid.textContent = qid;
               }
 
+              // テーマセル
+              var tdTheme = document.createElement("td");
+              tdTheme.style.padding = "2px 4px";
+              tdTheme.style.verticalAlign = "top";
+              tdTheme.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              var themeText = getThemeForQid(qid);
+              if (!themeText) {
+                themeText = "";
+              }
+              tdTheme.textContent = themeText;
+
+              // レベルセル
+              var tdLevel = document.createElement("td");
+              tdLevel.style.padding = "2px 4px";
+              tdLevel.style.verticalAlign = "top";
+              tdLevel.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdLevel.style.whiteSpace = "nowrap";
+              var levelText = getLevelForQid(qid);
+              if (!levelText) {
+                levelText = "";
+              }
+              tdLevel.textContent = levelText;
+
               // 問題文セル
               var tdQuestion = document.createElement("td");
               tdQuestion.style.padding = "2px 4px";
@@ -1154,20 +1307,24 @@
               tdQuestion.textContent = qText;
 
               tr.appendChild(tdQid);
+              tr.appendChild(tdTheme);
+              tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
               tbody.appendChild(tr);
             }
 
             // ページ情報表示更新
+            var startDisp = qidsSorted.length === 0 ? 0 : startIndex + 1;
+            var endDisp = qidsSorted.length === 0 ? 0 : endIndex;
             pageInfo.textContent =
               "ページ " +
               String(currentPage + 1) +
               " / " +
               String(totalPages) +
               " （" +
-              String(startIndex + 1) +
+              String(startDisp) +
               "〜" +
-              String(endIndex) +
+              String(endDisp) +
               "件）";
 
             // ボタン活性制御
@@ -1175,6 +1332,37 @@
             nextBtn.disabled = currentPage >= totalPages - 1;
             prevBtn.style.opacity = prevBtn.disabled ? "0.4" : "1.0";
             nextBtn.style.opacity = nextBtn.disabled ? "0.4" : "1.0";
+          }
+
+          // ▼ ソートキーに応じて qidsSorted を並べ替え、先頭ページを再描画する
+          function applySortAndRender() {
+            qidsSorted.sort(function (a, b) {
+              if (currentSortKey === "theme") {
+                var ta = getThemeForQid(a);
+                var tb = getThemeForQid(b);
+                ta = ta || "";
+                tb = tb || "";
+                if (ta !== tb) {
+                  return ta.localeCompare(tb, "ja");
+                }
+                return String(a).localeCompare(String(b));
+              }
+              if (currentSortKey === "level") {
+                var la = getLevelForQid(a);
+                var lb = getLevelForQid(b);
+                la = la || "";
+                lb = lb || "";
+                if (la !== lb) {
+                  return la.localeCompare(lb, "ja");
+                }
+                return String(a).localeCompare(String(b));
+              }
+              // デフォルト: qid文字列で昇順ソート
+              return String(a).localeCompare(String(b));
+            });
+
+            totalPages = Math.max(1, Math.ceil(qidsSorted.length / pageSize));
+            renderPage(0);
           }
 
           // ページングボタンのイベント
@@ -1185,8 +1373,21 @@
             renderPage(currentPage + 1);
           });
 
-          // 最初のページを描画
-          renderPage(0);
+          // ソートセレクトの変更イベント
+          sortSelect.addEventListener("change", function () {
+            currentSortKey = sortSelect.value;
+            applySortAndRender();
+          });
+
+          // 最初のソート＋ページ描画
+          applySortAndRender();
+
+          console.log("field_summary.js: field qid list inline updated (table + paging + sort)", {
+            field: name,
+            totalQids: qids.length,
+            pageSize: pageSize,
+            sortKey: currentSortKey
+          });
 
           console.log("field_summary.js: field qid list inline updated (table + paging)", {
             field: name,
