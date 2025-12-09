@@ -1,6 +1,6 @@
 // /assets/wrong_badge.js
 // 目的: b_judge_record.js のキー命名に完全一致。
-// 表示の（正解/不正）をリンク化し、クリックでその問題単体の集計をリセットできるようにする。
+// 「この問題の正解/不正の累計」を画面に表示する（リセット操作などは行わない）。
 (() => {
   "use strict";
 
@@ -46,14 +46,12 @@
     // 既に .wrong-status があるかどうかチェック
     const hasWrong = !!box.querySelector(".wrong-status");
 
-    // 「正解/不正解」表示（クリック可能なリンク）を生成
+    // 「正解/不正解」表示（非クリック要素）を生成
     if (!hasWrong) {
-      const wrongEl = document.createElement("a");
-      wrongEl.href = "#";
+      const wrongEl = document.createElement("span");
       wrongEl.className = "wrong-status";
-      wrongEl.setAttribute("role", "button");
-      wrongEl.setAttribute("aria-label", "成績の統計を表示");
-      wrongEl.textContent = "（正解:--回 / 不正解:--回）";
+      wrongEl.setAttribute("aria-label", "この問題の正解/不正の累計表示");
+      wrongEl.textContent = "(正:-- / 誤:--)";
       box.appendChild(wrongEl);
     }
 
@@ -242,8 +240,7 @@
   }
 
   // ===== 描画 =====
-  // 左上 box に「この問題の正解/不正解累計」を表示し、
-  // 正解/不正解部分をクリックでリセットモーダルを開くようにする
+  // 左上 box に「この問題の正解/不正解累計」を表示する（クリック操作は行わない）
   // ※ お気に入りバッジの表示・更新は fav_modal.js 側に完全委譲。
   function render() {
     // 当該1問の QID を pathname から復元（A/B両方対応）
@@ -257,21 +254,15 @@
 
     // box と中の要素を取得（無ければ生成）
     const box = ensureFixedBox();
-    const wrongLink = box.querySelector(".wrong-status");
+    const wrongStatusEl = box.querySelector(".wrong-status");
 
-    // 正解/不正解のリンク表示と挙動を設定
-    if (wrongLink) {
-      // 表示（リンク） ※文言から「回」は削除
-      wrongLink.textContent = `(正:${correct} / 誤:${wrong})`;
-      wrongLink.setAttribute("title", qid ? `qid: ${qid} の累計（延べ）` : `qid未特定（パス判定不可）`);
-      wrongLink.setAttribute("href", "#");
-
-      // クリックで当該問題のリセットモーダルを開く
-      wrongLink.onclick = (e) => {
-        e.preventDefault();
-        if (!qid) return;
-        openResetPanel(qid, correct, wrong);
-      };
+    // 正解/不正解の表示を更新（クリック挙動は付けない）
+    if (wrongStatusEl) {
+      wrongStatusEl.textContent = `(正:${correct} / 誤:${wrong})`;
+      wrongStatusEl.setAttribute(
+        "title",
+        qid ? `qid: ${qid} の累計（延べ）` : "qid未特定（パス判定不可）"
+      );
     }
   }
 
