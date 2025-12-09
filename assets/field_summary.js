@@ -93,6 +93,50 @@
         border-radius: 999px;
         background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
     }
+
+    /* テーマ一覧バー（見出し直下にインライン表示） */
+    .cscs-field-theme-bar {
+        margin-top: 2px;
+        margin-bottom: 2px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        opacity: 0.9;
+    }
+
+    .cscs-field-theme-label {
+        font-weight: 600;
+        margin-right: 4px;
+    }
+
+    .cscs-field-theme-list {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .cscs-field-theme-pill {
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 999px;
+        padding: 1px 6px;
+        font-size: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        color: #fff;
+        cursor: pointer;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+
+    .cscs-field-theme-pill:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .cscs-field-theme-pill-active {
+        background: rgba(255, 215, 0, 0.3);
+        border-color: rgba(255, 215, 0, 0.9);
+    }
     `;
     document.head.appendChild(style);
     console.log("field_summary.js: CSS for compact star summary injected");
@@ -1071,7 +1115,48 @@
           body.style.wordBreak = "normal";
           body.style.marginTop = "4px";
 
-          // ▼ ソート用コントロール（各分野の一覧内で qid/テーマ/レベル順を切り替える）
+          // ▼ テーマ一覧バー
+          // 分野内に存在するテーマをユニークに抽出し、見出し直下にインラインで並べる
+          var themeBar = document.createElement("div");
+          themeBar.className = "cscs-field-theme-bar";
+
+          var themeLabel = document.createElement("span");
+          themeLabel.textContent = "テーマ:";
+          themeLabel.className = "cscs-field-theme-label";
+          themeBar.appendChild(themeLabel);
+
+          var themeList = document.createElement("span");
+          themeList.className = "cscs-field-theme-list";
+
+          // フィールド内の qid からテーマをユニーク抽出
+          var themeSet = new Set();
+          for (var iTheme = 0; iTheme < qids.length; iTheme++) {
+            var qidTheme = getThemeForQid(qids[iTheme]);
+            if (qidTheme && typeof qidTheme === "string") {
+              var trimmed = qidTheme.trim();
+              if (trimmed) {
+                themeSet.add(trimmed);
+              }
+            }
+          }
+          var themeArray = Array.from(themeSet).sort(function (a, b) {
+            return a.localeCompare(b, "ja");
+          });
+
+          // 各テーマをクリック可能なピルとして追加（クリックでそのテーマのみを一覧表示）
+          themeArray.forEach(function (themeName) {
+            var pill = document.createElement("button");
+            pill.type = "button";
+            pill.textContent = themeName;
+            pill.className = "cscs-field-theme-pill";
+            pill.dataset.themeName = themeName;
+            themeList.appendChild(pill);
+          });
+
+          themeBar.appendChild(themeList);
+          qidInlineBox.appendChild(themeBar);
+
+          // ▼ ソート用コントロール（qid順 / レベル順の切り替え）
           var sortBox = document.createElement("div");
           sortBox.style.display = "flex";
           sortBox.style.justifyContent = "flex-end";
@@ -1097,16 +1182,11 @@
           optQid.value = "qid";
           optQid.textContent = "qid順";
 
-          var optTheme = document.createElement("option");
-          optTheme.value = "theme";
-          optTheme.textContent = "テーマ順";
-
           var optLevel = document.createElement("option");
           optLevel.value = "level";
           optLevel.textContent = "レベル順";
 
           sortSelect.appendChild(optQid);
-          sortSelect.appendChild(optTheme);
           sortSelect.appendChild(optLevel);
           sortSelect.value = "qid";
 
@@ -1114,7 +1194,7 @@
           sortBox.appendChild(sortSelect);
           body.appendChild(sortBox);
 
-          // テーブル本体の作成
+          // テーブル本体の作成（テーマ列は持たせず、qid / レベル / 問題文のみ表示）
           var table = document.createElement("table");
           table.style.width = "100%";
           table.style.borderCollapse = "collapse";
@@ -1132,14 +1212,6 @@
           thQid.style.padding = "2px 4px";
           thQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thQid.style.whiteSpace = "nowrap";
-
-          var thTheme = document.createElement("th");
-          thTheme.textContent = "テーマ";
-          thTheme.style.textAlign = "left";
-          thTheme.style.fontWeight = "600";
-          thTheme.style.fontSize = "11px";
-          thTheme.style.padding = "2px 4px";
-          thTheme.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
 
           var thLevel = document.createElement("th");
           thLevel.textContent = "レベル";
@@ -1159,7 +1231,6 @@
           thQuestion.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
 
           headTr.appendChild(thQid);
-          headTr.appendChild(thTheme);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
           thead.appendChild(headTr);
@@ -1212,12 +1283,15 @@
 
           qidInlineBox.appendChild(body);
 
-          // ▼ 一覧に対するページングとソート状態
+          // ▼ 一覧に対するページング・ソート・テーマフィルタ状態
           var pageSize = 30;
           var currentPage = 0;
           var totalPages = 1;
-          var currentSortKey = "qid";        // "qid" / "theme" / "level"
-          var qidsSorted = qids.slice();     // ソート後の並びを保持する配列
+          var currentSortKey = "qid";        // "qid" / "level"
+          var currentThemeFilter = "";       // 空文字列なら全テーマ対象
+          var qidsAll = qids.slice();
+          var qidsFiltered = qidsAll.slice();
+          var qidsSorted = qidsFiltered.slice();
 
           // 1ページ分の行を描画する
           function renderPage(pageIndex) {
@@ -1269,17 +1343,6 @@
                 tdQid.textContent = qid;
               }
 
-              // テーマセル
-              var tdTheme = document.createElement("td");
-              tdTheme.style.padding = "2px 4px";
-              tdTheme.style.verticalAlign = "top";
-              tdTheme.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
-              var themeText = getThemeForQid(qid);
-              if (!themeText) {
-                themeText = "";
-              }
-              tdTheme.textContent = themeText;
-
               // レベルセル
               var tdLevel = document.createElement("td");
               tdLevel.style.padding = "2px 4px";
@@ -1307,7 +1370,6 @@
               tdQuestion.textContent = qText;
 
               tr.appendChild(tdQid);
-              tr.appendChild(tdTheme);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
               tbody.appendChild(tr);
@@ -1334,19 +1396,20 @@
             nextBtn.style.opacity = nextBtn.disabled ? "0.4" : "1.0";
           }
 
-          // ▼ ソートキーに応じて qidsSorted を並べ替え、先頭ページを再描画する
+          // ▼ テーマフィルタ＋ソートを適用して先頭ページを再描画する
           function applySortAndRender() {
-            qidsSorted.sort(function (a, b) {
-              if (currentSortKey === "theme") {
-                var ta = getThemeForQid(a);
-                var tb = getThemeForQid(b);
-                ta = ta || "";
-                tb = tb || "";
-                if (ta !== tb) {
-                  return ta.localeCompare(tb, "ja");
-                }
-                return String(a).localeCompare(String(b));
+            // テーマフィルタを適用（currentThemeFilter が空なら全件）
+            qidsFiltered = qidsAll.filter(function (qid) {
+              if (!currentThemeFilter) {
+                return true;
               }
+              var t = getThemeForQid(qid) || "";
+              return t.trim() === currentThemeFilter;
+            });
+
+            // 現在のソートキーに応じて並べ替え
+            qidsSorted = qidsFiltered.slice();
+            qidsSorted.sort(function (a, b) {
               if (currentSortKey === "level") {
                 var la = getLevelForQid(a);
                 var lb = getLevelForQid(b);
@@ -1365,6 +1428,37 @@
             renderPage(0);
           }
 
+          // ▼ テーマピルの選択状態を更新する
+          function updateThemePillActive() {
+            var pills = themeList.querySelectorAll(".cscs-field-theme-pill");
+            for (var i = 0; i < pills.length; i++) {
+              var pill = pills[i];
+              if (pill.dataset.themeName === currentThemeFilter) {
+                pill.classList.add("cscs-field-theme-pill-active");
+              } else {
+                pill.classList.remove("cscs-field-theme-pill-active");
+              }
+            }
+          }
+
+          // テーマピルのクリックイベントを設定（クリックでテーマフィルタのON/OFF）
+          var pillsAll = themeList.querySelectorAll(".cscs-field-theme-pill");
+          for (var iPill = 0; iPill < pillsAll.length; iPill++) {
+            (function (pill) {
+              pill.addEventListener("click", function () {
+                var themeName = pill.dataset.themeName || "";
+                if (currentThemeFilter === themeName) {
+                  // 同じテーマをもう一度クリックしたらフィルタ解除
+                  currentThemeFilter = "";
+                } else {
+                  currentThemeFilter = themeName;
+                }
+                updateThemePillActive();
+                applySortAndRender();
+              });
+            })(pillsAll[iPill]);
+          }
+
           // ページングボタンのイベント
           prevBtn.addEventListener("click", function () {
             renderPage(currentPage - 1);
@@ -1380,13 +1474,15 @@
           });
 
           // 最初のソート＋ページ描画
+          updateThemePillActive();
           applySortAndRender();
 
-          console.log("field_summary.js: field qid list inline updated (table + paging + sort)", {
+          console.log("field_summary.js: field qid list inline updated (table + paging + sort + theme filter)", {
             field: name,
             totalQids: qids.length,
             pageSize: pageSize,
-            sortKey: currentSortKey
+            sortKey: currentSortKey,
+            themeFilter: currentThemeFilter
           });
 
           console.log("field_summary.js: field qid list inline updated (table + paging)", {
