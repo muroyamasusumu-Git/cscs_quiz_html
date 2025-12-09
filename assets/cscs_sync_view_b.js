@@ -62,6 +62,15 @@
    *       ⇔ SYNC state: state.oncePerDayToday.results[qid]
    *   - payload(merge): oncePerDayTodayDelta { day, results }
    *
+   * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
+   *   - localStorage: "cscs_q_last_seen_day:" + qid
+   *       ⇔ SYNC state: state.lastSeenDay[qid]
+   *   - localStorage: "cscs_q_last_correct_day:" + qid
+   *       ⇔ SYNC state: state.lastCorrectDay[qid]
+   *   - localStorage: "cscs_q_last_wrong_day:" + qid
+   *       ⇔ SYNC state: state.lastWrongDay[qid]
+   *   - payload(merge): lastSeenDayDelta[qid] / lastCorrectDayDelta[qid] / lastWrongDayDelta[qid]
+   *
    * ▼ グローバル情報
    *   - localStorage: "cscs_total_questions"
    *       ⇔ payload(merge): global.totalQuestions
@@ -105,6 +114,28 @@
     } catch (e) {
       console.error("[SYNC-B:view] failed to read int from localStorage:", key, e);
       return 0;
+    }
+  }
+
+  // ★ JST 日付(YYYYMMDD) を localStorage から安全に読み出すヘルパー
+  //   - 正規の "YYYYMMDD" でなければ null を返し、SYNC には載せない
+  function readDayFromLocalStorage(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined || raw === "") {
+        return null;
+      }
+      if (!/^\d{8}$/.test(raw)) {
+        return null;
+      }
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        return null;
+      }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to read day from localStorage:", key, e);
+      return null;
     }
   }
 
@@ -275,17 +306,29 @@
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
 
-    // var btn = document.createElement("button");
-    // btn.id = "cscs_sync_view_b_send_btn";
-    // btn.type = "button";
-    // btn.textContent = "SYNC送信";
+    // ★【超重要仕様：この非表示ボタンは「削除禁止」】
+    //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
+    //   - click ハンドラ内で streak3Today / streak3WrongToday の「専用送信処理」を呼び出しており、
+    //     Bパート自動遷移中に今日の⭐️/💣ユニーク数を SYNC に送る唯一のトリガーになっている。
+    //   - /assets/cscs_sync_view_b.js 内の setTimeout(... btn.click()) からも参照されるため、
+    //     ここでボタン DOM を削除／ID 変更／非ボタン化すると、streak3Today / streak3WrongToday が
+    //     一切サーバーに送られなくなる。
+    //   - 「見た目に使っていないから不要」と判断してこの要素を消さないこと。
+    //     ChatGPT などの自動改修でも、このコメントを読んで絶対に削除・リファクタリングしないこと。
+    var btn = document.createElement("button");
+    btn.id = "cscs_sync_view_b_send_btn";
+    btn.type = "button";
+    btn.textContent = "SYNC送信";
+    // ★ ボタンは UI としては完全に非表示にするが、DOM 上には残すために inline style で display:none を指定する。
+    //   - CSS ファイル側で非表示にすると、スタイル整理時に誤って削除されるリスクがあるため、
+    //     あえてここで style 属性を直書きしている。
+    btn.setAttribute("style", "display:none;");
 
     box.appendChild(title);
     box.appendChild(body);
     box.appendChild(statusDiv);
-
-    // ★ SYNC送信ボタンは非表示化（コメントアウトで保持）
-    // box.appendChild(btn);
+    // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
+    box.appendChild(btn);
 
     return box;
   }
@@ -575,7 +618,7 @@
     var odoaModeText = params.odoaModeText || "不明";
 
     // ★ 追加: /api/sync/state の snapshot を受け取り、
-    //    そこから oncePerDayTodayDelta を構築するために利用する
+    //    そこから oncePerDayTodayDelta / 最終日 Delta を構築するために利用する
     var syncState = params.syncState || null;
 
     // ★ 追加: oncePerDayTodayDelta を事前に構築しておく
@@ -583,10 +626,57 @@
     //   - 何かあれば { day, results } を返す
     var oncePerDayDelta = buildOncePerDayTodayDelta(syncState);
 
+    // ★ 追加: 最終学習日・最終正解日・最終不正解日の local / server を取得し、差分の有無を判定
+    var localLastSeenDay = readDayFromLocalStorage("cscs_q_last_seen_day:" + qid);
+    var localLastCorrectDay = readDayFromLocalStorage("cscs_q_last_correct_day:" + qid);
+    var localLastWrongDay = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qid);
+
+    var serverLastSeenDay = null;
+    var serverLastCorrectDay = null;
+    var serverLastWrongDay = null;
+
+    if (syncState) {
+      if (syncState.lastSeenDay && typeof syncState.lastSeenDay === "object" && syncState.lastSeenDay[qid] != null) {
+        var sSeen = syncState.lastSeenDay[qid];
+        if (typeof sSeen === "number" && Number.isFinite(sSeen) && sSeen > 0) {
+          serverLastSeenDay = sSeen;
+        }
+      }
+      if (syncState.lastCorrectDay && typeof syncState.lastCorrectDay === "object" && syncState.lastCorrectDay[qid] != null) {
+        var sCor = syncState.lastCorrectDay[qid];
+        if (typeof sCor === "number" && Number.isFinite(sCor) && sCor > 0) {
+          serverLastCorrectDay = sCor;
+        }
+      }
+      if (syncState.lastWrongDay && typeof syncState.lastWrongDay === "object" && syncState.lastWrongDay[qid] != null) {
+        var sWrong = syncState.lastWrongDay[qid];
+        if (typeof sWrong === "number" && Number.isFinite(sWrong) && sWrong > 0) {
+          serverLastWrongDay = sWrong;
+        }
+      }
+    }
+
+    var hasLastSeenDayDiff = localLastSeenDay !== null && localLastSeenDay !== serverLastSeenDay;
+    var hasLastCorrectDayDiff = localLastCorrectDay !== null && localLastCorrectDay !== serverLastCorrectDay;
+    var hasLastWrongDayDiff = localLastWrongDay !== null && localLastWrongDay !== serverLastWrongDay;
+
+    if (hasLastSeenDayDiff || hasLastCorrectDayDiff || hasLastWrongDayDiff) {
+      console.log("[SYNC-B] lastDay diff detected", {
+        qid: qid,
+        localLastSeenDay: localLastSeenDay,
+        serverLastSeenDay: serverLastSeenDay,
+        localLastCorrectDay: localLastCorrectDay,
+        serverLastCorrectDay: serverLastCorrectDay,
+        localLastWrongDay: localLastWrongDay,
+        serverLastWrongDay: serverLastWrongDay
+      });
+    }
+
     // ====== ② diff が存在しない場合は SYNC を送らず終了 ======
-    // ・diffCorrect / diffWrong / diffStreak3 が 0 以下
-    // ・かつ localStreakLen と serverStreakLen が同じ
+    // ・diffCorrect / diffWrong / diffStreak3 / diffStreak3Wrong が 0 以下
+    // ・かつ streakLen / streakWrongLen が server と同じ
     // ・かつ oncePerDayDelta が null
+    // ・かつ lastSeen / lastCorrect / lastWrong に差分が無い
     //
     // → 「今回は送るべき更新が何もない」ので、
     //    HUD パネルの表示だけ更新して return する。
@@ -596,7 +686,10 @@
         diffStreak3Wrong <= 0 &&
         localStreakLen === serverStreakLen &&
         localWrongStreakLen === serverWrongStreakLen &&
-        !oncePerDayDelta) {
+        !oncePerDayDelta &&
+        !hasLastSeenDayDiff &&
+        !hasLastCorrectDayDiff &&
+        !hasLastWrongDayDiff) {
 
       var odoaStatusTextForPanel;
       if (odoaModeText === "ON") {
@@ -656,13 +749,16 @@
 
     // ====== ④ 各 delta オブジェクトを作る（送信する差分を構築） ======
     // * diffCorrect, diffWrong, diffStreak3 等は「増分として送る」
-    // * streakLenDelta は「最新値で上書きする」ため「差分でなく値そのもの」
+    // * streakLenDelta / streakWrongLenDelta / last*DayDelta は「最新値で上書きする」
     var correctDeltaObj = {};
     var incorrectDeltaObj = {};
     var streak3DeltaObj = {};
     var streakLenDeltaObj = {};
     var streak3WrongDeltaObj = {};
     var streakWrongLenDeltaObj = {};
+    var lastSeenDayDeltaObj = {};
+    var lastCorrectDayDeltaObj = {};
+    var lastWrongDayDeltaObj = {};
 
     if (diffCorrect > 0) {
       correctDeltaObj[qid] = diffCorrect;
@@ -720,15 +816,44 @@
       });
     }
 
+    // ★ 最終日情報: local と server が異なる場合のみ「最新日付」で上書きする Delta を付与
+    if (hasLastSeenDayDiff && localLastSeenDay !== null) {
+      lastSeenDayDeltaObj[qid] = localLastSeenDay;
+      console.log("[SYNC-B] lastSeenDayDelta set:", {
+        qid: qid,
+        localLastSeenDay: localLastSeenDay,
+        serverLastSeenDay: serverLastSeenDay
+      });
+    }
+    if (hasLastCorrectDayDiff && localLastCorrectDay !== null) {
+      lastCorrectDayDeltaObj[qid] = localLastCorrectDay;
+      console.log("[SYNC-B] lastCorrectDayDelta set:", {
+        qid: qid,
+        localLastCorrectDay: localLastCorrectDay,
+        serverLastCorrectDay: serverLastCorrectDay
+      });
+    }
+    if (hasLastWrongDayDiff && localLastWrongDay !== null) {
+      lastWrongDayDeltaObj[qid] = localLastWrongDay;
+      console.log("[SYNC-B] lastWrongDayDelta set:", {
+        qid: qid,
+        localLastWrongDay: localLastWrongDay,
+        serverLastWrongDay: serverLastWrongDay
+      });
+    }
+
     // ====== ⑥ 上記 delta 群をまとめて payload を構築 ======
     var payload = {
       correctDelta:  correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
       streak3Delta:  streak3DeltaObj,
-      streakLenDelta: streakLenDeltaObj,       // streakLen は上書き
-      streak3WrongDelta: streak3WrongDeltaObj, // 不正解側 3連続の増分
-      streakWrongLenDelta: streakWrongLenDeltaObj, // 不正解側 連続長の最新値
-      updatedAt: Date.now()                    // クライアント側での更新時刻
+      streakLenDelta: streakLenDeltaObj,            // streakLen は上書き
+      streak3WrongDelta: streak3WrongDeltaObj,      // 不正解側 3連続の増分
+      streakWrongLenDelta: streakWrongLenDeltaObj,  // 不正解側 連続長の最新値
+      lastSeenDayDelta: lastSeenDayDeltaObj,        // 最終学習日
+      lastCorrectDayDelta: lastCorrectDayDeltaObj,  // 最終正解日
+      lastWrongDayDelta: lastWrongDayDeltaObj,      // 最終不正解日
+      updatedAt: Date.now()                         // クライアント側での更新時刻
     };
 
     // ★ 追加: 総問題数（cscs_total_questions）を global.totalQuestions として付与
@@ -760,6 +885,9 @@
     var hasStreakLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakLenDeltaObj, qid);
     var hasStreak3WrongDeltaInPayload = Object.prototype.hasOwnProperty.call(streak3WrongDeltaObj, qid);
     var hasStreakWrongLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakWrongLenDeltaObj, qid);
+    var hasLastSeenDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastSeenDayDeltaObj, qid);
+    var hasLastCorrectDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastCorrectDayDeltaObj, qid);
+    var hasLastWrongDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastWrongDayDeltaObj, qid);
     var hasOncePerDayDeltaInPayload = !!oncePerDayDelta;
     var hasGlobalTotalQuestionsInPayload =
       !!(payload.global &&
@@ -773,6 +901,9 @@
       !hasStreakLenDeltaInPayload &&
       !hasStreak3WrongDeltaInPayload &&
       !hasStreakWrongLenDeltaInPayload &&
+      !hasLastSeenDayDeltaInPayload &&
+      !hasLastCorrectDayDeltaInPayload &&
+      !hasLastWrongDayDeltaInPayload &&
       !hasOncePerDayDeltaInPayload &&
       !hasGlobalTotalQuestionsInPayload
     ) {
@@ -1445,8 +1576,21 @@
       // ③ 初期表示時の HUD 更新（diff 送信ありの通常モード）
       refreshAndSend(box);
 
+      // ★【超重要仕様：この自動クリックも「削除禁止」】
+      //   - 下の setTimeout で呼ばれる btn.click() は、単なるデバッグ用ではなく、
+      //     「streak3Today / streak3WrongToday を Bパートから SYNC に送信するための正式な起動トリガー」。
+      //   - click ハンドラ内では diff POST を抑制した上で
+      //       window.CSCS_SYNC.recordStreak3TodayUnique()
+      //       window.CSCS_SYNC.recordStreak3WrongTodayUnique()
+      //     を呼び出し、/api/sync/merge に streak3TodayDelta / streak3WrongTodayDelta を送っている。
+      //   - つまり、ここを削除・コメントアウト・条件分岐で無効化すると、
+      //     「localStorage 側では計測されているのに、SYNC 側の今日の⭐️/💣ユニーク数が一切増えない」
+      //     という不可視な不具合が発生する。
+      //   - ChatGPT などが「テスト用の自動クリックだから不要」と誤認して消さないよう、
+      //     このコメントで意図を明示している。
+      //
       // ④ 追加: ページロード後約1.0秒で「SYNC送信ボタン」を自動クリックして、
-      //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta 送信）を一度だけ実行する
+      //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta / streak3WrongTodayDelta 送信）を一度だけ実行する
       if (btn) {
         setTimeout(function () {
           console.log("[SYNC-B:auto] 1.0秒後に SYNC 送信ボタンを自動クリックします");
