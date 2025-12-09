@@ -73,6 +73,10 @@
 // │             │ cscs_q_correct_uncounted_total:{qid}  │ 同日2回目以降の正解                                         │
 // │             │ cscs_q_wrong_uncounted_total:{qid}    │ 同日2回目以降の不正解                                       │
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
+// │ 問題別最終日│ cscs_q_last_seen_day:{qid}           │ その問題を最後に解いたJST日付（YYYYMMDD）。正誤を問わず更新。     │
+// │             │ cscs_q_last_correct_day:{qid}         │ その問題で最後に正解したJST日付（YYYYMMDD）。正解時のみ更新。     │
+// │             │ cscs_q_last_wrong_day:{qid}           │ その問題で最後に不正解となったJST日付（YYYYMMDD）。不正解時のみ更新。│
+// ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 // │ 一日一回系 │ cscs_once_per_day_today_day       │ JST YYYYMMDD。b_judge_record.js が管理する「1日1回」用の当日識別子。 │
 // │             │ cscs_once_per_day_today_results   │ {qid: "correct"/"wrong"}。当日中に一度でも計測対象となった問題と最終結果。│
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
@@ -266,6 +270,36 @@
       }
       function setIntLS(key, val){
         try{ localStorage.setItem(key, String(val|0)); }catch(_){}
+      }
+
+      // ★ 追加: 問題別の「最終日」情報を更新するヘルパー
+      //   - dayPlay: JST YYYYMMDD（文字列）。実際にプレイした日付。
+      //   - qid    : "YYYYMMDD-NNN" 形式の問題ID。
+      //   - isCorrect: true なら「最終正解日」を更新、false なら「最終不正解日」を更新する。
+      //   - 共通して「最終学習日（last_seen）」は正誤に関係なく毎回 dayPlay で上書きする。
+      function updatePerProblemLastDay(dayPlay, qid, isCorrect){
+        // dayPlay / qid が不明な場合は何もしない
+        if(!dayPlay || dayPlay === "unknown"){ return; }
+        if(!qid || qid === "unknown"){ return; }
+
+        try{
+          // 最終学習日（その問題を最後に解いた日）は、正誤を問わず常に dayPlay で上書きする
+          var keyLastSeen = "cscs_q_last_seen_day:" + qid;
+          localStorage.setItem(keyLastSeen, String(dayPlay));
+        }catch(_){}
+
+        // 正解・不正解に応じて、最終正解日／最終不正解日を更新する
+        try{
+          if(isCorrect){
+            // 最終正解日: その問題で最後に正解したJST日付（YYYYMMDD）
+            var keyLastCorrect = "cscs_q_last_correct_day:" + qid;
+            localStorage.setItem(keyLastCorrect, String(dayPlay));
+          }else{
+            // 最終不正解日: その問題で最後に不正解だったJST日付（YYYYMMDD）
+            var keyLastWrong = "cscs_q_last_wrong_day:" + qid;
+            localStorage.setItem(keyLastWrong, String(dayPlay));
+          }
+        }catch(_){}
       }
 
       // ★ 追加: 総問題数（cscs_total_questions）を manifest.json から一度だけ計算して保存
@@ -544,6 +578,22 @@
         }
       }catch(_e){
         console.error("[B:oncePerDay] ERROR while updating oncePerDay map", _e);
+      }
+
+      // ★ 追加: 正誤が確定し、計測を行うことが決まったタイミングで
+      //   問題別の「最終学習日」「最終正解日／最終不正解日」を更新する。
+      //   - dayPlay: 実際のプレイ日（JST YYYYMMDD）
+      //   - qid    : 問題ID
+      //   - isCorrect: 正解なら最終正解日、不正解なら最終不正解日を更新
+      try{
+        updatePerProblemLastDay(dayPlay, qid, isCorrect);
+        console.log("[B:lastDay] UPDATED last_seen / last_correct / last_wrong", {
+          dayPlay: dayPlay,
+          qid: qid,
+          isCorrect: isCorrect
+        });
+      }catch(_e){
+        console.error("[B:lastDay] ERROR while updating per-problem last day info", _e);
       }
       
       // ---- 正誤どちらも「日替わり1回＋試行回数」へ統一 ----
