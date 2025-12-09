@@ -484,93 +484,84 @@
       text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
 
       text += "\nStreak3WrongTodayUnique:\n";
-      // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
       var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "（データなし）" : String(s3WrongTodaySyncDay));
       text += "day: " + s3WrongTodayDayLabel + "\n";
       text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
 
-      // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）の SYNC / local 状況を HUD テキストに追加する
-      //   - 目的: 「localStorage で更新されている最終日」と「SYNC(KV) に保存されている最終日」が
-      //           画面上から一目で比較できるようにする。
-      //   - どこから読むか:
-      //       SYNC 側: window.__cscs_sync_state.lastSeenDay / lastCorrectDay / lastWrongDay[qid]
-      //       local 側: localStorage "cscs_q_last_seen_day:" + qid など（readDayFromLocalStorage 経由）
-      //   - 形式:
-      //       LastDay (SYNC / local):
-      //       lastSeen   : sync 20251201 / local 20251205
-      //       lastCorrect: sync （データなし） / local （データなし）
-      //       lastWrong  : sync 20251130 / local 20251130
-      //
-      //   ※ どちらにも値が無い場合は「（データなし）」として表示する。
+      // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を HUD に追加（改行＋ハイフン付き）
       var lastSeenSyncLabel = "（データなし）";
       var lastCorrectSyncLabel = "（データなし）";
       var lastWrongSyncLabel = "（データなし）";
+
       var lastSeenLocalLabel = "（データなし）";
       var lastCorrectLocalLabel = "（データなし）";
       var lastWrongLocalLabel = "（データなし）";
 
       try {
         var qidForLastDay = info && info.qid ? info.qid : null;
-        var stateForLast = null;
-        try {
-          stateForLast = window.__cscs_sync_state || null;
-        } catch (_eLastState) {
-          stateForLast = null;
+
+        // ---- SYNC 側の lastSeen / lastCorrect / lastWrong 読み取り ----
+        var st = null;
+        try { st = window.__cscs_sync_state || null; } catch (_e) { st = null; }
+
+        if (qidForLastDay && st) {
+          // lastSeen
+          if (st.lastSeenDay &&
+              typeof st.lastSeenDay === "object" &&
+              st.lastSeenDay[qidForLastDay] != null) {
+            var v1 = st.lastSeenDay[qidForLastDay];
+            if (typeof v1 === "number" && Number.isFinite(v1) && v1 > 0) {
+              lastSeenSyncLabel = String(v1);
+            }
+          }
+          // lastCorrect
+          if (st.lastCorrectDay &&
+              typeof st.lastCorrectDay === "object" &&
+              st.lastCorrectDay[qidForLastDay] != null) {
+            var v2 = st.lastCorrectDay[qidForLastDay];
+            if (typeof v2 === "number" && Number.isFinite(v2) && v2 > 0) {
+              lastCorrectSyncLabel = String(v2);
+            }
+          }
+          // lastWrong
+          if (st.lastWrongDay &&
+              typeof st.lastWrongDay === "object" &&
+              st.lastWrongDay[qidForLastDay] != null) {
+            var v3 = st.lastWrongDay[qidForLastDay];
+            if (typeof v3 === "number" && Number.isFinite(v3) && v3 > 0) {
+              lastWrongSyncLabel = String(v3);
+            }
+          }
         }
 
-        // ★ SYNC 側の lastSeenDay / lastCorrectDay / lastWrongDay を取得（数値のみ採用）
-        if (qidForLastDay && stateForLast) {
-          if (stateForLast.lastSeenDay &&
-              typeof stateForLast.lastSeenDay === "object" &&
-              stateForLast.lastSeenDay[qidForLastDay] != null) {
-            var sSeen = stateForLast.lastSeenDay[qidForLastDay];
-            if (typeof sSeen === "number" && Number.isFinite(sSeen) && sSeen > 0) {
-              lastSeenSyncLabel = String(sSeen);
-            }
-          }
-          if (stateForLast.lastCorrectDay &&
-              typeof stateForLast.lastCorrectDay === "object" &&
-              stateForLast.lastCorrectDay[qidForLastDay] != null) {
-            var sCor = stateForLast.lastCorrectDay[qidForLastDay];
-            if (typeof sCor === "number" && Number.isFinite(sCor) && sCor > 0) {
-              lastCorrectSyncLabel = String(sCor);
-            }
-          }
-          if (stateForLast.lastWrongDay &&
-              typeof stateForLast.lastWrongDay === "object" &&
-              stateForLast.lastWrongDay[qidForLastDay] != null) {
-            var sWrong = stateForLast.lastWrongDay[qidForLastDay];
-            if (typeof sWrong === "number" && Number.isFinite(sWrong) && sWrong > 0) {
-              lastWrongSyncLabel = String(sWrong);
-            }
-          }
-        }
-
-        // ★ localStorage 側の lastSeen / lastCorrect / lastWrong をヘルパー経由で取得
+        // ---- localStorage 側の lastSeen / lastCorrect / lastWrong 読み取り ----
         if (qidForLastDay) {
-          var localLastSeenDay = readDayFromLocalStorage("cscs_q_last_seen_day:" + qidForLastDay);
-          var localLastCorrectDay = readDayFromLocalStorage("cscs_q_last_correct_day:" + qidForLastDay);
-          var localLastWrongDay = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qidForLastDay);
+          var loc1 = readDayFromLocalStorage("cscs_q_last_seen_day:" + qidForLastDay);
+          var loc2 = readDayFromLocalStorage("cscs_q_last_correct_day:" + qidForLastDay);
+          var loc3 = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qidForLastDay);
 
-          if (localLastSeenDay !== null) {
-            lastSeenLocalLabel = String(localLastSeenDay);
-          }
-          if (localLastCorrectDay !== null) {
-            lastCorrectLocalLabel = String(localLastCorrectDay);
-          }
-          if (localLastWrongDay !== null) {
-            lastWrongLocalLabel = String(localLastWrongDay);
-          }
+          if (loc1 !== null) lastSeenLocalLabel = String(loc1);
+          if (loc2 !== null) lastCorrectLocalLabel = String(loc2);
+          if (loc3 !== null) lastWrongLocalLabel = String(loc3);
         }
+
       } catch (eLast) {
         console.error("[SYNC-B:view] lastDay HUD build error:", eLast);
       }
 
-      // ★ 最終日情報の HUD 表示部分（SYNC と local のズレが一目で分かる）
+      // ---- 最終日情報（リスト形式で見やすさ強化）----
       text += "\nLastDay (SYNC / local):\n";
-      text += "lastSeen   : sync " + lastSeenSyncLabel + " / local " + lastSeenLocalLabel + "\n";
-      text += "lastCorrect: sync " + lastCorrectSyncLabel + " / local " + lastCorrectLocalLabel + "\n";
-      text += "lastWrong  : sync " + lastWrongSyncLabel + " / local " + lastWrongLocalLabel + "\n";
+      text += "lastSeen   :\n";
+      text += "- sync " + lastSeenSyncLabel + "\n";
+      text += "- local " + lastSeenLocalLabel + "\n";
+
+      text += "lastCorrect:\n";
+      text += "- sync " + lastCorrectSyncLabel + "\n";
+      text += "- local " + lastCorrectLocalLabel + "\n";
+
+      text += "lastWrong  :\n";
+      text += "- sync " + lastWrongSyncLabel + "\n";
+      text += "- local " + lastWrongLocalLabel + "\n";
 
       updateSyncBody(text);
 
