@@ -1356,8 +1356,17 @@
         wrongStreakTotalSync
       );
 
-      // 進捗表示は従来どおり「連続正解数 / 3」をそのまま用いる
-      const streakProgress = "(" + streakLenSync + "/3)";
+      // 進捗表示は「直近の連続記録」を優先して反映させる：
+      //   - 連続不正解中なら wrongStreakLenSync
+      //   - それ以外で連続正解中なら streakLenSync
+      //   - どちらも 0 のときは 0
+      let streakProgressCount = 0;
+      if (wrongStreakLenSync > 0) {
+        streakProgressCount = wrongStreakLenSync;
+      } else if (streakLenSync > 0) {
+        streakProgressCount = streakLenSync;
+      }
+      const streakProgress = "(" + streakProgressCount + "/3)";
 
       // デバッグ用ログ（ナビリスト行ごとに、各ストリーク情報とマークを確認）
       if (DEBUG_NAV_LIST_STREAK_LOG) {
@@ -1368,7 +1377,8 @@
           wrongStreakLenSync: wrongStreakLenSync,
           wrongStreakTotalSync: wrongStreakTotalSync,
           oncePerDayStatus: oncePerDayStatus,
-          streakMark: streakMark
+          streakMark: streakMark,
+          streakProgress: streakProgress
         });
       }
 
