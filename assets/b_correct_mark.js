@@ -80,12 +80,30 @@
   // ▼ 5. .answer にズームインのアニメーションを付与するヘルパー
   function applyZoomToAnswer(){
     try{
-      var answer = document.querySelector(".answer");
-      if (!answer) return;
+      // まず #judge からは必ずズーム用クラスを外す（過去付与の掃除も兼ねる）
+      var judgeEl = document.getElementById("judge");
+      if (judgeEl && judgeEl.classList.contains("cscs-answer-zoom-in")) {
+        judgeEl.classList.remove("cscs-answer-zoom-in");
+      }
+
+      // アニメの対象は「.answer かつ #judge ではない要素」
+      var answers = document.querySelectorAll(".answer");
+      var target = null;
+      if (answers && answers.length > 0) {
+        for (var i = 0; i < answers.length; i++) {
+          var el = answers[i];
+          if (el.id !== "judge") {
+            target = el;
+            break;
+          }
+        }
+      }
+
+      if (!target) return;
 
       // すでにクラスが付いている場合は何もしない（アニメ多重適用防止）
-      if (!answer.classList.contains("cscs-answer-zoom-in")) {
-        answer.classList.add("cscs-answer-zoom-in");
+      if (!target.classList.contains("cscs-answer-zoom-in")) {
+        target.classList.add("cscs-answer-zoom-in");
       }
 
       // 一度だけスタイルを注入する
@@ -94,7 +112,7 @@
         style.id = "cscs-answer-zoom-style";
         style.type = "text/css";
         style.textContent =
-          ".answer.cscs-answer-zoom-in {" +
+          ".answer:not(#judge).cscs-answer-zoom-in {" +
           "  animation: cscsAnswerZoomIn 0.6s ease-out 0s 1;" +
           "  transform-origin: center center;" +
           "}" +
