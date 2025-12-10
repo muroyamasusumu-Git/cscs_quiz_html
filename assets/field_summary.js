@@ -353,6 +353,16 @@
       }
       var streak3 = root.streak3;
 
+      // 3連続不正解（💣）累計マップは存在すれば採用（任意）
+      var streak3Wrong = null;
+      if (root.streak3Wrong && typeof root.streak3Wrong === "object") {
+        streak3Wrong = root.streak3Wrong;
+      }
+
+      // モジュール全体から参照できるように保持
+      syncStreak3Map = streak3;
+      syncStreak3WrongMap = streak3Wrong;
+
       // 各 Field に対する「★獲得済み問題数」を集計
       var counts = Object.create(null);
       var totalStarQ = 0;
@@ -634,10 +644,12 @@
   // - 取得できなかった場合のみ DUMMY_TOTAL を暫定使用
   var totalQuestionsGlobal = DUMMY_TOTAL;
 
-  // SYNC状態から取得した正解・不正解・連続正解マップ（最終正誤結果 / 連続回数の表示用）
+  // SYNC状態から取得した正解・不正解・連続正解マップ（最終正誤結果 / 連続回数 / 3連続達成回数の表示用）
   var syncCorrectMap = null;           // state.correct の生データ参照
   var syncIncorrectMap = null;         // state.incorrect の生データ参照
   var syncStreakLenMap = null;         // state.streakLen の生データ参照
+  var syncStreak3Map = null;           // state.streak3 の生データ参照（⭐️累計）
+  var syncStreak3WrongMap = null;      // state.streak3Wrong の生データ参照（💣累計）
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -1337,12 +1349,34 @@
           thStreak.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thStreak.style.whiteSpace = "nowrap";
 
-          // カラム順: qid / レベル / 問題文 / 最終 / 連続
+          var thStar = document.createElement("th");
+          thStar.textContent = "⭐️";
+          thStar.style.textAlign = "left";
+          thStar.style.fontWeight = "600";
+          thStar.style.fontSize = "11px";
+          thStar.style.padding = "2px 4px";
+          thStar.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thStar.style.whiteSpace = "nowrap";
+          thStar.title = "3連続正解（⭐️）の累計獲得数";
+
+          var thBomb = document.createElement("th");
+          thBomb.textContent = "💣";
+          thBomb.style.textAlign = "left";
+          thBomb.style.fontWeight = "600";
+          thBomb.style.fontSize = "11px";
+          thBomb.style.padding = "2px 4px";
+          thBomb.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thBomb.style.whiteSpace = "nowrap";
+          thBomb.title = "3連続不正解（💣）の累計獲得数";
+
+          // カラム順: qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣
           headTr.appendChild(thQid);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
           headTr.appendChild(thLast);
           headTr.appendChild(thStreak);
+          headTr.appendChild(thStar);
+          headTr.appendChild(thBomb);
           thead.appendChild(headTr);
 
           var tbody = document.createElement("tbody");
@@ -1481,6 +1515,65 @@
                 tdStreak.textContent = "";
               }
 
+              // ⭐️（3連続正解）累計セル
+              var tdStar = document.createElement("td");
+              tdStar.style.padding = "2px 4px";
+              tdStar.style.verticalAlign = "top";
+              tdStar.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdStar.style.whiteSpace = "nowrap";
+              tdStar.style.textAlign = "right";
+
+              var starCount = 0;
+              var qidKey = String(qid);
+              if (syncStreak3Map && Object.prototype.hasOwnProperty.call(syncStreak3Map, qidKey)) {
+                var vStar = syncStreak3Map[qidKey];
+                if (vStar && typeof vStar === "object" && Object.prototype.hasOwnProperty.call(vStar, "total")) {
+                  var tStar = Number(vStar.total);
+                  if (Number.isFinite(tStar) && tStar > 0) {
+                    starCount = tStar;
+                  }
+                } else {
+                  var nStar = Number(vStar);
+                  if (Number.isFinite(nStar) && nStar > 0) {
+                    starCount = nStar;
+                  }
+                }
+              }
+              if (starCount > 0) {
+                tdStar.textContent = String(starCount);
+              } else {
+                tdStar.textContent = "";
+              }
+
+              // 💣（3連続不正解）累計セル
+              var tdBomb = document.createElement("td");
+              tdBomb.style.padding = "2px 4px";
+              tdBomb.style.verticalAlign = "top";
+              tdBomb.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdBomb.style.whiteSpace = "nowrap";
+              tdBomb.style.textAlign = "right";
+
+              var bombCount = 0;
+              if (syncStreak3WrongMap && Object.prototype.hasOwnProperty.call(syncStreak3WrongMap, qidKey)) {
+                var vBomb = syncStreak3WrongMap[qidKey];
+                if (vBomb && typeof vBomb === "object" && Object.prototype.hasOwnProperty.call(vBomb, "total")) {
+                  var tBomb = Number(vBomb.total);
+                  if (Number.isFinite(tBomb) && tBomb > 0) {
+                    bombCount = tBomb;
+                  }
+                } else {
+                  var nBomb = Number(vBomb);
+                  if (Number.isFinite(nBomb) && nBomb > 0) {
+                    bombCount = nBomb;
+                  }
+                }
+              }
+              if (bombCount > 0) {
+                tdBomb.textContent = String(bombCount);
+              } else {
+                tdBomb.textContent = "";
+              }
+
               // レベルセル
               var tdLevel = document.createElement("td");
               tdLevel.style.padding = "2px 4px";
@@ -1507,12 +1600,14 @@
               }
               tdQuestion.textContent = qText;
 
-              // カラム順: qid / レベル / 問題文 / 最終 / 連続 に合わせてセルを追加
+              // カラム順: qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 に合わせてセルを追加
               tr.appendChild(tdQid);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
               tr.appendChild(tdLast);
               tr.appendChild(tdStreak);
+              tr.appendChild(tdStar);
+              tr.appendChild(tdBomb);
               tbody.appendChild(tr);
             }
 
