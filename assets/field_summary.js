@@ -1389,15 +1389,25 @@
           thBomb.style.whiteSpace = "nowrap";
           thBomb.title = "3連続不正解（💣）の累計獲得数";
 
-          var thLastSeen = document.createElement("th");
-          thLastSeen.textContent = "最終閲覧";
-          thLastSeen.style.textAlign = "left";
-          thLastSeen.style.fontWeight = "600";
-          thLastSeen.style.fontSize = "11px";
-          thLastSeen.style.padding = "2px 4px";
-          thLastSeen.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
-          thLastSeen.style.whiteSpace = "nowrap";
-          thLastSeen.title = "state.lastSeenDay[qid]";
+          var thTotalCorrect = document.createElement("th");
+          thTotalCorrect.textContent = "正解累計";
+          thTotalCorrect.style.textAlign = "left";
+          thTotalCorrect.style.fontWeight = "600";
+          thTotalCorrect.style.fontSize = "11px";
+          thTotalCorrect.style.padding = "2px 4px";
+          thTotalCorrect.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thTotalCorrect.style.whiteSpace = "nowrap";
+          thTotalCorrect.title = "state.correct[qid] の累計 total";
+
+          var thTotalWrong = document.createElement("th");
+          thTotalWrong.textContent = "誤答累計";
+          thTotalWrong.style.textAlign = "left";
+          thTotalWrong.style.fontWeight = "600";
+          thTotalWrong.style.fontSize = "11px";
+          thTotalWrong.style.padding = "2px 4px";
+          thTotalWrong.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thTotalWrong.style.whiteSpace = "nowrap";
+          thTotalWrong.title = "state.incorrect[qid] の累計 total";
 
           var thLastCorrect = document.createElement("th");
           thLastCorrect.textContent = "最終正解";
@@ -1419,7 +1429,8 @@
           thLastWrong.style.whiteSpace = "nowrap";
           thLastWrong.title = "state.lastWrongDay[qid]";
 
-          // カラム順: qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 最終閲覧 / 最終正解 / 最終誤答
+          // カラム順:
+          // qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 正解累計 / 誤答累計 / 最終正解 / 最終誤答
           headTr.appendChild(thQid);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
@@ -1427,7 +1438,8 @@
           headTr.appendChild(thStreak);
           headTr.appendChild(thStar);
           headTr.appendChild(thBomb);
-          headTr.appendChild(thLastSeen);
+          headTr.appendChild(thTotalCorrect);
+          headTr.appendChild(thTotalWrong);
           headTr.appendChild(thLastCorrect);
           headTr.appendChild(thLastWrong);
           thead.appendChild(headTr);
@@ -1627,23 +1639,63 @@
                 tdBomb.textContent = "";
               }
 
-              // 最終閲覧日セル（state.lastSeenDay[qid]）
-              var tdLastSeen = document.createElement("td");
-              tdLastSeen.style.padding = "2px 4px";
-              tdLastSeen.style.verticalAlign = "top";
-              tdLastSeen.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
-              tdLastSeen.style.whiteSpace = "nowrap";
+              // 正解累計セル（state.correct[qid]）
+              var tdTotalCorrect = document.createElement("td");
+              tdTotalCorrect.style.padding = "2px 4px";
+              tdTotalCorrect.style.verticalAlign = "top";
+              tdTotalCorrect.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdTotalCorrect.style.whiteSpace = "nowrap";
+              tdTotalCorrect.style.textAlign = "right";
 
-              var lastSeenVal = "";
-              if (syncLastSeenDayMap && Object.prototype.hasOwnProperty.call(syncLastSeenDayMap, qidKey)) {
-                var rawSeen = syncLastSeenDayMap[qidKey];
-                if (rawSeen && typeof rawSeen === "object" && Object.prototype.hasOwnProperty.call(rawSeen, "day")) {
-                  lastSeenVal = String(rawSeen.day || "");
+              var totalCorrectCount = 0;
+              if (syncCorrectMap && Object.prototype.hasOwnProperty.call(syncCorrectMap, qidKey)) {
+                var vCorrect = syncCorrectMap[qidKey];
+                if (vCorrect && typeof vCorrect === "object" && Object.prototype.hasOwnProperty.call(vCorrect, "total")) {
+                  var tCorrect = Number(vCorrect.total);
+                  if (Number.isFinite(tCorrect) && tCorrect > 0) {
+                    totalCorrectCount = tCorrect;
+                  }
                 } else {
-                  lastSeenVal = String(rawSeen == null ? "" : rawSeen);
+                  var nCorrect = Number(vCorrect);
+                  if (Number.isFinite(nCorrect) && nCorrect > 0) {
+                    totalCorrectCount = nCorrect;
+                  }
                 }
               }
-              tdLastSeen.textContent = lastSeenVal;
+              if (totalCorrectCount > 0) {
+                tdTotalCorrect.textContent = String(totalCorrectCount);
+              } else {
+                tdTotalCorrect.textContent = "";
+              }
+
+              // 誤答累計セル（state.incorrect[qid]）
+              var tdTotalWrong = document.createElement("td");
+              tdTotalWrong.style.padding = "2px 4px";
+              tdTotalWrong.style.verticalAlign = "top";
+              tdTotalWrong.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdTotalWrong.style.whiteSpace = "nowrap";
+              tdTotalWrong.style.textAlign = "right";
+
+              var totalWrongCount = 0;
+              if (syncIncorrectMap && Object.prototype.hasOwnProperty.call(syncIncorrectMap, qidKey)) {
+                var vIncorrect = syncIncorrectMap[qidKey];
+                if (vIncorrect && typeof vIncorrect === "object" && Object.prototype.hasOwnProperty.call(vIncorrect, "total")) {
+                  var tIncorrect = Number(vIncorrect.total);
+                  if (Number.isFinite(tIncorrect) && tIncorrect > 0) {
+                    totalWrongCount = tIncorrect;
+                  }
+                } else {
+                  var nIncorrect = Number(vIncorrect);
+                  if (Number.isFinite(nIncorrect) && nIncorrect > 0) {
+                    totalWrongCount = nIncorrect;
+                  }
+                }
+              }
+              if (totalWrongCount > 0) {
+                tdTotalWrong.textContent = String(totalWrongCount);
+              } else {
+                tdTotalWrong.textContent = "";
+              }
 
               // 最終正解日セル（state.lastCorrectDay[qid]）
               var tdLastCorrect = document.createElement("td");
@@ -1708,7 +1760,7 @@
               tdQuestion.textContent = qText;
 
               // カラム順:
-              // qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 最終閲覧 / 最終正解 / 最終誤答
+              // qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 正解累計 / 誤答累計 / 最終正解 / 最終誤答
               tr.appendChild(tdQid);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
@@ -1716,7 +1768,8 @@
               tr.appendChild(tdStreak);
               tr.appendChild(tdStar);
               tr.appendChild(tdBomb);
-              tr.appendChild(tdLastSeen);
+              tr.appendChild(tdTotalCorrect);
+              tr.appendChild(tdTotalWrong);
               tr.appendChild(tdLastCorrect);
               tr.appendChild(tdLastWrong);
               tbody.appendChild(tr);
