@@ -1509,17 +1509,23 @@
   if (!window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode) {
     window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode = function (reason) {
       var reasonStr = typeof reason === "string" ? reason : "";
-      var isUserToggle = reasonStr === "user-toggle";
+      // user-toggle / trial-mode-on は「ユーザー都合の OFF」とみなし、自動再開は行わない
+      var isManualOff =
+        reasonStr === "user-toggle" ||
+        reasonStr === "trial-mode-on";
 
       // まず既存の自動再開タイマーをクリア（後で必要なら再スケジュール）
+      // - すでに別の理由で予約されている自動再開を一旦リセットする
       clearVerifyModeAutoRestartTimers();
 
       // 検証モードを "off" にして UI と localStorage を同期
+      // - 理由はログ用に reasonStr をそのまま渡しておく
       setVerifyModeAndSyncUI("off", {
         reason: reasonStr || "external-turn-off"
       });
 
       // ★ 検証モードOFF時は、自動送りも必ず OFF に揃える
+      //   - 検証AUTOと自動送りの状態を常に一致させるため
       autoEnabled = false;
       saveAutoAdvanceEnabled(false);
       var autoBtn = document.getElementById("auto-next-toggle");
@@ -1528,16 +1534,18 @@
       }
 
       // カウントダウンや自動遷移も停止し、「OFF」表示にしておく
+      // - 検証AUTO用・通常自動送り用のどちらのカウント表示もここでいったんリセット
       cancelAutoAdvanceCountdown(true);
 
       // ▼ 「自動OFF」とみなせる場合のみ、3分後に自動ONを予約
-      //   - user-toggle 以外の reason はすべて「自動OFF」とみなす
-      if (!isUserToggle) {
+      //   - user-toggle / trial-mode-on は「意図的なOFF」とみなして自動再開しない
+      //   - それ以外（例: APIエラーなど）は自動OFF扱いとして自動再開を予約する
+      if (!isManualOff) {
         scheduleVerifyModeAutoRestart(reasonStr || "auto-restart");
       } else {
         try {
-          syncLog("VerifyMode: turned off by user-toggle; no auto-restart.", {
-            reason: reasonStr || "user-toggle"
+          syncLog("VerifyMode: turned off manually; no auto-restart.", {
+            reason: reasonStr || "manual-off"
           });
         } catch (_e3) {}
       }
