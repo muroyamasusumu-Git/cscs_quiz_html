@@ -379,6 +379,17 @@
         consistencyStatus = root.consistency_status;
       }
 
+      // お気に入り（★）マップ
+      // state.favorite / state.favorites / state.fav のいずれかに対応できるようにしておく
+      var favMap = null;
+      if (root.favorite && typeof root.favorite === "object") {
+        favMap = root.favorite;
+      } else if (root.favorites && typeof root.favorites === "object") {
+        favMap = root.favorites;
+      } else if (root.fav && typeof root.fav === "object") {
+        favMap = root.fav;
+      }
+
       // モジュール全体から参照できるように保持
       syncStreak3Map = streak3;
       syncStreak3WrongMap = streak3Wrong;
@@ -386,6 +397,7 @@
       syncLastCorrectDayMap = lastCorrectDay;
       syncLastWrongDayMap = lastWrongDay;
       syncConsistencyStatusMap = consistencyStatus;
+      syncFavMap = favMap;
 
       // 各 Field に対する「★獲得済み問題数」を集計
       var counts = Object.create(null);
@@ -678,6 +690,7 @@
   var syncLastCorrectDayMap = null;    // state.lastCorrectDay の生データ参照
   var syncLastWrongDayMap = null;      // state.lastWrongDay の生データ参照
   var syncConsistencyStatusMap = null; // state.consistency_status の生データ参照（整合性チェックステータス）
+  var syncFavMap = null;               // state.favorite / favorites / fav の生データ参照（お気に入り★）
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -777,6 +790,50 @@
     } catch (e) {
       console.error("field_summary.js: getLevelForQid error", e);
       return "";
+    }
+  }
+
+  // qid(YYYYMMDD-NNN) から「お気に入り★レベル(0/1/2/3)」を取得するヘルパー
+  //  - state.favorite / favorites / fav のいずれかから参照
+  //  - 0 の場合は「未登録」として扱い、テーブル表示は "-" にする
+  function getFavLevelForQid(qid) {
+    var level = 0;
+    try {
+      var map = syncFavMap;
+      if (!map || typeof map !== "object") {
+        return 0;
+      }
+      var key = String(qid);
+      if (!Object.prototype.hasOwnProperty.call(map, key)) {
+        return 0;
+      }
+      var v = map[key];
+
+      // number / { level } / { rank } / { value } あたりに対応
+      if (v && typeof v === "object") {
+        if (Object.prototype.hasOwnProperty.call(v, "level")) {
+          level = Number(v.level);
+        } else if (Object.prototype.hasOwnProperty.call(v, "rank")) {
+          level = Number(v.rank);
+        } else if (Object.prototype.hasOwnProperty.call(v, "value")) {
+          level = Number(v.value);
+        } else {
+          level = Number(v);
+        }
+      } else {
+        level = Number(v);
+      }
+
+      if (!Number.isFinite(level) || level < 0) {
+        level = 0;
+      }
+      if (level > 3) {
+        level = 3;
+      }
+      return level;
+    } catch (e) {
+      console.error("field_summary.js: getFavLevelForQid error", e);
+      return 0;
     }
   }
 
@@ -1350,6 +1407,7 @@
           // ▼ ソート項目：
           //   - qid順
           //   - レベル順
+          //   - お気に入り★（高い順 / 低い順）
           //   - 最終正解日（古い順 / 新しい順）
           //   - 最終誤答日（古い順 / 新しい順）
 
@@ -1360,6 +1418,14 @@
           var optLevel = document.createElement("option");
           optLevel.value = "level";
           optLevel.textContent = "レベル順";
+
+          var optFavDesc = document.createElement("option");
+          optFavDesc.value = "favDesc";
+          optFavDesc.textContent = "★(高い順)";
+
+          var optFavAsc = document.createElement("option");
+          optFavAsc.value = "favAsc";
+          optFavAsc.textContent = "★(低い順)";
 
           var optLastCorrectAsc = document.createElement("option");
           optLastCorrectAsc.value = "lastCorrectAsc";
@@ -1379,6 +1445,8 @@
 
           sortSelect.appendChild(optQid);
           sortSelect.appendChild(optLevel);
+          sortSelect.appendChild(optFavDesc);
+          sortSelect.appendChild(optFavAsc);
           sortSelect.appendChild(optLastCorrectAsc);
           sortSelect.appendChild(optLastCorrectDesc);
           sortSelect.appendChild(optLastWrongAsc);
@@ -1408,6 +1476,16 @@
           thQid.style.padding = "2px 4px";
           thQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thQid.style.whiteSpace = "nowrap";
+
+          var thFav = document.createElement("th");
+          thFav.textContent = "★";
+          thFav.style.textAlign = "center";
+          thFav.style.fontWeight = "600";
+          thFav.style.fontSize = "11px";
+          thFav.style.padding = "2px 4px";
+          thFav.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thFav.style.whiteSpace = "nowrap";
+          thFav.title = "お気に入り(★)レベル（- / 1 / 2 / 3）";
 
           var thLevel = document.createElement("th");
           thLevel.textContent = "Lv";
@@ -1523,8 +1601,9 @@
           thLastWrong.title = "state.lastWrongDay[qid]";
 
           // カラム順:
-          // qid / Lv / 問題文 / 整合 / ⭐️ / 💣 / 正 / 誤 / 最終 / 連続 / 最終正解 / 最終誤答
+          // qid / ★ / Lv / 問題文 / 整合 / ⭐️ / 💣 / 正 / 誤 / 最終 / 連続 / 最終正解 / 最終誤答
           headTr.appendChild(thQid);
+          headTr.appendChild(thFav);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
           headTr.appendChild(thConsistency);
@@ -1593,6 +1672,8 @@
           // currentSortKey:
           //   "qid"            : qid昇順
           //   "level"          : レベル昇順
+          //   "favDesc"        : お気に入り★ 高い順 (3 → 2 → 1 → 0)
+          //   "favAsc"         : お気に入り★ 低い順 (0 → 1 → 2 → 3)
           //   "lastCorrectAsc" : 最終正解日 古い順
           //   "lastCorrectDesc": 最終正解日 新しい順
           //   "lastWrongAsc"   : 最終誤答日 古い順
@@ -1651,6 +1732,21 @@
                 tdQid.appendChild(a);
               } else {
                 tdQid.textContent = qid;
+              }
+
+              // お気に入り★セル（- / 1 / 2 / 3）
+              var tdFav = document.createElement("td");
+              tdFav.style.padding = "2px 4px";
+              tdFav.style.verticalAlign = "top";
+              tdFav.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdFav.style.whiteSpace = "nowrap";
+              tdFav.style.textAlign = "center";
+
+              var favLevel = getFavLevelForQid(qid);
+              if (favLevel > 0) {
+                tdFav.textContent = String(favLevel);
+              } else {
+                tdFav.textContent = "-";
               }
 
               // 最終正誤セル（○ / ×）と連続正解回数セル
@@ -1912,8 +2008,9 @@
               tdQuestion.textContent = qText;
 
               // カラム順:
-              // qid / Lv / 問題文 / 整合 / ⭐️ / 💣 / 正 / 誤 / 最終 / 連続 / 最終正解 / 最終誤答
+              // qid / ★ / Lv / 問題文 / 整合 / ⭐️ / 💣 / 正 / 誤 / 最終 / 連続 / 最終正解 / 最終誤答
               tr.appendChild(tdQid);
+              tr.appendChild(tdFav);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
               tr.appendChild(tdConsistency);
@@ -2072,6 +2169,18 @@
               }
             }
 
+            // お気に入り★のソート用数値（0〜3）を取り出すヘルパー
+            function getFavSortValue(qid) {
+              var v = getFavLevelForQid(qid);
+              if (!Number.isFinite(v) || v < 0) {
+                return 0;
+              }
+              if (v > 3) {
+                return 3;
+              }
+              return v;
+            }
+
             qidsSorted.sort(function (a, b) {
               if (currentSortKey === "level") {
                 // レベル昇順 → レベルが同じ場合は qid 昇順
@@ -2082,6 +2191,23 @@
                 if (la !== lb) {
                   return la.localeCompare(lb, "ja");
                 }
+                return String(a).localeCompare(String(b));
+              }
+
+              if (currentSortKey === "favDesc" || currentSortKey === "favAsc") {
+                // お気に入り★レベルでソート
+                var fa = getFavSortValue(a);
+                var fb = getFavSortValue(b);
+                if (fa !== fb) {
+                  if (currentSortKey === "favDesc") {
+                    // 高い順: 3 → 2 → 1 → 0
+                    return fb - fa;
+                  } else {
+                    // 低い順: 0 → 1 → 2 → 3
+                    return fa - fb;
+                  }
+                }
+                // 同じ★レベルなら qid昇順
                 return String(a).localeCompare(String(b));
               }
 
