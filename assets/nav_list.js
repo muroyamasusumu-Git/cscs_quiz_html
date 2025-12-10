@@ -1581,9 +1581,10 @@
   }
 
   // =========================
-  // 他スクリプトから呼べるフェード制御API
+  // 他スクリプトから呼べるフェード制御API（※利用停止のためコメントアウト）
   // =========================
 
+  /*
   function navListFadeOut(){
     try{
       var panel = document.getElementById("nl-panel");
@@ -1608,13 +1609,15 @@
       panel.style.opacity = "0.65";
     }catch(_){}
   }
+  */
 
   // グローバル名前空間に NAV_LIST の小さなAPIを生やす
+  // ※ 現在は空のダミー関数を登録して互換性だけ維持
   if (!window.CSCS_NAV_LIST) {
     window.CSCS_NAV_LIST = {};
   }
-  window.CSCS_NAV_LIST.fadeOut = navListFadeOut;
-  window.CSCS_NAV_LIST.fadeIn = navListFadeIn;
+  window.CSCS_NAV_LIST.fadeOut = function(){};
+  window.CSCS_NAV_LIST.fadeIn = function(){};istFadeIn;
 
   // =========================
   // SYNC更新イベントを受けて一覧を再構築
