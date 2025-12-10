@@ -657,7 +657,7 @@ body.mode-b #cc-check-wrapper {
 
 /* タイトル行： "SYNC(B): 2025xxxx-xxx" */
 #cscs_sync_view_b_title {
-  margin-bottom: 4px;
+  margin-bottom: 0;
   opacity: 0.8;
 }
 
