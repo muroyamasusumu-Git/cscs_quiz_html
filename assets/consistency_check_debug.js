@@ -1257,6 +1257,7 @@
     lines.push("種別: (データなし)");
     lines.push("最終: (データなし)");
     lines.push("SYNC: 未保存");
+    lines.push("Local: (データなし)");
 
     (function() {
       var qnoStatusEl = document.querySelector(".qno .consistency_status");
@@ -1306,6 +1307,16 @@
             }
           }
           lines[5] = syncStatusLabel;
+
+          // ★ ローカルステージ（localStorage）の結果データ有無もステータスに表示する
+          var hasLocalResult = !!(data && data.result);
+          var localStatusLabel = "Local: (結果なし)";
+          if (hasLocalResult) {
+            localStatusLabel = "Local: 結果あり";
+          } else {
+            localStatusLabel = "Local: ステータスのみ（結果なし）";
+          }
+          lines[6] = localStatusLabel;
 
           if (!hasSyncOk) {
             statusDiv.textContent = lines.join("\n");
