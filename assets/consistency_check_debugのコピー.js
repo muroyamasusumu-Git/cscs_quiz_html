@@ -1306,24 +1306,22 @@
               console.error("整合性チェック SYNC ステータスの読み込みに失敗しました:", syncReadError);
             }
           }
+          lines[5] = syncStatusLabel;
 
-          // ★ SYNC ステータスが「保存済」になっていない場合は、
-          //    右上ステータスは初期表示のままにして、Local の情報も出さない
-          //    → 右上パネルは SYNC を唯一のソースとする
+          // ★ ローカルステージ（localStorage）の結果データ有無もステータスに表示する
+          var hasLocalResult = !!(data && data.result);
+          var localStatusLabel = "Local: (結果なし)";
+          if (hasLocalResult) {
+            localStatusLabel = "Local: 結果あり";
+          } else {
+            localStatusLabel = "Local: ステータスのみ（結果なし）";
+          }
+          lines[6] = localStatusLabel;
+
           if (!hasSyncOk) {
             statusDiv.textContent = lines.join("\n");
             return;
           }
-
-          // ★ ここから下は「SYNC が保存済み」の場合のみ実行する
-          //    SYNC 行と Local 行を実際のステータスに合わせて上書きする
-          lines[5] = syncStatusLabel;
-
-          // ★ Local 行は「SYNC が保存済みのときに、そのキャッシュ結果が localStorage にあるかどうか」だけを表示する
-          //    → 右上の評価（整合性チェック: 済 / 種別 / ステータス記号）はあくまで SYNC 由来
-          var hasLocalResult = !!(data && data.result);
-          var localStatusLabel = hasLocalResult ? "Local: 結果あり" : "Local: ステータスのみ（結果なし）";
-          lines[6] = localStatusLabel;
 
           var severityMark = data && typeof data.severity_mark === "string" ? data.severity_mark : "";
           var severityLabel = data && typeof data.severity_label === "string" ? data.severity_label : "";
