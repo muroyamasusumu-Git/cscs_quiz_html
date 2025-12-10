@@ -1322,7 +1322,7 @@
           // ★ Local 行は「SYNC が保存済みのときに、そのキャッシュ結果が localStorage にあるかどうか」だけを表示する
           //    → 右上の評価（整合性チェック: 済 / 種別 / ステータス記号）はあくまで SYNC 由来
           var hasLocalResult = !!(data && data.result);
-          var localStatusLabel = hasLocalResult ? "Local: 結果あり" : "Local: ステータスのみ（結果なし）";
+          var localStatusLabel = hasLocalResult ? "Local: 結果あり" : "Local: ステータスのみ";
           lines[6] = localStatusLabel;
 
           var severityMark = data && typeof data.severity_mark === "string" ? data.severity_mark : "";
