@@ -857,6 +857,38 @@
   // 分野別の進捗リスト（後で一度だけ計算してキャッシュ）
   var dummyFieldStats = null;
 
+  // フィールド別テーブルの「開いている分野名」を保持するための sessionStorage キー
+  var FIELD_SUMMARY_OPEN_KEY = "cscs_field_summary_open_field";
+
+  // 指定した分野名を「現在開いている分野」として sessionStorage に保存するヘルパー
+  // name が空または falsy の場合は、キーを削除して「閉じている状態」として扱う
+  function saveFieldSummaryOpenFieldName(name) {
+    try {
+      if (!name) {
+        sessionStorage.removeItem(FIELD_SUMMARY_OPEN_KEY);
+      } else {
+        sessionStorage.setItem(FIELD_SUMMARY_OPEN_KEY, String(name));
+      }
+    } catch (e) {
+      console.error("field_summary.js: saveFieldSummaryOpenFieldName error", e);
+    }
+  }
+
+  // sessionStorage から「最後に開いていた分野名」を取得するヘルパー
+  // 取得できない場合やエラー時は空文字列を返し、デフォルトの「閉じた状態」とする
+  function loadFieldSummaryOpenFieldName() {
+    try {
+      var name = sessionStorage.getItem(FIELD_SUMMARY_OPEN_KEY);
+      if (!name) {
+        return "";
+      }
+      return String(name);
+    } catch (e) {
+      console.error("field_summary.js: loadFieldSummaryOpenFieldName error", e);
+      return "";
+    }
+  }
+
   // =========================
   // 6. 今日の 3連続正解ユニーク数（streak3Today）を SYNC から読む
   // =========================
@@ -1178,6 +1210,8 @@
         ": " +
         row.star + " / " + row.total +
         "(" + rate + "%)";
+      // 後で「どの分野のラベルか」を特定するため、data-field-name 属性に分野名を保持しておく
+      label.dataset.fieldName = row.field;
 
       // 分野名クリックで qid 一覧をパネル最下部にインライン表示（テーブル＋30件ずつ）
       label.style.cursor = "pointer";
@@ -1193,12 +1227,16 @@
           ) {
             qidInlineBox.innerHTML = "";
             qidInlineBox.dataset.currentField = "";
+            // トグルで閉じた場合は sessionStorage 上の「開いている分野名」もクリアする
+            saveFieldSummaryOpenFieldName("");
             return;
           }
 
           // 別の分野を開くので中身をリセット
           qidInlineBox.innerHTML = "";
           qidInlineBox.dataset.currentField = name;
+          // 新しく開いた分野名を sessionStorage に保存し、ページ更新後も同じ分野を再表示できるようにする
+          saveFieldSummaryOpenFieldName(name);
 
           // 見出し（右端に［閉じる］を追加）
           var heading = document.createElement("div");
@@ -1222,6 +1260,8 @@
           closeBtn.onclick = function () {
             qidInlineBox.innerHTML = "";
             qidInlineBox.dataset.currentField = "";
+            // 明示的に閉じた場合は、sessionStorage 上の「開いている分野名」もクリアする
+            saveFieldSummaryOpenFieldName("");
           };
 
           heading.appendChild(titleSpan);
@@ -2238,6 +2278,26 @@
       unsolvedCount: unsolvedCount,
       unsolvedPercent: unsolvedPercent
     });
+
+    // sessionStorage に保存されている「前回開いていた分野名」があれば、
+    // 対応するラベルを自動クリックしてテーブルを再オープンする
+    try {
+      var savedFieldName = loadFieldSummaryOpenFieldName();
+      if (savedFieldName) {
+        // data-field-name 属性に分野名を持っているラベルを探す
+        var fieldLabels = list.querySelectorAll("div[data-field-name]");
+        for (var iLabel = 0; iLabel < fieldLabels.length; iLabel++) {
+          var lbl = fieldLabels[iLabel];
+          if (lbl.dataset.fieldName === savedFieldName) {
+            // ラベルの click() を呼び出して、通常の開く処理（テーブル生成）をそのまま実行する
+            lbl.click();
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("field_summary.js: restore open field from sessionStorage failed", e);
+    }
 
     // パネルにリストを追加し、.wrap の直後に挿入
     panel.appendChild(list);
