@@ -1,4 +1,4 @@
-// merge.ts
+// functions/api/sync/merge.ts
 /**
  * CSCS SYNC merge 実装（Workers 側）
  *
@@ -74,7 +74,7 @@
  * ▼ お気に入り状態
  *   - localStorage: （fav_modal.js 内部管理）
  *       ⇔ SYNC state: server.fav[qid]
- *       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+ *       ⇔ delta payload: fav[qid] ("unset" | "fav001" | "fav002" | "fav003")  // ★ー/★1/★2/★3 に対応
  *
  * ▼ グローバル情報
  *   - localStorage: "cscs_total_questions"
@@ -431,7 +431,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
 
   // favDelta: お気に入り状態の差分反映（fav_modal.js との連携専用）
-  // - delta.fav = { [qid]: "unset" | "understood" | "unanswered" | "none" }
+  // - delta.fav = { [qid]: "unset" | "fav001" | "fav002" | "fav003" }
+  //   → それぞれ UI 上の「★ー / ★1 / ★2 / ★3」に対応する
   // - 値は上記 4 種類の文字列のみ許可し、それ以外が混ざっている場合は 400 を返して処理を中断する
   // - フォールバックや自動変換は行わず、「送られてきた fav の内容」がそのままサーバー状態になる
   const favDelta = (delta as any).fav;
@@ -453,6 +454,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     // まず全エントリを検証し、不正なキー／値があれば即 400 を返す
+    // - v は "unset" / "fav001" / "fav002" / "fav003" のいずれかであることを要求する（★ー / ★1 / ★2 / ★3）
     for (const [qid, raw] of Object.entries(favDelta as any)) {
       if (typeof qid !== "string" || !qid) {
         console.error("[SYNC/merge] (favDelta-err) delta.fav 内のキー(qid)が不正です:", {
@@ -467,7 +469,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
       const v = raw as any;
       const isValidFavString =
-        v === "unset" || v === "understood" || v === "unanswered" || v === "none";
+        v === "unset" || v === "fav001" || v === "fav002" || v === "fav003";
 
       if (!isValidFavString) {
         console.error("[SYNC/merge] (favDelta-err) delta.fav 内の値が不正です:", {
@@ -482,8 +484,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     // ここまで到達したら全エントリが有効 → サーバー側 fav に反映
+    // - server.fav[qid] には "unset" / "fav001" / "fav002" / "fav003" のいずれかをそのまま保存する
     for (const [qid, raw] of Object.entries(favDelta as any)) {
-      const v = raw as "unset" | "understood" | "unanswered" | "none";
+      const v = raw as "unset" | "fav001" | "fav002" | "fav003";
       server.fav[qid] = v;
     }
 

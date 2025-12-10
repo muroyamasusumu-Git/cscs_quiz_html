@@ -1,4 +1,4 @@
-// state.ts
+// functions/api/sync/state.ts
 /**
  * CSCS SYNC state 取得エンドポイント（Workers 側）
  *
@@ -74,7 +74,7 @@
  * ▼ お気に入り状態
  *   - localStorage: （fav_modal.js 内部管理）
  *       ⇔ SYNC state: fav[qid]
- *       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+ *       ⇔ delta payload: fav[qid] ("unset" | "fav001" | "fav002" | "fav003")  // ★ー / ★1 / ★2 / ★3
  *
  * ▼ グローバル情報
  *   - localStorage: "cscs_total_questions"
@@ -254,9 +254,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   }
 
   // fav 側の簡易チェック（fav_modal.js / merge.ts と同じ値セットかどうかを確認）
-  // - fav はプレーンオブジェクトであることを期待
-  // - 値は "unset" / "understood" / "unanswered" / "none" のいずれかであることを確認
-  // - ここでは補正や削除は行わず、「不正が混ざっているかどうか」をログするだけに留める
+  // - 値は "unset" / "fav001" / "fav002" / "fav003" のいずれかであることを確認
+  // - 保存内容の補正は一切行わず、検証結果だけログに残す
   const hasFavPropForLog = Object.prototype.hasOwnProperty.call(out, "fav");
   const rawFav: any = hasFavPropForLog ? (out as any).fav : undefined;
 
@@ -269,22 +268,24 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     favAllValuesValid = true;
 
     for (const [qid, v] of entries) {
+      // qid が文字列であることだけ確認
       if (typeof qid !== "string" || !qid) {
         favAllValuesValid = false;
         break;
       }
+
+      // ★ 保存されている値が "unset" / "fav001" / "fav002" / "fav003" かをチェック
       if (
         v !== "unset" &&
-        v !== "understood" &&
-        v !== "unanswered" &&
-        v !== "none"
+        v !== "fav001" &&
+        v !== "fav002" &&
+        v !== "fav003"
       ) {
         favAllValuesValid = false;
         break;
       }
     }
   } else if (hasFavPropForLog) {
-    // fav プロパティ自体は存在しているが、想定したプレーンオブジェクトでない場合
     favAllValuesValid = false;
   }
 
