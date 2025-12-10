@@ -60,6 +60,17 @@
  *       ⇔ SYNC state: oncePerDayToday.results[qid]
  *       ⇔ delta payload: oncePerDayTodayDelta.results[qid]
  *
+ * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
+ *   - localStorage: "cscs_q_last_seen_day:" + qid
+ *       ⇔ SYNC state: lastSeenDay[qid]
+ *       ⇔ delta payload: lastSeenDayDelta[qid]
+ *   - localStorage: "cscs_q_last_correct_day:" + qid
+ *       ⇔ SYNC state: lastCorrectDay[qid]
+ *       ⇔ delta payload: lastCorrectDayDelta[qid]
+ *   - localStorage: "cscs_q_last_wrong_day:" + qid
+ *       ⇔ SYNC state: lastWrongDay[qid]
+ *       ⇔ delta payload: lastWrongDayDelta[qid]
+ *
  * ▼ お気に入り状態
  *   - localStorage: （fav_modal.js 内部管理）
  *       ⇔ SYNC state: fav[qid]
@@ -138,6 +149,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // 3連続不正解の累計・現在ストリークも SYNC に必ず載せるための初期構造
     streak3Wrong: {},
     streakWrongLen: {},
+    lastSeenDay: {},
+    lastCorrectDay: {},
+    lastWrongDay: {},
     consistency_status: {},
     // お気に入り状態（fav_modal.js 用）
     fav: {},
@@ -161,6 +175,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streakLen) out.streakLen = {};
   if (!out.streak3Wrong) out.streak3Wrong = {};
   if (!out.streakWrongLen) out.streakWrongLen = {};
+  if (!out.lastSeenDay) out.lastSeenDay = {};
+  if (!out.lastCorrectDay) out.lastCorrectDay = {};
+  if (!out.lastWrongDay) out.lastWrongDay = {};
   if (!out.consistency_status) out.consistency_status = {};
   if (!out.fav || typeof out.fav !== "object") out.fav = {};
   if (!out.global || typeof out.global !== "object") out.global = {};
@@ -362,6 +379,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // 3連続不正解系の有無も SYNC snapshot から確認できるようにする
     console.log("[SYNC/state] hasStreak3Wrong      :", !!out.streak3Wrong);
     console.log("[SYNC/state] hasStreakWrongLen    :", !!out.streakWrongLen);
+    console.log("[SYNC/state] hasLastSeenDay       :", !!out.lastSeenDay);
+    console.log("[SYNC/state] hasLastCorrectDay    :", !!out.lastCorrectDay);
+    console.log("[SYNC/state] hasLastWrongDay      :", !!out.lastWrongDay);
     console.log("[SYNC/state] hasConsistencyStatus :", !!out.consistency_status);
     console.log("[SYNC/state] hasFav               :", !!out.fav);
     console.log("[SYNC/state] hasStreak3Today      :", hasProp);
