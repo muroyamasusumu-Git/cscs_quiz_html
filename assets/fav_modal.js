@@ -46,7 +46,8 @@
 
   // =========================
   // SYNC から現在問題の「お気に入り状態」を読み取る（SYNC専用）
-  // - 期待構造: syncRoot.fav[qid] = "unset" | "understood" | "unanswered" | "none" | 数値(1〜3)
+  // - 期待構造: syncRoot.fav[qid] = "unset" | "fav001" | "fav002" | "fav003" | 数値(1〜3)
+  //   （数値 1/2/3 は後方互換のため fav001/fav002/fav003 にマッピングする）
   // - 見つからない場合やエラー時も "unset" を返す（ローカルには一切フォールバックしない）
   // =========================
   function getFavFromSync(){
@@ -72,21 +73,22 @@
 
       var raw = root.fav[qid];
 
-      // 文字列表現はそのまま優先
-      if (raw === "unset" || raw === "understood" || raw === "unanswered" || raw === "none") {
+      // 文字列表現は新仕様のキー名（fav001/fav002/fav003/unset）だけを受け付ける
+      if (raw === "unset" || raw === "fav001" || raw === "fav002" || raw === "fav003") {
         val = raw;
       } else if (typeof raw === "number") {
-        // 数値表現(1/2/3)も受け取り、文字列にマッピング
+        // 数値表現(1/2/3)は後方互換のため fav001/fav002/fav003 に正規化する
         if (raw === 1) {
-          val = "understood";
+          val = "fav001";
         } else if (raw === 2) {
-          val = "unanswered";
+          val = "fav002";
         } else if (raw === 3) {
-          val = "none";
+          val = "fav003";
         } else {
           val = "unset";
         }
       } else {
+        // 想定外の値はすべて "unset" として扱う
         val = "unset";
       }
 
@@ -172,8 +174,9 @@
 
   // =========================
   // ローカル(localStorage)から現在問題の「お気に入り状態」を読み取る
-  // - 優先: cscs_fav[qid] = "unset" | "understood" | "unanswered" | "none"
-  // - 互換: cscs_fav_map[qid] = 1/2/3 → 文字列にマッピング
+  // - 優先: cscs_fav[qid] = "unset" | "fav001" | "fav002" | "fav003"
+  // - 互換: cscs_fav_map[qid] = 1/2/3 → fav001/fav002/fav003 にマッピング
+  //   （現在は SYNC 専用運用だが、念のため旧ローカルデータも新名称に揃える）
   // =========================
   function getFavFromLocal(){
     var qid = getQid();
@@ -181,29 +184,29 @@
     var MAP_KEY = "cscs_fav_map";
     var val = null;
 
-    // 1) 文字列表現から取得
+    // 1) 文字列表現から取得（新仕様のキー名だけを受け付ける）
     try{
       var obj = JSON.parse(localStorage.getItem(KEY) || "{}");
       if (obj && typeof obj === "object" && Object.prototype.hasOwnProperty.call(obj, qid)) {
         var raw = obj[qid];
-        if (raw === "understood" || raw === "unanswered" || raw === "none" || raw === "unset") {
+        if (raw === "fav001" || raw === "fav002" || raw === "fav003" || raw === "unset") {
           val = raw;
         }
       }
     }catch(_){}
 
-    // 2) 数値表現(互換)からの復元
+    // 2) 数値表現(互換)からの復元（1/2/3 を fav001/fav002/fav003 に正規化）
     if (val === null) {
       try{
         var legacy = JSON.parse(localStorage.getItem(MAP_KEY) || "{}");
         if (legacy && typeof legacy === "object" && Object.prototype.hasOwnProperty.call(legacy, qid)) {
           var n = legacy[qid] | 0;
           if (n === 1) {
-            val = "understood";
+            val = "fav001";
           } else if (n === 2) {
-            val = "unanswered";
+            val = "fav002";
           } else if (n === 3) {
-            val = "none";
+            val = "fav003";
           }
         }
       }catch(_){}
@@ -255,13 +258,13 @@
   // =========================
 
   // お気に入り状態（文字列）をバッジ表示用ラベルに変換
-  // "understood" → "★１" など、UIに直接出す表記を決める
+  // "fav001" → "★１" など、新しいキー名をそのまま UI 表記にマッピングする
   function favLabelFromStringForBadge(s){
     switch (String(s || "unset")) {
-      case "understood": return "★１";
-      case "unanswered": return "★２";
-      case "none":       return "★３";
-      default:           return "★ー";
+      case "fav001": return "★１"; // fav001 → ★1
+      case "fav002": return "★２"; // fav002 → ★2
+      case "fav003": return "★３"; // fav003 → ★3
+      default:       return "★ー"; // unset / 想定外 → ★ー
     }
   }
 
@@ -278,7 +281,7 @@
 
   // 現在ページの qid に対する「お気に入り状態」を取得して
   // { qid, label, type } 形式で返すユーティリティ
-  // type は "unset" / "understood" / "unanswered" / "none" のいずれか
+  // type は "unset" / "fav001" / "fav002" / "fav003" のいずれか
   // ★ SYNC専用: window.CSCS_SYNC_DATA 上の fav を見る（localStorage には依存しない）
   function readFavLabelAndTypeForCurrentQid(){
     var qid = getQid();
@@ -289,9 +292,10 @@
     var type = "unset";
 
     try{
-      // SYNCから現在の状態を取得
+      // SYNCから現在の状態を取得（ここで既に fav001/fav002/fav003/unset に正規化されている想定）
       type = loadFav();
-      if (type !== "understood" && type !== "unanswered" && type !== "none" && type !== "unset") {
+      if (type !== "fav001" && type !== "fav002" && type !== "fav003" && type !== "unset") {
+        // 想定外の値はすべて unset に潰してから扱う
         type = "unset";
       }
 
@@ -308,7 +312,7 @@
       type = "unset";
     }
 
-    // バッジ表示用のラベルへ変換
+    // バッジ表示用のラベルへ変換（fav001/fav002/fav003/unset → ★表示）
     var label = favLabelFromStringForBadge(type);
     return { qid: qid, label: label, type: type };
   }
@@ -464,14 +468,16 @@
     bd.id="fav-backdrop";
 
     // モーダル本体のHTMLをまとめて挿入
+    // data-val にはそのまま SYNC に保存するキー名（fav001/fav002/fav003/unset）を持たせる
+    // UI 表示の ★マークと内部状態の対応をここで固定する
     bd.innerHTML = [
       '<div class="fav-modal" role="dialog" aria-modal="true" aria-label="お気に入り登録" aria-hidden="true" data-modal-scope="fav">',
         '<div class="fav-title" role="heading" aria-level="3">お気に入りの種別を選択</div>',
         '<div class="fav-row">',
-          '<button class="fav-btn" data-val="unset" aria-pressed="false">★ー</button>',
-          '<button class="fav-btn" data-val="understood" aria-pressed="false">★１</button>',
-          '<button class="fav-btn" data-val="unanswered" aria-pressed="false">★２</button>',
-          '<button class="fav-btn" data-val="none" aria-pressed="false">★３</button>',
+          '<button class="fav-btn" data-val="unset"  aria-pressed="false">★ー</button>',  // fav無し（初期状態）
+          '<button class="fav-btn" data-val="fav001" aria-pressed="false">★１</button>', // fav001 → ★1
+          '<button class="fav-btn" data-val="fav002" aria-pressed="false">★２</button>', // fav002 → ★2
+          '<button class="fav-btn" data-val="fav003" aria-pressed="false">★３</button>', // fav003 → ★3
         '</div>',
         '<a href="#" class="fav-cancel" id="fav-cancel">閉じる</a>',
       '</div>'
