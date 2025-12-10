@@ -18,11 +18,11 @@
     "transition-property:transform;" +
     "transition-duration:0.15s;" +
     "transition-timing-function:ease-out;" +
-    "transform-origin:left center;" +      // 左中央を基準に拡大（右方向に広がるようにする）
-    "cursor:pointer;" +                    // マウスカーソルを「押せる手」にして、押せる感を強調
+    "transform-origin:center center;" +
+    "cursor:pointer;" +
     "}" +
     ".sa-hover:hover{" +
-    "transform:scale(1.03);" +             // hover 中のみ 1.03 倍で固定（クリックしても大きさは変えない）
+    "transform:scale(1.06);" +
     "}";
 
   function injectScaleStyleIfNeeded() {
