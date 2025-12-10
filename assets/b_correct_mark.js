@@ -77,53 +77,8 @@
     return true;
   }
 
-  // ▼ 5. .answer（#judge 含む）に左からスライドインのアニメーションを付与するヘルパー
-  function applyZoomToAnswer(){
-    try{
-      // ページ内の .answer をすべて取得（#judge も含まれる）
-      var answers = document.querySelectorAll(".answer");
-      if (!answers || answers.length === 0) return;
-
-      // 過去のズーム用クラスなどは掃除しておく
-      for (var i = 0; i < answers.length; i++) {
-        var el = answers[i];
-        if (el.classList.contains("cscs-answer-zoom-in")) {
-          el.classList.remove("cscs-answer-zoom-in");
-        }
-      }
-
-      // すべての .answer にスライドイン用クラスを付与
-      for (var j = 0; j < answers.length; j++) {
-        var el2 = answers[j];
-        if (!el2.classList.contains("cscs-answer-slide-in")) {
-          el2.classList.add("cscs-answer-slide-in");
-        }
-      }
-
-      // 一度だけスタイルを注入する
-      if (!document.getElementById("cscs-answer-slide-style")) {
-        var style = document.createElement("style");
-        style.id = "cscs-answer-slide-style";
-        style.type = "text/css";
-        style.textContent =
-          ".answer.cscs-answer-slide-in {" +
-          "  animation: cscsAnswerSlideIn 0.5s ease-out 0s 1;" +
-          "  transform-origin: center left;" +
-          "}" +
-          "@keyframes cscsAnswerSlideIn {" +
-          "  0% { transform: translateX(-40px); opacity: 0; }" +
-          "  100% { transform: translateX(0); opacity: 1; }" +
-          "}";
-        var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
-        head.appendChild(style);
-      }
-    }catch(e){
-      // このスクリプト単体では wlog は無いので、必要なら console に出す程度に留める
-      try{
-        console.warn("[b_correct_mark] applyZoomToAnswer error", e);
-      }catch(_){}
-    }
-  }
+  // ▼ 5. Bパートの正解マーク付けロジックのみを保持（スライドイン演出は cscs_slide_in.js に集約）
+  // このファイルではアニメーション用のスタイル定義やクラス付与は行わない。
 
   // ▼ 6. 正解取得 → マーク付けを一通り試みる関数
   function tryMark(){
@@ -134,13 +89,8 @@
     // それでもダメなら .answer から
     if (!corr) corr = getCorrectFromAnswer();  // .answer からも拾う
 
-    // 見つかった正解で markOnce を実行
-    var marked = markOnce(corr);
-
-    // Bパートでの正解表示に動きをつけるため、.answer にズームインアニメを適用
-    applyZoomToAnswer();
-
-    return marked;
+    // 見つかった正解で markOnce を実行（アニメーションは cscs_slide_in.js に任せる）
+    return markOnce(corr);
   }
 
   // ▼ 7. DOM 準備状態に応じて初回実行タイミングを調整
