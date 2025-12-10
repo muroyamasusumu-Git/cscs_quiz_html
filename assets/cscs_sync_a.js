@@ -396,22 +396,35 @@
         const stateForLast = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
           ? window.__cscs_sync_state
           : null;
+
         if (stateForLast && stateForLast.lastSeenDay && typeof stateForLast.lastSeenDay === "object") {
           const v = stateForLast.lastSeenDay[QID];
+          // ★ 最終閲覧日の SYNC 値は string / number のどちらでも来る想定
+          //   - "20251211" / 20251211 の両方を許容し、表示用には文字列に統一する
           if (typeof v === "string" && v) {
             lastSeenSync = v;
+          } else if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+            lastSeenSync = String(v);
           }
         }
+
         if (stateForLast && stateForLast.lastCorrectDay && typeof stateForLast.lastCorrectDay === "object") {
           const v2 = stateForLast.lastCorrectDay[QID];
+          // ★ 最終正解日の SYNC 値も string / number 両対応で文字列化して扱う
           if (typeof v2 === "string" && v2) {
             lastCorrectSync = v2;
+          } else if (typeof v2 === "number" && Number.isFinite(v2) && v2 > 0) {
+            lastCorrectSync = String(v2);
           }
         }
+
         if (stateForLast && stateForLast.lastWrongDay && typeof stateForLast.lastWrongDay === "object") {
           const v3 = stateForLast.lastWrongDay[QID];
+          // ★ 最終不正解日の SYNC 値も同様に string / number 両対応
           if (typeof v3 === "string" && v3) {
             lastWrongSync = v3;
+          } else if (typeof v3 === "number" && Number.isFinite(v3) && v3 > 0) {
+            lastWrongSync = String(v3);
           }
         }
       }catch(_){}
