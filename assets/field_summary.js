@@ -381,18 +381,13 @@
 
       // お気に入り（★）マップ
       //   - localStorage: （fav_modal.js 内部管理）
-      //       ⇔ SYNC state: server.fav[qid]
+      //       ⇔ SYNC state: fav[qid]
       //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
-      //   ※ このファイルでは SYNC の state.server.fav を唯一の正とし、
-      //      他のキー（favorite / favorites / fav）にはフォールバックしない。
+      //   ※ このファイルでは SYNC の state.fav を唯一の正とし、
+      //      他のキー（favorite / favorites / server.fav など）にはフォールバックしない。
       var favMap = null;
-      if (
-        root.server &&
-        typeof root.server === "object" &&
-        root.server.fav &&
-        typeof root.server.fav === "object"
-      ) {
-        favMap = root.server.fav;
+      if (root.fav && typeof root.fav === "object") {
+        favMap = root.fav;
       }
 
       // モジュール全体から参照できるように保持
@@ -695,11 +690,11 @@
   var syncLastCorrectDayMap = null;    // state.lastCorrectDay の生データ参照
   var syncLastWrongDayMap = null;      // state.lastWrongDay の生データ参照
   var syncConsistencyStatusMap = null; // state.consistency_status の生データ参照（整合性チェックステータス）
-  var syncFavMap = null;               // state.server.fav[qid] の生データ参照（お気に入り★）
-                                       //   - localStorage: （fav_modal.js 内部管理）
-                                       //       ⇔ SYNC state: server.fav[qid]
-                                       //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
-
+  var syncFavMap = null;           // state.fav[qid] の生データ参照（お気に入り★）
+                                   //   - localStorage: （fav_modal.js 内部管理）
+                                   //       ⇔ SYNC state: fav[qid]
+                                   //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+                                   
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
     var seg = (segments && Number.isFinite(segments)) ? segments : 10;
@@ -802,7 +797,7 @@
   }
 
   // qid(YYYYMMDD-NNN) から「お気に入り★レベル(0/1/2/3)」を取得するヘルパー
-  //  - state.server.fav[qid] に保存されているコード値を参照する
+  //  - state.fav[qid] に保存されているコード値を参照する
   //  - 現行仕様では delta payload: fav[qid] は
   //      "unset" | "understood" | "unanswered" | "none"
   //    のいずれかを前提とし、これを 0〜3 にマッピングしてテーブル表示する
