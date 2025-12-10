@@ -43,7 +43,7 @@
   border: 0 solid var(--nl-border) !important;
   border-radius: 0 !important;
   padding: 0 0 0 !important;
-  z-index: 99999;
+  z-index: 99997;
   display: none;
   backdrop-filter: blur(2px);
   pointer-events: auto;
