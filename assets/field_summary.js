@@ -1307,6 +1307,12 @@
           sortSelect.style.borderRadius = "4px";
           sortSelect.style.cursor = "pointer";
 
+          // ▼ ソート項目：
+          //   - qid順
+          //   - レベル順
+          //   - 最終正解日（古い順 / 新しい順）
+          //   - 最終誤答日（古い順 / 新しい順）
+
           var optQid = document.createElement("option");
           optQid.value = "qid";
           optQid.textContent = "qid順";
@@ -1315,8 +1321,29 @@
           optLevel.value = "level";
           optLevel.textContent = "レベル順";
 
+          var optLastCorrectAsc = document.createElement("option");
+          optLastCorrectAsc.value = "lastCorrectAsc";
+          optLastCorrectAsc.textContent = "最終正解(古い順)";
+
+          var optLastCorrectDesc = document.createElement("option");
+          optLastCorrectDesc.value = "lastCorrectDesc";
+          optLastCorrectDesc.textContent = "最終正解(新しい順)";
+
+          var optLastWrongAsc = document.createElement("option");
+          optLastWrongAsc.value = "lastWrongAsc";
+          optLastWrongAsc.textContent = "最終誤答(古い順)";
+
+          var optLastWrongDesc = document.createElement("option");
+          optLastWrongDesc.value = "lastWrongDesc";
+          optLastWrongDesc.textContent = "最終誤答(新しい順)";
+
           sortSelect.appendChild(optQid);
           sortSelect.appendChild(optLevel);
+          sortSelect.appendChild(optLastCorrectAsc);
+          sortSelect.appendChild(optLastCorrectDesc);
+          sortSelect.appendChild(optLastWrongAsc);
+          sortSelect.appendChild(optLastWrongDesc);
+          // デフォルトは qid 昇順
           sortSelect.value = "qid";
 
           sortBox.appendChild(sortLabel);
@@ -1344,7 +1371,8 @@
 
           var thLevel = document.createElement("th");
           thLevel.textContent = "Lv";
-          thLevel.style.textAlign = "left";
+          // Lv 列の値を左右中央揃えにする
+          thLevel.style.textAlign = "center";
           thLevel.style.fontWeight = "600";
           thLevel.style.fontSize = "11px";
           thLevel.style.padding = "2px 4px";
@@ -1361,7 +1389,8 @@
 
           var thLast = document.createElement("th");
           thLast.textContent = "最終";
-          thLast.style.textAlign = "left";
+          // 最終（○/×）列の値を左右中央揃えにする
+          thLast.style.textAlign = "center";
           thLast.style.fontWeight = "600";
           thLast.style.fontSize = "11px";
           thLast.style.padding = "2px 4px";
@@ -1370,7 +1399,8 @@
 
           var thStreak = document.createElement("th");
           thStreak.textContent = "連続";
-          thStreak.style.textAlign = "left";
+          // 連続列の値を左右中央揃えにする
+          thStreak.style.textAlign = "center";
           thStreak.style.fontWeight = "600";
           thStreak.style.fontSize = "11px";
           thStreak.style.padding = "2px 4px";
@@ -1379,7 +1409,8 @@
 
           var thStar = document.createElement("th");
           thStar.textContent = "⭐️";
-          thStar.style.textAlign = "left";
+          // ⭐️列の値を左右中央揃えにする
+          thStar.style.textAlign = "center";
           thStar.style.fontWeight = "600";
           thStar.style.fontSize = "11px";
           thStar.style.padding = "2px 4px";
@@ -1389,7 +1420,8 @@
 
           var thBomb = document.createElement("th");
           thBomb.textContent = "💣";
-          thBomb.style.textAlign = "left";
+          // 💣列の値を左右中央揃えにする
+          thBomb.style.textAlign = "center";
           thBomb.style.fontWeight = "600";
           thBomb.style.fontSize = "11px";
           thBomb.style.padding = "2px 4px";
@@ -1399,7 +1431,8 @@
 
           var thTotalCorrect = document.createElement("th");
           thTotalCorrect.textContent = "正";
-          thTotalCorrect.style.textAlign = "left";
+          // 正解累計列の値を左右中央揃えにする
+          thTotalCorrect.style.textAlign = "center";
           thTotalCorrect.style.fontWeight = "600";
           thTotalCorrect.style.fontSize = "11px";
           thTotalCorrect.style.padding = "2px 4px";
@@ -1409,7 +1442,8 @@
 
           var thTotalWrong = document.createElement("th");
           thTotalWrong.textContent = "誤";
-          thTotalWrong.style.textAlign = "left";
+          // 誤答累計列の値を左右中央揃えにする
+          thTotalWrong.style.textAlign = "center";
           thTotalWrong.style.fontWeight = "600";
           thTotalWrong.style.fontSize = "11px";
           thTotalWrong.style.padding = "2px 4px";
@@ -1419,7 +1453,8 @@
 
           var thConsistency = document.createElement("th");
           thConsistency.textContent = "整合";
-          thConsistency.style.textAlign = "left";
+          // 整合ステータス列の値を左右中央揃えにする
+          thConsistency.style.textAlign = "center";
           thConsistency.style.fontWeight = "600";
           thConsistency.style.fontSize = "11px";
           thConsistency.style.padding = "2px 4px";
@@ -1515,7 +1550,14 @@
           var pageSize = 30;
           var currentPage = 0;
           var totalPages = 1;
-          var currentSortKey = "qid";        // "qid" / "level"
+          // currentSortKey:
+          //   "qid"            : qid昇順
+          //   "level"          : レベル昇順
+          //   "lastCorrectAsc" : 最終正解日 古い順
+          //   "lastCorrectDesc": 最終正解日 新しい順
+          //   "lastWrongAsc"   : 最終誤答日 古い順
+          //   "lastWrongDesc"  : 最終誤答日 新しい順
+          var currentSortKey = "qid";
           var currentThemeFilter = "";       // 空文字列なら全テーマ対象
           var qidsAll = qids.slice();
           var qidsFiltered = qidsAll.slice();
@@ -1579,6 +1621,8 @@
               tdLast.style.verticalAlign = "top";
               tdLast.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdLast.style.whiteSpace = "nowrap";
+              // 最終（○/×）の値を左右中央揃えで表示
+              tdLast.style.textAlign = "center";
               if (lastInfo.symbol) {
                 tdLast.textContent = lastInfo.symbol;
               } else {
@@ -1593,6 +1637,8 @@
               tdStreak.style.verticalAlign = "top";
               tdStreak.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdStreak.style.whiteSpace = "nowrap";
+              // 連続回数の値を左右中央揃えで表示
+              tdStreak.style.textAlign = "center";
               if (lastInfo.streak > 0) {
                 tdStreak.textContent = String(lastInfo.streak);
               } else {
@@ -1605,7 +1651,8 @@
               tdStar.style.verticalAlign = "top";
               tdStar.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdStar.style.whiteSpace = "nowrap";
-              tdStar.style.textAlign = "right";
+              // ⭐️の累計を左右中央揃えで表示
+              tdStar.style.textAlign = "center";
 
               var starCount = 0;
               var qidKey = String(qid);
@@ -1635,7 +1682,8 @@
               tdBomb.style.verticalAlign = "top";
               tdBomb.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdBomb.style.whiteSpace = "nowrap";
-              tdBomb.style.textAlign = "right";
+              // 💣の累計を左右中央揃えで表示
+              tdBomb.style.textAlign = "center";
 
               var bombCount = 0;
               if (syncStreak3WrongMap && Object.prototype.hasOwnProperty.call(syncStreak3WrongMap, qidKey)) {
@@ -1664,7 +1712,8 @@
               tdTotalCorrect.style.verticalAlign = "top";
               tdTotalCorrect.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdTotalCorrect.style.whiteSpace = "nowrap";
-              tdTotalCorrect.style.textAlign = "right";
+              // 正解累計の値を左右中央揃えで表示
+              tdTotalCorrect.style.textAlign = "center";
 
               var totalCorrectCount = 0;
               if (syncCorrectMap && Object.prototype.hasOwnProperty.call(syncCorrectMap, qidKey)) {
@@ -1693,7 +1742,8 @@
               tdTotalWrong.style.verticalAlign = "top";
               tdTotalWrong.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdTotalWrong.style.whiteSpace = "nowrap";
-              tdTotalWrong.style.textAlign = "right";
+              // 誤答累計の値を左右中央揃えで表示
+              tdTotalWrong.style.textAlign = "center";
 
               var totalWrongCount = 0;
               if (syncIncorrectMap && Object.prototype.hasOwnProperty.call(syncIncorrectMap, qidKey)) {
@@ -1722,6 +1772,8 @@
               tdConsistency.style.verticalAlign = "top";
               tdConsistency.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdConsistency.style.whiteSpace = "nowrap";
+              // 整合ステータスの値を左右中央揃えで表示
+              tdConsistency.style.textAlign = "center";
 
               var consistencyMark = "";
               if (syncConsistencyStatusMap && Object.prototype.hasOwnProperty.call(syncConsistencyStatusMap, qidKey)) {
@@ -1792,6 +1844,8 @@
               tdLevel.style.verticalAlign = "top";
               tdLevel.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
               tdLevel.style.whiteSpace = "nowrap";
+              // Lv 列の値を左右中央揃えで表示
+              tdLevel.style.textAlign = "center";
               var levelText = getLevelForQid(qid);
               if (!levelText) {
                 levelText = "";
@@ -1868,8 +1922,119 @@
 
             // 現在のソートキーに応じて並べ替え
             qidsSorted = qidsFiltered.slice();
+
+            // ▼ 最終正解日からソート用の数値(YYYYMMDD)を取り出すヘルパー
+            //   - state.lastCorrectDay[qid] が { day: "..." } / "..." のどちらでも扱う
+            //   - "YYYY年M月D日-001" や "YYYY-MM-DD" などを YYYYMMDD の number に変換する
+            function getLastCorrectSortValue(qid) {
+              try {
+                var key = String(qid);
+                var raw = null;
+                if (syncLastCorrectDayMap && Object.prototype.hasOwnProperty.call(syncLastCorrectDayMap, key)) {
+                  raw = syncLastCorrectDayMap[key];
+                }
+                if (raw == null) {
+                  return 0;
+                }
+                var dayStr;
+                if (typeof raw === "object" && Object.prototype.hasOwnProperty.call(raw, "day")) {
+                  dayStr = String(raw.day || "");
+                } else {
+                  dayStr = String(raw);
+                }
+                if (!dayStr) {
+                  return 0;
+                }
+
+                // "-NNN" などが付いている場合は日付部分だけ取り出す
+                var onlyDay = dayStr.split("-")[0];
+
+                // パターン1: "2025年9月26日"
+                var m1 = onlyDay.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+                if (m1) {
+                  var y1 = m1[1];
+                  var mo1 = m1[2].length === 1 ? "0" + m1[2] : m1[2];
+                  var d1 = m1[3].length === 1 ? "0" + m1[3] : m1[3];
+                  return Number(y1 + mo1 + d1);
+                }
+
+                // パターン2: "2025-09-26" or "2025/9/26"
+                var m2 = onlyDay.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+                if (m2) {
+                  var y2 = m2[1];
+                  var mo2 = m2[2].length === 1 ? "0" + m2[2] : m2[2];
+                  var d2 = m2[3].length === 1 ? "0" + m2[3] : m2[3];
+                  return Number(y2 + mo2 + d2);
+                }
+
+                // パターン3: "20250926"
+                var m3 = onlyDay.match(/^(\d{8})$/);
+                if (m3) {
+                  return Number(m3[1]);
+                }
+
+                // どの形式にも当てはまらない場合は0として扱う（ソート上は「日付なし」として末尾側に寄る）
+                return 0;
+              } catch (e) {
+                console.error("field_summary.js: getLastCorrectSortValue error", e);
+                return 0;
+              }
+            }
+
+            // ▼ 最終誤答日からソート用の数値(YYYYMMDD)を取り出すヘルパー
+            function getLastWrongSortValue(qid) {
+              try {
+                var key = String(qid);
+                var raw = null;
+                if (syncLastWrongDayMap && Object.prototype.hasOwnProperty.call(syncLastWrongDayMap, key)) {
+                  raw = syncLastWrongDayMap[key];
+                }
+                if (raw == null) {
+                  return 0;
+                }
+                var dayStr;
+                if (typeof raw === "object" && Object.prototype.hasOwnProperty.call(raw, "day")) {
+                  dayStr = String(raw.day || "");
+                } else {
+                  dayStr = String(raw);
+                }
+                if (!dayStr) {
+                  return 0;
+                }
+
+                var onlyDay = dayStr.split("-")[0];
+
+                var m1 = onlyDay.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+                if (m1) {
+                  var y1 = m1[1];
+                  var mo1 = m1[2].length === 1 ? "0" + m1[2] : m1[2];
+                  var d1 = m1[3].length === 1 ? "0" + m1[3] : m1[3];
+                  return Number(y1 + mo1 + d1);
+                }
+
+                var m2 = onlyDay.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+                if (m2) {
+                  var y2 = m2[1];
+                  var mo2 = m2[2].length === 1 ? "0" + m2[2] : m2[2];
+                  var d2 = m2[3].length === 1 ? "0" + m2[3] : m2[3];
+                  return Number(y2 + mo2 + d2);
+                }
+
+                var m3 = onlyDay.match(/^(\d{8})$/);
+                if (m3) {
+                  return Number(m3[1]);
+                }
+
+                return 0;
+              } catch (e) {
+                console.error("field_summary.js: getLastWrongSortValue error", e);
+                return 0;
+              }
+            }
+
             qidsSorted.sort(function (a, b) {
               if (currentSortKey === "level") {
+                // レベル昇順 → レベルが同じ場合は qid 昇順
                 var la = getLevelForQid(a);
                 var lb = getLevelForQid(b);
                 la = la || "";
@@ -1879,6 +2044,35 @@
                 }
                 return String(a).localeCompare(String(b));
               }
+
+              if (currentSortKey === "lastCorrectAsc" || currentSortKey === "lastCorrectDesc") {
+                // 最終正解日でソート（古い順 / 新しい順）
+                var va = getLastCorrectSortValue(a);
+                var vb = getLastCorrectSortValue(b);
+                if (va !== vb) {
+                  if (currentSortKey === "lastCorrectAsc") {
+                    return va - vb;  // 古い日付ほど小さい → 昇順で古い順
+                  } else {
+                    return vb - va;  // 降順で新しい順
+                  }
+                }
+                return String(a).localeCompare(String(b));
+              }
+
+              if (currentSortKey === "lastWrongAsc" || currentSortKey === "lastWrongDesc") {
+                // 最終誤答日でソート（古い順 / 新しい順）
+                var wa = getLastWrongSortValue(a);
+                var wb = getLastWrongSortValue(b);
+                if (wa !== wb) {
+                  if (currentSortKey === "lastWrongAsc") {
+                    return wa - wb;
+                  } else {
+                    return wb - wa;
+                  }
+                }
+                return String(a).localeCompare(String(b));
+              }
+
               // デフォルト: qid文字列で昇順ソート
               return String(a).localeCompare(String(b));
             });
