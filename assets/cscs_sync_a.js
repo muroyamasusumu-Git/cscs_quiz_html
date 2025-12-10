@@ -529,7 +529,7 @@
         const time = lastSyncTime ? lastSyncTime : "-";
         const err  = lastSyncError ? (" err:" + lastSyncError) : "";
 
-        // oncePerDayToday の計測状況をステータス文字列に付加する
+        // oncePerDayToday の計測状況を別行として表示するためのラベル文字列を作成
         let onceLabel = "";
         try{
           const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
@@ -562,24 +562,30 @@
             const r = once.results[QID];
             if (r === "correct" || r === "wrong") {
               // 計測済（correct / wrong）
-              onceLabel = "<br>oncePerDayToday:<br>計測済(" + r + ")";
+              onceLabel = "計測済(" + r + ")";
             } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
               // 何かしら値はあるが unknown の場合
-              onceLabel = "<br>oncePerDayToday:<br>計測済(unknown)";
+              onceLabel = "計測済(unknown)";
             } else {
               // 今日の日付だがこの QID は未計測
-              onceLabel = "<br>oncePerDayToday:<br>未計測(データなし)";
+              onceLabel = "未計測(データなし)";
             }
           } else {
             // oncePerDayToday 自体が今日ではない or データなし
-            onceLabel = "<br>oncePerDayToday:<br>未計測(データなし)";
+            onceLabel = "未計測(データなし)";
           }
         }catch(_eOnce){
           // oncePerDayToday 表示に失敗してもステータス自体は出す
           onceLabel = "";
         }
 
-        if (stEl) stEl.innerHTML = lastSyncStatus + " (" + time + ")" + err + onceLabel;
+        if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
+
+        const onceEl = box.querySelector(".sync-onceperday");
+        if (onceEl) {
+          // oncePerDayToday の人間向けステータスを表示
+          onceEl.textContent = onceLabel || "（データなし）";
+        }
       }
     }catch(_){
       // UI更新失敗は握りつぶし
