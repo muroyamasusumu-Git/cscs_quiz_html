@@ -20,11 +20,12 @@
       isModeB = body.classList.contains("mode-b");
     }
 
-    // Bパート: 判定表示エリア / 解答表示だけスライドイン
+    // Bパート: 判定表示エリア / 解答表示 / 解説テキストだけスライドイン
     if (isModeB) {
       return [
         "#judge",
-        ".answer"
+        ".answer",
+        ".explain-text"  // Bパートの解説文(span.explain-text)を、少し遅れてスライドインさせる対象として追加
       ];
     }
 
@@ -84,8 +85,44 @@
             continue;
           }
 
+          // 「この要素にはスライドイン処理を予約済み」というフラグを先に立てる
           el.setAttribute("data-cscs-slide-applied", "1");
-          el.classList.add("cscs-slide-in-left");
+
+          // 解説テキスト(span.explain-text)かどうかを判定する
+          // - classList が使える環境では contains を優先
+          // - そうでない場合は class 属性文字列から判定する
+          var isExplainText = false;
+          if (el.classList && typeof el.classList.contains === "function") {
+            isExplainText = el.classList.contains("explain-text");
+          } else {
+            var clsText = el.getAttribute("class") || "";
+            if (clsText.indexOf("explain-text") !== -1) {
+              isExplainText = true;
+            }
+          }
+
+          if (isExplainText) {
+            // 解説テキストだけ、わずかに遅らせてスライドインさせる
+            // - 問題文や判定結果が先に表示されてから、追いかけるように解説が滑り込んでくる演出用
+            setTimeout(
+              (function (targetEl) {
+                return function () {
+                  if (!targetEl) {
+                    return;
+                  }
+                  try {
+                    targetEl.classList.add("cscs-slide-in-left");
+                  } catch (_e) {
+                    // classList.add に失敗しても他要素には影響させない
+                  }
+                };
+              })(el),
+              250 // 遅延時間（ミリ秒）。必要に応じて 200〜300ms 程度で微調整可能
+            );
+          } else {
+            // 通常の要素は即時スライドイン
+            el.classList.add("cscs-slide-in-left");
+          }
         }
       }
     } catch (e) {
