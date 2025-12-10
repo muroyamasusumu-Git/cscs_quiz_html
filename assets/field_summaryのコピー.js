@@ -970,46 +970,6 @@
     }
   }
 
-  // qid(YYYYMMDD-NNN) から「整合性チェックのステータスマーク（◎ / △ / ×など）」を取得するヘルパー
-  //  - /api/sync/state の server.consistency_status[qid].status_mark を唯一の正として参照する
-  //  - LocalStorage や他のプロパティには一切フォールバックせず、値が無ければ空文字を返す
-  function getConsistencyMarkForQid(qid) {
-    try {
-      var map = syncConsistencyStatusMap;
-      if (!map || typeof map !== "object") {
-        return "";
-      }
-
-      var key = String(qid);
-      if (!Object.prototype.hasOwnProperty.call(map, key)) {
-        return "";
-      }
-
-      var raw = map[key];
-      if (raw == null) {
-        return "";
-      }
-
-      // 現行仕様: { status_mark: "◎", ... } の形式を想定
-      if (typeof raw === "object") {
-        if (Object.prototype.hasOwnProperty.call(raw, "status_mark")) {
-          return String(raw.status_mark == null ? "" : raw.status_mark);
-        }
-        // 旧データなどで mark プロパティのみを持つケースは安全側で一応拾う
-        if (Object.prototype.hasOwnProperty.call(raw, "mark")) {
-          return String(raw.mark == null ? "" : raw.mark);
-        }
-        return String(raw);
-      }
-
-      // 文字列で直接マークが入っているケースにも対応
-      return String(raw);
-    } catch (e) {
-      console.error("field_summary.js: getConsistencyMarkForQid error", e);
-      return "";
-    }
-  }
-
   // 分野別の進捗リスト（後で一度だけ計算してキャッシュ）
   var dummyFieldStats = null;
 
@@ -2002,9 +1962,7 @@
                 tdTotalWrong.textContent = "-";
               }
 
-              // 整合性チェックステータスセル（server.consistency_status[qid].status_mark）
-              //  - /api/sync/state の server.consistency_status だけを参照し、
-              //    ◎ / △ / × などのマークをテーブルの「整合」列に表示する
+              // 整合性チェックステータスセル（state.consistency_status[qid]）
               var tdConsistency = document.createElement("td");
               tdConsistency.style.padding = "2px 4px";
               tdConsistency.style.verticalAlign = "top";
@@ -2013,7 +1971,19 @@
               // 整合ステータスの値を左右中央揃えで表示
               tdConsistency.style.textAlign = "center";
 
-              var consistencyMark = getConsistencyMarkForQid(qid);
+              var consistencyMark = "";
+              if (syncConsistencyStatusMap && Object.prototype.hasOwnProperty.call(syncConsistencyStatusMap, qidKey)) {
+                var rawConsistency = syncConsistencyStatusMap[qidKey];
+                if (
+                  rawConsistency &&
+                  typeof rawConsistency === "object" &&
+                  Object.prototype.hasOwnProperty.call(rawConsistency, "mark")
+                ) {
+                  consistencyMark = String(rawConsistency.mark || "");
+                } else {
+                  consistencyMark = String(rawConsistency == null ? "" : rawConsistency);
+                }
+              }
               if (consistencyMark) {
                 tdConsistency.textContent = consistencyMark;
               } else {
