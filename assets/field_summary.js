@@ -380,14 +380,19 @@
       }
 
       // お気に入り（★）マップ
-      // state.favorite / state.favorites / state.fav のいずれかに対応できるようにしておく
+      //   - localStorage: （fav_modal.js 内部管理）
+      //       ⇔ SYNC state: server.fav[qid]
+      //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+      //   ※ このファイルでは SYNC の state.server.fav を唯一の正とし、
+      //      他のキー（favorite / favorites / fav）にはフォールバックしない。
       var favMap = null;
-      if (root.favorite && typeof root.favorite === "object") {
-        favMap = root.favorite;
-      } else if (root.favorites && typeof root.favorites === "object") {
-        favMap = root.favorites;
-      } else if (root.fav && typeof root.fav === "object") {
-        favMap = root.fav;
+      if (
+        root.server &&
+        typeof root.server === "object" &&
+        root.server.fav &&
+        typeof root.server.fav === "object"
+      ) {
+        favMap = root.server.fav;
       }
 
       // モジュール全体から参照できるように保持
@@ -690,7 +695,10 @@
   var syncLastCorrectDayMap = null;    // state.lastCorrectDay の生データ参照
   var syncLastWrongDayMap = null;      // state.lastWrongDay の生データ参照
   var syncConsistencyStatusMap = null; // state.consistency_status の生データ参照（整合性チェックステータス）
-  var syncFavMap = null;               // state.favorite / favorites / fav の生データ参照（お気に入り★）
+  var syncFavMap = null;               // state.server.fav[qid] の生データ参照（お気に入り★）
+                                       //   - localStorage: （fav_modal.js 内部管理）
+                                       //       ⇔ SYNC state: server.fav[qid]
+                                       //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
