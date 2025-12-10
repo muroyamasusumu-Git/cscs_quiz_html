@@ -1591,7 +1591,7 @@
         return;
       }
       // 透明度を下げて反応を殺す（裏で動いていてほしい時用）
-      panel.style.opacity = "0.2"; // フェードアウト時の最大透明設定
+      panel.style.opacity = "1"; // フェードアウト時の最大透明設定
       panel.style.pointerEvents = "none";
     }catch(_){}
   }
@@ -1605,7 +1605,7 @@
       panel.style.display = "flex";
       panel.style.flexDirection = "column";
       panel.style.pointerEvents = "auto";
-      panel.style.opacity = "0.65";
+      panel.style.opacity = "1";
     }catch(_){}
   }
 
