@@ -18,14 +18,11 @@
     "transition-property:transform;" +
     "transition-duration:0.15s;" +
     "transition-timing-function:ease-out;" +
-    "transform-origin:center center;" +
+    "transform-origin:left center;" +      // 左中央を基準に拡大（右方向に広がるようにする）
     "cursor:pointer;" +                    // マウスカーソルを「押せる手」にして、押せる感を強調
     "}" +
     ".sa-hover:hover{" +
-    "transform:scale(1.03);" +             // hover 時に 1.03 倍：ふわっと大きく見せる
-    "}" +
-    ".sa-hover:active{" +
-    "transform:scale(0.97);" +             // マウス押下時に少しだけ沈み込ませる（クリック感）
+    "transform:scale(1.03);" +             // hover 中のみ 1.03 倍で固定（クリックしても大きさは変えない）
     "}";
 
   function injectScaleStyleIfNeeded() {
@@ -157,22 +154,7 @@
     }
     el.setAttribute("data-sa-bound", "1");
 
-    el.classList.add("sa-hover");
-
-    el.addEventListener("click", function () {
-      if (window.ScaleAnimator && typeof window.ScaleAnimator.pulse === "function") {
-        window.ScaleAnimator.pulse(el, 160, 1.12);
-      }
-    });
-
-    el.addEventListener("keydown", function (event) {
-      var key = event.key;
-      if (key === "Enter" || key === " ") {
-        if (window.ScaleAnimator && typeof window.ScaleAnimator.pulse === "function") {
-          window.ScaleAnimator.pulse(el, 160, 1.12);
-        }
-      }
-    });
+    el.classList.add("sa-hover");          // hover 用のクラスだけ付与し、クリック時の JS アニメは行わない
   }
 
   function bindScaleToAllClickables(root) {
@@ -212,11 +194,16 @@
   // DOM 構築完了時に一度全体へバインドし、
   // その後は MutationObserver で動的に追加された要素にも同じ処理を適用する。
   function setupGlobalBinding() {
+    var body = document.body;
+    if (!body || !body.classList || !body.classList.contains("mode-a")) {
+      return;                              // Aパート以外（例: mode-b）では一切バインドしない
+    }
+
     injectScaleStyleIfNeeded();
     bindScaleToAllClickables(document);
 
     if (!window.MutationObserver) {
-      return; // 古い環境では初回バインドのみ（フォールバック処理は追加しない方針）
+      return;                              // 古い環境では初回バインドのみ
     }
 
     var observer = new MutationObserver(function (mutations) {
