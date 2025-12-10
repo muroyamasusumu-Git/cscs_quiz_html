@@ -373,12 +373,19 @@
         lastWrongDay = root.lastWrongDay;
       }
 
+      // 整合性チェックステータス（consistency_status）マップ
+      var consistencyStatus = null;
+      if (root.consistency_status && typeof root.consistency_status === "object") {
+        consistencyStatus = root.consistency_status;
+      }
+
       // モジュール全体から参照できるように保持
       syncStreak3Map = streak3;
       syncStreak3WrongMap = streak3Wrong;
       syncLastSeenDayMap = lastSeenDay;
       syncLastCorrectDayMap = lastCorrectDay;
       syncLastWrongDayMap = lastWrongDay;
+      syncConsistencyStatusMap = consistencyStatus;
 
       // 各 Field に対する「★獲得済み問題数」を集計
       var counts = Object.create(null);
@@ -670,6 +677,7 @@
   var syncLastSeenDayMap = null;       // state.lastSeenDay の生データ参照
   var syncLastCorrectDayMap = null;    // state.lastCorrectDay の生データ参照
   var syncLastWrongDayMap = null;      // state.lastWrongDay の生データ参照
+  var syncConsistencyStatusMap = null; // state.consistency_status の生データ参照（整合性チェックステータス）
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -1335,7 +1343,7 @@
           thQid.style.whiteSpace = "nowrap";
 
           var thLevel = document.createElement("th");
-          thLevel.textContent = "レベル";
+          thLevel.textContent = "Lv";
           thLevel.style.textAlign = "left";
           thLevel.style.fontWeight = "600";
           thLevel.style.fontSize = "11px";
@@ -1390,7 +1398,7 @@
           thBomb.title = "3連続不正解（💣）の累計獲得数";
 
           var thTotalCorrect = document.createElement("th");
-          thTotalCorrect.textContent = "正解累計";
+          thTotalCorrect.textContent = "正解";
           thTotalCorrect.style.textAlign = "left";
           thTotalCorrect.style.fontWeight = "600";
           thTotalCorrect.style.fontSize = "11px";
@@ -1400,7 +1408,7 @@
           thTotalCorrect.title = "state.correct[qid] の累計 total";
 
           var thTotalWrong = document.createElement("th");
-          thTotalWrong.textContent = "誤答累計";
+          thTotalWrong.textContent = "誤";
           thTotalWrong.style.textAlign = "left";
           thTotalWrong.style.fontWeight = "600";
           thTotalWrong.style.fontSize = "11px";
@@ -1408,6 +1416,16 @@
           thTotalWrong.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thTotalWrong.style.whiteSpace = "nowrap";
           thTotalWrong.title = "state.incorrect[qid] の累計 total";
+
+          var thConsistency = document.createElement("th");
+          thConsistency.textContent = "整合";
+          thConsistency.style.textAlign = "left";
+          thConsistency.style.fontWeight = "600";
+          thConsistency.style.fontSize = "11px";
+          thConsistency.style.padding = "2px 4px";
+          thConsistency.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thConsistency.style.whiteSpace = "nowrap";
+          thConsistency.title = "state.consistency_status[qid] のステータスマーク";
 
           var thLastCorrect = document.createElement("th");
           thLastCorrect.textContent = "最終正解";
@@ -1430,11 +1448,12 @@
           thLastWrong.title = "state.lastWrongDay[qid]";
 
           // カラム順:
-          // qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 正解累計 / 誤答累計 / 最終正解 / 最終誤答
+          // qid / Lv / 問題文 / 最終 / 整合 / 連続 / ⭐️ / 💣 / 正解 / 誤 / 最終正解 / 最終誤答
           headTr.appendChild(thQid);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
           headTr.appendChild(thLast);
+          headTr.appendChild(thConsistency);
           headTr.appendChild(thStreak);
           headTr.appendChild(thStar);
           headTr.appendChild(thBomb);
@@ -1563,7 +1582,7 @@
               if (lastInfo.symbol) {
                 tdLast.textContent = lastInfo.symbol;
               } else {
-                tdLast.textContent = "";
+                tdLast.textContent = "-";
               }
               if (lastInfo.text) {
                 tdLast.title = lastInfo.text;
@@ -1577,7 +1596,7 @@
               if (lastInfo.streak > 0) {
                 tdStreak.textContent = String(lastInfo.streak);
               } else {
-                tdStreak.textContent = "";
+                tdStreak.textContent = "-";
               }
 
               // ⭐️（3連続正解）累計セル
@@ -1607,7 +1626,7 @@
               if (starCount > 0) {
                 tdStar.textContent = String(starCount);
               } else {
-                tdStar.textContent = "";
+                tdStar.textContent = "-";
               }
 
               // 💣（3連続不正解）累計セル
@@ -1636,7 +1655,7 @@
               if (bombCount > 0) {
                 tdBomb.textContent = String(bombCount);
               } else {
-                tdBomb.textContent = "";
+                tdBomb.textContent = "-";
               }
 
               // 正解累計セル（state.correct[qid]）
@@ -1665,7 +1684,7 @@
               if (totalCorrectCount > 0) {
                 tdTotalCorrect.textContent = String(totalCorrectCount);
               } else {
-                tdTotalCorrect.textContent = "";
+                tdTotalCorrect.textContent = "-";
               }
 
               // 誤答累計セル（state.incorrect[qid]）
@@ -1694,7 +1713,33 @@
               if (totalWrongCount > 0) {
                 tdTotalWrong.textContent = String(totalWrongCount);
               } else {
-                tdTotalWrong.textContent = "";
+                tdTotalWrong.textContent = "-";
+              }
+
+              // 整合性チェックステータスセル（state.consistency_status[qid]）
+              var tdConsistency = document.createElement("td");
+              tdConsistency.style.padding = "2px 4px";
+              tdConsistency.style.verticalAlign = "top";
+              tdConsistency.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdConsistency.style.whiteSpace = "nowrap";
+
+              var consistencyMark = "";
+              if (syncConsistencyStatusMap && Object.prototype.hasOwnProperty.call(syncConsistencyStatusMap, qidKey)) {
+                var rawConsistency = syncConsistencyStatusMap[qidKey];
+                if (
+                  rawConsistency &&
+                  typeof rawConsistency === "object" &&
+                  Object.prototype.hasOwnProperty.call(rawConsistency, "mark")
+                ) {
+                  consistencyMark = String(rawConsistency.mark || "");
+                } else {
+                  consistencyMark = String(rawConsistency == null ? "" : rawConsistency);
+                }
+              }
+              if (consistencyMark) {
+                tdConsistency.textContent = consistencyMark;
+              } else {
+                tdConsistency.textContent = "-";
               }
 
               // 最終正解日セル（state.lastCorrectDay[qid]）
@@ -1713,7 +1758,11 @@
                   lastCorrectVal = String(rawCorrect == null ? "" : rawCorrect);
                 }
               }
-              tdLastCorrect.textContent = lastCorrectVal;
+              if (lastCorrectVal) {
+                tdLastCorrect.textContent = lastCorrectVal;
+              } else {
+                tdLastCorrect.textContent = "-";
+              }
 
               // 最終誤答日セル（state.lastWrongDay[qid]）
               var tdLastWrong = document.createElement("td");
@@ -1731,9 +1780,13 @@
                   lastWrongVal = String(rawWrong == null ? "" : rawWrong);
                 }
               }
-              tdLastWrong.textContent = lastWrongVal;
+              if (lastWrongVal) {
+                tdLastWrong.textContent = lastWrongVal;
+              } else {
+                tdLastWrong.textContent = "-";
+              }
 
-              // レベルセル
+              // レベルセル（Lv は数字のみ）
               var tdLevel = document.createElement("td");
               tdLevel.style.padding = "2px 4px";
               tdLevel.style.verticalAlign = "top";
@@ -1743,7 +1796,12 @@
               if (!levelText) {
                 levelText = "";
               }
-              tdLevel.textContent = levelText;
+              var levelNum = "";
+              var levelMatch = String(levelText).match(/\d+/);
+              if (levelMatch && levelMatch[0]) {
+                levelNum = levelMatch[0];
+              }
+              tdLevel.textContent = levelNum ? levelNum : "-";
 
               // 問題文セル
               var tdQuestion = document.createElement("td");
@@ -1760,11 +1818,12 @@
               tdQuestion.textContent = qText;
 
               // カラム順:
-              // qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 正解累計 / 誤答累計 / 最終正解 / 最終誤答
+              // qid / Lv / 問題文 / 最終 / 整合 / 連続 / ⭐️ / 💣 / 正解 / 誤 / 最終正解 / 最終誤答
               tr.appendChild(tdQid);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
               tr.appendChild(tdLast);
+              tr.appendChild(tdConsistency);
               tr.appendChild(tdStreak);
               tr.appendChild(tdStar);
               tr.appendChild(tdBomb);
