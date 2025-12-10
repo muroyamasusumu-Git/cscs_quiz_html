@@ -8,15 +8,34 @@
   "use strict";
 
   // =========================================
-  // スライドイン対象のセレクタ設定
-  // ※ ここに書いたセレクタの要素が左からスライドインする
+  // スライドイン対象のセレクタ設定（A/Bで切り替え）
+  // - Aパート (body.mode-a): 問題文<h1>と<ol class="opts">もスライドイン
+  // - Bパート (body.mode-b): #judge / .answer のみスライドイン
   // =========================================
-  var SLIDE_TARGET_SELECTORS = [
-    "#judge",        // 判定表示エリア（主にBパート）
-    ".answer",       // 「正解: A ～」などの解答表示エリア
-    "h1",            // 問題文見出し（Aパートの質問文など）
-    "ol.opts"        // 選択肢リスト（<ol class=\"opts\">）
-  ];
+  function getSlideTargetSelectors() {
+    var body = document.body || document.getElementsByTagName("body")[0];
+    var isModeB = false;
+
+    if (body && body.classList && typeof body.classList.contains === "function") {
+      isModeB = body.classList.contains("mode-b");
+    }
+
+    // Bパート: 判定表示エリア / 解答表示だけスライドイン
+    if (isModeB) {
+      return [
+        "#judge",
+        ".answer"
+      ];
+    }
+
+    // Aパート（その他）: 問題文 + 選択肢もスライドイン対象に含める
+    return [
+      "#judge",
+      ".answer",
+      "h1",
+      "ol.opts"
+    ];
+  }
 
   // 一度だけアニメ用スタイルを注入する
   function ensureSlideStyle() {
@@ -47,8 +66,10 @@
     try {
       ensureSlideStyle();
 
-      for (var i = 0; i < SLIDE_TARGET_SELECTORS.length; i++) {
-        var sel = SLIDE_TARGET_SELECTORS[i];
+      var selectors = getSlideTargetSelectors();
+
+      for (var i = 0; i < selectors.length; i++) {
+        var sel = selectors[i];
         if (!sel) continue;
 
         var nodes = document.querySelectorAll(sel);
