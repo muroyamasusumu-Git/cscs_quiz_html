@@ -46,18 +46,23 @@
     style.id = "cscs-slide-style";
     style.type = "text/css";
     style.textContent =
+      // Bパートの解説テキストは、最初は非表示（opacity:0）にして「チラ見え」を防ぐ
+      // - body.mode-b が付いているページだけに限定しているので、Aパートには影響しない
+      ".mode-b .explain-text {" +
+      "  opacity: 0;" +                                          // 初期描画時は透明な状態にしておく
+      "}" +
       // 汎用スライドイン（h1 / #judge / .answer / ol.opts などに利用）
       ".cscs-slide-in-left {" +
-      "  animation: cscsSlideInLeft 0.5s ease-out 0s 1;" +  // 左から 0.5 秒でスライドインする基本アニメーション
-      "  animation-fill-mode: both;" +                      // アニメ後も最終状態を維持する
-      "  transform-origin: center left;" +                  // 左側を基準にスライドさせる
+      "  animation: cscsSlideInLeft 0.5s ease-out 0s 1;" +       // 左から 0.5 秒でスライドインする基本アニメーション
+      "  animation-fill-mode: both;" +                           // アニメ後も最終状態を維持する
+      "  transform-origin: center left;" +                       // 左側を基準にスライドさせる
       "}" +
       // 解説テキスト専用のスライドイン（span.explain-text 用）
       ".cscs-slide-in-left-explain {" +
       "  animation: cscsSlideInLeftExplain 0.5s ease-out 0s 1;" + // 少し大きめに左からスライドイン
       "  animation-fill-mode: both;" +                            // アニメ後も最終位置を維持
       "  transform-origin: center left;" +                        // 左側基準
-      "  display: inline-block;" +                                // inline 要素だと移動量が分かりづらいので inline-block にする
+      "  display: inline-block;" +                                // inline 要素だと横方向の移動が見えづらいので inline-block にする
       "}" +
       "@keyframes cscsSlideInLeft {" +
       "  0% { transform: translateX(-40px); opacity: 0; }" +      // 通常要素は 40px 程度のスライド
