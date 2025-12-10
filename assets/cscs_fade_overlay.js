@@ -135,8 +135,25 @@
         var rect = node.getBoundingClientRect(); // 元DOMの画面上の位置・幅を取得する（ビューポート基準）
         var clone = node.cloneNode(true);        // 元DOMは動かさず、クローンだけをハイライト用に利用する
 
-        // クローン共通の識別用クラスを付与して、CSSから「クローンだけ」を安全に調整できるようにする
+        // クローン共通の識別用クラス付与や微調整を行う
         if (clone && clone.nodeType === 1) {
+          // --- 追加処理: スライドイン演出の状態をクローンから除去する ---
+          // cscs_slide_in.js により付与されたアニメーション用クラスやフラグは、
+          // ハイライト側では不要かつ二重アニメーションの原因になるため、ここで剥がしておく。
+          if (clone.classList && typeof clone.classList.remove === "function") {
+            clone.classList.remove("cscs-slide-in-left"); // スライドイン用クラスを削除
+          } else {
+            var clsText = clone.getAttribute("class") || "";
+            if (clsText.indexOf("cscs-slide-in-left") !== -1) {
+              clsText = clsText.replace(/\bcscs-slide-in-left\b/g, " ");
+              clsText = clsText.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+              clone.setAttribute("class", clsText);
+            }
+          }
+          clone.removeAttribute("data-cscs-slide-applied"); // 「一度だけ適用」フラグもクローンでは無効化する
+          // --- 追加処理ここまで ---
+
+          // クローン共通の識別用クラスを付与して、CSSから「クローンだけ」を安全に調整できるようにする
           if (clone.classList) {
             clone.classList.add("cscs-fade-highlight-clone"); // classList が使える場合は add で足す
           } else {
