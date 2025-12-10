@@ -1363,12 +1363,12 @@
 
         <div class="sync-line sync-lastday">
           LastSeen/Correct/Wrong:<br>
-          sync: <span class="sync-last-seen-sync">（データなし）</span> /
-                <span class="sync-last-correct-sync">（データなし）</span> /
-                <span class="sync-last-wrong-sync">（データなし）</span><br>
-          local: <span class="sync-last-seen-local">（データなし）</span> /
-                 <span class="sync-last-correct-local">（データなし）</span> /
-                 <span class="sync-last-wrong-local">（データなし）</span>
+          sync: <span class="sync-last-seen-sync">none</span> /
+                <span class="sync-last-correct-sync">none</span> /
+                <span class="sync-last-wrong-sync">none</span><br>
+          local: <span class="sync-last-seen-local">none</span> /
+                 <span class="sync-last-correct-local">none</span> /
+                 <span class="sync-last-wrong-local">none</span>
         </div>
 
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
