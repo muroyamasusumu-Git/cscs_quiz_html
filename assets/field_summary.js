@@ -359,9 +359,26 @@
         streak3Wrong = root.streak3Wrong;
       }
 
+      // 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）マップ
+      var lastSeenDay = null;
+      if (root.lastSeenDay && typeof root.lastSeenDay === "object") {
+        lastSeenDay = root.lastSeenDay;
+      }
+      var lastCorrectDay = null;
+      if (root.lastCorrectDay && typeof root.lastCorrectDay === "object") {
+        lastCorrectDay = root.lastCorrectDay;
+      }
+      var lastWrongDay = null;
+      if (root.lastWrongDay && typeof root.lastWrongDay === "object") {
+        lastWrongDay = root.lastWrongDay;
+      }
+
       // モジュール全体から参照できるように保持
       syncStreak3Map = streak3;
       syncStreak3WrongMap = streak3Wrong;
+      syncLastSeenDayMap = lastSeenDay;
+      syncLastCorrectDayMap = lastCorrectDay;
+      syncLastWrongDayMap = lastWrongDay;
 
       // 各 Field に対する「★獲得済み問題数」を集計
       var counts = Object.create(null);
@@ -644,12 +661,15 @@
   // - 取得できなかった場合のみ DUMMY_TOTAL を暫定使用
   var totalQuestionsGlobal = DUMMY_TOTAL;
 
-  // SYNC状態から取得した正解・不正解・連続正解マップ（最終正誤結果 / 連続回数 / 3連続達成回数の表示用）
+  // SYNC状態から取得した正解・不正解・連続正解マップ（最終正誤結果 / 連続回数 / 3連続達成回数 / 最終日情報の表示用）
   var syncCorrectMap = null;           // state.correct の生データ参照
   var syncIncorrectMap = null;         // state.incorrect の生データ参照
   var syncStreakLenMap = null;         // state.streakLen の生データ参照
   var syncStreak3Map = null;           // state.streak3 の生データ参照（⭐️累計）
   var syncStreak3WrongMap = null;      // state.streak3Wrong の生データ参照（💣累計）
+  var syncLastSeenDayMap = null;       // state.lastSeenDay の生データ参照
+  var syncLastCorrectDayMap = null;    // state.lastCorrectDay の生データ参照
+  var syncLastWrongDayMap = null;      // state.lastWrongDay の生データ参照
 
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -1369,7 +1389,37 @@
           thBomb.style.whiteSpace = "nowrap";
           thBomb.title = "3連続不正解（💣）の累計獲得数";
 
-          // カラム順: qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣
+          var thLastSeen = document.createElement("th");
+          thLastSeen.textContent = "最終閲覧";
+          thLastSeen.style.textAlign = "left";
+          thLastSeen.style.fontWeight = "600";
+          thLastSeen.style.fontSize = "11px";
+          thLastSeen.style.padding = "2px 4px";
+          thLastSeen.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thLastSeen.style.whiteSpace = "nowrap";
+          thLastSeen.title = "state.lastSeenDay[qid]";
+
+          var thLastCorrect = document.createElement("th");
+          thLastCorrect.textContent = "最終正解";
+          thLastCorrect.style.textAlign = "left";
+          thLastCorrect.style.fontWeight = "600";
+          thLastCorrect.style.fontSize = "11px";
+          thLastCorrect.style.padding = "2px 4px";
+          thLastCorrect.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thLastCorrect.style.whiteSpace = "nowrap";
+          thLastCorrect.title = "state.lastCorrectDay[qid]";
+
+          var thLastWrong = document.createElement("th");
+          thLastWrong.textContent = "最終誤答";
+          thLastWrong.style.textAlign = "left";
+          thLastWrong.style.fontWeight = "600";
+          thLastWrong.style.fontSize = "11px";
+          thLastWrong.style.padding = "2px 4px";
+          thLastWrong.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thLastWrong.style.whiteSpace = "nowrap";
+          thLastWrong.title = "state.lastWrongDay[qid]";
+
+          // カラム順: qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 最終閲覧 / 最終正解 / 最終誤答
           headTr.appendChild(thQid);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
@@ -1377,6 +1427,9 @@
           headTr.appendChild(thStreak);
           headTr.appendChild(thStar);
           headTr.appendChild(thBomb);
+          headTr.appendChild(thLastSeen);
+          headTr.appendChild(thLastCorrect);
+          headTr.appendChild(thLastWrong);
           thead.appendChild(headTr);
 
           var tbody = document.createElement("tbody");
@@ -1574,6 +1627,60 @@
                 tdBomb.textContent = "";
               }
 
+              // 最終閲覧日セル（state.lastSeenDay[qid]）
+              var tdLastSeen = document.createElement("td");
+              tdLastSeen.style.padding = "2px 4px";
+              tdLastSeen.style.verticalAlign = "top";
+              tdLastSeen.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdLastSeen.style.whiteSpace = "nowrap";
+
+              var lastSeenVal = "";
+              if (syncLastSeenDayMap && Object.prototype.hasOwnProperty.call(syncLastSeenDayMap, qidKey)) {
+                var rawSeen = syncLastSeenDayMap[qidKey];
+                if (rawSeen && typeof rawSeen === "object" && Object.prototype.hasOwnProperty.call(rawSeen, "day")) {
+                  lastSeenVal = String(rawSeen.day || "");
+                } else {
+                  lastSeenVal = String(rawSeen == null ? "" : rawSeen);
+                }
+              }
+              tdLastSeen.textContent = lastSeenVal;
+
+              // 最終正解日セル（state.lastCorrectDay[qid]）
+              var tdLastCorrect = document.createElement("td");
+              tdLastCorrect.style.padding = "2px 4px";
+              tdLastCorrect.style.verticalAlign = "top";
+              tdLastCorrect.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdLastCorrect.style.whiteSpace = "nowrap";
+
+              var lastCorrectVal = "";
+              if (syncLastCorrectDayMap && Object.prototype.hasOwnProperty.call(syncLastCorrectDayMap, qidKey)) {
+                var rawCorrect = syncLastCorrectDayMap[qidKey];
+                if (rawCorrect && typeof rawCorrect === "object" && Object.prototype.hasOwnProperty.call(rawCorrect, "day")) {
+                  lastCorrectVal = String(rawCorrect.day || "");
+                } else {
+                  lastCorrectVal = String(rawCorrect == null ? "" : rawCorrect);
+                }
+              }
+              tdLastCorrect.textContent = lastCorrectVal;
+
+              // 最終誤答日セル（state.lastWrongDay[qid]）
+              var tdLastWrong = document.createElement("td");
+              tdLastWrong.style.padding = "2px 4px";
+              tdLastWrong.style.verticalAlign = "top";
+              tdLastWrong.style.borderBottom = "1px solid rgba(255, 255, 255, 0.12)";
+              tdLastWrong.style.whiteSpace = "nowrap";
+
+              var lastWrongVal = "";
+              if (syncLastWrongDayMap && Object.prototype.hasOwnProperty.call(syncLastWrongDayMap, qidKey)) {
+                var rawWrong = syncLastWrongDayMap[qidKey];
+                if (rawWrong && typeof rawWrong === "object" && Object.prototype.hasOwnProperty.call(rawWrong, "day")) {
+                  lastWrongVal = String(rawWrong.day || "");
+                } else {
+                  lastWrongVal = String(rawWrong == null ? "" : rawWrong);
+                }
+              }
+              tdLastWrong.textContent = lastWrongVal;
+
               // レベルセル
               var tdLevel = document.createElement("td");
               tdLevel.style.padding = "2px 4px";
@@ -1600,7 +1707,8 @@
               }
               tdQuestion.textContent = qText;
 
-              // カラム順: qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 に合わせてセルを追加
+              // カラム順:
+              // qid / レベル / 問題文 / 最終 / 連続 / ⭐️ / 💣 / 最終閲覧 / 最終正解 / 最終誤答
               tr.appendChild(tdQid);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
@@ -1608,6 +1716,9 @@
               tr.appendChild(tdStreak);
               tr.appendChild(tdStar);
               tr.appendChild(tdBomb);
+              tr.appendChild(tdLastSeen);
+              tr.appendChild(tdLastCorrect);
+              tr.appendChild(tdLastWrong);
               tbody.appendChild(tr);
             }
 
