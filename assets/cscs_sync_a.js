@@ -79,6 +79,20 @@
  *       state.oncePerDayToday.day
  *       state.oncePerDayToday.results[qid]
  *
+ * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
+ *   - localStorage:
+ *       "cscs_q_last_seen_day:"    + qid
+ *       "cscs_q_last_correct_day:" + qid
+ *       "cscs_q_last_wrong_day:"   + qid
+ *   - SYNC state:
+ *       state.lastSeenDay[qid]
+ *       state.lastCorrectDay[qid]
+ *       state.lastWrongDay[qid]
+ *   - payload(merge):
+ *       lastSeenDayDelta[qid]
+ *       lastCorrectDayDelta[qid]
+ *       lastWrongDayDelta[qid]
+ *
  * ▼ デバッグ用ローカルログ
  *   - localStorage:
  *       "cscs_sync_last_c:"  + qid
@@ -111,13 +125,18 @@
   //   - correctDelta / incorrectDelta: 正解・不正解の累計差分
   //   - streak3Delta / streakLenDelta: 3連続「正解」回数と現在の連続正解長
   //   - streak3WrongDelta / streakWrongLenDelta: 3連続「不正解」回数と現在の連続不正解長
+  //   - lastSeenDayDelta / lastCorrectDayDelta / lastWrongDayDelta:
+  //       問題別の「最終日情報」を SYNC 側へ渡すための最新値
   const queue = {
     correctDelta: {},
     incorrectDelta: {},
     streak3Delta: {},
     streakLenDelta: {},
     streak3WrongDelta: {},
-    streakWrongLenDelta: {}
+    streakWrongLenDelta: {},
+    lastSeenDayDelta: {},
+    lastCorrectDayDelta: {},
+    lastWrongDayDelta: {}
   };
   let sendTimer = null;
 
@@ -203,6 +222,39 @@
       return l;
     }catch(_){
       return 0;
+    }
+  }
+
+  // ★ 問題別 最終日情報: localStorage から「最終閲覧日」を読み取る
+  function readLocalLastSeenDayForQid(qid){
+    try{
+      const k = "cscs_q_last_seen_day:" + qid;
+      const v = localStorage.getItem(k);
+      return v || "";
+    }catch(_){
+      return "";
+    }
+  }
+
+  // ★ 問題別 最終日情報: localStorage から「最終正解日」を読み取る
+  function readLocalLastCorrectDayForQid(qid){
+    try{
+      const k = "cscs_q_last_correct_day:" + qid;
+      const v = localStorage.getItem(k);
+      return v || "";
+    }catch(_){
+      return "";
+    }
+  }
+
+  // ★ 問題別 最終日情報: localStorage から「最終不正解日」を読み取る
+  function readLocalLastWrongDayForQid(qid){
+    try{
+      const k = "cscs_q_last_wrong_day:" + qid;
+      const v = localStorage.getItem(k);
+      return v || "";
+    }catch(_){
+      return "";
     }
   }
 
@@ -325,12 +377,59 @@
         }
       }catch(_){}
 
+      // ★ 問題別 最終日情報（LastSeen / LastCorrect / LastWrong）の取得
+      //   - local: localStorage に保存された最終日
+      //   - sync : window.__cscs_sync_state.lastSeenDay などに保存された最終日
+      let lastSeenLocal = "";
+      let lastCorrectLocal = "";
+      let lastWrongLocal = "";
+      try{
+        lastSeenLocal = readLocalLastSeenDayForQid(QID);
+        lastCorrectLocal = readLocalLastCorrectDayForQid(QID);
+        lastWrongLocal = readLocalLastWrongDayForQid(QID);
+      }catch(_){}
+
+      let lastSeenSync = "";
+      let lastCorrectSync = "";
+      let lastWrongSync = "";
+      try{
+        const stateForLast = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+        if (stateForLast && stateForLast.lastSeenDay && typeof stateForLast.lastSeenDay === "object") {
+          const v = stateForLast.lastSeenDay[QID];
+          if (typeof v === "string" && v) {
+            lastSeenSync = v;
+          }
+        }
+        if (stateForLast && stateForLast.lastCorrectDay && typeof stateForLast.lastCorrectDay === "object") {
+          const v2 = stateForLast.lastCorrectDay[QID];
+          if (typeof v2 === "string" && v2) {
+            lastCorrectSync = v2;
+          }
+        }
+        if (stateForLast && stateForLast.lastWrongDay && typeof stateForLast.lastWrongDay === "object") {
+          const v3 = stateForLast.lastWrongDay[QID];
+          if (typeof v3 === "string" && v3) {
+            lastWrongSync = v3;
+          }
+        }
+      }catch(_){}
+
       if (box) {
         const qEl  = box.querySelector(".sync-qid");
 
         const s3tDayEl   = box.querySelector(".sync-streak3today-day");
         const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
         const s3tLocalEl = box.querySelector(".sync-streak3today-local");
+
+        // ★ 問題別 最終日情報表示用要素
+        const lastSeenSyncEl     = box.querySelector(".sync-last-seen-sync");
+        const lastCorrectSyncEl  = box.querySelector(".sync-last-correct-sync");
+        const lastWrongSyncEl    = box.querySelector(".sync-last-wrong-sync");
+        const lastSeenLocalEl    = box.querySelector(".sync-last-seen-local");
+        const lastCorrectLocalEl = box.querySelector(".sync-last-correct-local");
+        const lastWrongLocalEl   = box.querySelector(".sync-last-wrong-local");
         if (s3tDayEl) {
           s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
         }
@@ -368,6 +467,26 @@
             Number.isFinite(localWrongStreakCount) ? localWrongStreakCount : "",
             "（データなし）"
           );
+        }
+
+        // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映
+        if (lastSeenSyncEl) {
+          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "（データなし）");
+        }
+        if (lastCorrectSyncEl) {
+          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "（データなし）");
+        }
+        if (lastWrongSyncEl) {
+          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "（データなし）");
+        }
+        if (lastSeenLocalEl) {
+          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "（データなし）");
+        }
+        if (lastCorrectLocalEl) {
+          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "（データなし）");
+        }
+        if (lastWrongLocalEl) {
+          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "（データなし）");
         }
 
         const lEl  = box.querySelector(".sync-local");
@@ -485,9 +604,22 @@
     const hasSL  = Object.keys(queue.streakLenDelta).length>0;
     const hasS3W = Object.keys(queue.streak3WrongDelta).length>0;
     const hasSLW = Object.keys(queue.streakWrongLenDelta).length>0;
+    const hasLastSeen    = Object.keys(queue.lastSeenDayDelta).length>0;
+    const hasLastCorrect = Object.keys(queue.lastCorrectDayDelta).length>0;
+    const hasLastWrong   = Object.keys(queue.lastWrongDayDelta).length>0;
 
-    // ★ 6種類のいずれの delta も空なら、送信する意味がないので終了
-    if (!hasC && !hasI && !hasS3 && !hasSL && !hasS3W && !hasSLW) {
+    // ★ いずれの delta も空なら、送信する意味がないので終了
+    if (
+      !hasC &&
+      !hasI &&
+      !hasS3 &&
+      !hasSL &&
+      !hasS3W &&
+      !hasSLW &&
+      !hasLastSeen &&
+      !hasLastCorrect &&
+      !hasLastWrong
+    ) {
       return;
     }
 
@@ -500,6 +632,10 @@
       // ★ 追加: 不正解側ストリークの delta も Workers へ送る
       streak3WrongDelta: queue.streak3WrongDelta,
       streakWrongLenDelta: queue.streakWrongLenDelta,
+      // ★ 追加: 問題別 最終日情報の delta（最新値）を Workers へ送る
+      lastSeenDayDelta: queue.lastSeenDayDelta,
+      lastCorrectDayDelta: queue.lastCorrectDayDelta,
+      lastWrongDayDelta: queue.lastWrongDayDelta,
       updatedAt: Date.now()
     };
 
@@ -512,6 +648,9 @@
       hasStreakLenDelta: hasSL,
       hasStreak3WrongDelta: hasS3W,
       hasStreakWrongLenDelta: hasSLW,
+      hasLastSeenDayDelta: hasLastSeen,
+      hasLastCorrectDayDelta: hasLastCorrect,
+      hasLastWrongDayDelta: hasLastWrong,
       payload: payload
     });
 
@@ -527,12 +666,15 @@
       });
       if (!res.ok) throw new Error(String(res.status));
 
-      queue.correctDelta       = {};
-      queue.incorrectDelta     = {};
-      queue.streak3Delta       = {};
-      queue.streakLenDelta     = {};
-      queue.streak3WrongDelta  = {};
+      queue.correctDelta        = {};
+      queue.incorrectDelta      = {};
+      queue.streak3Delta        = {};
+      queue.streakLenDelta      = {};
+      queue.streak3WrongDelta   = {};
       queue.streakWrongLenDelta = {};
+      queue.lastSeenDayDelta    = {};
+      queue.lastCorrectDayDelta = {};
+      queue.lastWrongDayDelta   = {};
 
       const latest = await res.json();
 
@@ -575,23 +717,55 @@
 
   window.CSCS_SYNC = {
     // ★ 正解1回分の計測を SYNC キューに積む（累計 correctDelta）
+    //   あわせて「最終閲覧日」「最終正解日」も localStorage から読み取り、
+    //   それぞれ lastSeenDayDelta / lastCorrectDayDelta に最新値として積む。
     recordCorrect(){
       if (!QID) return;
       queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
+
+      try{
+        const seenDay = readLocalLastSeenDayForQid(QID);
+        if (seenDay) {
+          queue.lastSeenDayDelta[QID] = seenDay;
+        }
+        const correctDay = readLocalLastCorrectDayForQid(QID);
+        if (correctDay) {
+          queue.lastCorrectDayDelta[QID] = correctDay;
+        }
+      }catch(_){}
+
       console.log("[SYNC-A] recordCorrect queued", {
         qid: QID,
-        delta: queue.correctDelta[QID]
+        delta: queue.correctDelta[QID],
+        lastSeenDay: queue.lastSeenDayDelta[QID] || null,
+        lastCorrectDay: queue.lastCorrectDayDelta[QID] || null
       });
       scheduleSend();
     },
 
     // ★ 不正解1回分の計測を SYNC キューに積む（累計 incorrectDelta）
+    //   あわせて「最終閲覧日」「最終不正解日」も localStorage から読み取り、
+    //   それぞれ lastSeenDayDelta / lastWrongDayDelta に最新値として積む。
     recordIncorrect(){
       if (!QID) return;
       queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+
+      try{
+        const seenDay = readLocalLastSeenDayForQid(QID);
+        if (seenDay) {
+          queue.lastSeenDayDelta[QID] = seenDay;
+        }
+        const wrongDay = readLocalLastWrongDayForQid(QID);
+        if (wrongDay) {
+          queue.lastWrongDayDelta[QID] = wrongDay;
+        }
+      }catch(_){}
+
       console.log("[SYNC-A] recordIncorrect queued", {
         qid: QID,
-        delta: queue.incorrectDelta[QID]
+        delta: queue.incorrectDelta[QID],
+        lastSeenDay: queue.lastSeenDayDelta[QID] || null,
+        lastWrongDay: queue.lastWrongDayDelta[QID] || null
       });
       scheduleSend();
     },
@@ -675,7 +849,10 @@
         hasStreak3Wrong: !!(json && json.streak3Wrong),
         hasStreakWrongLen: !!(json && json.streakWrongLen),
         hasStreak3Today: !!(json && json.streak3Today),
-        hasStreak3WrongToday: !!(json && json.streak3WrongToday)
+        hasStreak3WrongToday: !!(json && json.streak3WrongToday),
+        hasLastSeenDay: !!(json && json.lastSeenDay),
+        hasLastCorrectDay: !!(json && json.lastCorrectDay),
+        hasLastWrongDay: !!(json && json.lastWrongDay)
       });
       return json;
     }
@@ -1176,6 +1353,16 @@
           Streak3WrongTodayUnique:<br>
           day: <span class="sync-streak3wrongtoday-day">-</span><br>
           unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
+        </div>
+
+        <div class="sync-line sync-lastday">
+          LastSeen/Correct/Wrong:<br>
+          sync: <span class="sync-last-seen-sync">（データなし）</span> /
+                <span class="sync-last-correct-sync">（データなし）</span> /
+                <span class="sync-last-wrong-sync">（データなし）</span><br>
+          local: <span class="sync-last-seen-local">（データなし）</span> /
+                 <span class="sync-last-correct-local">（データなし）</span> /
+                 <span class="sync-last-wrong-local">（データなし）</span>
         </div>
 
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
