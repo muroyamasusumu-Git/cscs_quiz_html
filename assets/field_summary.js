@@ -1398,7 +1398,7 @@
           thBomb.title = "3連続不正解（💣）の累計獲得数";
 
           var thTotalCorrect = document.createElement("th");
-          thTotalCorrect.textContent = "正解";
+          thTotalCorrect.textContent = "正";
           thTotalCorrect.style.textAlign = "left";
           thTotalCorrect.style.fontWeight = "600";
           thTotalCorrect.style.fontSize = "11px";
@@ -1448,17 +1448,17 @@
           thLastWrong.title = "state.lastWrongDay[qid]";
 
           // カラム順:
-          // qid / Lv / 問題文 / 最終 / 整合 / 連続 / ⭐️ / 💣 / 正解 / 誤 / 最終正解 / 最終誤答
+          // qid / Lv / 問題文 / 整合 / ⭐️ / 💣 / 正 / 誤 / 最終 / 連続 / 最終正解 / 最終誤答
           headTr.appendChild(thQid);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
-          headTr.appendChild(thLast);
           headTr.appendChild(thConsistency);
-          headTr.appendChild(thStreak);
           headTr.appendChild(thStar);
           headTr.appendChild(thBomb);
           headTr.appendChild(thTotalCorrect);
           headTr.appendChild(thTotalWrong);
+          headTr.appendChild(thLast);
+          headTr.appendChild(thStreak);
           headTr.appendChild(thLastCorrect);
           headTr.appendChild(thLastWrong);
           thead.appendChild(headTr);
@@ -1818,17 +1818,17 @@
               tdQuestion.textContent = qText;
 
               // カラム順:
-              // qid / Lv / 問題文 / 最終 / 整合 / 連続 / ⭐️ / 💣 / 正解 / 誤 / 最終正解 / 最終誤答
+              // qid / Lv / 問題文 / 整合 / ⭐️ / 💣 / 正 / 誤 / 最終 / 連続 / 最終正解 / 最終誤答
               tr.appendChild(tdQid);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
-              tr.appendChild(tdLast);
               tr.appendChild(tdConsistency);
-              tr.appendChild(tdStreak);
               tr.appendChild(tdStar);
               tr.appendChild(tdBomb);
               tr.appendChild(tdTotalCorrect);
               tr.appendChild(tdTotalWrong);
+              tr.appendChild(tdLast);
+              tr.appendChild(tdStreak);
               tr.appendChild(tdLastCorrect);
               tr.appendChild(tdLastWrong);
               tbody.appendChild(tr);
