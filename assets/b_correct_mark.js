@@ -77,38 +77,27 @@
     return true;
   }
 
-  // ▼ 5. .answer に左からスライドインのアニメーションを付与するヘルパー
+  // ▼ 5. .answer（#judge 含む）に左からスライドインのアニメーションを付与するヘルパー
   function applyZoomToAnswer(){
     try{
-      // まず #judge からは必ず演出用クラスを外す（過去付与の掃除も兼ねる）
-      var judgeEl = document.getElementById("judge");
-      if (judgeEl) {
-        if (judgeEl.classList.contains("cscs-answer-zoom-in")) {
-          judgeEl.classList.remove("cscs-answer-zoom-in");
-        }
-        if (judgeEl.classList.contains("cscs-answer-slide-in")) {
-          judgeEl.classList.remove("cscs-answer-slide-in");
-        }
-      }
-
-      // アニメの対象は「.answer かつ #judge ではない要素」
+      // ページ内の .answer をすべて取得（#judge も含まれる）
       var answers = document.querySelectorAll(".answer");
-      var target = null;
-      if (answers && answers.length > 0) {
-        for (var i = 0; i < answers.length; i++) {
-          var el = answers[i];
-          if (el.id !== "judge") {
-            target = el;
-            break;
-          }
+      if (!answers || answers.length === 0) return;
+
+      // 過去のズーム用クラスなどは掃除しておく
+      for (var i = 0; i < answers.length; i++) {
+        var el = answers[i];
+        if (el.classList.contains("cscs-answer-zoom-in")) {
+          el.classList.remove("cscs-answer-zoom-in");
         }
       }
 
-      if (!target) return;
-
-      // すでにクラスが付いている場合は何もしない（アニメ多重適用防止）
-      if (!target.classList.contains("cscs-answer-slide-in")) {
-        target.classList.add("cscs-answer-slide-in");
+      // すべての .answer にスライドイン用クラスを付与
+      for (var j = 0; j < answers.length; j++) {
+        var el2 = answers[j];
+        if (!el2.classList.contains("cscs-answer-slide-in")) {
+          el2.classList.add("cscs-answer-slide-in");
+        }
       }
 
       // 一度だけスタイルを注入する
@@ -117,7 +106,7 @@
         style.id = "cscs-answer-slide-style";
         style.type = "text/css";
         style.textContent =
-          ".answer:not(#judge).cscs-answer-slide-in {" +
+          ".answer.cscs-answer-slide-in {" +
           "  animation: cscsAnswerSlideIn 0.5s ease-out 0s 1;" +
           "  transform-origin: center left;" +
           "}" +
