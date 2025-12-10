@@ -417,6 +417,11 @@
       syncConsistencyStatusMap = consistencyStatus;
       syncFavMap = favMap;
 
+      // SYNC（state.server.consistency_status）だけを情報源として、
+      // 「ステータスマークが◎の qid 一覧」を Set として構築する。
+      // ここでは LocalStorage 側に保存された結果は一切参照しない。
+      buildConsistencyOkQidSetFromSync();
+
       // 各 Field に対する「★獲得済み問題数」を集計
       var counts = Object.create(null);
       var totalStarQ = 0;
@@ -716,6 +721,78 @@
                                    //         - "fav001" : ★1
                                    //         - "fav002" : ★2
                                    //         - "fav003" : ★3
+
+  // SYNC の server.consistency_status から「ステータス◎の qid」を集めた Set
+  // - 情報源は /api/sync/state の state.server.consistency_status のみ
+  // - LocalStorage 側の結果はここでは完全に無視する
+  var consistencyOkQidSet = null;
+
+  // SYNC から取得済みの syncConsistencyStatusMap を走査して、
+  // status.mark === "◎" の qid を Set として構築する。
+  // - loadStarFieldCountsStrict() 内で SYNC を読んだ直後に呼び出す想定
+  // - 例外が起きた場合でも、最低限「空の Set」を保持しておく
+  function buildConsistencyOkQidSetFromSync() {
+    var set = new Set();
+    try {
+      var map = syncConsistencyStatusMap;
+      if (!map || typeof map !== "object") {
+        consistencyOkQidSet = set;
+        console.log("field_summary.js: consistency_ok set built (empty, no SYNC map)");
+        return set;
+      }
+
+      var keys = Object.keys(map);
+      for (var i = 0; i < keys.length; i++) {
+        var qid = keys[i];
+        var raw = map[qid];
+        var mark = "";
+
+        // server.consistency_status[qid] がオブジェクト形式で { mark: "◎", ... } の場合と、
+        // 単純に "◎" などの文字列が入っている場合の両方に対応する。
+        if (raw && typeof raw === "object" && Object.prototype.hasOwnProperty.call(raw, "mark")) {
+          mark = String(raw.mark || "");
+        } else {
+          mark = String(raw == null ? "" : raw);
+        }
+
+        if (mark === "◎") {
+          set.add(qid);
+        }
+      }
+
+      consistencyOkQidSet = set;
+
+      // デバッグ用に「◎状態の qid 一覧」を一度だけコンソールに出力しておく
+      console.log("field_summary.js: consistency_ok qids (from SYNC only)", {
+        count: set.size,
+        qids: Array.from(set)
+      });
+
+      return set;
+    } catch (e) {
+      console.error("field_summary.js: buildConsistencyOkQidSetFromSync error", e);
+      consistencyOkQidSet = set;
+      return set;
+    }
+  }
+
+  // 指定した qid が「SYNC 上でステータス◎かどうか」を判定するヘルパー
+  // - まだ Set が構築されていなければ buildConsistencyOkQidSetFromSync() を呼ぶ
+  // - 情報源は一貫して SYNC（server.consistency_status）のみ
+  function isConsistencyOkQid(qid) {
+    try {
+      if (!consistencyOkQidSet) {
+        buildConsistencyOkQidSetFromSync();
+      }
+      if (!consistencyOkQidSet) {
+        return false;
+      }
+      return consistencyOkQidSet.has(String(qid));
+    } catch (e) {
+      console.error("field_summary.js: isConsistencyOkQid error", e);
+      return false;
+    }
+  }
                                    
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -967,46 +1044,6 @@
     } catch (e) {
       console.error("field_summary.js: getLastResultInfoForQid error", e);
       return info;
-    }
-  }
-
-  // qid(YYYYMMDD-NNN) から「整合性チェックのステータスマーク（◎ / △ / ×など）」を取得するヘルパー
-  //  - /api/sync/state の server.consistency_status[qid].status_mark を唯一の正として参照する
-  //  - LocalStorage や他のプロパティには一切フォールバックせず、値が無ければ空文字を返す
-  function getConsistencyMarkForQid(qid) {
-    try {
-      var map = syncConsistencyStatusMap;
-      if (!map || typeof map !== "object") {
-        return "";
-      }
-
-      var key = String(qid);
-      if (!Object.prototype.hasOwnProperty.call(map, key)) {
-        return "";
-      }
-
-      var raw = map[key];
-      if (raw == null) {
-        return "";
-      }
-
-      // 現行仕様: { status_mark: "◎", ... } の形式を想定
-      if (typeof raw === "object") {
-        if (Object.prototype.hasOwnProperty.call(raw, "status_mark")) {
-          return String(raw.status_mark == null ? "" : raw.status_mark);
-        }
-        // 旧データなどで mark プロパティのみを持つケースは安全側で一応拾う
-        if (Object.prototype.hasOwnProperty.call(raw, "mark")) {
-          return String(raw.mark == null ? "" : raw.mark);
-        }
-        return String(raw);
-      }
-
-      // 文字列で直接マークが入っているケースにも対応
-      return String(raw);
-    } catch (e) {
-      console.error("field_summary.js: getConsistencyMarkForQid error", e);
-      return "";
     }
   }
 
@@ -2002,9 +2039,7 @@
                 tdTotalWrong.textContent = "-";
               }
 
-              // 整合性チェックステータスセル（server.consistency_status[qid].status_mark）
-              //  - /api/sync/state の server.consistency_status だけを参照し、
-              //    ◎ / △ / × などのマークをテーブルの「整合」列に表示する
+              // 整合性チェックステータスセル（state.consistency_status[qid]）
               var tdConsistency = document.createElement("td");
               tdConsistency.style.padding = "2px 4px";
               tdConsistency.style.verticalAlign = "top";
@@ -2013,7 +2048,26 @@
               // 整合ステータスの値を左右中央揃えで表示
               tdConsistency.style.textAlign = "center";
 
-              var consistencyMark = getConsistencyMarkForQid(qid);
+              var consistencyMark = "";
+
+              // まずは「SYNC 上で◎かどうか」を Set で判定する。
+              // - 判定は isConsistencyOkQid(qid) のみを使い、Local の結果は完全に無視する。
+              if (isConsistencyOkQid(qid)) {
+                consistencyMark = "◎";
+              } else if (syncConsistencyStatusMap && Object.prototype.hasOwnProperty.call(syncConsistencyStatusMap, qidKey)) {
+                // ◎以外のケース（△/×など）は、同じく SYNC の server.consistency_status[qid] だけを参照して表示する。
+                var rawConsistency = syncConsistencyStatusMap[qidKey];
+                if (
+                  rawConsistency &&
+                  typeof rawConsistency === "object" &&
+                  Object.prototype.hasOwnProperty.call(rawConsistency, "mark")
+                ) {
+                  consistencyMark = String(rawConsistency.mark || "");
+                } else {
+                  consistencyMark = String(rawConsistency == null ? "" : rawConsistency);
+                }
+              }
+
               if (consistencyMark) {
                 tdConsistency.textContent = consistencyMark;
               } else {
