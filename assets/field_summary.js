@@ -374,9 +374,21 @@
       }
 
       // 整合性チェックステータス（consistency_status）マップ
+      //   - localStorage: （直接保存はしない / SYNC 専用）
+      //       ⇔ SYNC state: server.consistency_status[qid]
+      //       ⇔ delta payload: consistencyStatusDelta[qid]
+      //   ※ state.server.consistency_status を唯一の正とし、
+      //      root.consistency_status など他プロパティにはフォールバックしない。
       var consistencyStatus = null;
-      if (root.consistency_status && typeof root.consistency_status === "object") {
-        consistencyStatus = root.consistency_status;
+      if (
+        root.server &&
+        typeof root.server === "object" &&
+        root.server.consistency_status &&
+        typeof root.server.consistency_status === "object"
+      ) {
+        // /api/sync/state から受け取った server.consistency_status を
+        // そのままマップとして利用する（qid → ステータスオブジェクト/記号）
+        consistencyStatus = root.server.consistency_status;
       }
 
       // お気に入り（★）マップ
@@ -694,9 +706,9 @@
   var syncStreak3WrongMap = null;      // state.streak3Wrong の生データ参照（💣累計）
   var syncLastSeenDayMap = null;       // state.lastSeenDay の生データ参照
   var syncLastCorrectDayMap = null;    // state.lastCorrectDay の生データ参照
-  var syncLastWrongDayMap = null;      // state.lastWrongDay の生データ参照
-  var syncConsistencyStatusMap = null; // state.consistency_status の生データ参照（整合性チェックステータス）
-  var syncFavMap = null;           // state.fav[qid] の生データ参照（お気に入り★）
+  var syncLastWrongDayMap = null;       // state.lastWrongDay の生データ参照
+  var syncConsistencyStatusMap = null;  // state.server.consistency_status[qid] の生データ参照（整合性チェックステータス）
+  var syncFavMap = null;           // state.fav[qid] の生データ参照（お気に入り★）  
                                    //   - localStorage: （fav_modal.js 内部管理）
                                    //       ⇔ SYNC state: fav[qid]
                                    //       ⇔ delta payload: fav[qid] ("unset" | "fav001" | "fav002" | "fav003")
@@ -1625,7 +1637,8 @@
           thConsistency.style.padding = "2px 4px";
           thConsistency.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thConsistency.style.whiteSpace = "nowrap";
-          thConsistency.title = "state.consistency_status[qid] のステータスマーク";
+          // server.consistency_status[qid] に保存されたステータスマーク（◎ / △ / × など）を表示する
+          thConsistency.title = "server.consistency_status[qid] のステータスマーク";
 
           var thLastCorrect = document.createElement("th");
           thLastCorrect.textContent = "最終正解";
