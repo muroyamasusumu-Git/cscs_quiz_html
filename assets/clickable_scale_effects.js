@@ -19,9 +19,13 @@
     "transition-duration:0.15s;" +
     "transition-timing-function:ease-out;" +
     "transform-origin:center center;" +
+    "cursor:pointer;" +                    // マウスカーソルを「押せる手」にして、押せる感を強調
     "}" +
     ".sa-hover:hover{" +
-    "transform:scale(1.03);" +
+    "transform:scale(1.03);" +             // hover 時に 1.03 倍：ふわっと大きく見せる
+    "}" +
+    ".sa-hover:active{" +
+    "transform:scale(0.97);" +             // マウス押下時に少しだけ沈み込ませる（クリック感）
     "}";
 
   function injectScaleStyleIfNeeded() {
@@ -190,22 +194,63 @@
 
     for (var i = 0; i < nodeList.length; i++) {
       var el = nodeList[i];
+
+      // A/Bパートの選択肢行（ol.opts li）は「行全体」を押せる面として扱いたいので、
+      // isFocusableClickable の判定に関係なく必ずバインドする。
+      if (el.tagName === "LI" && el.closest("ol.opts")) {
+        bindScaleToElement(el);
+        continue;
+      }
+
+      // 通常のボタン/リンク/role=button などは、フォーカス可能なクリック要素だけにバインドする。
       if (isFocusableClickable(el)) {
         bindScaleToElement(el);
       }
     }
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  // DOM 構築完了時に一度全体へバインドし、
+  // その後は MutationObserver で動的に追加された要素にも同じ処理を適用する。
+  function setupGlobalBinding() {
     injectScaleStyleIfNeeded();
     bindScaleToAllClickables(document);
+
+    if (!window.MutationObserver) {
+      return; // 古い環境では初回バインドのみ（フォールバック処理は追加しない方針）
+    }
+
+    var observer = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (!m.addedNodes || m.addedNodes.length === 0) {
+          continue;
+        }
+        for (var j = 0; j < m.addedNodes.length; j++) {
+          var node = m.addedNodes[j];
+          if (!(node instanceof HTMLElement)) {
+            continue;
+          }
+          // 追加されたノード自身とその子孫に対して、同じ「押せる要素の自動検出＋バインド」を行う。
+          bindScaleToAllClickables(node);
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setupGlobalBinding();
   });
 
-  // 動的に追加されたDOM用（必要なら呼び出せるように）
+  // 動的に追加されたDOM用（必要なら手動でも呼び出せるように）
   window.ScaleAnimatorBinding = {
     bindRoot: function (root) {
       injectScaleStyleIfNeeded();
-      bindScaleToAllClickables(root);
+      bindScaleToAllClickables(root || document);
     }
   };
 })();
