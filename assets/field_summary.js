@@ -1302,24 +1302,6 @@
           thQid.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
           thQid.style.whiteSpace = "nowrap";
 
-          var thLast = document.createElement("th");
-          thLast.textContent = "最終";
-          thLast.style.textAlign = "left";
-          thLast.style.fontWeight = "600";
-          thLast.style.fontSize = "11px";
-          thLast.style.padding = "2px 4px";
-          thLast.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
-          thLast.style.whiteSpace = "nowrap";
-
-          var thStreak = document.createElement("th");
-          thStreak.textContent = "連続正解";
-          thStreak.style.textAlign = "left";
-          thStreak.style.fontWeight = "600";
-          thStreak.style.fontSize = "11px";
-          thStreak.style.padding = "2px 4px";
-          thStreak.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
-          thStreak.style.whiteSpace = "nowrap";
-
           var thLevel = document.createElement("th");
           thLevel.textContent = "レベル";
           thLevel.style.textAlign = "left";
@@ -1337,11 +1319,30 @@
           thQuestion.style.padding = "2px 4px";
           thQuestion.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
 
+          var thLast = document.createElement("th");
+          thLast.textContent = "最終";
+          thLast.style.textAlign = "left";
+          thLast.style.fontWeight = "600";
+          thLast.style.fontSize = "11px";
+          thLast.style.padding = "2px 4px";
+          thLast.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thLast.style.whiteSpace = "nowrap";
+
+          var thStreak = document.createElement("th");
+          thStreak.textContent = "連続";
+          thStreak.style.textAlign = "left";
+          thStreak.style.fontWeight = "600";
+          thStreak.style.fontSize = "11px";
+          thStreak.style.padding = "2px 4px";
+          thStreak.style.borderBottom = "1px solid rgba(255, 255, 255, 0.3)";
+          thStreak.style.whiteSpace = "nowrap";
+
+          // カラム順: qid / レベル / 問題文 / 最終 / 連続
           headTr.appendChild(thQid);
-          headTr.appendChild(thLast);
-          headTr.appendChild(thStreak);
           headTr.appendChild(thLevel);
           headTr.appendChild(thQuestion);
+          headTr.appendChild(thLast);
+          headTr.appendChild(thStreak);
           thead.appendChild(headTr);
 
           var tbody = document.createElement("tbody");
@@ -1506,11 +1507,12 @@
               }
               tdQuestion.textContent = qText;
 
+              // カラム順: qid / レベル / 問題文 / 最終 / 連続 に合わせてセルを追加
               tr.appendChild(tdQid);
-              tr.appendChild(tdLast);
-              tr.appendChild(tdStreak);
               tr.appendChild(tdLevel);
               tr.appendChild(tdQuestion);
+              tr.appendChild(tdLast);
+              tr.appendChild(tdStreak);
               tbody.appendChild(tr);
             }
 
