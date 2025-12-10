@@ -92,6 +92,54 @@
     }
   })();
 
+  // トライアルモード（A→B 自動遷移＋計測あり、整合性チェックは関与しない）用の localStorage キー
+  // 値は "on" または "off" を前提とし、それ以外は "off" に丸める
+  var TRIAL_MODE_KEY = "cscs_auto_trial_mode";
+
+  // トライアルモード状態を読み込むヘルパー
+  // - localStorage から "on"/"off" を取得し、それ以外は "off" にそろえる
+  function loadTrialMode() {
+    try {
+      var v = localStorage.getItem(TRIAL_MODE_KEY);
+      if (v === "on" || v === "off") {
+        return v;
+      }
+      return "off";
+    } catch (_e) {
+      return "off";
+    }
+  }
+
+  // トライアルモード状態を保存するヘルパー
+  // - mode を "on"/"off" に正規化してから localStorage へ保存する
+  function saveTrialMode(mode) {
+    try {
+      var normalized = mode === "on" ? "on" : "off";
+      localStorage.setItem(TRIAL_MODE_KEY, normalized);
+    } catch (_e) {
+      // 保存失敗は致命的ではないので無視
+    }
+  }
+
+  // グローバルなトライアルモードフラグを初期化する
+  // - window.CSCS_TRIAL_MODE に "on"/"off" をセットし、localStorage と同期する
+  (function initTrialModeGlobal() {
+    var initialMode = "off";
+    try {
+      initialMode = loadTrialMode();
+    } catch (_e) {
+      initialMode = "off";
+    }
+
+    if (typeof window.CSCS_TRIAL_MODE !== "string") {
+      window.CSCS_TRIAL_MODE = initialMode;
+    } else {
+      // 既にどこかで設定されている場合は "on"/"off" に丸めて保存
+      window.CSCS_TRIAL_MODE = window.CSCS_TRIAL_MODE === "on" ? "on" : "off";
+      saveTrialMode(window.CSCS_TRIAL_MODE);
+    }
+  })();
+
   // ログ用ヘルパー（このファイル専用のプレフィックス）
   function syncLog() {
     try {
@@ -723,12 +771,18 @@
       return null;
     }
 
-    // ▼ 自動検証モード（A→B 自動遷移／計測なし）の特別処理
-    //   - Aパートのときだけ、同じ問題番号の Bパートへ送る
-    //   - Bパート側は従来どおり（次の問題の A へ）でよい
+    // ▼ 各モード状態の取得
+    //   - verifyOn : 自動検証モード（整合性チェック用）の ON/OFF
+    //   - trialOn  : トライアルモード（A→B 自動遷移＋計測あり）の ON/OFF
     var verifyOn =
       typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
-    if (verifyOn && info.part === "a") {
+    var trialOn =
+      typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on";
+
+    // ▼ 自動検証モード／トライアルモード共通の A→B 自動遷移処理
+    //   - Aパートのときだけ、同じ問題番号の Bパートへ送る
+    //   - Bパート側は従来どおりのロジック（次の問題の A へ）を使う
+    if ((verifyOn || trialOn) && info.part === "a") {
       var pathVerify = String(location.pathname || "");
       var nextNum3Verify = String(info.idx).padStart(3, "0");
       var nextPathVerify = pathVerify.replace(
@@ -737,9 +791,11 @@
       );
 
       var qidVerify = info.day + "-" + nextNum3Verify;
-      syncLog("VerifyMode: A→B auto jump.", {
+      syncLog("Verify/TrialMode: A→B auto jump.", {
         qid: qidVerify,
-        url: nextPathVerify
+        url: nextPathVerify,
+        verifyOn: verifyOn,
+        trialOn: trialOn
       });
 
       return nextPathVerify;
@@ -1217,6 +1273,84 @@
     return btn;
   }
 
+  // TRYALモード（A→B 自動遷移＋計測あり）の ON/OFF を切り替えるボタンを生成する
+  // - [TRYAL:ON] にした瞬間に検証モードを強制 OFF にし、自動送りを ON にそろえる
+  function createTrialModeToggleButton() {
+    var btn = document.getElementById("auto-next-trial-toggle");
+    if (btn) {
+      return btn;
+    }
+
+    btn = document.createElement("button");
+    btn.id = "auto-next-trial-toggle";
+    btn.type = "button";
+
+    // 現在のトライアルモード状態に応じて初期ラベルを決定する
+    var trialOn = (typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on");
+    btn.textContent = trialOn ? "[TRYAL:ON]" : "[TRYAL:OFF]";
+
+    // 他ボタンと同等の見た目にそろえる（位置だけ右側にずらす）
+    btn.style.cssText =
+      "position: fixed;" +
+      "left: 548px;" +
+      "bottom: 14px;" +
+      "padding: 6px 10px;" +
+      "font-size: 13px;" +
+      "color: rgb(150, 150, 150);" +
+      "border-radius: 0px;" +
+      "z-index: 10000;" +
+      "cursor: pointer;" +
+      "background: none;" +
+      "border: none;";
+
+    // クリックで TRYAL モード "on"/"off" をトグルし、検証モードとの排他制御と自動送り ON を行う
+    btn.addEventListener("click", function () {
+      var current = (typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on") ? "on" : "off";
+      var next = current === "on" ? "off" : "on";
+
+      // トライアルモードの状態を更新（グローバル＋localStorage）
+      window.CSCS_TRIAL_MODE = next;
+      saveTrialMode(next);
+      btn.textContent = next === "on" ? "[TRYAL:ON]" : "[TRYAL:OFF]";
+
+      if (next === "on") {
+        // TRYAL:ON 時は検証モードを必ず OFF にする
+        if (window.CSCS_VERIFY_MODE_HELPER && typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function") {
+          window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("trial-mode-on");
+        } else {
+          // ヘルパーが存在しない場合は、最低限グローバル状態だけ OFF にそろえる
+          setVerifyModeAndSyncUI("off", {
+            reason: "trial-mode-on"
+          });
+        }
+
+        // 自動送りも ON に強制し、ボタン表示と localStorage を同期させる
+        autoEnabled = true;
+        saveAutoAdvanceEnabled(true);
+        var autoBtn = document.getElementById("auto-next-toggle");
+        if (autoBtn) {
+          autoBtn.textContent = "[自動送り ON]";
+        }
+
+        // TRYAL モードに入ったタイミングで NEXT_URL を再計算し、カウントダウンを開始する
+        (async function () {
+          NEXT_URL = await buildNextUrlConsideringOdoa();
+          if (NEXT_URL) {
+            startAutoAdvanceCountdown();
+          } else {
+            cancelAutoAdvanceCountdown(true);
+          }
+        })();
+      } else {
+        // TRYAL:OFF では、検証モードは自動では触らず、自動送りの ON/OFF も現在状態を維持する
+        syncLog("TrialMode: turned OFF.", {});
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }
+
   // =========================
   // 外部から検証モードを強制ON/OFFにするための公開API
   // 例: 整合性チェックの自動モード切り替えなどから呼び出す
@@ -1328,6 +1462,19 @@
     window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode = function (reason) {
       // 検証モードON時は、自動再開用タイマーは不要なのですべてクリア
       clearVerifyModeAutoRestartTimers();
+
+      // 検証モード ON にする前に、TRYAL モードが ON なら OFF にそろえる
+      if (typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on") {
+        window.CSCS_TRIAL_MODE = "off";
+        saveTrialMode("off");
+        var trialBtn = document.getElementById("auto-next-trial-toggle");
+        if (trialBtn) {
+          trialBtn.textContent = "[TRYAL:OFF]";
+        }
+        syncLog("TrialMode: turned OFF because verify mode is turning ON.", {
+          reason: reason || "verify-mode-on"
+        });
+      }
 
       // 検証モードを "on" にして UI と localStorage を同期
       setVerifyModeAndSyncUI("on", {
@@ -1622,29 +1769,37 @@
       return;
     }
 
-    // ▼ 検証モード中は A=5秒, B=20秒 に固定するための有効待ち時間を決定する
+    // ▼ 検証モード／トライアルモード中は A=5秒, B=20秒 に固定するための有効待ち時間を決定する
     var verifyOn =
       typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+    var trialOn =
+      typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on";
     var effectiveMs = AUTO_ADVANCE_MS;
 
-    if (verifyOn) {
+    if (verifyOn || trialOn) {
       var infoForVerify = parseSlideInfo();
       if (infoForVerify && infoForVerify.part === "a") {
-        // Aパートでは 5秒 固定
+        // Aパートでは 5秒 固定（TRYAL/検証共通）
         effectiveMs = 5000;
-        syncLog("VerifyMode: use fixed duration for A (5s).", {
-          ms: effectiveMs
+        syncLog("Verify/TrialMode: use fixed duration for A (5s).", {
+          ms: effectiveMs,
+          verifyOn: verifyOn,
+          trialOn: trialOn
         });
       } else if (infoForVerify && infoForVerify.part === "b") {
-        // Bパートでは 20秒 固定
+        // Bパートでは 20秒 固定（TRYAL/検証共通）
         effectiveMs = 20000;
-        syncLog("VerifyMode: use fixed duration for B (20s).", {
-          ms: effectiveMs
+        syncLog("Verify/TrialMode: use fixed duration for B (20s).", {
+          ms: effectiveMs,
+          verifyOn: verifyOn,
+          trialOn: trialOn
         });
       } else {
         // part が判定できない場合は、現在の AUTO_ADVANCE_MS をそのまま使う
-        syncLog("VerifyMode: slide info not available, use current AUTO_ADVANCE_MS.", {
-          ms: effectiveMs
+        syncLog("Verify/TrialMode: slide info not available, use current AUTO_ADVANCE_MS.", {
+          ms: effectiveMs,
+          verifyOn: verifyOn,
+          trialOn: trialOn
         });
       }
     }
@@ -1714,6 +1869,7 @@
     createAutoNextModeToggleButton();   // 順番／ランダム
     createAutoNextDurationButton();     // 待ち時間（秒）
     createVerifyModeToggleButton();     // 自動検証モード（A→B 自動遷移）
+    createTrialModeToggleButton();      // TRYALモード（A→B 自動遷移＋計測あり）
 
     // A/B 共通コンテナ内に「次の問題へ」リンクを追加（ODOA と同じ NEXT_URL を使う）
     createBackToTopLink();
