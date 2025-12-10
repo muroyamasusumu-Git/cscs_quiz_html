@@ -156,9 +156,9 @@
   //   - updateMonitor() 内で一度だけ true にして以降はログを出さない。
   let loggedWrongStreakUiPolicy = false;
 
-  // 空欄を「none」などで埋めるための共通ヘルパー
+  // 空欄を「（データなし）」などで埋めるための共通ヘルパー
   function toDisplayText(value, emptyLabel){
-    const fallback = emptyLabel != null ? String(emptyLabel) : "none";
+    const fallback = emptyLabel != null ? String(emptyLabel) : "（データなし）";
     if (value === null || value === undefined) {
       return fallback;
     }
@@ -431,19 +431,19 @@
         const lastCorrectLocalEl = box.querySelector(".sync-last-correct-local");
         const lastWrongLocalEl   = box.querySelector(".sync-last-wrong-local");
         if (s3tDayEl) {
-          s3tDayEl.textContent = toDisplayText(streak3Today.day, "none");
+          s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
         }
         if (s3tSyncEl) {
-          // unique_count 自体が欠損している場合のみ「none」を表示
+          // unique_count 自体が欠損している場合のみ「（データなし）」を表示
           s3tSyncEl.textContent = toDisplayText(
             typeof streak3Today.unique_count === "number" ? streak3Today.unique_count : "",
-            "none"
+            "（データなし）"
           );
         }
         if (s3tLocalEl) {
           s3tLocalEl.textContent = toDisplayText(
             Number.isFinite(localStreakCount) ? localStreakCount : "",
-            "none"
+            "（データなし）"
           );
         }
 
@@ -454,39 +454,39 @@
         const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
         const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
         if (s3wtDayEl) {
-          s3wtDayEl.textContent = toDisplayText(streak3WrongToday.day, "none");
+          s3wtDayEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
         }
         if (s3wtSyncEl) {
           s3wtSyncEl.textContent = toDisplayText(
             typeof streak3WrongToday.unique_count === "number" ? streak3WrongToday.unique_count : "",
-            "none"
+            "（データなし）"
           );
         }
         if (s3wtLocalEl) {
           s3wtLocalEl.textContent = toDisplayText(
             Number.isFinite(localWrongStreakCount) ? localWrongStreakCount : "",
-            "none"
+            "（データなし）"
           );
         }
 
         // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映
         if (lastSeenSyncEl) {
-          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "none");
+          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "（データなし）");
         }
         if (lastCorrectSyncEl) {
-          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "none");
+          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "（データなし）");
         }
         if (lastWrongSyncEl) {
-          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "none");
+          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "（データなし）");
         }
         if (lastSeenLocalEl) {
-          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "none");
+          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "（データなし）");
         }
         if (lastCorrectLocalEl) {
-          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "none");
+          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "（データなし）");
         }
         if (lastWrongLocalEl) {
-          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "none");
+          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "（データなし）");
         }
 
         const lEl  = box.querySelector(".sync-local");
@@ -507,7 +507,7 @@
         const slwsProgEl = box.querySelector(".sync-wrong-streaklen-server-progress");
         const sllwProgEl = box.querySelector(".sync-wrong-streaklen-local-progress");
 
-        if (qEl)   qEl.textContent  = QID ? QID : "none";
+        if (qEl)   qEl.textContent  = QID ? QID : "（データなし）";
         if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
         if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
         if (s3El)  s3El.textContent = String(ls);
@@ -584,7 +584,7 @@
         const onceEl = box.querySelector(".sync-onceperday");
         if (onceEl) {
           // oncePerDayToday の人間向けステータスを表示
-          onceEl.textContent = onceLabel || "none";
+          onceEl.textContent = onceLabel || "（データなし）";
         }
       }
     }catch(_){
@@ -1363,12 +1363,12 @@
 
         <div class="sync-line sync-lastday">
           LastSeen/Correct/Wrong:<br>
-          sync: <span class="sync-last-seen-sync">none</span> /
-                <span class="sync-last-correct-sync">none</span> /
-                <span class="sync-last-wrong-sync">none</span><br>
-          local: <span class="sync-last-seen-local">none</span> /
-                 <span class="sync-last-correct-local">none</span> /
-                 <span class="sync-last-wrong-local">none</span>
+          sync: <span class="sync-last-seen-sync">（データなし）</span> /
+                <span class="sync-last-correct-sync">（データなし）</span> /
+                <span class="sync-last-wrong-sync">（データなし）</span><br>
+          local: <span class="sync-last-seen-local">（データなし）</span> /
+                 <span class="sync-last-correct-local">（データなし）</span> /
+                 <span class="sync-last-wrong-local">（データなし）</span>
         </div>
 
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
