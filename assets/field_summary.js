@@ -382,9 +382,15 @@
       // お気に入り（★）マップ
       //   - localStorage: （fav_modal.js 内部管理）
       //       ⇔ SYNC state: fav[qid]
-      //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+      //       ⇔ delta payload: fav[qid] ("unset" | "fav001" | "fav002" | "fav003")
+      //         - "unset"  : ★ー（未登録）
+      //         - "fav001" : ★1
+      //         - "fav002" : ★2
+      //         - "fav003" : ★3
       //   ※ このファイルでは SYNC の state.fav を唯一の正とし、
       //      他のキー（favorite / favorites / server.fav など）にはフォールバックしない。
+      //   ※ ここでは「構造がプレーンオブジェクトかどうか」だけを確認し、
+      //      値の妥当性チェックや補正は行わず、そのまま syncFavMap に渡す。
       var favMap = null;
       if (root.fav && typeof root.fav === "object") {
         favMap = root.fav;
@@ -693,7 +699,11 @@
   var syncFavMap = null;           // state.fav[qid] の生データ参照（お気に入り★）
                                    //   - localStorage: （fav_modal.js 内部管理）
                                    //       ⇔ SYNC state: fav[qid]
-                                   //       ⇔ delta payload: fav[qid] ("unset" | "understood" | "unanswered" | "none")
+                                   //       ⇔ delta payload: fav[qid] ("unset" | "fav001" | "fav002" | "fav003")
+                                   //         - "unset"  : ★ー（未登録）
+                                   //         - "fav001" : ★1
+                                   //         - "fav002" : ★2
+                                   //         - "fav003" : ★3
                                    
   // シンプルなテキストゲージ（［■■■□□□□□□］）を生成するヘルパー
   function makeProgressBar(percent, segments) {
@@ -799,13 +809,14 @@
   // qid(YYYYMMDD-NNN) から「お気に入り★レベル(0/1/2/3)」を取得するヘルパー
   //  - state.fav[qid] に保存されているコード値を参照する
   //  - 現行仕様では delta payload: fav[qid] は
-  //      "unset" | "understood" | "unanswered" | "none"
-  //    のいずれかを前提とし、これを 0〜3 にマッピングしてテーブル表示する
+  //      "unset" | "fav001" | "fav002" | "fav003"
+  //    のいずれかを前提とし、これを数値レベル 0〜3 にマッピングしてテーブル表示する
+  //    （★ー / ★1 / ★2 / ★3 のうち、ここでは数字部分 0/1/2/3 のみ扱う）
   //  - 0 の場合は「未登録」として扱い、テーブル表示は "-" にする
   function getFavLevelForQid(qid) {
     var level = 0;
     try {
-      // /api/sync/state の state.server.fav をそのまま参照する
+      // /api/sync/state の state.fav をそのまま参照する
       var map = syncFavMap;
       if (!map || typeof map !== "object") {
         // SYNC からお気に入りマップを取得できていない場合は「未登録」
@@ -818,26 +829,31 @@
         return 0;
       }
 
+      // ここで該当 qid の生の値（"unset" / "fav001" / "fav002" / "fav003" など）を取り出す
       var v = map[key];
 
-      // 1) 現行仕様の文字列コードに対応:
-      //    - "understood" : 「理解済み」 → レベル3
-      //    - "unanswered" : 「未回答・要対応」 → レベル1
-      //    - "none" / "unset" : 「お気に入り登録なし」 → レベル0
+      // 1) 文字列コードのケース:
+      //    - "fav001" → レベル1（★1）
+      //    - "fav002" → レベル2（★2）
+      //    - "fav003" → レベル3（★3）
+      //    - "unset"  → レベル0（★ー）
+      //    - 上記以外の文字列（旧仕様の "understood" など）はすべて 0 として扱う
       if (typeof v === "string") {
-        if (v === "understood") {
-          level = 3;
-        } else if (v === "unanswered") {
+        if (v === "fav001") {
           level = 1;
-        } else if (v === "none" || v === "unset") {
+        } else if (v === "fav002") {
+          level = 2;
+        } else if (v === "fav003") {
+          level = 3;
+        } else if (v === "unset") {
           level = 0;
         } else {
-          // 想定外の文字列コードは安全側に倒して「未登録」として扱う
+          // 想定外の文字列コード（旧仕様含む）は安全側として「未登録」扱いにする
           level = 0;
         }
       } else if (v && typeof v === "object") {
         // 2) 将来的に数値レベルを持つオブジェクトで保存されるケースに対応:
-        //    { level: 1|2|3 } / { rank: ... } / { value: ... } を優先的に数値化する
+        //    { level: 1|2|3 } / { rank: ... } / { value: ... } の順で数値化を試みる
         if (Object.prototype.hasOwnProperty.call(v, "level")) {
           level = Number(v.level);
         } else if (Object.prototype.hasOwnProperty.call(v, "rank")) {
@@ -845,8 +861,7 @@
         } else if (Object.prototype.hasOwnProperty.call(v, "value")) {
           level = Number(v.value);
         } else {
-          // オブジェクトだが既知プロパティが無い場合は、Number(v) の結果を一応採用する
-          // （ここはデバッグ時に想定外フォーマットを早期に浮かび上がらせるための最小限の扱い）
+          // 既知プロパティが無い場合は Number(v) の結果を一度だけ試す
           level = Number(v);
         }
       } else {
@@ -854,7 +869,7 @@
         level = Number(v);
       }
 
-      // レベルは 0〜3 の範囲に正規化する
+      // 最終的なレベル値を 0〜3 の範囲にクリップする
       if (!Number.isFinite(level) || level < 0) {
         level = 0;
       }
