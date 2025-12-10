@@ -1777,7 +1777,9 @@
       return;
     }
 
-    // ▼ 検証モード／トライアルモード中は A=5秒, B=20秒 に固定するための有効待ち時間を決定する
+    // ▼ 検証モード／トライアルモード中の有効待ち時間を決定する
+    //   - 検証モード:   A=5秒,  B=20秒（これまでどおり）
+    //   - TRYALモード: A=20秒, B=30秒（トレーニング用に少し長めに設定）
     var verifyOn =
       typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
     var trialOn =
@@ -1785,25 +1787,46 @@
     var effectiveMs = AUTO_ADVANCE_MS;
 
     if (verifyOn || trialOn) {
+      // 現在のスライドが Aパートか Bパートかを判定して、それぞれのモード別に待ち時間を固定する
       var infoForVerify = parseSlideInfo();
       if (infoForVerify && infoForVerify.part === "a") {
-        // Aパートでは 5秒 固定（TRYAL/検証共通）
-        effectiveMs = 5000;
-        syncLog("Verify/TrialMode: use fixed duration for A (5s).", {
-          ms: effectiveMs,
-          verifyOn: verifyOn,
-          trialOn: trialOn
-        });
+        if (trialOn) {
+          // TRYALモード中の Aパート: 20秒 固定（実トレーニング用に少し長めにする）
+          effectiveMs = 20000;
+          syncLog("TrialMode: use fixed duration for A (20s).", {
+            ms: effectiveMs,
+            verifyOn: verifyOn,
+            trialOn: trialOn
+          });
+        } else {
+          // 検証モード中の Aパート: 5秒 固定（従来どおり）
+          effectiveMs = 5000;
+          syncLog("VerifyMode: use fixed duration for A (5s).", {
+            ms: effectiveMs,
+            verifyOn: verifyOn,
+            trialOn: trialOn
+          });
+        }
       } else if (infoForVerify && infoForVerify.part === "b") {
-        // Bパートでは 20秒 固定（TRYAL/検証共通）
-        effectiveMs = 20000;
-        syncLog("Verify/TrialMode: use fixed duration for B (20s).", {
-          ms: effectiveMs,
-          verifyOn: verifyOn,
-          trialOn: trialOn
-        });
+        if (trialOn) {
+          // TRYALモード中の Bパート: 30秒 固定（問題を考える時間を少し長めに確保する）
+          effectiveMs = 30000;
+          syncLog("TrialMode: use fixed duration for B (30s).", {
+            ms: effectiveMs,
+            verifyOn: verifyOn,
+            trialOn: trialOn
+          });
+        } else {
+          // 検証モード中の Bパート: 20秒 固定（従来どおり）
+          effectiveMs = 20000;
+          syncLog("VerifyMode: use fixed duration for B (20s).", {
+            ms: effectiveMs,
+            verifyOn: verifyOn,
+            trialOn: trialOn
+          });
+        }
       } else {
-        // part が判定できない場合は、現在の AUTO_ADVANCE_MS をそのまま使う
+        // part が a/b どちらか判定できない場合は、ユーザー指定の AUTO_ADVANCE_MS をそのまま使用する
         syncLog("Verify/TrialMode: slide info not available, use current AUTO_ADVANCE_MS.", {
           ms: effectiveMs,
           verifyOn: verifyOn,
