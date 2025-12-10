@@ -46,12 +46,25 @@
     style.id = "cscs-slide-style";
     style.type = "text/css";
     style.textContent =
+      // 汎用スライドイン（h1 / #judge / .answer / ol.opts などに利用）
       ".cscs-slide-in-left {" +
-      "  animation: cscsSlideInLeft 0.5s ease-out 0s 1;" +
-      "  transform-origin: center left;" +
+      "  animation: cscsSlideInLeft 0.5s ease-out 0s 1;" +  // 左から 0.5 秒でスライドインする基本アニメーション
+      "  animation-fill-mode: both;" +                      // アニメ後も最終状態を維持する
+      "  transform-origin: center left;" +                  // 左側を基準にスライドさせる
+      "}" +
+      // 解説テキスト専用のスライドイン（span.explain-text 用）
+      ".cscs-slide-in-left-explain {" +
+      "  animation: cscsSlideInLeftExplain 0.5s ease-out 0s 1;" + // 少し大きめに左からスライドイン
+      "  animation-fill-mode: both;" +                            // アニメ後も最終位置を維持
+      "  transform-origin: center left;" +                        // 左側基準
+      "  display: inline-block;" +                                // inline 要素だと移動量が分かりづらいので inline-block にする
       "}" +
       "@keyframes cscsSlideInLeft {" +
-      "  0% { transform: translateX(-40px); opacity: 0; }" +
+      "  0% { transform: translateX(-40px); opacity: 0; }" +      // 通常要素は 40px 程度のスライド
+      "  100% { transform: translateX(0); opacity: 1; }" +
+      "}" +
+      "@keyframes cscsSlideInLeftExplain {" +
+      "  0% { transform: translateX(-80px); opacity: 0; }" +      // 解説は少し大きめに 80px 左から滑り込ませる
       "  100% { transform: translateX(0); opacity: 1; }" +
       "}";
 
@@ -102,8 +115,8 @@
           }
 
           if (isExplainText) {
-            // 解説テキストだけ、わずかに遅らせてスライドインさせる
-            // - 問題文や判定結果が先に表示されてから、追いかけるように解説が滑り込んでくる演出用
+            // 解説テキストだけ、わずかに遅らせて「解説専用アニメーション」でスライドインさせる
+            // - display:inline なままだと横移動が分かりづらいので、CSS側で inline-block にしている
             setTimeout(
               (function (targetEl) {
                 return function () {
@@ -111,16 +124,16 @@
                     return;
                   }
                   try {
-                    targetEl.classList.add("cscs-slide-in-left");
+                    targetEl.classList.add("cscs-slide-in-left-explain"); // 解説専用アニメーションを適用
                   } catch (_e) {
                     // classList.add に失敗しても他要素には影響させない
                   }
                 };
               })(el),
-              500 // 遅延時間（ミリ秒）。必要に応じて 200〜300ms 程度で微調整可能
+              250 // 遅延時間（ミリ秒）。必要に応じて 200〜300ms 程度で微調整可能
             );
           } else {
-            // 通常の要素は即時スライドイン
+            // 通常の要素は即時に汎用スライドインアニメーションを適用
             el.classList.add("cscs-slide-in-left");
           }
         }
