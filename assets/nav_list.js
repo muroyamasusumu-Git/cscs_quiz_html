@@ -488,9 +488,9 @@
       backdropFilter: "blur(8px)",
       WebkitBackdropFilter: "blur(8px)",
       maxHeight: "calc(100vh - 24px)",
-      opacity: "0",
+      opacity: "0.5",
       pointerEvents: "none",
-      transition: "opacity 0.6s ease-in-out"
+      transition: "opacity 0.5s ease-in-out"
     });
 
     // #root があればその中に、それ以外は body 直下に追加
@@ -689,7 +689,7 @@
         fontWeight: "300",
         lineHeight: "1.3",
         textAlign: "right",
-        opacity: "0.6"
+        opacity: "0.5"
       });
     }catch(_){}
 
@@ -895,7 +895,7 @@
           wdCell.textContent = weekdays[w];
           wdCell.style.textAlign = "center";
           wdCell.style.fontSize = "11px";
-          wdCell.style.opacity = "0.8";
+          wdCell.style.opacity = "0.5";
           grid.appendChild(wdCell);
         }
 
@@ -1562,7 +1562,7 @@
     panel.style.display = "flex";
     panel.style.flexDirection = "column";
     panel.style.pointerEvents = "auto";
-    panel.style.opacity = "0.6";
+    panel.style.opacity = "0.5";
 
     // nav_manifest.json を読み込んで中身を描画
     await renderListInto(panel);
@@ -1591,7 +1591,7 @@
         return;
       }
       // 透明度を下げて反応を殺す（裏で動いていてほしい時用）
-      panel.style.opacity = "0.6"; // フェードアウト時の最大透明設定
+      panel.style.opacity = "0.5"; // フェードアウト時の最大透明設定
       panel.style.pointerEvents = "none";
     }catch(_){}
   }
@@ -1605,7 +1605,7 @@
       panel.style.display = "flex";
       panel.style.flexDirection = "column";
       panel.style.pointerEvents = "auto";
-      panel.style.opacity = "0.6";
+      panel.style.opacity = "0.5";
     }catch(_){}
   }
 
