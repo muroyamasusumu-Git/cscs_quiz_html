@@ -1292,7 +1292,7 @@
     // 他ボタンと同等の見た目にそろえる（位置だけ右側にずらす）
     btn.style.cssText =
       "position: fixed;" +
-      "left: 548px;" +
+      "left: 570px;" +
       "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
