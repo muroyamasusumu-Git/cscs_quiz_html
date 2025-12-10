@@ -81,11 +81,25 @@
   }
 
   // ==== 次へ遷移処理 ====
+  // - 通常は CSCS_FADE.fadeOutTo を使って「フェードアウト → 遷移」を行う
+  // - CSCS_FADE が利用できないページでは、従来どおり即時の location.href で遷移する
   function goNext() {
+    // まずはフェードアウト付き遷移を試みる
+    try {
+      if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
+        // フェードイン／アウト制御用の共通APIを利用して、暗転→次の問題へ
+        window.CSCS_FADE.fadeOutTo(nextHref, "next_nav");
+        return; // フェード付き遷移を開始したので、ここで終了
+      }
+    } catch (e) {
+      // CSCS_FADE 側で何かエラーが出ても、下のフォールバックで遷移自体は継続させる
+    }
+
+    // フェードAPIが使えない場合は、従来どおり即時遷移（保険として維持）
     try {
       window.location.href = nextHref;
-    } catch (e) {
-      // 何もしない
+    } catch (_e2) {
+      // 何もしない（ここで失敗するケースはほぼ無い想定）
     }
   }
 
