@@ -77,13 +77,18 @@
     return true;
   }
 
-  // ▼ 5. .answer にズームインのアニメーションを付与するヘルパー
+  // ▼ 5. .answer に左からスライドインのアニメーションを付与するヘルパー
   function applyZoomToAnswer(){
     try{
-      // まず #judge からは必ずズーム用クラスを外す（過去付与の掃除も兼ねる）
+      // まず #judge からは必ず演出用クラスを外す（過去付与の掃除も兼ねる）
       var judgeEl = document.getElementById("judge");
-      if (judgeEl && judgeEl.classList.contains("cscs-answer-zoom-in")) {
-        judgeEl.classList.remove("cscs-answer-zoom-in");
+      if (judgeEl) {
+        if (judgeEl.classList.contains("cscs-answer-zoom-in")) {
+          judgeEl.classList.remove("cscs-answer-zoom-in");
+        }
+        if (judgeEl.classList.contains("cscs-answer-slide-in")) {
+          judgeEl.classList.remove("cscs-answer-slide-in");
+        }
       }
 
       // アニメの対象は「.answer かつ #judge ではない要素」
@@ -102,24 +107,23 @@
       if (!target) return;
 
       // すでにクラスが付いている場合は何もしない（アニメ多重適用防止）
-      if (!target.classList.contains("cscs-answer-zoom-in")) {
-        target.classList.add("cscs-answer-zoom-in");
+      if (!target.classList.contains("cscs-answer-slide-in")) {
+        target.classList.add("cscs-answer-slide-in");
       }
 
       // 一度だけスタイルを注入する
-      if (!document.getElementById("cscs-answer-zoom-style")) {
+      if (!document.getElementById("cscs-answer-slide-style")) {
         var style = document.createElement("style");
-        style.id = "cscs-answer-zoom-style";
+        style.id = "cscs-answer-slide-style";
         style.type = "text/css";
         style.textContent =
-          ".answer:not(#judge).cscs-answer-zoom-in {" +
-          "  animation: cscsAnswerZoomIn 0.6s ease-out 0s 1;" +
-          "  transform-origin: center center;" +
+          ".answer:not(#judge).cscs-answer-slide-in {" +
+          "  animation: cscsAnswerSlideIn 0.5s ease-out 0s 1;" +
+          "  transform-origin: center left;" +
           "}" +
-          "@keyframes cscsAnswerZoomIn {" +
-          "  0% { transform: scale(0.6); opacity: 0; }" +
-          "  60% { transform: scale(1.2); opacity: 1; }" +
-          "  100% { transform: scale(1.0); opacity: 1; }" +
+          "@keyframes cscsAnswerSlideIn {" +
+          "  0% { transform: translateX(-40px); opacity: 0; }" +
+          "  100% { transform: translateX(0); opacity: 1; }" +
           "}";
         var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
         head.appendChild(style);
