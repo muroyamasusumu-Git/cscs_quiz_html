@@ -802,23 +802,47 @@
   }
 
   // qid(YYYYMMDD-NNN) から「お気に入り★レベル(0/1/2/3)」を取得するヘルパー
-  //  - state.favorite / favorites / fav のいずれかから参照
+  //  - state.server.fav[qid] に保存されているコード値を参照する
+  //  - 現行仕様では delta payload: fav[qid] は
+  //      "unset" | "understood" | "unanswered" | "none"
+  //    のいずれかを前提とし、これを 0〜3 にマッピングしてテーブル表示する
   //  - 0 の場合は「未登録」として扱い、テーブル表示は "-" にする
   function getFavLevelForQid(qid) {
     var level = 0;
     try {
+      // /api/sync/state の state.server.fav をそのまま参照する
       var map = syncFavMap;
       if (!map || typeof map !== "object") {
+        // SYNC からお気に入りマップを取得できていない場合は「未登録」
         return 0;
       }
+
       var key = String(qid);
       if (!Object.prototype.hasOwnProperty.call(map, key)) {
+        // 該当 qid のエントリがない場合も「未登録」
         return 0;
       }
+
       var v = map[key];
 
-      // number / { level } / { rank } / { value } あたりに対応
-      if (v && typeof v === "object") {
+      // 1) 現行仕様の文字列コードに対応:
+      //    - "understood" : 「理解済み」 → レベル3
+      //    - "unanswered" : 「未回答・要対応」 → レベル1
+      //    - "none" / "unset" : 「お気に入り登録なし」 → レベル0
+      if (typeof v === "string") {
+        if (v === "understood") {
+          level = 3;
+        } else if (v === "unanswered") {
+          level = 1;
+        } else if (v === "none" || v === "unset") {
+          level = 0;
+        } else {
+          // 想定外の文字列コードは安全側に倒して「未登録」として扱う
+          level = 0;
+        }
+      } else if (v && typeof v === "object") {
+        // 2) 将来的に数値レベルを持つオブジェクトで保存されるケースに対応:
+        //    { level: 1|2|3 } / { rank: ... } / { value: ... } を優先的に数値化する
         if (Object.prototype.hasOwnProperty.call(v, "level")) {
           level = Number(v.level);
         } else if (Object.prototype.hasOwnProperty.call(v, "rank")) {
@@ -826,18 +850,23 @@
         } else if (Object.prototype.hasOwnProperty.call(v, "value")) {
           level = Number(v.value);
         } else {
+          // オブジェクトだが既知プロパティが無い場合は、Number(v) の結果を一応採用する
+          // （ここはデバッグ時に想定外フォーマットを早期に浮かび上がらせるための最小限の扱い）
           level = Number(v);
         }
       } else {
+        // 3) v が数値そのものなどの場合は、そのまま数値として扱う
         level = Number(v);
       }
 
+      // レベルは 0〜3 の範囲に正規化する
       if (!Number.isFinite(level) || level < 0) {
         level = 0;
       }
       if (level > 3) {
         level = 3;
       }
+
       return level;
     } catch (e) {
       console.error("field_summary.js: getFavLevelForQid error", e);
