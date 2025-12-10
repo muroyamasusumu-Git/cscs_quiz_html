@@ -77,6 +77,38 @@
     return true;
   }
 
+  // ▼ 4.5 正解表示 .answer に「飛び出す」アニメーションを付ける
+  function applyAnswerAnimation(corr){
+    try{
+      var answer = document.querySelector(".answer");
+      if (!answer) return;
+
+      // スタイルは一度だけ <head> に注入
+      if (!window.__cscsAnswerAnimStyleInstalled) {
+        var styleEl = document.createElement("style");
+        styleEl.type = "text/css";
+        styleEl.textContent =
+          ".answer.answer-correct-animate{" +
+            "display:inline-block;" +
+            "animation:cscs-answer-pop 0.6s ease-out forwards;" +
+            "transform-origin:center center;" +
+          "}" +
+          "@keyframes cscs-answer-pop{" +
+            "0%{transform:scale(0.7);opacity:0;}" +
+            "50%{transform:scale(1.15);opacity:1;}" +
+            "100%{transform:scale(1.0);opacity:1;}" +
+          "}";
+        document.head.appendChild(styleEl);
+        window.__cscsAnswerAnimStyleInstalled = true;
+      }
+
+      // 正解表示にアニメーションクラスを付与
+      answer.classList.add("answer-correct-animate");
+    }catch(e){
+      // 失敗しても全体の挙動には影響させない
+    }
+  }
+
   // ▼ 5. 正解取得 → マーク付けを一通り試みる関数
   function tryMark(){
     // まずは meta から
@@ -87,7 +119,14 @@
     if (!corr) corr = getCorrectFromAnswer();  // .answer からも拾う
 
     // 見つかった正解で markOnce を実行
-    return markOnce(corr);
+    var marked = markOnce(corr);
+
+    // 正解マークが付けられた場合のみ、.answer を飛び出させる
+    if (marked) {
+      applyAnswerAnimation(corr);
+    }
+
+    return marked;
   }
 
   // ▼ 6. DOM 準備状態に応じて初回実行タイミングを調整
