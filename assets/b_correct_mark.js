@@ -77,39 +77,44 @@
     return true;
   }
 
-  // ▼ 4.5 正解表示 .answer に「飛び出す」アニメーションを付ける
-  function applyAnswerAnimation(corr){
+  // ▼ 5. .answer にズームインのアニメーションを付与するヘルパー
+  function applyZoomToAnswer(){
     try{
       var answer = document.querySelector(".answer");
       if (!answer) return;
 
-      // スタイルは一度だけ <head> に注入
-      if (!window.__cscsAnswerAnimStyleInstalled) {
-        var styleEl = document.createElement("style");
-        styleEl.type = "text/css";
-        styleEl.textContent =
-          ".answer.answer-correct-animate{" +
-            "display:inline-block;" +
-            "animation:cscs-answer-pop 0.6s ease-out forwards;" +
-            "transform-origin:center center;" +
-          "}" +
-          "@keyframes cscs-answer-pop{" +
-            "0%{transform:scale(0.7);opacity:0;}" +
-            "50%{transform:scale(1.15);opacity:1;}" +
-            "100%{transform:scale(1.0);opacity:1;}" +
-          "}";
-        document.head.appendChild(styleEl);
-        window.__cscsAnswerAnimStyleInstalled = true;
+      // すでにクラスが付いている場合は何もしない（アニメ多重適用防止）
+      if (!answer.classList.contains("cscs-answer-zoom-in")) {
+        answer.classList.add("cscs-answer-zoom-in");
       }
 
-      // 正解表示にアニメーションクラスを付与
-      answer.classList.add("answer-correct-animate");
+      // 一度だけスタイルを注入する
+      if (!document.getElementById("cscs-answer-zoom-style")) {
+        var style = document.createElement("style");
+        style.id = "cscs-answer-zoom-style";
+        style.type = "text/css";
+        style.textContent =
+          ".answer.cscs-answer-zoom-in {" +
+          "  animation: cscsAnswerZoomIn 0.6s ease-out 0s 1;" +
+          "  transform-origin: center center;" +
+          "}" +
+          "@keyframes cscsAnswerZoomIn {" +
+          "  0% { transform: scale(0.6); opacity: 0; }" +
+          "  60% { transform: scale(1.2); opacity: 1; }" +
+          "  100% { transform: scale(1.0); opacity: 1; }" +
+          "}";
+        var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
+        head.appendChild(style);
+      }
     }catch(e){
-      // 失敗しても全体の挙動には影響させない
+      // このスクリプト単体では wlog は無いので、必要なら console に出す程度に留める
+      try{
+        console.warn("[b_correct_mark] applyZoomToAnswer error", e);
+      }catch(_){}
     }
   }
 
-  // ▼ 5. 正解取得 → マーク付けを一通り試みる関数
+  // ▼ 6. 正解取得 → マーク付けを一通り試みる関数
   function tryMark(){
     // まずは meta から
     var corr = getCorrectFromMeta();
@@ -121,15 +126,13 @@
     // 見つかった正解で markOnce を実行
     var marked = markOnce(corr);
 
-    // 正解マークが付けられた場合のみ、.answer を飛び出させる
-    if (marked) {
-      applyAnswerAnimation(corr);
-    }
+    // Bパートでの正解表示に動きをつけるため、.answer にズームインアニメを適用
+    applyZoomToAnswer();
 
     return marked;
   }
 
-  // ▼ 6. DOM 準備状態に応じて初回実行タイミングを調整
+  // ▼ 7. DOM 準備状態に応じて初回実行タイミングを調整
   if (document.readyState === "loading") {
     // 読み込み途中の場合は DOMContentLoaded と load で tryMark を呼ぶ
     document.addEventListener("DOMContentLoaded", tryMark);
@@ -140,14 +143,14 @@
     window.addEventListener("load", tryMark);
   }
 
-  // ▼ 7. setTimeout で何度か後追い実行
+  // ▼ 8. setTimeout で何度か後追い実行
   //    非同期で judge や answer が描画されるケースに備えて、
   //    わずかな遅延で何回か tryMark を再実行している
   setTimeout(tryMark, 0);
   setTimeout(tryMark, 50);
   setTimeout(tryMark, 200);
 
-  // ▼ 8. #judge の中身が後から書き換わるケースに備えた監視
+  // ▼ 9. #judge の中身が後から書き換わるケースに備えた監視
   var judge = document.getElementById("judge");
   if (judge && window.MutationObserver) {
     var obs = new MutationObserver(tryMark);
@@ -155,7 +158,7 @@
     obs.observe(judge, { childList: true, subtree: true, characterData: true });
   }
 
-  // ▼ 9. .answer の中身が後から書き換わるケースに備えた監視
+  // ▼ 10. .answer の中身が後から書き換わるケースに備えた監視
   var ans = document.querySelector(".answer");
   if (ans && window.MutationObserver) {
     var obs2 = new MutationObserver(tryMark);
