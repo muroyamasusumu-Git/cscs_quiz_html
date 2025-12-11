@@ -196,16 +196,21 @@
                   // 選択されなかった選択肢 → 完全に透明化
                   li.style.opacity = "0";
                 } else {
-                  // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍にする）
+                  // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍の「静止状態」で表示する）
                   li.style.opacity = "1";
 
-                  // クローン内の <a>（選択肢テキスト）だけを 1.10 倍に拡大する。
-                  // リストマーカー（A. / B. / C. / D.）は <li> 側の描画なので、
-                  // この transform には含まれず「記号そのまま＋テキストだけ拡大」の見た目になる。
+                  // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
+                  // hover 用クラスや transition は外し、拡大の「動き」が一切出ないようにする。
                   if (link && link.style) {
+                    if (link.classList) {
+                      link.classList.remove("sa-hover");
+                      link.classList.remove("sa-hover-fixed");
+                    }
                     link.style.display = "inline-block";
                     link.style.transformOrigin = "center center";
                     link.style.transform = "scale(1.10)";
+                    link.style.transition = "none";
+                    link.style.transitionProperty = "none";
                   }
                 }
               }
