@@ -321,7 +321,7 @@
 
       // ▼ クリック時点の見た目の transform を「一度だけ」取得して固定値にする。
       //    以後は getComputedStyle を再度読まず、この fixed 値だけを延々と上書きし続ける。
-      //    これにより、途中で CSS が 1.0 に戻しても「それを拾ってしまう」ことがなくなる。
+      //    途中で CSS が 1.0 に戻しても、それを拾ってしまうことがないようにする。
       var lockedTransform = "scale(1.10)";
       try {
         var csInit = window.getComputedStyle(el);
@@ -330,11 +330,11 @@
           lockedTransform = tfInit;
         }
       } catch (_eInit) {
-        // 取得に失敗した場合はデフォルトで 1.10 倍固定
         lockedTransform = "scale(1.10)";
       }
 
       // ▼ 即座に 1 フレーム目のロックをかける（見た目と transform を同期）
+      //    ここで inline style + !important を入れて、この時点での拡大状態を固定する。
       el.style.transformOrigin = "center center";
       el.style.setProperty("transform", lockedTransform, "important");
       el.style.setProperty("transition", "none", "important");
@@ -346,27 +346,37 @@
       el.style.setProperty("animation-duration", "0s", "important");
       el.style.setProperty("animation-timing-function", "linear", "important");
 
-      // CSS 側の hover 効果から切り離し、「固定表示」用クラスに切り替える
+      // CSS 側の hover 効果から切り離し、「固定表示」用クラスに切り替える。
+      // これにより、:hover の on/off で transform が変化しなくなる。
       el.classList.remove("sa-hover");
       el.classList.add("sa-hover-fixed");
 
       // ▼ ロック中は hover/out 由来のイベントを遮断するため、
       //    一時的に pointer-events を無効化しておく。
+      //    これでマウスの出入りによる :hover 状態の変化トリガーも封じる。
       el.style.setProperty("pointer-events", "none", "important");
 
       // ▼ 一定フレーム数のあいだ、lockedTransform をひたすら上書きし続けるループ。
-      //    - フェードアウト(800ms)より長めに 90 フレーム(約1.5秒@60fps) まで継続させる。
-      //    - 各フレームで transition / animation も毎回 none に上書きし、
-      //      1.0 に戻ろうとするアニメーションを物理的に潰す。
+      //    - フェードアウト(800ms)よりかなり長い 240 フレーム(約4秒@60fps) まで継続させる。
+      //    - 毎フレーム、transform と transition/animation を強制的に上書きし続けることで、
+      //      1.0 に戻そうとするあらゆる CSS/JS の介入を物理的に潰す。
       var frameCount = 0;
-      var maxFrames = 90;
+      var maxFrames = 240;
 
       function hardLockLoop() {
         frameCount += 1;
 
+        // 要素が既に DOM から外れている場合は、これ以上何もしない
+        if (!document.body || !document.body.contains(el)) {
+          return;
+        }
+
         try {
+          // transform を毎フレーム lockedTransform に上書きし続ける。
           el.style.transformOrigin = "center center";
           el.style.setProperty("transform", lockedTransform, "important");
+
+          // 1.0 に戻ろうとする CSS transition/animation を毎フレーム完全に無効化する。
           el.style.setProperty("transition", "none", "important");
           el.style.setProperty("transition-property", "none", "important");
           el.style.setProperty("transition-duration", "0s", "important");
@@ -376,7 +386,7 @@
           el.style.setProperty("animation-duration", "0s", "important");
           el.style.setProperty("animation-timing-function", "linear", "important");
         } catch (_eLoop) {
-          // ここで失敗しても特にフォールバックは行わず、そのまま終了する。
+          // ここでエラーになっても特にフォールバックは行わない。
         }
 
         if (frameCount < maxFrames) {
@@ -389,6 +399,8 @@
       }
 
       // ▼ 次フレーム以降でハードロックループを開始する。
+      //    クリックに伴う :active / :hover の切り替えが一通り走った後も、
+      //    その上から lockedTransform をねじ込み続ける。
       requestAnimationFrame(hardLockLoop);
     });
   }
