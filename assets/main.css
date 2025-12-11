@@ -265,16 +265,6 @@ padding-top: 0;
 margin-left: 10px;
 }
 
-
-ol.opts a.opt-link:hover,
-ol.opts a.opt-link:focus {
-    transform: scale(1.10);
-    transform-origin: center center;
-    transition: transform 0.15s ease-out;
-}
-
-
-
 /* ===== 不正解行の色を揃える（推奨：#judgeに状態クラス .is-wrong を付与） ===== */
 #judge.is-wrong,
 #judge.is-wrong * {
@@ -767,8 +757,16 @@ ol.opts a.opt-link:focus {
   -webkit-text-fill-color: currentColor !important; /* iOS Safari */
   text-decoration: none;
 }
+
+
+
 ol.opts a.opt-link:hover,
-ol.opts a.opt-link:focus { text-decoration: underline; }
+ol.opts a.opt-link:focus { 
+    text-decoration: underline; 
+    transform: scale(1.10);
+    transform-origin: center center;
+    transition: transform 0.15s ease-out;
+}
 
 /* iOSのタップ時ハイライトを控えめに */
 a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
