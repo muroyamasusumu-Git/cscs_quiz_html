@@ -533,6 +533,17 @@
             li.appendChild(inner);
           }
 
+          // ▼ 正解テキスト塊は「左端を基準に」右方向だけ拡大させる。
+          //   A〜D のリストマーカーに被らないように、テキスト自体を少し右へオフセットしておく。
+          try {
+            inner.style.display = "inline-block";
+            inner.style.width = "100%";
+            inner.style.transformOrigin = "left center";
+            inner.style.paddingLeft = "20px"; // マーカーとテキストの間隔。必要なら px を調整
+          } catch (_eCorrectOrigin) {
+            // style 設定に失敗しても致命的ではないので、そのまま進める
+          }
+
           // ▼ 正解テキスト塊は「左端を基準に」拡大させる。
           //   こうすることで、1.20 / 1.10 に拡大しても A〜D のリストマーカー側へは
           //   一切はみ出さず、右方向にだけふくらむようになる。
