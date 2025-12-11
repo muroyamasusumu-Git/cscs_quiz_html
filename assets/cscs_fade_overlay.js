@@ -200,12 +200,8 @@
                   li.style.opacity = "1";
 
                   // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
-                  // hover 用クラスや transition は外し、拡大の「動き」が一切出ないようにする。
+                  // クラスは一切変更せず、スタイルだけで拡大させる。
                   if (link && link.style) {
-                    if (link.classList) {
-                      link.classList.remove("sa-hover");
-                      link.classList.remove("sa-hover-fixed");
-                    }
                     link.style.display = "inline-block";
                     link.style.transformOrigin = "center center";
                     link.style.transform = "scale(1.10)";
