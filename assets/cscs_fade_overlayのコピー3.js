@@ -305,15 +305,9 @@
       choiceNode = null;
     }
 
-    // 問題文または選択肢のどちらかが取得できていれば、
-    // クリック処理（mousedown / mouseup / click）が一通り完了した次のイベントループで
-    // フェード用オーバーレイの上にハイライトレイヤーを作成する。
-    // これにより clickable_scale_effects.js 側での 1.10 倍固定などのスタイル反映が完全に終わった
-    // 「指を離したあとの最終状態」をクローンできるようにする。
+    // 問題文または選択肢のどちらかが取得できていれば、フェード用オーバーレイの上にハイライトレイヤーを作成する
     if (questionNode || choiceNode) {
-      window.setTimeout(function () {
-        createHighlightLayer(questionNode, choiceNode);
-      }, 30);
+      createHighlightLayer(questionNode, choiceNode);
     }
 
     // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
