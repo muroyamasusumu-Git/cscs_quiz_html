@@ -26,11 +26,11 @@
   }
 
   // SCALE_STYLE_TEXT:
-  //   ・.sa-hover                    : hover 時のアニメーションを適用する共通クラス
+  //   ・.sa-hover           : hover 時のアニメーションを適用する共通クラス
   //   ・display:inline-block; padding:… により拡大時の文字切れを防止
-  //   ・.sa-hover:hover,:active      : hover / active 中のみ 1.10 倍に拡大
+  //   ・.sa-hover:hover     : hover 中のみ 1.10 倍に拡大
   //
-  //   ・.sa-hover-fixed              :
+  //   ・.sa-hover-fixed     :
   //       - クリック後に付与される「固定拡大」用のクラス
   //       - transform:scale(1.10) を常時維持
   //       - transition:none にすることで、hover/out による再アニメーションを完全に無効化
@@ -44,7 +44,7 @@
     "transform-origin:center center;" +
     "cursor:pointer;" +
     "}" +
-    ".sa-hover:hover,.sa-hover:active{" +
+    ".sa-hover:hover{" +
     "transform:scale(1.10);" +
     "}" +
     ".sa-hover-fixed{" +
@@ -305,23 +305,22 @@
     //     hover 状態（1.10倍）をそのまま固定する。
     //   - hover サポートなし（iPad 等）では、クリック時にスケール固定は行わない。
     el.addEventListener("click", function () {
+      // タッチデバイスなど「hover なし」の環境では、クリック時にスケールを固定しない。
       if (!SUPPORTS_HOVER) {
         return;
       }
 
+      // hover 経験が無ければ固定しない（= hover してからクリックしたときだけ固定）
       if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
         return;
       }
 
-      // ▼ クリックした瞬間に完全固定（元に戻る transition を発生させない）
+      // Bパートの選択肢アンカーは bindScaleToAllClickables 側で除外されている前提なので、
+      // ここでは isChoiceAnchor は特別扱いせず、PC なら他のボタンと同じ挙動にする。
       el.classList.remove("sa-hover");
       el.classList.add("sa-hover-fixed");
       el.style.transformOrigin = "center center";
-      el.style.setProperty("transform", "scale(1.10)", "important");
-      el.style.setProperty("transition", "none", "important");
-      el.style.setProperty("transition-property", "none", "important");
-      el.style.setProperty("animation", "none", "important");
-      el.style.setProperty("animation-name", "none", "important");
+      el.style.transform = "scale(1.10)";
     });
   }
 
