@@ -13,14 +13,26 @@
   // =====================================
   var SCALE_STYLE_ID = "sa-scale-style";
 
+  // この端末が「ちゃんと hover をサポートしているか」を判定するフラグ
+  // - PC のマウス環境などでは true
+  // - iPad / スマホなどのタッチ主体の環境では false になる想定
+  var SUPPORTS_HOVER = false;
+  try {
+    if (window.matchMedia && window.matchMedia("(hover: hover)").matches) {
+      SUPPORTS_HOVER = true;
+    }
+  } catch (_eMediaHover) {
+    SUPPORTS_HOVER = false;
+  }
+
   // SCALE_STYLE_TEXT:
-  //   ・.sa-hover           : hover 時のアニメーションを適用する共通クラス
+  //   ・.sa-hover                    : hover 時のアニメーションを適用する共通クラス
   //   ・display:inline-block; padding:… により拡大時の文字切れを防止
-  //   ・.sa-hover:hover     : hover 中のみ 1.06 倍に拡大
+  //   ・.sa-hover:hover,:active      : hover / active 中のみ 1.10 倍に拡大
   //
-  //   ・.sa-hover-fixed     :
+  //   ・.sa-hover-fixed              :
   //       - クリック後に付与される「固定拡大」用のクラス
-  //       - transform:scale(1.06) を常時維持
+  //       - transform:scale(1.10) を常時維持
   //       - transition:none にすることで、hover/out による再アニメーションを完全に無効化
   var SCALE_STYLE_TEXT =
     ".sa-hover{" +
@@ -32,18 +44,37 @@
     "transform-origin:center center;" +
     "cursor:pointer;" +
     "}" +
-    ".sa-hover:hover{" +
-    "transform:scale(1.06);" +
+    ".sa-hover:hover,.sa-hover:active{" +
+    "transform:scale(1.10);" +
     "}" +
     ".sa-hover-fixed{" +
     "display:inline-block;" +                 // hover版と同じボックス特性を維持
     "padding:2px 4px;" +
     "transform-origin:center center;" +
-    "transform:scale(1.06) !important;" +    // 常時 1.06 倍を強制
+    "transform:scale(1.10) !important;" +    // 常時 1.10 倍を強制
     "transition-property:none !important;" + // 以後はアニメーションさせない（サイズ固定）
     "}" +
     ".sa-hover-fixed:hover{" +
-    "transform:scale(1.06) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
+    "transform:scale(1.10) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
+    "}" +
+    "#cscs-fade-highlight-layer .sa-hover," +
+    "#cscs-fade-highlight-layer .sa-hover-fixed," +
+    "#cscs-fade-highlight-layer a{" +
+    "transition-property:none !important;" +
+    "transition-duration:0s !important;" +
+    "transition-timing-function:linear !important;" +
+    "animation:none !important;" +
+    "animation-name:none !important;" +
+    "animation-duration:0s !important;" +
+    "}" +
+    "#cscs-fade-highlight-layer *{" +
+    "transition:none !important;" +
+    "transition-property:none !important;" +
+    "transition-duration:0s !important;" +
+    "transition-timing-function:linear !important;" +
+    "animation:none !important;" +
+    "animation-name:none !important;" +
+    "animation-duration:0s !important;" +
     "}";
 
   function injectScaleStyleIfNeeded() {
@@ -102,6 +133,26 @@
   //   ※ CSS transition では表現しきれない「JS 制御の連続したアニメーション」を作れる。
   function animateScale(el, from, to, duration, easing, onDone) {
     if (!el) return;
+
+    // ハイライトレイヤー(#cscs-fade-highlight-layer) 配下の要素に対しては、
+    // アニメーションを一切行わず「最終状態のみ」を即時適用する。
+    try {
+      if (el.closest && el.closest("#cscs-fade-highlight-layer")) {
+        var finalScale = (typeof to === "number") ? to : 1.0;
+        el.style.transformOrigin = "center center";
+        try {
+          el.style.setProperty("transform", "scale(" + finalScale + ")", "important");
+        } catch (_eSet) {
+          el.style.transform = "scale(" + finalScale + ")";
+        }
+        if (typeof onDone === "function") {
+          onDone();
+        }
+        return;
+      }
+    } catch (_eHighlightScale) {
+      // closest 未対応環境では従来挙動
+    }
 
     var start = performance.now();
 
@@ -205,24 +256,152 @@
   function bindScaleToElement(el) {
     if (!el) return;
 
+    // ハイライトレイヤー配下のクローン要素にはスケール系のバインドを一切行わない。
+    try {
+      if (el.closest && el.closest("#cscs-fade-highlight-layer")) {
+        return;
+      }
+    } catch (_eBindHighlight) {
+      // closest 未対応環境では従来挙動
+    }
+
     if (el.getAttribute("data-sa-bound") === "1") {
       return;
     }
     el.setAttribute("data-sa-bound", "1");
 
     // 初期状態では hover 用のクラスを付与して、
-    // マウスオーバー時にだけ 1.06 倍へふわっと拡大させる。
+    // マウスオーバー時にだけ 1.10 倍へふわっと拡大させる。
     el.classList.add("sa-hover");
 
-    // ▼クリックされた瞬間に「サイズ固定モード」に切り替える。
-    //   - sa-hover を外すことで、今後 hover による拡大/縮小の対象から外す
-    //   - sa-hover-fixed を付与して、「常時 1.06 倍＋アニメーション無し」のスタイルに切り替える
-    //   - 念のため inline style でも transform を 1.06 に固定しておく（CSS より優先される）
+    // 選択肢行内の <a> かどうかを事前に判定しておく
+    // - <ol class="opts"> の内部にある <a> も対象にするが、
+    //   Bパート側では bindScaleToAllClickables() でそもそも除外される。
+    var isChoiceAnchor = false;
+    try {
+      if (el.tagName === "A" && el.closest("ol.opts")) {
+        isChoiceAnchor = true;
+      }
+    } catch (_e) {
+      isChoiceAnchor = false;
+    }
+
+    // この要素が「一度でも hover 状態になったかどうか」をフラグで持っておく。
+    // - PC（hover: hover）のみで有効にする。
+    var hasHover = false;
+    if (SUPPORTS_HOVER) {
+      var markHovered = function () {
+        hasHover = true;
+        el.setAttribute("data-sa-hovered", "1");
+      };
+      // マウス環境での hover 開始を拾う
+      el.addEventListener("mouseenter", markHovered);
+      // pointer イベントに対応している環境では pointerover でも拾う
+      el.addEventListener("pointerover", markHovered);
+    }
+
+    // ▼クリックされた瞬間の処理
+    //   - hover サポートあり（PC等）かつ「一度でも hover された要素」の場合のみ、
+    //     hover 状態（1.10倍）をそのまま固定する。
+    //   - hover サポートなし（iPad 等）では、クリック時にスケール固定は行わない。
     el.addEventListener("click", function () {
-      el.classList.remove("sa-hover");          // hover 用クラスを外し、hover による拡大挙動を完全に無効化
-      el.classList.add("sa-hover-fixed");       // 「クリック済みで固定拡大」の状態を示すクラスを付与
-      el.style.transformOrigin = "center center"; // 拡大の基準点は中央に固定
-      el.style.transform = "scale(1.06)";       // inline style で 1.06 倍を強制し、以後ずっとこのサイズを維持
+      // hover をサポートしていない環境では、
+      // 選択肢アンカー以外は従来どおり何もしない。
+      if (!SUPPORTS_HOVER && !isChoiceAnchor) {
+        return;
+      }
+
+      // 通常ボタン類は「一度 hover 済み」のものだけロック対象にする。
+      // 選択肢アンカー(<ol class="opts"> 内の <a>)は hover の有無に関係なく固定拡大させる。
+      if (!isChoiceAnchor) {
+        if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
+          return;
+        }
+      }
+
+      // ▼ クリック時点の見た目の transform を「一度だけ」取得して固定値にする。
+      //    以後は getComputedStyle を再度読まず、この fixed 値だけを延々と上書きし続ける。
+      //    途中で CSS が 1.0 に戻しても、それを拾ってしまうことがないようにする。
+      var lockedTransform = "scale(1.10)";
+      try {
+        var csInit = window.getComputedStyle(el);
+        var tfInit = csInit ? csInit.transform : null;
+        if (tfInit && tfInit !== "none") {
+          lockedTransform = tfInit;
+        }
+      } catch (_eInit) {
+        lockedTransform = "scale(1.10)";
+      }
+
+      // ▼ 即座に 1 フレーム目のロックをかける（見た目と transform を同期）
+      //    ここで inline style + !important を入れて、この時点での拡大状態を固定する。
+      el.style.transformOrigin = "center center";
+      el.style.setProperty("transform", lockedTransform, "important");
+      el.style.setProperty("transition", "none", "important");
+      el.style.setProperty("transition-property", "none", "important");
+      el.style.setProperty("transition-duration", "0s", "important");
+      el.style.setProperty("transition-timing-function", "linear", "important");
+      el.style.setProperty("animation", "none", "important");
+      el.style.setProperty("animation-name", "none", "important");
+      el.style.setProperty("animation-duration", "0s", "important");
+      el.style.setProperty("animation-timing-function", "linear", "important");
+
+      // CSS 側の hover 効果から切り離し、「固定表示」用クラスに切り替える。
+      // これにより、:hover の on/off で transform が変化しなくなる。
+      el.classList.remove("sa-hover");
+      el.classList.add("sa-hover-fixed");
+
+      // ▼ ロック中は hover/out 由来のイベントを遮断するため、
+      //    一時的に pointer-events を無効化しておく。
+      //    これでマウスの出入りによる :hover 状態の変化トリガーも封じる。
+      el.style.setProperty("pointer-events", "none", "important");
+
+      // ▼ 一定フレーム数のあいだ、lockedTransform をひたすら上書きし続けるループ。
+      //    - フェードアウト(800ms)よりかなり長い 240 フレーム(約4秒@60fps) まで継続させる。
+      //    - 毎フレーム、transform と transition/animation を強制的に上書きし続けることで、
+      //      1.0 に戻そうとするあらゆる CSS/JS の介入を物理的に潰す。
+      var frameCount = 0;
+      var maxFrames = 240;
+
+      function hardLockLoop() {
+        frameCount += 1;
+
+        // 要素が既に DOM から外れている場合は、これ以上何もしない
+        if (!document.body || !document.body.contains(el)) {
+          return;
+        }
+
+        try {
+          // transform を毎フレーム lockedTransform に上書きし続ける。
+          el.style.transformOrigin = "center center";
+          el.style.setProperty("transform", lockedTransform, "important");
+
+          // 1.0 に戻ろうとする CSS transition/animation を毎フレーム完全に無効化する。
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+          el.style.setProperty("transition-duration", "0s", "important");
+          el.style.setProperty("transition-timing-function", "linear", "important");
+          el.style.setProperty("animation", "none", "important");
+          el.style.setProperty("animation-name", "none", "important");
+          el.style.setProperty("animation-duration", "0s", "important");
+          el.style.setProperty("animation-timing-function", "linear", "important");
+        } catch (_eLoop) {
+          // ここでエラーになっても特にフォールバックは行わない。
+        }
+
+        if (frameCount < maxFrames) {
+          requestAnimationFrame(hardLockLoop);
+        } else {
+          // ▼ ロック完了後に pointer-events を元に戻し、
+          //    以後のクリックや hover を通常どおり受け付けるようにする。
+          el.style.removeProperty("pointer-events");
+        }
+      }
+
+      // ▼ 次フレーム以降でハードロックループを開始する。
+      //    クリックに伴う :active / :hover の切り替えが一通り走った後も、
+      //    その上から lockedTransform をねじ込み続ける。
+      requestAnimationFrame(hardLockLoop);
     });
   }
 
@@ -252,24 +431,47 @@
     var selector = baseSelectors.join(",");
     var nodeList = root.querySelectorAll(selector);
 
+    // Bパートかどうかを事前に判定しておく（body.mode-b）
+    var body = document.body;
+    var isModeB = false;
+    if (body && body.classList && body.classList.contains("mode-b")) {
+      isModeB = true;
+    }
+
     for (var i = 0; i < nodeList.length; i++) {
       var el = nodeList[i];
+
+      // #cscs-fade-highlight-layer 配下のクローン要素は、
+      // フェード専用表示なのでスケール系のイベントバインドは一切行わない。
+      try {
+        if (el.closest("#cscs-fade-highlight-layer")) {
+          continue;
+        }
+      } catch (_eHighlight) {
+        // closest が使えない古い環境では従来どおりの挙動にフォールバック
+      }
 
       // ▼ 選択肢の行 <li>（ol.opts li）について
       //   ・ブラウザは <li> に対して「A. / B. / C. / D.」などのマーカーを描画する。
       //   ・<li> 全体を拡大すると、このマーカーも一緒に拡大されてしまう。
-      //   ・今回の要件では「A. / B. / C. / D. の部分は動かさず、テキストだけ拡大」したいので、
-      //     <li> 自体には sa-hover を付けないようにし、ここでは何もバインドしない。
-      //   ・その代わり、同じ行の中にある <a class="opt-link" ...> に対してのみ
-      //     isFocusableClickable() 判定を通じて sa-hover を付与する。
+      //   ・今回の方針では「選択肢テキストの hover 時だけをアニメーションさせる」ため、
+      //     <li> 自体には hover / click のスケールアニメーションを一切付けない。
+      //   ・同じ行の中にある <a class=\"opt-link\" ...> は、bindScaleToElement() 側で
+      //     hover 用クラス（sa-hover）のみ付与される。
       if (el.tagName === "LI" && el.closest("ol.opts")) {
+        // Aパート / Bパートともに、<li> 自体にはスケール系の処理を何も行わない。
+        continue;
+      }
+
+      // ▼ Bパートでは「選択肢テキスト自体」の拡大を無効化する。
+      //   ・Aパート: <a href="...">（選択肢テキスト）は拡大対象
+      //   ・Bパート: 同じ <a> でも、ol.opts 内にあるものは拡大対象から除外
+      if (isModeB && el.tagName === "A" && el.closest("ol.opts")) {
         continue;
       }
 
       // 通常のボタン/リンク/role=button などは、
       // isFocusableClickable で「クリック可能」と判断されたもののみに拡大効果を付ける。
-      //   ・選択肢テキストは <a href="..."> なのでここで拾われる
-      //   ・<li> にはバインドしていないため、マーカー（A./B./C./D.）は固定のまま
       if (isFocusableClickable(el)) {
         bindScaleToElement(el);
       }
@@ -281,11 +483,16 @@
   function setupGlobalBinding() {
     var body = document.body;
 
-    // body.classList に "mode-a" が付いているページだけを対象にする。
-    //   ・Aパートの <body> には "mode-a" が付与されている想定
-    //   ・Bパートなど他の画面では hover 拡大を無効化したいため、
-    //     ここで早期 return して一切バインドしない。
-    if (!body || !body.classList || !body.classList.contains("mode-a")) {
+    // body.classList に "mode-a" または "mode-b" が付いているページだけを対象にする。
+    //   ・Aパートの <body> には "mode-a"
+    //   ・Bパートの <body> には "mode-b"
+    //   が付与されている想定とし、それ以外の画面では hover 拡大を無効化する。
+    if (!body || !body.classList) {
+      return;
+    }
+    var isModeA = body.classList.contains("mode-a");
+    var isModeB = body.classList.contains("mode-b");
+    if (!isModeA && !isModeB) {
       return;
     }
 
