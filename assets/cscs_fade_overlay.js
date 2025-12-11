@@ -172,7 +172,7 @@
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
           // ※ここでは「選択した<li>だけ可視化し、それ以外の<li>は透明にする」処理も追加する
-          var cloneTag = clone.tagName ? cloneTag = clone.tagName.toLowerCase() : "";
+          var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
             clone.style.marginLeft = "18px";
             clone.style.marginBottom = "15px";
@@ -188,49 +188,26 @@
                 var li = lis[ii];
                 var link = li.querySelector("a");
                 if (!link || !link.href) {
-                  // クローン内で href を持たないものは選択対象外として透明にしておく
-                  li.style.opacity = "0";
                   continue;
                 }
 
-                // ここでは、まだ href を残したまま「どの選択肢が選ばれたか」を判定する。
-                // - link.href に含まれる "choice=◯" と selectedChoiceCode を比較する。
-                var hrefStr = String(link.href);
-                var isSelected = hrefStr.indexOf("choice=" + selected) !== -1;
-
-                if (!isSelected) {
+                // href 内の choice=◯ と、選択されたコードが一致するかどうかで可視・不可視を切り替える
+                if (link.href.indexOf("choice=" + selected) === -1) {
                   // 選択されなかった選択肢 → 完全に透明化
                   li.style.opacity = "0";
-                  continue;
-                }
+                } else {
+                  // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍の「静止状態」で表示する）
+                  li.style.opacity = "1";
 
-                // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍の「静止状態」で表示する）
-                li.style.opacity = "1";
-
-                // 以降は「クローンを clickable 対象から完全に外す」処理。
-                // - clickable_scale_effects.js の検出条件から除外するために clickable 系の属性・クラスを削除する。
-                if (link.classList) {
-                  // hover 拡大用クラスを外すことで、クローンに対しては CSS 側のスケールを効かせない。
-                  link.classList.remove("sa-hover");
-                  link.classList.remove("sa-hover-fixed");
-                }
-                link.removeAttribute("data-sa-bound");
-                link.removeAttribute("data-sa-clickable");
-                link.removeAttribute("role");
-                // "a[href]" セレクタから外すために、判定が終わったあとで href を削除する。
-                link.removeAttribute("href");
-
-                // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
-                // イベントやトランジションは一切付けず、完全に静止した 1.10 倍テキストとして扱う。
-                if (link && link.style) {
-                  link.style.display = "inline-block";
-                  link.style.transformOrigin = "center center";
-                  link.style.transform = "scale(1.00)";
-                  link.style.transition = "none";
-                  link.style.transitionProperty = "none";
-                  // pointerEvents を none にしておくことで、クローンのテキスト自体は
-                  // マウスオーバー／クリックのヒットターゲットにならず、元 DOM 側にだけイベントが届く。
-                  link.style.pointerEvents = "none";
+                  // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
+                  // クラスは一切変更せず、スタイルだけで拡大させる。
+                  if (link && link.style) {
+                    link.style.display = "inline-block";
+                    link.style.transformOrigin = "center center";
+                    link.style.transform = "scale(1.10)";
+                    link.style.transition = "none";
+                    link.style.transitionProperty = "none";
+                  }
                 }
               }
             }
