@@ -44,6 +44,14 @@
     "}" +
     ".sa-hover-fixed:hover{" +
     "transform:scale(1.10) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
+    "}" +
+    "#cscs-fade-highlight-layer .sa-hover," +
+    "#cscs-fade-highlight-layer .sa-hover-fixed," +
+    "#cscs-fade-highlight-layer a{" +
+    "transition-property:none !important;" +
+    "transition-duration:0s !important;" +
+    "transition-timing-function:linear !important;" +
+    "animation:none !important;" +
     "}";
 
   function injectScaleStyleIfNeeded() {
@@ -319,6 +327,16 @@
 
     for (var i = 0; i < nodeList.length; i++) {
       var el = nodeList[i];
+
+      // #cscs-fade-highlight-layer 配下のクローン要素は、
+      // フェード専用表示なのでスケール系のイベントバインドは一切行わない。
+      try {
+        if (el.closest("#cscs-fade-highlight-layer")) {
+          continue;
+        }
+      } catch (_eHighlight) {
+        // closest が使えない古い環境では従来どおりの挙動にフォールバック
+      }
 
       // ▼ 選択肢の行 <li>（ol.opts li）について
       //   ・ブラウザは <li> に対して「A. / B. / C. / D.」などのマーカーを描画する。
