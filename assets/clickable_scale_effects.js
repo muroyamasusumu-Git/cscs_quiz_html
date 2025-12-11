@@ -585,11 +585,13 @@
                 //  - display:inline-block
                 //  - width:100%
                 //  - transform-origin:left center
-                // を明示指定して「左端を基準に横方向だけすぼむ」ようにする。
+                //  - margin-left:-4px で、テキスト塊全体を少しだけリストマーカー側へ寄せる
+                // を明示指定して「左端を基準に横方向だけすぼみつつ、インデントも少し浅くする」ようにする。
                 try {
                   otherInner.style.display = "inline-block";
                   otherInner.style.width = "100%";
                   otherInner.style.transformOrigin = "left center";
+                  otherInner.style.marginLeft = "-4px";
                 } catch (_eSetOrigin) {
                   // style 設定に失敗しても致命的ではないので、そのまま進める
                 }
