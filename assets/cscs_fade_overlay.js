@@ -187,27 +187,53 @@
               for (var ii = 0; ii < lis.length; ii++) {
                 var li = lis[ii];
                 var link = li.querySelector("a");
-                if (!link || !link.href) {
+                if (!link) {
                   continue;
                 }
 
-                // href 内の choice=◯ と、選択されたコードが一致するかどうかで可視・不可視を切り替える
-                if (link.href.indexOf("choice=" + selected) === -1) {
+                // クローン側の <a> から clickable 系の情報を除去する
+                // - href を外して "a[href]" セレクタから外す（clickable_scale_effects.js に拾われないようにする）
+                // - sa-hover / sa-hover-fixed / data-sa-bound など、拡大用のクラスやバインドフラグも消す
+                if (link.classList) {
+                  link.classList.remove("sa-hover");
+                  link.classList.remove("sa-hover-fixed");
+                }
+                link.removeAttribute("data-sa-bound");
+                link.removeAttribute("data-sa-clickable");
+                link.removeAttribute("role");
+                link.removeAttribute("href");
+
+                // 元の href を使って、choice=◯ が選択されたものかどうかを判定する
+                // （クローンでは clickable を外すため、元 DOM から取得した selectedChoiceCode を使う）
+                var isSelected = false;
+                if (selected && typeof selected === "string") {
+                  // data-choice などの属性があれば優先的に見る。無ければテキストからは判別しない。
+                  var dataChoice = link.getAttribute("data-choice");
+                  if (dataChoice && dataChoice.toUpperCase() === selected) {
+                    isSelected = true;
+                  }
+                }
+
+                // href 内の choice=◯ が判定に使えない場合でも、
+                // selectedChoiceCode が無ければ一律で非選択扱いにする。
+                if (!isSelected) {
                   // 選択されなかった選択肢 → 完全に透明化
                   li.style.opacity = "0";
-                } else {
-                  // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍の「静止状態」で表示する）
-                  li.style.opacity = "1";
+                  continue;
+                }
 
-                  // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
-                  // クラスは一切変更せず、スタイルだけで拡大させる。
-                  if (link && link.style) {
-                    link.style.display = "inline-block";
-                    link.style.transformOrigin = "center center";
-                    link.style.transform = "scale(1.10)";
-                    link.style.transition = "none";
-                    link.style.transitionProperty = "none";
-                  }
+                // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍の「静止状態」で表示する）
+                li.style.opacity = "1";
+
+                // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
+                // イベントやトランジションは一切付けず、完全に静止した 1.10 倍テキストとして扱う。
+                if (link && link.style) {
+                  link.style.display = "inline-block";
+                  link.style.transformOrigin = "center center";
+                  link.style.transform = "scale(1.10)";
+                  link.style.transition = "none";
+                  link.style.transitionProperty = "none";
+                  link.style.pointerEvents = "none";
                 }
               }
             }
