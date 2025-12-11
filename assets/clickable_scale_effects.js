@@ -13,18 +13,6 @@
   // =====================================
   var SCALE_STYLE_ID = "sa-scale-style";
 
-  // この端末が「ちゃんと hover をサポートしているか」を判定するフラグ
-  // - PC のマウス環境などでは true
-  // - iPad / スマホなどのタッチ主体の環境では false になる想定
-  var SUPPORTS_HOVER = false;
-  try {
-    if (window.matchMedia && window.matchMedia("(hover: hover)").matches) {
-      SUPPORTS_HOVER = true;
-    }
-  } catch (_eMediaHover) {
-    SUPPORTS_HOVER = false;
-  }
-
   // SCALE_STYLE_TEXT:
   //   ・.sa-hover           : hover 時のアニメーションを適用する共通クラス
   //   ・display:inline-block; padding:… により拡大時の文字切れを防止
@@ -48,14 +36,14 @@
     "transform:scale(1.10);" +
     "}" +
     ".sa-hover-fixed{" +
-    "display:inline-block;" +
+    "display:inline-block;" +                 // hover版と同じボックス特性を維持
     "padding:2px 4px;" +
     "transform-origin:center center;" +
-    "transform:scale(1.10) !important;" +
-    "transition-property:none !important;" +
+    "transform:scale(1.10) !important;" +    // 常時 1.10 倍を強制
+    "transition-property:none !important;" + // 以後はアニメーションさせない（サイズ固定）
     "}" +
     ".sa-hover-fixed:hover{" +
-    "transform:scale(1.10) !important;" +
+    "transform:scale(1.10) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
     "}" +
     "#cscs-fade-highlight-layer .sa-hover," +
     "#cscs-fade-highlight-layer .sa-hover-fixed," +
@@ -75,15 +63,7 @@
     "animation:none !important;" +
     "animation-name:none !important;" +
     "animation-duration:0s !important;" +
-    "}" +
-
-    // ←←← ★ ここに追加 ★
-    ".opt-link:hover{" +
-    "transform:scale(1.10);" +
-    "transition:transform 0.15s ease-out;" +
-    "}" +
-
-    ""; // ←これが SCALE_STYLE_TEXT の終端
+    "}";
 
   function injectScaleStyleIfNeeded() {
     try {
@@ -278,17 +258,13 @@
     }
     el.setAttribute("data-sa-bound", "1");
 
-    // 選択肢 <a> には hover クラスを付けず、CSS のみで hover スケールを行う
-    if (el.tagName === "A" && el.closest("ol.opts")) {
-      // 何もしない（CSS の .opt-link:hover だけに任せる）
-    } else {
-      // それ以外の要素には通常どおり hover クラスを付与
-      el.classList.add("sa-hover");
-    }
+    // 初期状態では hover 用のクラスを付与して、
+    // マウスオーバー時にだけ 1.10 倍へふわっと拡大させる。
+    el.classList.add("sa-hover");
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
-    // - <ol class="opts"> の内部にある <a> も対象にするが、
-    //   Bパート側では bindScaleToAllClickables() でそもそも除外される。
+    // - <ol class="opts"> の内部にある <a> は「マウスオーバーのみ」アニメーション対象とし、
+    //   クリック時のスケール固定は行わない。
     var isChoiceAnchor = false;
     try {
       if (el.tagName === "A" && el.closest("ol.opts")) {
@@ -298,31 +274,18 @@
       isChoiceAnchor = false;
     }
 
-    // この要素が「一度でも hover 状態になったかどうか」をフラグで持っておく。
-    // - PC（hover: hover）のみで有効にする。
-    var hasHover = false;
-    if (SUPPORTS_HOVER) {
-      var markHovered = function () {
-        hasHover = true;
-        el.setAttribute("data-sa-hovered", "1");
-      };
-      // マウス環境での hover 開始を拾う
-      el.addEventListener("mouseenter", markHovered);
-      // pointer イベントに対応している環境では pointerover でも拾う
-      el.addEventListener("pointerover", markHovered);
-    }
-
     // ▼クリックされた瞬間の処理
-    //   - hover サポートあり（PC等）かつ「一度でも hover された要素」の場合のみ、
-    //     hover 状態（1.10倍）をそのまま固定する。
-    //   - hover サポートなし（iPad 等）では、クリック時にスケール固定は行わない。
+    //   - 選択肢アンカーの場合:
+    //       クリック時のスケールアニメーションは一切行わず、
+    //       hover 時の 1.10 倍だけを維持する。
+    //   - その他のボタン／リンク:
+    //       これまでどおり、click 時に sa-hover → sa-hover-fixed へ切り替え、
+    //       inline の transform:scale(1.10) をセットする。
     el.addEventListener("click", function () {
-      // 選択肢 <a>（ol.opts 内）にはクリック時のスケール固定を行わない
-      if (el.tagName === "A" && el.closest("ol.opts")) {
+      if (isChoiceAnchor) {
+        // 選択肢の <a> については、クリック時の追加スケール固定は行わない。
         return;
       }
-
-      // その他のボタンだけは従来どおりクリック固定を残す
       el.classList.remove("sa-hover");
       el.classList.add("sa-hover-fixed");
       el.style.transformOrigin = "center center";
