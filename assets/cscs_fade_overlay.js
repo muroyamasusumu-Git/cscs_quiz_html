@@ -377,6 +377,24 @@
   }
 
   function fadeOutTo(nextUrl, reason) {
+
+    // ▼ 追加：Aパート（body.mode-a）の場合だけフェード弱くする
+    try {
+      var body = document.body;
+      if (body && body.classList && body.classList.contains("mode-a")) {
+        // A→B の遷移だけ弱フェード
+        FADE_DURATION_MS = 600;   // ←お好みで
+        FADE_MAX_OPACITY = 0.5;   // ←お好みで
+      } else {
+        // Bパートなど、通常フェードは元の強さに戻す
+        FADE_DURATION_MS = 800;
+        FADE_MAX_OPACITY = 0.7;
+      }
+    } catch (_e) {
+      // エラーが起きても既存フェード仕様で続行
+    }
+    // ▲ 追加ここまで
+
     if (!nextUrl) {
       // 遷移先 URL が無い場合はフェード処理自体を行わない
       return;
