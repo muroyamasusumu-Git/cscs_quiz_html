@@ -319,6 +319,56 @@
         }
       }
 
+      // ▼ Aパート選択肢クリック時に、同じ問題内の他の選択肢から sa-hover-fixed と
+      //    その inline transform / transition / animation を確実に剥がしておく。
+      //    これにより、縮小アニメーション(scale 0.95) が !important で潰されるのを防ぐ。
+      (function cleanOtherFixedStates() {
+        try {
+          if (!isChoiceAnchor) {
+            return;
+          }
+
+          var liNode = null;
+          try {
+            if (typeof el.closest === "function") {
+              liNode = el.closest("li");
+            }
+          } catch (_eLi) {
+            liNode = null;
+          }
+          if (!liNode) {
+            return;
+          }
+
+          var listNode = null;
+          try {
+            if (typeof liNode.closest === "function") {
+              listNode = liNode.closest("ol.opts");
+            }
+          } catch (_eList) {
+            listNode = null;
+          }
+          if (!listNode) {
+            return;
+          }
+
+          var anchors = listNode.querySelectorAll("a");
+          for (var i = 0; i < anchors.length; i++) {
+            var other = anchors[i];
+            if (other === el) {
+              continue;
+            }
+
+            other.classList.remove("sa-hover-fixed");
+            other.style.removeProperty("transform");
+            other.style.removeProperty("transition");
+            other.style.removeProperty("animation");
+          }
+        } catch (_e) {
+          // 剥がし処理でエラーが出ても、クリック本体には影響させない
+        }
+      })();
+
       // ▼ Aパートの選択肢クリック時は、「同じ問題内の他の選択肢」をすべて 0.95 まで縮小するアニメーションをかける。
       //    - body.mode-a のときだけ有効
       //    - クリックされた <a> と同じ <ol class="opts"> 内の他の <a> を対象にする
@@ -375,7 +425,7 @@
 
       // ▼ クリック時点の見た目の transform を「一度だけ」取得して固定値にする。
       //    以後は getComputedStyle を再度読まず、この fixed 値だけを延々と上書きし続ける。
-      //    途中で CSS が 1.0 に戻しても、それを拾ってしまうことがないようにする。
+      //    途中で CSS が 1.0 に戻っても、それを拾ってしまうことがないようにする。
       var lockedTransform = "scale(1.10)";
       try {
         var csInit = window.getComputedStyle(el);
@@ -413,7 +463,7 @@
       // ▼ 一定フレーム数のあいだ、lockedTransform をひたすら上書きし続けるループ。
       //    - フェードアウト(800ms)よりかなり長い 240 フレーム(約4秒@60fps) まで継続させる。
       //    - 毎フレーム、transform と transition/animation を強制的に上書きし続けることで、
-      //      1.0 に戻そうとするあらゆる CSS/JS の介入を物理的に潰す。
+      //      1.0 に戻ろうとするあらゆる CSS/JS の介入を物理的に潰す。
       var frameCount = 0;
       var maxFrames = 240;
 
