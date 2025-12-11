@@ -127,7 +127,7 @@ body.mode-b .opts li.is-correct {
 
 /* 1) リスト番号（A/B/C/D）は絶対に変えない */
 body.mode-b .opts li.is-correct::marker {
-  font-size: 1em !important; /* 既存マーカーのサイズ維持 */
+  font-size: 0.9em !important; /* 既存マーカーのサイズ維持 */
 }
 
 
