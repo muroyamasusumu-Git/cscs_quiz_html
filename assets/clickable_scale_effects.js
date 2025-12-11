@@ -595,7 +595,7 @@
                   // ▼ 縦ラインをもっと強く左側へ寄せる
                   // margin-left では限界があるため relative + left で確実に位置調整
                   otherInner.style.position = "relative";
-                  otherInner.style.left = "-10px";
+                  otherInner.style.left = "-30px";
                 } catch (_eSetOrigin) {
                   // style 設定に失敗しても致命的ではないので、そのまま進める
                 }
