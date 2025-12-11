@@ -32,7 +32,6 @@
       var cssText =
         "#cscs-fade-highlight-layer, " +
         "#cscs-fade-highlight-layer *{" +
-        "opacity:1 !important;" +
         "transition:none !important;" +
         "transition-property:none !important;" +
         "transition-duration:0s !important;" +
