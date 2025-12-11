@@ -533,6 +533,17 @@
             li.appendChild(inner);
           }
 
+          // ▼ 正解テキスト塊は「左端を基準に」拡大させる。
+          //   こうすることで、1.20 / 1.10 に拡大しても A〜D のリストマーカー側へは
+          //   一切はみ出さず、右方向にだけふくらむようになる。
+          try {
+            inner.style.display = "inline-block";
+            inner.style.width = "100%";
+            inner.style.transformOrigin = "left center";
+          } catch (_eCorrectOrigin) {
+            // style 設定に失敗しても致命的ではないので、そのまま進める
+          }
+
           // ▼ 正解テキスト塊(inner) に対して
           //      1.0 → 1.20 → 1.00 → 1.10
           //    の順にスケールを変化させる三段アニメーションを付与する。
