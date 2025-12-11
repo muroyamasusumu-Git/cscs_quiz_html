@@ -13,6 +13,16 @@
   // =====================================
   var SCALE_STYLE_ID = "sa-scale-style";
 
+  // SCALE_STYLE_TEXT:
+  //   ・.sa-hover           : JS から付与する共通クラス
+  //   ・transition-property : transform の変更だけをアニメーション対象にする
+  //   ・transition-duration : hover ON/OFF の切り替えに 0.15 秒かける
+  //   ・transition-timing   : イーズアウトで「スッと近づく」感覚にする
+  //   ・transform-origin    : 中央基準で拡大（左右均等にふくらませる）
+  //   ・cursor              : ポインタ型カーソルで「押せる要素」であることを明示
+  //
+  //   ・.sa-hover:hover     : hover 中だけ 1.06 倍に拡大
+  //                           （大きくなったと感じやすいが、文字が極端に切れにくいバランスの倍率）
   var SCALE_STYLE_TEXT =
     ".sa-hover{" +
     "transition-property:transform;" +
@@ -49,6 +59,11 @@
   // 2) scale アニメーション本体（ScaleAnimator）
   // =====================================
 
+  // easeInOutQuad(t):
+  //   ・0〜1 の進行度 t（時間割合）を「動きの加減速カーブ」に変換する関数。
+  //   ・前半（t < 0.5）はゆっくり始まり徐々に加速し、
+  //     後半は減速して止まる「自然な動き」を作る。
+  //   ・CSS の transition-timing-function と同種の概念を JS で再現している。
   function easeInOutQuad(t) {
     if (t < 0.5) {
       return 2 * t * t;
@@ -57,36 +72,64 @@
     }
   }
 
+  // animateScale(el, from, to, duration, easing, onDone):
+  //   ・要素 el の transform: scale() を「時間経過にあわせて連続的に変化」させる関数。
+  //   ・from : 開始時の拡大率（例: 1.0）
+  //   ・to   : 終了時の拡大率（例: 1.06）
+  //   ・duration : アニメーション全体の時間（ミリ秒）
+  //   ・easing   : 進行度（0→1）を動きのカーブに変換する関数
+  //   ・onDone   : アニメ終了後に一度だけ実行されるコールバック
+  //
+  //   仕組み:
+  //     1. performance.now() で開始時刻を取得
+  //     2. requestAnimationFrame で毎フレーム tick() が呼ばれる
+  //     3. 経過時間から進行度（progress 0〜1）を計算
+  //     4. easing(progress) で滑らかな加減速カーブに変換
+  //     5. scale(from → to) を補間して transform に適用
+  //     6. 最終フレームで onDone() を呼ぶ
+  //
+  //   ※ CSS transition では表現しきれない「JS 制御の連続したアニメーション」を作れる。
   function animateScale(el, from, to, duration, easing, onDone) {
     if (!el) return;
 
     var start = performance.now();
 
     function tick(now) {
-      var elapsed = now - start;
-      var progress = elapsed / duration;
+      var elapsed = now - start;                  // 経過時間
+      var progress = elapsed / duration;          // 全体のどの位置まで進んだか（0〜1）
       if (progress > 1) {
-        progress = 1;
+        progress = 1;                             // 最後のフレームで 1 に固定
       }
 
-      var eased = easing(progress);
-      var value = from + (to - from) * eased;
+      var eased = easing(progress);               // 加減速カーブを適用した進行度
+      var value = from + (to - from) * eased;     // 拡大率の補間値を計算
 
       el.style.transform = "scale(" + value + ")";
-      el.style.transformOrigin = "center center";
+      el.style.transformOrigin = "center center"; // 拡大の基準点は中央
 
       if (progress < 1) {
-        requestAnimationFrame(tick);
+        requestAnimationFrame(tick);              // 次フレームへ
       } else {
         if (typeof onDone === "function") {
-          onDone();
+          onDone();                               // アニメ終了コールバック
         }
       }
     }
 
-    requestAnimationFrame(tick);
+    requestAnimationFrame(tick);                  // アニメ開始
   }
 
+  // ScaleAnimator:
+  //   animateScale() を用途別にラップしたユーティリティ集。
+  //   画面側からは「どんな動きをさせたいか」だけを指定できるようにしている。
+  //
+  //   grow(el)   : 要素をふわっと大きくする（from=1.0 → to=1.2）
+  //   shrink(el) : 要素を小さくする（from=1.0 → to=0.8）
+  //   pulse(el)  : 一度大きく → 元に戻す（ポヨンとする UI で使われる動き）
+  //   scale(el)  : from → to の任意値へスケールさせる汎用版
+  //
+  //   ※現在の CSCS Aパートでは hover のみにして pulse/grow は使っていないが、
+  //     将来的な UI 拡張で「押した瞬間に弾む」「Bパートだけ動かしたい」などに利用できるよう残してある。
   var ScaleAnimator = {
     grow: function (el, duration, to, from, easing) {
       var d = typeof duration === "number" ? duration : 200;
@@ -105,10 +148,12 @@
     },
 
     pulse: function (el, duration, midScale, easing) {
-      var d = typeof duration === "number" ? duration : 160;    // 速めのポヨン
-      var m = typeof midScale === "number" ? midScale : 1.12;  // 気持ちいいくらいの拡大
+      var d = typeof duration === "number" ? duration : 160;
+      var m = typeof midScale === "number" ? midScale : 1.12;
       var e = typeof easing === "function" ? easing : easeInOutQuad;
 
+      // midScale（例: 1.12）までふくらませ、同じ duration で元のサイズに戻す。
+      // UI に「押し返してくるような弾力」を感じさせる典型的な動き。
       animateScale(el, 1.0, m, d, e, function () {
         animateScale(el, m, 1.0, d, e, null);
       });
@@ -154,10 +199,24 @@
     }
     el.setAttribute("data-sa-bound", "1");
 
-    el.classList.add("sa-hover");          // hover 用のクラスだけ付与し、クリック時の JS アニメは行わない
+    // hover 時の拡大は CSS の :hover だけで制御する。
+    // ここでは JS アニメーションは付けず、「sa-hover」クラスを付与することで
+    // ・拡大アニメ（transform + transition）
+    // ・ポインタカーソル
+    // の 2 点だけを有効化している。
+    el.classList.add("sa-hover");
   }
 
   function bindScaleToAllClickables(root) {
+    // baseSelectors:
+    //   - "a[href]"             : 画面内の通常リンク（選択肢リンクなどを含む）
+    //   - "button"              : <button> 要素全般
+    //   - "[role=\"button\"]"   : role 属性でボタン扱いされている要素
+    //   - "[data-sa-clickable]" : JS 側で明示的に「拡大対象」にしたい任意要素
+    //   - "ol.opts li"          : A/B パートの選択肢 1 行全体（行面クリックを有効にしたい）
+    //   - ".cscs-choice"        : そのほか問題選択 UI 系
+    //   - ".nav-button" / ".nav-btn" : ページ遷移ナビゲーションのボタン
+    //   - ".monitor-link" / ".monitor-button" : モニタ系 UI のリンク／ボタン
     var baseSelectors = [
       "a[href]",
       "button",
@@ -177,14 +236,21 @@
     for (var i = 0; i < nodeList.length; i++) {
       var el = nodeList[i];
 
-      // A/Bパートの選択肢行（ol.opts li）は「行全体」を押せる面として扱いたいので、
-      // isFocusableClickable の判定に関係なく必ずバインドする。
+      // ▼ 選択肢の行 <li>（ol.opts li）について
+      //   ・ブラウザは <li> に対して「A. / B. / C. / D.」などのマーカーを描画する。
+      //   ・<li> 全体を拡大すると、このマーカーも一緒に拡大されてしまう。
+      //   ・今回の要件では「A. / B. / C. / D. の部分は動かさず、テキストだけ拡大」したいので、
+      //     <li> 自体には sa-hover を付けないようにし、ここでは何もバインドしない。
+      //   ・その代わり、同じ行の中にある <a class="opt-link" ...> に対してのみ
+      //     isFocusableClickable() 判定を通じて sa-hover を付与する。
       if (el.tagName === "LI" && el.closest("ol.opts")) {
-        bindScaleToElement(el);
         continue;
       }
 
-      // 通常のボタン/リンク/role=button などは、フォーカス可能なクリック要素だけにバインドする。
+      // 通常のボタン/リンク/role=button などは、
+      // isFocusableClickable で「クリック可能」と判断されたもののみに拡大効果を付ける。
+      //   ・選択肢テキストは <a href="..."> なのでここで拾われる
+      //   ・<li> にはバインドしていないため、マーカー（A./B./C./D.）は固定のまま
       if (isFocusableClickable(el)) {
         bindScaleToElement(el);
       }
@@ -195,15 +261,23 @@
   // その後は MutationObserver で動的に追加された要素にも同じ処理を適用する。
   function setupGlobalBinding() {
     var body = document.body;
+
+    // body.classList に "mode-a" が付いているページだけを対象にする。
+    //   ・Aパートの <body> には "mode-a" が付与されている想定
+    //   ・Bパートなど他の画面では hover 拡大を無効化したいため、
+    //     ここで早期 return して一切バインドしない。
     if (!body || !body.classList || !body.classList.contains("mode-a")) {
-      return;                              // Aパート以外（例: mode-b）では一切バインドしない
+      return;
     }
 
+    // ページ初期表示時点の DOM に対して一括バインド。
     injectScaleStyleIfNeeded();
     bindScaleToAllClickables(document);
 
+    // MutationObserver が使えない古い環境では、
+    // 初回バインドだけ行い、動的追加要素の追従は行わない。
     if (!window.MutationObserver) {
-      return;                              // 古い環境では初回バインドのみ
+      return;
     }
 
     var observer = new MutationObserver(function (mutations) {
@@ -217,7 +291,9 @@
           if (!(node instanceof HTMLElement)) {
             continue;
           }
-          // 追加されたノード自身とその子孫に対して、同じ「押せる要素の自動検出＋バインド」を行う。
+          // 追加されたノード自身とその子孫に対して、
+          // 「押せる要素の自動検出＋バインド」を再実行して、
+          // 動的に増えたボタン類にも同じ hover 拡大を適用する。
           bindScaleToAllClickables(node);
         }
       }
