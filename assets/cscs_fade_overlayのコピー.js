@@ -66,9 +66,6 @@
       // 選択された choice (A/B/C/D など) を保存しておくための変数
       // - choiceNode が <li> の場合に、その <a> の href から choice パラメータを抽出してセットする
       var selectedChoiceCode = null;
-      // 元の <a> 要素が clickable_scale_effects.js によって「固定スケール状態(sa-hover-fixed)」になっているかどうか
-      // を保存しておくフラグ。クローン側にも同じ固定スケールを反映させるために利用する。
-      var selectedChoiceFixed = false;
 
       // choiceNode が <li> の場合は、ここで必ず親の <ol class="opts"> などのリストコンテナに昇格させる
       // - 番号付きリスト全体（インデント・行間・装飾を含む）をそのまま前面に出すための前処理
@@ -82,10 +79,6 @@
             var m = anchorForSelected.href.match(/choice=([A-Z])/);
             if (m && m[1]) {
               selectedChoiceCode = m[1]; // 例: "A" / "B" / "C" / "D"
-            }
-            // 元の <a> に sa-hover-fixed が付いていれば、「固定スケール状態」としてフラグを立てる
-            if (anchorForSelected.classList && anchorForSelected.classList.contains("sa-hover-fixed")) {
-              selectedChoiceFixed = true;
             }
           }
 
@@ -199,22 +192,20 @@
                   // 選択された選択肢 → 表示
                   li.style.opacity = "1";
 
-                  // --- 追加処理② 選択された選択肢のサイズを「固定スケール状態」に連動させる ---
-                  // 元の <a> 要素が clickable_scale_effects.js によって sa-hover-fixed 状態なら、
-                  // クローン側の <a> についても同じように固定スケールを適用する。
-                  //   ・sa-hover を外す（hover による拡大/縮小の影響を除去）
-                  //   ・sa-hover-fixed を付与（固定表示用スタイルに切り替え）
-                  //   ・inline style の transform:scale(1.06) で 1.06 倍を明示的に固定
-                  if (selectedChoiceFixed) {
-                    if (link.classList) {
-                      link.classList.remove("sa-hover");
-                      link.classList.add("sa-hover-fixed");
-                    }
-                    link.style.display = "inline-block";
-                    link.style.padding = "2px 4px";
-                    link.style.transformOrigin = "center center";
-                    link.style.transform = "scale(1.06)";
+                  // --- 追加処理② 選択された選択肢のサイズを固定する ---
+                  // クローン側の <a> についても、
+                  //   ・sa-hover を外し（hover による拡大/縮小の影響を除去）
+                  //   ・sa-hover-fixed を付与し（固定表示用のスタイルに切り替え）
+                  //   ・inline style で transform:scale(1.06) を直接指定
+                  // とすることで、フェード中も 1.06 倍のまま大きさを維持する。
+                  if (link.classList) {
+                    link.classList.remove("sa-hover");
+                    link.classList.add("sa-hover-fixed");
                   }
+                  link.style.display = "inline-block";
+                  link.style.padding = "2px 4px";
+                  link.style.transformOrigin = "center center";
+                  link.style.transform = "scale(1.06)";
                   // --- 追加処理② ここまで ---
                 }
               }
