@@ -225,7 +225,7 @@
                 if (link && link.style) {
                   link.style.display = "inline-block";
                   link.style.transformOrigin = "center center";
-                  link.style.transform = "scale(1.10)";
+                  link.style.transform = "scale(1.00)";
                   link.style.transition = "none";
                   link.style.transitionProperty = "none";
                   // pointerEvents を none にしておくことで、クローンのテキスト自体は
