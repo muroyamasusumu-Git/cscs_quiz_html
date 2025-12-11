@@ -127,7 +127,6 @@ body.mode-b .opts li::marker {
 /* 2) class="is-correct" の文字だけ大きくする */
 body.mode-b .opts li.is-correct {
   font-size: 106%;    /* ← 好きな大きさに変更 */
-  font-weight: bold;   /* 太くしたい場合は追加 */
 }
 
 
