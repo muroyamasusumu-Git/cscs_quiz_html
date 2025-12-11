@@ -48,14 +48,14 @@
     "transform:scale(1.10);" +
     "}" +
     ".sa-hover-fixed{" +
-    "display:inline-block;" +                 // hover版と同じボックス特性を維持
+    "display:inline-block;" +
     "padding:2px 4px;" +
     "transform-origin:center center;" +
-    "transform:scale(1.10) !important;" +    // 常時 1.10 倍を強制
-    "transition-property:none !important;" + // 以後はアニメーションさせない（サイズ固定）
+    "transform:scale(1.10) !important;" +
+    "transition-property:none !important;" +
     "}" +
     ".sa-hover-fixed:hover{" +
-    "transform:scale(1.10) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
+    "transform:scale(1.10) !important;" +
     "}" +
     "#cscs-fade-highlight-layer .sa-hover," +
     "#cscs-fade-highlight-layer .sa-hover-fixed," +
@@ -75,7 +75,15 @@
     "animation:none !important;" +
     "animation-name:none !important;" +
     "animation-duration:0s !important;" +
-    "}";
+    "}" +
+
+    // ←←← ★ ここに追加 ★
+    ".opt-link:hover{" +
+    "transform:scale(1.10);" +
+    "transition:transform 0.15s ease-out;" +
+    "}" +
+
+    ""; // ←これが SCALE_STYLE_TEXT の終端
 
   function injectScaleStyleIfNeeded() {
     try {
@@ -270,9 +278,13 @@
     }
     el.setAttribute("data-sa-bound", "1");
 
-    // 初期状態では hover 用のクラスを付与して、
-    // マウスオーバー時にだけ 1.10 倍へふわっと拡大させる。
-    el.classList.add("sa-hover");
+    // 選択肢 <a> には hover クラスを付けず、CSS のみで hover スケールを行う
+    if (el.tagName === "A" && el.closest("ol.opts")) {
+      // 何もしない（CSS の .opt-link:hover だけに任せる）
+    } else {
+      // それ以外の要素には通常どおり hover クラスを付与
+      el.classList.add("sa-hover");
+    }
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
     // - <ol class="opts"> の内部にある <a> も対象にするが、
@@ -305,18 +317,12 @@
     //     hover 状態（1.10倍）をそのまま固定する。
     //   - hover サポートなし（iPad 等）では、クリック時にスケール固定は行わない。
     el.addEventListener("click", function () {
-      // タッチデバイスなど「hover なし」の環境では、クリック時にスケールを固定しない。
-      if (!SUPPORTS_HOVER) {
+      // 選択肢 <a>（ol.opts 内）にはクリック時のスケール固定を行わない
+      if (el.tagName === "A" && el.closest("ol.opts")) {
         return;
       }
 
-      // hover 経験が無ければ固定しない（= hover してからクリックしたときだけ固定）
-      if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
-        return;
-      }
-
-      // Bパートの選択肢アンカーは bindScaleToAllClickables 側で除外されている前提なので、
-      // ここでは isChoiceAnchor は特別扱いせず、PC なら他のボタンと同じ挙動にする。
+      // その他のボタンだけは従来どおりクリック固定を残す
       el.classList.remove("sa-hover");
       el.classList.add("sa-hover-fixed");
       el.style.transformOrigin = "center center";
