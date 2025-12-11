@@ -216,8 +216,8 @@
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
     // - <ol class="opts"> の内部にある <a> の場合だけ、
-    //   「一瞬縮む」ような見え方を避けるために、transform と transition を
-    //   JS 側から !important で完全に固定する。
+    //   mousedown の瞬間に scale(1.06) を !important で固定し、
+    //   その後 hover/out や :active による縮小が一切起きないようにする。
     var isChoiceAnchor = false;
     try {
       if (el.tagName === "A" && el.closest("ol.opts")) {
@@ -227,16 +227,13 @@
       isChoiceAnchor = false;
     }
 
-    // ▼クリックされた瞬間に「サイズ固定モード」に切り替える。
-    //   - 選択肢 <li> 内の <a>:
-    //       transform/transition を JS 側から !important で上書きし、
-    //       その後 sa-hover を外して sa-hover-fixed を付与することで、
-    //       マウスを離しても絶対に scale(1.06) から変化しないようにする。
-    //   - その他のボタン／リンク:
-    //       これまでどおりの順番（先にクラス付け替え → 後から inline transform）。
-    el.addEventListener("click", function () {
-      if (isChoiceAnchor) {
-        // 1) まず 1.06 倍を !important で強制し、他の CSS(transform) を完全に無効化する
+    // ▼ 選択肢 <li> 内の <a> については、mousedown の時点で「絶対 scale(1.06) 固定」にする。
+    //   - transform と transition を !important で上書きし、
+    //     hover/out や :active の変化よりも強く、常に 1.06 倍を維持させる。
+    //   - そのタイミングで sa-hover を外し、sa-hover-fixed を付与しておくことで、
+    //     以後は CSS 側でも一切サイズが変わらない状態にする。
+    if (isChoiceAnchor) {
+      el.addEventListener("mousedown", function () {
         el.style.transformOrigin = "center center";
         try {
           el.style.setProperty("transform", "scale(1.06)", "important");
@@ -246,12 +243,32 @@
           el.style.transform = "scale(1.06)";
           el.style.transition = "none";
         }
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
+      });
+    }
 
-        // 2) そのあと hover 用クラスを外し、固定拡大用クラスを付与
+    // ▼クリックされた瞬間の処理
+    //   - 選択肢アンカーの場合:
+    //       mousedown でほぼ固定されているが、キーボード操作（Enter など）で
+    //       click だけ発火した場合にも備えて、同じ固定処理をもう一度適用する。
+    //   - その他のボタン／リンク:
+    //       これまでどおり、click 時に sa-hover → sa-hover-fixed へ切り替え、
+    //       inline の transform:scale(1.06) をセットする。
+    el.addEventListener("click", function () {
+      if (isChoiceAnchor) {
+        el.style.transformOrigin = "center center";
+        try {
+          el.style.setProperty("transform", "scale(1.06)", "important");
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+        } catch (_e3) {
+          el.style.transform = "scale(1.06)";
+          el.style.transition = "none";
+        }
         el.classList.remove("sa-hover");
         el.classList.add("sa-hover-fixed");
       } else {
-        // 既存挙動: 先にクラスを切り替え、その後に inline transform をセット
         el.classList.remove("sa-hover");
         el.classList.add("sa-hover-fixed");
         el.style.transformOrigin = "center center";
