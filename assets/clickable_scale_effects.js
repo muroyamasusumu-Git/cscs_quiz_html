@@ -216,8 +216,8 @@
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
     // - <ol class="opts"> の内部にある <a> の場合だけ、
-    //   mousedown の瞬間に scale(1.06) を !important で固定し、
-    //   その後 hover/out や :active による縮小が一切起きないようにする。
+    //   mousedown / mouseup / click / pointerdown のすべてで
+    //   scale(1.06) を完全固定するテスト用の挙動にする。
     var isChoiceAnchor = false;
     try {
       if (el.tagName === "A" && el.closest("ol.opts")) {
@@ -227,13 +227,13 @@
       isChoiceAnchor = false;
     }
 
-    // ▼ 選択肢 <li> 内の <a> については、mousedown の時点で「絶対 scale(1.06) 固定」にする。
-    //   - transform と transition を !important で上書きし、
-    //     hover/out や :active の変化よりも強く、常に 1.06 倍を維持させる。
-    //   - そのタイミングで sa-hover を外し、sa-hover-fixed を付与しておくことで、
-    //     以後は CSS 側でも一切サイズが変わらない状態にする。
+    // ▼ 選択肢 <li> 内の <a> 専用: 4種類のイベントすべてで scale(1.06) に固定する。
+    //   - lockChoiceScale():
+    //       transform/transition を JS 側から !important で上書きし、
+    //       hover/out や :active よりも強く常に 1.06 倍を維持させる。
+    //       同時に sa-hover を外し、sa-hover-fixed を付与して「固定拡大」状態にする。
     if (isChoiceAnchor) {
-      el.addEventListener("mousedown", function () {
+      var lockChoiceScale = function () {
         el.style.transformOrigin = "center center";
         try {
           el.style.setProperty("transform", "scale(1.06)", "important");
@@ -245,13 +245,20 @@
         }
         el.classList.remove("sa-hover");
         el.classList.add("sa-hover-fixed");
-      });
+      };
+
+      // mousedown / mouseup / click / pointerdown のどれが先に来ても、
+      // 必ず同じ lockChoiceScale() が呼ばれて 1.06 に固定されるようにする。
+      el.addEventListener("mousedown", lockChoiceScale);
+      el.addEventListener("mouseup", lockChoiceScale);
+      el.addEventListener("click", lockChoiceScale);
+      el.addEventListener("pointerdown", lockChoiceScale);
     }
 
     // ▼クリックされた瞬間の処理
     //   - 選択肢アンカーの場合:
-    //       mousedown でほぼ固定されているが、キーボード操作（Enter など）で
-    //       click だけ発火した場合にも備えて、同じ固定処理をもう一度適用する。
+    //       上の lockChoiceScale() によってすでに 1.06 固定されている前提だが、
+    //       念のため同じ固定処理をもう一度適用しておく。
     //   - その他のボタン／リンク:
     //       これまでどおり、click 時に sa-hover → sa-hover-fixed へ切り替え、
     //       inline の transform:scale(1.06) をセットする。
