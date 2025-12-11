@@ -171,7 +171,11 @@
       var value = from + (to - from) * eased;     // 拡大率の補間値を計算
 
       el.style.transform = "scale(" + value + ")";
-      el.style.transformOrigin = "center center"; // 拡大の基準点は中央
+      // transform-origin は、事前にスタイルで指定されていればそれを尊重し、
+      // 指定がない場合のみデフォルトで center center にする。
+      if (!el.style.transformOrigin || el.style.transformOrigin === "") {
+        el.style.transformOrigin = "center center"; // 拡大の基準点は中央
+      }
 
       if (progress < 1) {
         requestAnimationFrame(tick);              // 次フレームへ
