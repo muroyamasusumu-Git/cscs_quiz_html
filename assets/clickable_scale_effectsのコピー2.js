@@ -20,7 +20,7 @@
   //
   //   ・.sa-hover-fixed     :
   //       - クリック後に付与される「固定拡大」用のクラス
-  //       - transform:scale(1.10) を常時維持
+  //       - transform:scale(1.06) を常時維持
   //       - transition:none にすることで、hover/out による再アニメーションを完全に無効化
   var SCALE_STYLE_TEXT =
     ".sa-hover{" +
@@ -33,17 +33,17 @@
     "cursor:pointer;" +
     "}" +
     ".sa-hover:hover{" +
-    "transform:scale(1.10);" +
+    "transform:scale(1.06);" +
     "}" +
     ".sa-hover-fixed{" +
     "display:inline-block;" +                 // hover版と同じボックス特性を維持
     "padding:2px 4px;" +
     "transform-origin:center center;" +
-    "transform:scale(1.10) !important;" +    // 常時 1.06 倍を強制
+    "transform:scale(1.06) !important;" +    // 常時 1.06 倍を強制
     "transition-property:none !important;" + // 以後はアニメーションさせない（サイズ固定）
     "}" +
     ".sa-hover-fixed:hover{" +
-    "transform:scale(1.10) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
+    "transform:scale(1.06) !important;" +    // hoverしても値は変えない（見た目も一切変化させない）
     "}";
 
   function injectScaleStyleIfNeeded() {
@@ -217,7 +217,7 @@
     // 選択肢行内の <a> かどうかを事前に判定しておく
     // - <ol class="opts"> の内部にある <a> の場合だけ、
     //   mousedown / mouseup / click / pointerdown のすべてで
-    //   scale(1.10) を完全固定するテスト用の挙動にする。
+    //   scale(1.06) を完全固定するテスト用の挙動にする。
     var isChoiceAnchor = false;
     try {
       if (el.tagName === "A" && el.closest("ol.opts")) {
@@ -227,7 +227,7 @@
       isChoiceAnchor = false;
     }
 
-    // ▼ 選択肢 <li> 内の <a> 専用: 4種類のイベントすべてで scale(1.10) に固定する。
+    // ▼ 選択肢 <li> 内の <a> 専用: 4種類のイベントすべてで scale(1.06) に固定する。
     //   - lockChoiceScale():
     //       transform/transition を JS 側から !important で上書きし、
     //       hover/out や :active よりも強く常に 1.06 倍を維持させる。
@@ -236,11 +236,11 @@
       var lockChoiceScale = function () {
         el.style.transformOrigin = "center center";
         try {
-          el.style.setProperty("transform", "scale(1.10)", "important");
+          el.style.setProperty("transform", "scale(1.06)", "important");
           el.style.setProperty("transition", "none", "important");
           el.style.setProperty("transition-property", "none", "important");
         } catch (_e2) {
-          el.style.transform = "scale(1.10)";
+          el.style.transform = "scale(1.06)";
           el.style.transition = "none";
         }
         el.classList.remove("sa-hover");
@@ -261,16 +261,16 @@
     //       念のため同じ固定処理をもう一度適用しておく。
     //   - その他のボタン／リンク:
     //       これまでどおり、click 時に sa-hover → sa-hover-fixed へ切り替え、
-    //       inline の transform:scale(1.10) をセットする。
+    //       inline の transform:scale(1.06) をセットする。
     el.addEventListener("click", function () {
       if (isChoiceAnchor) {
         el.style.transformOrigin = "center center";
         try {
-          el.style.setProperty("transform", "scale(1.10)", "important");
+          el.style.setProperty("transform", "scale(1.06)", "important");
           el.style.setProperty("transition", "none", "important");
           el.style.setProperty("transition-property", "none", "important");
         } catch (_e3) {
-          el.style.transform = "scale(1.10)";
+          el.style.transform = "scale(1.06)";
           el.style.transition = "none";
         }
         el.classList.remove("sa-hover");
@@ -279,7 +279,7 @@
         el.classList.remove("sa-hover");
         el.classList.add("sa-hover-fixed");
         el.style.transformOrigin = "center center";
-        el.style.transform = "scale(1.10)";
+        el.style.transform = "scale(1.06)";
       }
     });
   }
@@ -336,7 +336,7 @@
 
         // Aパートでは「行全体クリック」を有効にするために、
         // <li> 自体にクリックリスナーを付与し、
-        // - 行のどこをクリックしても内部の <a> を scale(1.10) に固定
+        // - 行のどこをクリックしても内部の <a> を scale(1.06) に固定
         // - transform/transition を !important で上書き
         // - sa-hover を外して sa-hover-fixed を付与
         // することで、マウスを離しても絶対に縮まないようにする。
@@ -356,11 +356,11 @@
 
             anchor.style.transformOrigin = "center center";
             try {
-              anchor.style.setProperty("transform", "scale(1.10)", "important");
+              anchor.style.setProperty("transform", "scale(1.06)", "important");
               anchor.style.setProperty("transition", "none", "important");
               anchor.style.setProperty("transition-property", "none", "important");
             } catch (_e2) {
-              anchor.style.transform = "scale(1.10)";
+              anchor.style.transform = "scale(1.06)";
               anchor.style.transition = "none";
             }
           });
