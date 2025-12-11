@@ -476,17 +476,9 @@
       }, 0); // 0ms 遅延: クリック直後（次のイベントループ）にクローンを作成
     }
 
-    // フェードアウトしている間、フェードの下にある「元の選択肢 <li>」も同じ時間で薄くなっていくようにする
-    // - オーバーレイの暗転 (FADE_DURATION_MS / FADE_EASING) に合わせて opacity を 0 へアニメーション
-    if (originalChoiceLi && originalChoiceLi.style) {
-      try {
-        originalChoiceLi.style.transition =
-          "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
-        originalChoiceLi.style.opacity = "0";
-      } catch (_eFadeLi) {
-        // ここで失敗しても致命的ではないので握りつぶす（フェード自体は継続）
-      }
-    }
+    // 選択された元の <li> には、フェード中も一切の opacity 変更を行わない
+    // （クリック後も常に元の明るさのまま保持する）
+    // → ここでは何も処理しない
 
     // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
     fadeOutTo(nextUrl, reason);
