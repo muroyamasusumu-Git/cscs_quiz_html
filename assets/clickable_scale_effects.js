@@ -270,6 +270,34 @@
       //   ・その代わり、同じ行の中にある <a class="opt-link" ...> に対してのみ
       //     isFocusableClickable() 判定を通じて sa-hover を付与する。
       if (el.tagName === "LI" && el.closest("ol.opts")) {
+        // Bパートでは選択肢そのものを拡大させない方針なので、
+        // ol.opts 内の <li> については何もせずスキップする。
+        if (isModeB) {
+          continue;
+        }
+
+        // Aパートでは「行全体クリック」を有効にするために、
+        // <li> 自体にクリックリスナーを付与し、
+        // - 行のどこをクリックしても内部の <a> を 1.06 倍固定
+        // - sa-hover を外して sa-hover-fixed + inline transform を適用
+        // することで、マウスを離しても絶対に縮まないようにする。
+        if (!el.getAttribute("data-sa-li-bound")) {
+          el.setAttribute("data-sa-li-bound", "1");
+          el.addEventListener("click", function () {
+            var li = this;
+            var anchor = li.querySelector("a");
+            if (!anchor) {
+              return;
+            }
+            if (anchor.classList) {
+              anchor.classList.remove("sa-hover");
+              anchor.classList.add("sa-hover-fixed");
+            }
+            anchor.style.transformOrigin = "center center";
+            anchor.style.transform = "scale(1.06)";
+          });
+        }
+
         continue;
       }
 
