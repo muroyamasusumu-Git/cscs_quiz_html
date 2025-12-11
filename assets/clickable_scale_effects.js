@@ -581,14 +581,20 @@
                 }
 
                 // 不正解側は 1.0 → 0.90 にだけ縮小して、そのサイズで落ち着かせる。
-                // 縮小の基準点を「左中央」にして、行頭位置がずれないようにする。
+                // 行頭の縦ラインをきれいに揃えるため、
+                //  - display:inline-block
+                //  - width:100%
+                //  - transform-origin:left center
+                // を明示指定して「左端を基準に横方向だけすぼむ」ようにする。
                 try {
+                  otherInner.style.display = "inline-block";
+                  otherInner.style.width = "100%";
                   otherInner.style.transformOrigin = "left center";
                 } catch (_eSetOrigin) {
-                  // transform-origin の設定に失敗しても致命的ではないので、そのまま進める
+                  // style 設定に失敗しても致命的ではないので、そのまま進める
                 }
 
-                // 時間は 260ms とし、正解アニメのテンポに近づける。
+                // 時間は 260ms とし、正解アニメより少し長めでゆったり縮む感じにする。
                 animateScale(otherInner, 1.0, 0.90, 260, easeInOutQuad, null);
               }
             } catch (_eShrinkOthers) {
