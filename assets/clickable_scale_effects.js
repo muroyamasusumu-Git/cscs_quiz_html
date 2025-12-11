@@ -500,6 +500,26 @@
     injectScaleStyleIfNeeded();
     bindScaleToAllClickables(document);
 
+    // ▼ Bパートの正解選択肢(<li class="is-correct">)に、
+    //    ページ表示時に一度だけ「1.10 倍 → 元に戻る」アニメーションを付ける。
+    //    - body.mode-b のときだけ有効
+    //    - 解答表示時の視線誘導として、正解行を軽く強調する
+    if (isModeB) {
+      try {
+        var correctLis = document.querySelectorAll("li.is-correct");
+        for (var k = 0; k < correctLis.length; k++) {
+          // ScaleAnimator.pulse:
+          //   - 第1引数: 対象要素
+          //   - 第2引数: 片道のアニメーション時間（ミリ秒）
+          //   - 第3引数: 最大拡大率 (1.10)
+          //   - 第4引数: イージング関数（ここでは easeInOutQuad を利用）
+          ScaleAnimator.pulse(correctLis[k], 180, 1.10, easeInOutQuad);
+        }
+      } catch (_eCorrectPulse) {
+        // 正解行が存在しない場合や取得失敗時も、他処理への影響は出さない
+      }
+    }
+
     // MutationObserver が使えない古い環境では、
     // 初回バインドだけ行い、動的追加要素の追従は行わない。
     if (!window.MutationObserver) {
