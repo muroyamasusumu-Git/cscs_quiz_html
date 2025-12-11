@@ -199,22 +199,20 @@
                   // 選択された選択肢 → 表示
                   li.style.opacity = "1";
 
-                  // --- 追加処理② 選択された選択肢のサイズを「固定スケール状態」に連動させる ---
-                  // 元の <a> 要素が clickable_scale_effects.js によって sa-hover-fixed 状態なら、
-                  // クローン側の <a> についても同じように固定スケールを適用する。
-                  //   ・sa-hover を外す（hover による拡大/縮小の影響を除去）
-                  //   ・sa-hover-fixed を付与（固定表示用スタイルに切り替え）
-                  //   ・inline style の transform:scale(1.06) で 1.06 倍を明示的に固定
-                  if (selectedChoiceFixed) {
-                    if (link.classList) {
-                      link.classList.remove("sa-hover");
-                      link.classList.add("sa-hover-fixed");
-                    }
-                    link.style.display = "inline-block";
-                    link.style.padding = "2px 4px";
-                    link.style.transformOrigin = "center center";
-                    link.style.transform = "scale(1.06)";
+                  // --- 追加処理② 選択された<li>のサイズをクローン側で必ず 1.06 倍に固定する ---
+                  // clickable_scale_effects.js 側の状態（sa-hover-fixed の有無）に関係なく、
+                  // ハイライト用クローンでは「選択された選択肢の <a>」を常に 1.06 倍で表示する。
+                  //   ・sa-hover を外して hover による拡大/縮小を無効化
+                  //   ・sa-hover-fixed を付与して「固定スケール用」の見た目に統一
+                  //   ・inline style の transform:scale(1.06) で絶対に 1.06 に保つ
+                  if (link.classList) {
+                    link.classList.remove("sa-hover");
+                    link.classList.add("sa-hover-fixed");
                   }
+                  link.style.display = "inline-block";
+                  link.style.padding = "2px 4px";
+                  link.style.transformOrigin = "center center";
+                  link.style.transform = "scale(1.06)";
                   // --- 追加処理② ここまで ---
                 }
               }
