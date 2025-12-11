@@ -428,6 +428,8 @@
 
     var questionNode = null;
     var choiceNode = null;
+    // フェードの「下」に残っている元の選択肢 <li> を同時にフェードアウトさせるための参照
+    var originalChoiceLi = null;
 
     // 呼び出し側から渡されたオブジェクトから、安全に DOM ノードだけを取り出す
     try {
@@ -437,12 +439,30 @@
         }
         if (highlightTargets.choiceNode && highlightTargets.choiceNode.nodeType === 1) {
           choiceNode = highlightTargets.choiceNode;
+
+          // 元の「選択された <li>」を特定する
+          try {
+            var tag = choiceNode.tagName ? choiceNode.tagName.toLowerCase() : "";
+            if (tag === "li") {
+              // 通常ケース：choiceNode がそのまま選択された <li> の場合
+              originalChoiceLi = choiceNode;
+            } else if ((tag === "a" || tag === "span" || tag === "div") && typeof choiceNode.closest === "function") {
+              // 将来の拡張に備え、もし <a> やそのラッパが渡されても、直近の <li> を拾う
+              var li = choiceNode.closest("li");
+              if (li && li.nodeType === 1) {
+                originalChoiceLi = li;
+              }
+            }
+          } catch (_eChoiceLi) {
+            originalChoiceLi = null;
+          }
         }
       }
     } catch (_e) {
       // 途中で例外が出てもフェード処理自体は継続させるため、ここでは握りつぶして初期値(null)のままにする
       questionNode = null;
       choiceNode = null;
+      originalChoiceLi = null;
     }
 
     // 問題文または選択肢のどちらかが取得できていれば、
@@ -457,6 +477,18 @@
       window.setTimeout(function () {
         createHighlightLayer(questionNode, choiceNode);
       }, 400);
+    }
+
+    // フェードアウトしている間、フェードの下にある「元の選択肢 <li>」も同じ時間で薄くなっていくようにする
+    // - オーバーレイの暗転 (FADE_DURATION_MS / FADE_EASING) に合わせて opacity を 0 へアニメーション
+    if (originalChoiceLi && originalChoiceLi.style) {
+      try {
+        originalChoiceLi.style.transition =
+          "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
+        originalChoiceLi.style.opacity = "0";
+      } catch (_eFadeLi) {
+        // ここで失敗しても致命的ではないので握りつぶす（フェード自体は継続）
+      }
     }
 
     // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
