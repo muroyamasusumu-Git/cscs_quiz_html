@@ -309,8 +309,13 @@
         return;
       }
 
-      if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
-        return;
+      // 選択肢アンカー(<ol class="opts"> 内の <a>)は、
+      // hover の有無に関係なくクリックした瞬間に固定拡大させる。
+      // それ以外のボタン類は、従来どおり「一度 hover したものだけロック」する。
+      if (!isChoiceAnchor) {
+        if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
+          return;
+        }
       }
 
       // ▼ クリックした瞬間に完全固定（元に戻る transition を発生させない）
