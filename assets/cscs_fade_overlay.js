@@ -492,9 +492,75 @@
       createHighlightLayer(questionNode, choiceNode);
     }
 
-    // 選択された元の <li> には、フェード中も一切の opacity 変更を行わない
-    // （クリック後も常に元の明るさのまま保持する）
-    // → ここでは何も処理しない
+    // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
+    //    フェード中に scale(1.0) へ揺り戻されないように、transform をハードロックする。
+    (function lockOriginalChoiceScale() {
+      if (!originalChoiceLi) {
+        return;
+      }
+
+      // 元の <li> の中の <a> を対象とする（実際にスケールしているのはテキスト側の <a> 想定）
+      var originalAnchor = null;
+      try {
+        originalAnchor = originalChoiceLi.querySelector("a");
+      } catch (_eFindAnchor) {
+        originalAnchor = null;
+      }
+      if (!originalAnchor || !originalAnchor.style) {
+        return;
+      }
+
+      // ▼ クリック直後の「現在の transform」を一度だけ読み取り、
+      //    それを fixedTransform としてロック対象値にする。
+      var fixedTransform = "scale(1.10)";
+      try {
+        var cs = window.getComputedStyle(originalAnchor);
+        if (cs && cs.transform && cs.transform !== "none") {
+          fixedTransform = cs.transform;
+        }
+      } catch (_eGetCs) {
+        fixedTransform = "scale(1.10)";
+      }
+
+      // ▼ ロック継続時間（ミリ秒）
+      //    フェード時間(〜800ms)よりも十分長く、約 2 秒間は元選択肢のスケールを強制維持する。
+      var LOCK_DURATION_MS = 2000;
+      var startTime = performance.now();
+
+      // 毎フレーム fixedTransform と transition/animation の kill を上書きし続けるループ
+      function loop(now) {
+        // DOM から外れていたらそこで終了
+        if (!document.body || !document.body.contains(originalAnchor)) {
+          return;
+        }
+
+        var elapsed = now - startTime;
+        if (elapsed > LOCK_DURATION_MS) {
+          // 一定時間経過後はロック解除（以後はフェード遷移側に任せる）
+          return;
+        }
+
+        try {
+          originalAnchor.style.transformOrigin = "center center";
+          originalAnchor.style.setProperty("transform", fixedTransform, "important");
+          originalAnchor.style.setProperty("transition", "none", "important");
+          originalAnchor.style.setProperty("transition-property", "none", "important");
+          originalAnchor.style.setProperty("transition-duration", "0s", "important");
+          originalAnchor.style.setProperty("transition-timing-function", "linear", "important");
+          originalAnchor.style.setProperty("animation", "none", "important");
+          originalAnchor.style.setProperty("animation-name", "none", "important");
+          originalAnchor.style.setProperty("animation-duration", "0s", "important");
+          originalAnchor.style.setProperty("animation-timing-function", "linear", "important");
+        } catch (_eLock) {
+          // ここで失敗しても致命的ではないので何もしない
+        }
+
+        requestAnimationFrame(loop);
+      }
+
+      // フェード開始とほぼ同時にロックループをスタートさせる
+      requestAnimationFrame(loop);
+    })();
 
     // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
     fadeOutTo(nextUrl, reason);
