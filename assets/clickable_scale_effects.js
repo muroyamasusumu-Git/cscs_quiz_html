@@ -23,17 +23,19 @@
   //
   //   ・.sa-hover:hover     : hover 中だけ 1.06 倍に拡大
   //                           （大きくなったと感じやすいが、文字が極端に切れにくいバランスの倍率）
-  var SCALE_STYLE_TEXT =
-    ".sa-hover{" +
-    "transition-property:transform;" +
-    "transition-duration:0.15s;" +
-    "transition-timing-function:ease-out;" +
-    "transform-origin:center center;" +
-    "cursor:pointer;" +
-    "}" +
-    ".sa-hover:hover{" +
-    "transform:scale(1.06);" +
-    "}";
+var SCALE_STYLE_TEXT =
+  ".sa-hover{" +
+  "display:inline-block;" +                // 拡大対象を明確にし、周囲から独立させる
+  "padding:2px 4px;" +                     // 拡大しても文字が切れないよう、余白を確保
+  "transition-property:transform;" +
+  "transition-duration:0.15s;" +
+  "transition-timing-function:ease-out;" +
+  "transform-origin:center center;" +      // 中央基準の自然なスケール
+  "cursor:pointer;" +
+  "}" +
+  ".sa-hover:hover{" +
+  "transform:scale(1.06);" +               // 1.06倍へ、ふわっと拡大
+  "}";
 
   function injectScaleStyleIfNeeded() {
     try {
