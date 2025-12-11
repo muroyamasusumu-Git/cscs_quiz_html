@@ -560,18 +560,12 @@
           //    の順にスケールを変化させる三段アニメーションを付与する。
           //   - 時間を全体的に伸ばして、Bパートの結果表示に合う「ゆっくりめ」の動きにする。
           (function runTriplePulse(targetEl, correctLi) {
-            // d1: 最初の「ポンッ」と膨らむ部分だけ少し速め
-            // d2, d3: その後はゆっくり戻って・着地するように長めに取る
-            var d1 = 180; // 1.0 → 1.20 まで：やや速め
-            var d2 = 360; // 1.20 → 1.00 まで：ゆっくりめ
-            var d3 = 520; // 1.00 → 1.10 まで：さらにゆっくり着地
+            // 正解行は 1.0 → 1.10 だけにして、ゆっくりフワッと拡大させる
+            // easeInOutQuad によって、立ち上がりはやや速く、その後なめらかに減速する。
+            var correctDuration = 520; // 正解アニメ全体の時間（ゆっくりめ）
 
-            // まず正解行の三段アニメーションを開始
-            animateScale(targetEl, 1.0, 1.20, d1, easeInOutQuad, function () {
-              animateScale(targetEl, 1.20, 1.00, d2, easeInOutQuad, function () {
-                animateScale(targetEl, 1.00, 1.10, d3, easeInOutQuad, null);
-              });
-            });
+            // 正解行のスケールアニメーション（1.0 → 1.10 の一段だけ）
+            animateScale(targetEl, 1.0, 1.10, correctDuration, easeInOutQuad, null);
 
             // ▼ 同じ <ol> 内にある「その他の選択肢 li」に対しては、
             //    中身だけを 1.0 → 0.90 に縮小するアニメーションを付与する。
@@ -624,7 +618,7 @@
                 }
 
                 // 全体のテンポにあわせて、ゆっくり縮んでそのまま静止させる。
-                animateScale(otherInner, 1.0, 0.90, 520, easeInOutQuad, null);
+                animateScale(otherInner, 1.0, 0.90, correctDuration, easeInOutQuad, null);
               }
             } catch (_eShrinkOthers) {
               // 縮小処理で失敗しても、正解アニメ自体には影響させない
