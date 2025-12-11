@@ -473,7 +473,7 @@
     if (questionNode || choiceNode) {
       window.setTimeout(function () {
         createHighlightLayer(questionNode, choiceNode);
-      }, 500); // 0ms 遅延: クリック直後（次のイベントループ）にクローンを作成
+      }, 100); // 0ms 遅延: クリック直後（次のイベントループ）にクローンを作成
     }
 
     // 選択された元の <li> には、フェード中も一切の opacity 変更を行わない
