@@ -328,6 +328,13 @@
             return;
           }
 
+          // Aパート以外（Bパートなど）では、この「剥がし処理」を一切行わない。
+          // - B側での見た目や固定スケールを変化させないためのガード。
+          var body = document.body;
+          if (!body || !body.classList || !body.classList.contains("mode-a")) {
+            return;
+          }
+
           var liNode = null;
           try {
             if (typeof el.closest === "function") {
