@@ -52,6 +52,15 @@
     "transition-duration:0s !important;" +
     "transition-timing-function:linear !important;" +
     "animation:none !important;" +
+    "}"+
+    "#cscs-fade-highlight-layer *{" +
+    "transition:none !important;" +
+    "transition-property:none !important;" +
+    "transition-duration:0s !important;" +
+    "transition-timing-function:linear !important;" +
+    "animation:none !important;" +
+    "animation-name:none !important;" +
+    "animation-duration:0s !important;" +
     "}";
 
   function injectScaleStyleIfNeeded() {
@@ -110,6 +119,26 @@
   //   ※ CSS transition では表現しきれない「JS 制御の連続したアニメーション」を作れる。
   function animateScale(el, from, to, duration, easing, onDone) {
     if (!el) return;
+
+    // ハイライトレイヤー(#cscs-fade-highlight-layer) 配下の要素に対しては、
+    // アニメーションを一切行わず「最終状態のみ」を即時適用する。
+    try {
+      if (el.closest && el.closest("#cscs-fade-highlight-layer")) {
+        var finalScale = (typeof to === "number") ? to : 1.0;
+        el.style.transformOrigin = "center center";
+        try {
+          el.style.setProperty("transform", "scale(" + finalScale + ")", "important");
+        } catch (_eSet) {
+          el.style.transform = "scale(" + finalScale + ")";
+        }
+        if (typeof onDone === "function") {
+          onDone();
+        }
+        return;
+      }
+    } catch (_eHighlightScale) {
+      // closest 未対応環境では従来挙動
+    }
 
     var start = performance.now();
 
@@ -212,6 +241,15 @@
 
   function bindScaleToElement(el) {
     if (!el) return;
+
+    // ハイライトレイヤー配下のクローン要素にはスケール系のバインドを一切行わない。
+    try {
+      if (el.closest && el.closest("#cscs-fade-highlight-layer")) {
+        return;
+      }
+    } catch (_eBindHighlight) {
+      // closest 未対応環境では従来挙動
+    }
 
     if (el.getAttribute("data-sa-bound") === "1") {
       return;

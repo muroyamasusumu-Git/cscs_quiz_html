@@ -160,11 +160,18 @@
           clone.removeAttribute("data-cscs-slide-applied"); // 「一度だけ適用」フラグもクローンでは無効化する
           // --- 追加処理ここまで ---
 
-          // --- 追加処理②: クローン側で transition / animation を無効化して、
-          //                  「縮小→拡大」などの動きが再生されないようにする。
-          // クローン全体のトランジション・アニメーションを打ち消す
+          // --- 追加処理②: クローン配下の transition / animation / transform を徹底的に無効化する ---
           try {
-            if (clone.style) {
+            if (clone.style && typeof clone.style.setProperty === "function") {
+              clone.style.setProperty("transition", "none", "important");
+              clone.style.setProperty("transition-property", "none", "important");
+              clone.style.setProperty("transition-duration", "0s", "important");
+              clone.style.setProperty("transition-timing-function", "linear", "important");
+              clone.style.setProperty("animation", "none", "important");
+              clone.style.setProperty("animation-name", "none", "important");
+              clone.style.setProperty("animation-duration", "0s", "important");
+              clone.style.setProperty("animation-timing-function", "linear", "important");
+            } else if (clone.style) {
               clone.style.transition = "none";
               clone.style.transitionProperty = "none";
               clone.style.animation = "none";
@@ -173,17 +180,49 @@
           } catch (_eStyleRoot) {
           }
 
-          // clickable_scale_effects.js が適用されている可能性が高い要素についても、
-          // 子孫を含めて transition / animation を無効化する。
           try {
-            var animatedNodes = clone.querySelectorAll("a, button, .sa-hover, .sa-hover-fixed");
-            for (var ai = 0; ai < animatedNodes.length; ai++) {
-              var an = animatedNodes[ai];
-              if (an && an.style) {
-                an.style.transition = "none";
-                an.style.transitionProperty = "none";
-                an.style.animation = "none";
-                an.style.animationName = "none";
+            var allNodes = clone.querySelectorAll("*");
+            for (var ai = 0; ai < allNodes.length; ai++) {
+              var an = allNodes[ai];
+              if (!an || !an.style) {
+                continue;
+              }
+              try {
+                if (typeof an.style.setProperty === "function") {
+                  an.style.setProperty("transition", "none", "important");
+                  an.style.setProperty("transition-property", "none", "important");
+                  an.style.setProperty("transition-duration", "0s", "important");
+                  an.style.setProperty("transition-timing-function", "linear", "important");
+                  an.style.setProperty("animation", "none", "important");
+                  an.style.setProperty("animation-name", "none", "important");
+                  an.style.setProperty("animation-duration", "0s", "important");
+                  an.style.setProperty("animation-timing-function", "linear", "important");
+                } else {
+                  an.style.transition = "none";
+                  an.style.transitionProperty = "none";
+                  an.style.animation = "none";
+                  an.style.animationName = "none";
+                }
+              } catch (_eEach) {
+              }
+
+              // clickable_scale_effects.js 系のクラスが付いている要素は、
+              // クローン側では「現在のスケールを保つだけ」の静止状態に固定する。
+              try {
+                if (an.classList && (an.classList.contains("sa-hover") || an.classList.contains("sa-hover-fixed"))) {
+                  an.classList.remove("sa-hover");
+                  if (!an.classList.contains("sa-hover-fixed")) {
+                    an.classList.add("sa-hover-fixed");
+                  }
+                  an.style.transformOrigin = "center center";
+                  // ここでは scale(1.10) を前提に固定する（必要なら将来調整用）
+                  try {
+                    an.style.setProperty("transform", "scale(1.10)", "important");
+                  } catch (_eSetScale) {
+                    an.style.transform = "scale(1.10)";
+                  }
+                }
+              } catch (_eClassFix) {
               }
             }
           } catch (_eStyleChildren) {
@@ -234,11 +273,16 @@
                   if (link && link.style) {
                     link.style.display = "inline-block";
                     link.style.transformOrigin = "center center";
-                    link.style.transform = "scale(1.10)";
-                    link.style.transition = "none";
-                    link.style.transitionProperty = "none";
-                    link.style.animation = "none";
-                    link.style.animationName = "none";
+                    try {
+                      link.style.setProperty("transform", "scale(1.10)", "important");
+                      link.style.setProperty("transition", "none", "important");
+                      link.style.setProperty("transition-property", "none", "important");
+                      link.style.setProperty("animation", "none", "important");
+                      link.style.setProperty("animation-name", "none", "important");
+                    } catch (_eLink) {
+                      link.style.transform = "scale(1.10)";
+                      link.style.transition = "none";
+                    }
                   }
                 }
               }
@@ -246,6 +290,30 @@
             // --- 追加処理① ここまで ---
           }
         }
+
+        // クローンを配置するためのラッパーを作成し、元の位置に固定する
+        var wrapper = document.createElement("div");
+        wrapper.style.position = "fixed";
+        wrapper.style.left = String(rect.left) + "px";
+        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
+        wrapper.style.top = String(rect.top - 15) + "px";
+        wrapper.style.width = String(rect.width) + "px";
+        wrapper.style.margin = "0";
+        wrapper.style.padding = "0";
+        wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない（クリックは元DOM側で処理済みの前提）
+        try {
+          if (wrapper.style && typeof wrapper.style.setProperty === "function") {
+            wrapper.style.setProperty("transition", "none", "important");
+            wrapper.style.setProperty("animation", "none", "important");
+          } else {
+            wrapper.style.transition = "none";
+            wrapper.style.animation = "none";
+          }
+        } catch (_eWrapper) {
+        }
+
+        wrapper.appendChild(clone);              // クローンを wrapper に入れて
+        layer.appendChild(wrapper);              // wrapper ごとハイライトレイヤーに追加する
 
         // クローンを配置するためのラッパーを作成し、元の位置に固定する
         var wrapper = document.createElement("div");
