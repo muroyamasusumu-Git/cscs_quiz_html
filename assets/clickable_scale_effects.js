@@ -319,46 +319,74 @@
         }
       }
 
-      try {
-        // 現時点の見た目上の transform をそのまま取得し、inline スタイルとして凍結する。
-        // すでに hover で 1.10 倍になっていれば、その 1.10 の matrix をそのまま固定する。
-        var cs = window.getComputedStyle(el);
-        var tf = cs ? cs.transform : null;
+      // ▼ 現在の見た目の transform を取得して、そのまま inline スタイルとして凍結する関数。
+      //    これを複数フレームにわたって繰り返し呼ぶことで、
+      //    CSS の :hover / :active の切り替えや transition による「揺り戻し」を完全に上書きする。
+      function lockFixedTransform() {
+        try {
+          var cs = window.getComputedStyle(el);
+          var tf = cs ? cs.transform : null;
 
-        el.style.transformOrigin = "center center";
+          el.style.transformOrigin = "center center";
 
-        if (tf && tf !== "none") {
-          // matrix(...) など、ブラウザが内部的に使っている値をそのまま固定
-          el.style.setProperty("transform", tf, "important");
-        } else {
-          // 念のため、transform が none の場合は 1.10 を直接指定して固定
+          if (tf && tf !== "none") {
+            // matrix(...) など、ブラウザ内部の transform をそのまま固定
+            el.style.setProperty("transform", tf, "important");
+          } else {
+            // transform が none の場合は 1.10 を直接指定して固定
+            el.style.setProperty("transform", "scale(1.10)", "important");
+          }
+
+          // 「1.0 に戻ろうとする」あらゆる transition / animation を完全に殺す
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+          el.style.setProperty("transition-duration", "0s", "important");
+          el.style.setProperty("transition-timing-function", "linear", "important");
+          el.style.setProperty("animation", "none", "important");
+          el.style.setProperty("animation-name", "none", "important");
+          el.style.setProperty("animation-duration", "0s", "important");
+          el.style.setProperty("animation-timing-function", "linear", "important");
+        } catch (_eLock) {
+          // getComputedStyle に失敗した場合も、最低限 1.10 倍で固定しておく
+          el.style.transformOrigin = "center center";
           el.style.setProperty("transform", "scale(1.10)", "important");
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+          el.style.setProperty("animation", "none", "important");
+          el.style.setProperty("animation-name", "none", "important");
         }
 
-        // ここで transition / animation を完全に殺しておくことで、
-        // 「1.0 に戻ろうとする」アニメーション自体を発生させない。
-        el.style.setProperty("transition", "none", "important");
-        el.style.setProperty("transition-property", "none", "important");
-        el.style.setProperty("transition-duration", "0s", "important");
-        el.style.setProperty("transition-timing-function", "linear", "important");
-        el.style.setProperty("animation", "none", "important");
-        el.style.setProperty("animation-name", "none", "important");
-        el.style.setProperty("animation-duration", "0s", "important");
-        el.style.setProperty("animation-timing-function", "linear", "important");
-      } catch (_eLock) {
-        // getComputedStyle に失敗した場合も、最低限 1.10 倍で固定しておく
-        el.style.transformOrigin = "center center";
-        el.style.setProperty("transform", "scale(1.10)", "important");
-        el.style.setProperty("transition", "none", "important");
-        el.style.setProperty("transition-property", "none", "important");
-        el.style.setProperty("animation", "none", "important");
-        el.style.setProperty("animation-name", "none", "important");
+        // CSS 側の hover 効果から切り離し、「固定表示」用クラスに切り替える
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
       }
 
-      // CSS 側の hover 効果はここで切り離し、
-      // 代わりに「固定表示」用クラスに切り替える。
-      el.classList.remove("sa-hover");
-      el.classList.add("sa-hover-fixed");
+      // ▼ クリック直後のフレームでまず一度、現在の見た目をロック
+      lockFixedTransform();
+
+      // ▼ 一時的に pointer-events を無効化し、
+      //    この要素に対する hover / out / 再クリックなどのイベントを一瞬だけ遮断して
+      //    CSS 由来の状態変化をこれ以上増やさない。
+      el.style.setProperty("pointer-events", "none", "important");
+
+      // ▼ 次のフレームでもう一度ロックをかける。
+      //    クリックに伴う :active / :hover の状態変化や layout の再計算が
+      //    一通り終わった後でも、同じ transform を上書きするための「追いロック」。
+      requestAnimationFrame(function () {
+        lockFixedTransform();
+
+        // ▼ さらにその次のフレームでもう一度ロックをかける。
+        //    ブラウザによって再計算タイミングが前後しても、
+        //    少なくとも 2 フレーム連続で同じ transform を強制することで
+        //    1.0 への揺り戻しが割り込む余地をなくす。
+        requestAnimationFrame(function () {
+          lockFixedTransform();
+
+          // ▼ 最後に pointer-events を元に戻し、
+          //    以後のクリックや hover を通常どおり受け付けるようにする。
+          el.style.removeProperty("pointer-events");
+        });
+      });
     });
   }
 
