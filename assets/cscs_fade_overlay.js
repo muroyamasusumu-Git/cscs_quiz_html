@@ -196,23 +196,8 @@
                   // 選択されなかった選択肢 → 完全に透明化
                   li.style.opacity = "0";
                 } else {
-                  // 選択された選択肢 → 表示
+                  // 選択された選択肢 → 表示（スケールやクラスは元DOMのクローンをそのまま使う）
                   li.style.opacity = "1";
-
-                  // --- 追加処理② クローン側では 1.10 倍の「静止状態」に固定する ---
-                  // clickable_scale_effects.js の hover / fixed 用クラスには依存せず、
-                  // クローンではクラスをすべて外し、inline style だけで 1.06 倍に固定する。
-                  // これにより、マウスを離しても、hover が外れても、一切サイズが変化しない。
-                  if (link.classList) {
-                    link.classList.remove("sa-hover");
-                    link.classList.remove("sa-hover-fixed");
-                  }
-                  link.style.display = "inline-block";
-                  link.style.padding = "2px 4px";
-                  link.style.transformOrigin = "center center";
-                  link.style.transform = "scale(1.10)";
-                  link.style.transition = "none";
-                  // --- 追加処理② ここまで ---
                 }
               }
             }
