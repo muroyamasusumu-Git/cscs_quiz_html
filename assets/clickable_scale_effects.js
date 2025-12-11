@@ -205,10 +205,15 @@ var SCALE_STYLE_TEXT =
     el.classList.add("sa-hover");
 
     // ▼クリックされた瞬間に「固定拡大」状態へ移行させる。
-    //   ・sa-hover-fixed を付与すると scale(1.06) が CSS 側で常時適用される
-    //   ・hover を外しても縮まらず、完全に拡大した状態を維持する
+    //   ・sa-hover-fixed を付与して「クリック済み」であることをマーク
+    //   ・同時に inline style で transform:scale(1.06) を直接書き込み、
+    //     以後 hover が外れても縮まらないようにする。
+    //   ・CSS よりも inline style のほうが優先されるため、
+    //     Bパートへ遷移するまで Aパート内ではずっと 1.06 倍を維持できる。
     el.addEventListener("click", function () {
       el.classList.add("sa-hover-fixed");
+      el.style.transform = "scale(1.06)";
+      el.style.transformOrigin = "center center";
     });
   }
 
