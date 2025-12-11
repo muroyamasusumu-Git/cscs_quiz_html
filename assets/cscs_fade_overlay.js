@@ -167,9 +167,9 @@
           // ※ここでは「選択した<li>だけ可視化し、それ以外の<li>は透明にする」処理も追加する
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "18px";     
-            clone.style.marginBottom = "15px";   
-            clone.style.lineHeight = "1";         // クローン専用行間。フェード破損を起こさない安全定義。
+            clone.style.marginLeft = "18px";
+            clone.style.marginBottom = "15px";
+            clone.style.lineHeight = "1"; // クローン専用行間。フェード破損を起こさない安全定義。
 
             // --- 追加処理① ---
             // 選択されていない <li> を透明化し、選択された <li> のみ残す。
@@ -183,11 +183,30 @@
                 if (!link || !link.href) {
                   continue;
                 }
+
                 // href 内の choice=◯ と、選択されたコードが一致するかどうかで可視・不可視を切り替える
                 if (link.href.indexOf("choice=" + selected) === -1) {
-                  li.style.opacity = "0";     // 選択されなかった選択肢 → 非表示
+                  // 選択されなかった選択肢 → 完全に透明化
+                  li.style.opacity = "0";
                 } else {
-                  li.style.opacity = "1";     // 選択された選択肢 → 表示
+                  // 選択された選択肢 → 表示
+                  li.style.opacity = "1";
+
+                  // --- 追加処理② 選択された選択肢のサイズを固定する ---
+                  // クローン側の <a> についても、
+                  //   ・sa-hover を外し（hover による拡大/縮小の影響を除去）
+                  //   ・sa-hover-fixed を付与し（固定表示用のスタイルに切り替え）
+                  //   ・inline style で transform:scale(1.06) を直接指定
+                  // とすることで、フェード中も 1.06 倍のまま大きさを維持する。
+                  if (link.classList) {
+                    link.classList.remove("sa-hover");
+                    link.classList.add("sa-hover-fixed");
+                  }
+                  link.style.display = "inline-block";
+                  link.style.padding = "2px 4px";
+                  link.style.transformOrigin = "center center";
+                  link.style.transform = "scale(1.06)";
+                  // --- 追加処理② ここまで ---
                 }
               }
             }
