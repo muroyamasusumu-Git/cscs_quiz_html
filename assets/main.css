@@ -117,6 +117,7 @@ opacity: 0.4;
 
 body.mode-b .opts .is-correct {
 opacity: 1 !important;
+font-size: 106%;
 }
 
 .answer .opt-small {
