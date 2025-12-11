@@ -14,27 +14,26 @@
   var SCALE_STYLE_ID = "sa-scale-style";
 
   // SCALE_STYLE_TEXT:
-  //   ・.sa-hover           : JS から付与する共通クラス
-  //   ・transition-property : transform の変更だけをアニメーション対象にする
-  //   ・transition-duration : hover ON/OFF の切り替えに 0.15 秒かける
-  //   ・transition-timing   : イーズアウトで「スッと近づく」感覚にする
-  //   ・transform-origin    : 中央基準で拡大（左右均等にふくらませる）
-  //   ・cursor              : ポインタ型カーソルで「押せる要素」であることを明示
+  //   ・.sa-hover           : hover 時のアニメーションを適用する共通クラス
+  //   ・display:inline-block; padding:… により拡大時の文字切れを防止
+  //   ・.sa-hover:hover     : hover 中のみ 1.06 倍に拡大
   //
-  //   ・.sa-hover:hover     : hover 中だけ 1.06 倍に拡大
-  //                           （大きくなったと感じやすいが、文字が極端に切れにくいバランスの倍率）
+  //   ・.sa-hover-fixed     : クリック後はこのクラスが付与され、常時 scale(1.06) が維持される
 var SCALE_STYLE_TEXT =
   ".sa-hover{" +
-  "display:inline-block;" +                // 拡大対象を明確にし、周囲から独立させる
-  "padding:2px 4px;" +                     // 拡大しても文字が切れないよう、余白を確保
+  "display:inline-block;" +
+  "padding:2px 4px;" +
   "transition-property:transform;" +
   "transition-duration:0.15s;" +
   "transition-timing-function:ease-out;" +
-  "transform-origin:center center;" +      // 中央基準の自然なスケール
+  "transform-origin:center center;" +
   "cursor:pointer;" +
   "}" +
   ".sa-hover:hover{" +
-  "transform:scale(1.06);" +               // 1.06倍へ、ふわっと拡大
+  "transform:scale(1.06);" +
+  "}" +
+  ".sa-hover-fixed{" +
+  "transform:scale(1.06) !important;" +     // クリック後は常時 1.06 倍を維持
   "}";
 
   function injectScaleStyleIfNeeded() {
@@ -202,11 +201,15 @@ var SCALE_STYLE_TEXT =
     el.setAttribute("data-sa-bound", "1");
 
     // hover 時の拡大は CSS の :hover だけで制御する。
-    // ここでは JS アニメーションは付けず、「sa-hover」クラスを付与することで
-    // ・拡大アニメ（transform + transition）
-    // ・ポインタカーソル
-    // の 2 点だけを有効化している。
+    // 「sa-hover」クラスを付与して transform の拡大アニメを有効化する。
     el.classList.add("sa-hover");
+
+    // ▼クリックされた瞬間に「固定拡大」状態へ移行させる。
+    //   ・sa-hover-fixed を付与すると scale(1.06) が CSS 側で常時適用される
+    //   ・hover を外しても縮まらず、完全に拡大した状態を維持する
+    el.addEventListener("click", function () {
+      el.classList.add("sa-hover-fixed");
+    });
   }
 
   function bindScaleToAllClickables(root) {
