@@ -199,20 +199,19 @@
                   // 選択された選択肢 → 表示
                   li.style.opacity = "1";
 
-                  // --- 追加処理② 選択された<li>のサイズをクローン側で必ず 1.06 倍に固定する ---
-                  // clickable_scale_effects.js 側の状態（sa-hover-fixed の有無）に関係なく、
-                  // ハイライト用クローンでは「選択された選択肢の <a>」を常に 1.06 倍で表示する。
-                  //   ・sa-hover を外して hover による拡大/縮小を無効化
-                  //   ・sa-hover-fixed を付与して「固定スケール用」の見た目に統一
-                  //   ・inline style の transform:scale(1.06) で絶対に 1.06 に保つ
+                  // --- 追加処理② クローン側では 1.06 倍の「静止状態」に固定する ---
+                  // clickable_scale_effects.js の hover / fixed 用クラスには依存せず、
+                  // クローンではクラスをすべて外し、inline style だけで 1.06 倍に固定する。
+                  // これにより、マウスを離しても、hover が外れても、一切サイズが変化しない。
                   if (link.classList) {
                     link.classList.remove("sa-hover");
-                    link.classList.add("sa-hover-fixed");
+                    link.classList.remove("sa-hover-fixed");
                   }
                   link.style.display = "inline-block";
                   link.style.padding = "2px 4px";
                   link.style.transformOrigin = "center center";
                   link.style.transform = "scale(1.06)";
+                  link.style.transition = "none";
                   // --- 追加処理② ここまで ---
                 }
               }
