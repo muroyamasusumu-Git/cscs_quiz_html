@@ -410,7 +410,7 @@
     // 少しだけ遅らせて opacity を上げ、CSS トランジションによるふわっとした暗転を発生させる
     window.setTimeout(function () {
       overlay.style.opacity = String(FADE_MAX_OPACITY);  // 設定された暗さまで徐々に暗転させる
-    }, 20);
+    }, 300);
 
     // フェード完了のタイミングで sessionStorage に「フェード中だった」情報を残し、その後に実際の遷移を行う
     window.setTimeout(function () {
