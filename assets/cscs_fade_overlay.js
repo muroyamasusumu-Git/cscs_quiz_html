@@ -160,40 +160,33 @@
           clone.removeAttribute("data-cscs-slide-applied"); // 「一度だけ適用」フラグもクローンでは無効化する
           // --- 追加処理ここまで ---
 
-          // --- 追加処理②: clickable_scale_effects.js 由来のクラスをクローン側からすべて取り除き、
-          //                  クローン挿入時に「縮小→拡大」のアニメーションが再生されないようにする。
-          // 1) クローン自身から clickable 系クラスを除去
-          if (clone.classList && typeof clone.classList.remove === "function") {
-            clone.classList.remove("sa-hover");
-            clone.classList.remove("sa-hover-fixed");
-          } else {
-            var clsClickable = clone.getAttribute("class") || "";
-            if (clsClickable.indexOf("sa-hover") !== -1 || clsClickable.indexOf("sa-hover-fixed") !== -1) {
-              clsClickable = clsClickable.replace(/\bsa-hover-fixed\b/g, " ");
-              clsClickable = clsClickable.replace(/\bsa-hover\b/g, " ");
-              clsClickable = clsClickable.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
-              clone.setAttribute("class", clsClickable);
-            }
-          }
-          // 2) クローン配下の子孫ノードからも clickable 系クラスを除去
+          // --- 追加処理②: クローン側で transition / animation を無効化して、
+          //                  「縮小→拡大」などの動きが再生されないようにする。
+          // クローン全体のトランジション・アニメーションを打ち消す
           try {
-            var clickableNodes = clone.querySelectorAll(".sa-hover, .sa-hover-fixed");
-            for (var ci = 0; ci < clickableNodes.length; ci++) {
-              var cn = clickableNodes[ci];
-              if (cn.classList && typeof cn.classList.remove === "function") {
-                cn.classList.remove("sa-hover");
-                cn.classList.remove("sa-hover-fixed");
-              } else {
-                var cnCls = cn.getAttribute("class") || "";
-                if (cnCls.indexOf("sa-hover") !== -1 || cnCls.indexOf("sa-hover-fixed") !== -1) {
-                  cnCls = cnCls.replace(/\bsa-hover-fixed\b/g, " ");
-                  cnCls = cnCls.replace(/\bsa-hover\b/g, " ");
-                  cnCls = cnCls.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
-                  cn.setAttribute("class", cnCls);
-                }
+            if (clone.style) {
+              clone.style.transition = "none";
+              clone.style.transitionProperty = "none";
+              clone.style.animation = "none";
+              clone.style.animationName = "none";
+            }
+          } catch (_eStyleRoot) {
+          }
+
+          // clickable_scale_effects.js が適用されている可能性が高い要素についても、
+          // 子孫を含めて transition / animation を無効化する。
+          try {
+            var animatedNodes = clone.querySelectorAll("a, button, .sa-hover, .sa-hover-fixed");
+            for (var ai = 0; ai < animatedNodes.length; ai++) {
+              var an = animatedNodes[ai];
+              if (an && an.style) {
+                an.style.transition = "none";
+                an.style.transitionProperty = "none";
+                an.style.animation = "none";
+                an.style.animationName = "none";
               }
             }
-          } catch (_eClickable) {
+          } catch (_eStyleChildren) {
           }
           // --- 追加処理② ここまで ---
 
@@ -244,6 +237,8 @@
                     link.style.transform = "scale(1.10)";
                     link.style.transition = "none";
                     link.style.transitionProperty = "none";
+                    link.style.animation = "none";
+                    link.style.animationName = "none";
                   }
                 }
               }
