@@ -262,22 +262,18 @@
               }
 
               // clickable_scale_effects.js 系のクラスが付いている要素は、
-              // フェード用クローン側では「完全に無力化」して clickable 系ロジックから切り離す。
+              // クローン側では「現在のスケールを保つだけ」の静止状態に固定する。
               try {
                 if (an.classList && (an.classList.contains("sa-hover") || an.classList.contains("sa-hover-fixed"))) {
-                  // クリック可能要素用のクラスをすべて外す（クローンは「ただの静的な見た目」にする）
                   an.classList.remove("sa-hover");
-                  an.classList.remove("sa-hover-fixed");
-
-                  // clickable_scale_effects.js による data-sa-bound も無効化しておく
-                  an.removeAttribute("data-sa-bound");
-
-                  // transform は一切かけない（元DOM側のスケール状態と混線しないように）
+                  if (!an.classList.contains("sa-hover-fixed")) {
+                    an.classList.add("sa-hover-fixed");
+                  }
                   an.style.transformOrigin = "center center";
                   try {
-                    an.style.setProperty("transform", "none", "important");
+                    an.style.setProperty("transform", "scale(1.10)", "important");
                   } catch (_eSetScale) {
-                    an.style.transform = "none";
+                    an.style.transform = "scale(1.10)";
                   }
                 }
               } catch (_eClassFix) {
@@ -329,29 +325,17 @@
                   // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
                   // クラスは一切変更せず、スタイルだけで拡大させる。
                   if (link && link.style) {
-                    // クローン側のリンクは「見た目だけを表示する静的要素」として扱い、
-                    // transform は一切かけない（スケールは元DOM側に完全委譲する）
                     link.style.display = "inline-block";
                     link.style.transformOrigin = "center center";
-
                     try {
-                      // トランジション／アニメーションだけ殺しておき、フェード中に余計な動きを一切させない
+                      link.style.setProperty("transform", "scale(1.10)", "important");
                       link.style.setProperty("transition", "none", "important");
                       link.style.setProperty("transition-property", "none", "important");
                       link.style.setProperty("animation", "none", "important");
                       link.style.setProperty("animation-name", "none", "important");
                     } catch (_eLink) {
+                      link.style.transform = "scale(1.10)";
                       link.style.transition = "none";
-                    }
-
-                    // clickable_scale_effects.js 系のクラス／バインドはクローンから外す
-                    try {
-                      if (link.classList) {
-                        link.classList.remove("sa-hover");
-                        link.classList.remove("sa-hover-fixed");
-                      }
-                      link.removeAttribute("data-sa-bound");
-                    } catch (_eLinkClass) {
                     }
                   }
                 }
