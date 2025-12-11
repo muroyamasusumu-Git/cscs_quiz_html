@@ -214,15 +214,40 @@
     // マウスオーバー時にだけ 1.06 倍へふわっと拡大させる。
     el.classList.add("sa-hover");
 
+    // 選択肢行内の <a> かどうかを事前に判定しておく
+    // - <ol class="opts"> の内部にある <a> の場合だけ、
+    //   「一瞬縮む」ような見え方を避けるために処理順を変える。
+    var isChoiceAnchor = false;
+    try {
+      if (el.tagName === "A" && el.closest("ol.opts")) {
+        isChoiceAnchor = true;
+      }
+    } catch (_e) {
+      isChoiceAnchor = false;
+    }
+
     // ▼クリックされた瞬間に「サイズ固定モード」に切り替える。
-    //   - sa-hover を外すことで、今後 hover による拡大/縮小の対象から外す
-    //   - sa-hover-fixed を付与して、「常時 1.06 倍＋アニメーション無し」のスタイルに切り替える
-    //   - 念のため inline style でも transform を 1.06 に固定しておく（CSS より優先される）
+    //   - 選択肢 <li> 内の <a>:
+    //       先に inline transform=1.06 を入れて見た目を固定 → その後 sa-hover を外す
+    //       ことで、1.0 に戻るフレームを挟まず「小さくならない」ようにする。
+    //   - その他のボタン／リンク:
+    //       これまでどおりの順番（先にクラス付け替え → 後から inline transform）。
     el.addEventListener("click", function () {
-      el.classList.remove("sa-hover");          // hover 用クラスを外し、hover による拡大挙動を完全に無効化
-      el.classList.add("sa-hover-fixed");       // 「クリック済みで固定拡大」の状態を示すクラスを付与
-      el.style.transformOrigin = "center center"; // 拡大の基準点は中央に固定
-      el.style.transform = "scale(1.06)";       // inline style で 1.06 倍を強制し、以後ずっとこのサイズを維持
+      if (isChoiceAnchor) {
+        // 1) まず現在の見た目どおりに 1.06 倍を inline で固定
+        el.style.transformOrigin = "center center";
+        el.style.transform = "scale(1.06)";
+
+        // 2) そのあと hover 用クラスを外し、固定拡大用クラスを付与
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
+      } else {
+        // 既存挙動: 先にクラスを切り替え、その後に inline transform をセット
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
+        el.style.transformOrigin = "center center";
+        el.style.transform = "scale(1.06)";
+      }
     });
   }
 
