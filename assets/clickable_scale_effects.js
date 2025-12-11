@@ -216,7 +216,8 @@
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
     // - <ol class="opts"> の内部にある <a> の場合だけ、
-    //   「一瞬縮む」ような見え方を避けるために処理順を変える。
+    //   「一瞬縮む」ような見え方を避けるために、transform と transition を
+    //   JS 側から !important で完全に固定する。
     var isChoiceAnchor = false;
     try {
       if (el.tagName === "A" && el.closest("ol.opts")) {
@@ -228,15 +229,23 @@
 
     // ▼クリックされた瞬間に「サイズ固定モード」に切り替える。
     //   - 選択肢 <li> 内の <a>:
-    //       先に inline transform=1.06 を入れて見た目を固定 → その後 sa-hover を外す
-    //       ことで、1.0 に戻るフレームを挟まず「小さくならない」ようにする。
+    //       transform/transition を JS 側から !important で上書きし、
+    //       その後 sa-hover を外して sa-hover-fixed を付与することで、
+    //       マウスを離しても絶対に scale(1.06) から変化しないようにする。
     //   - その他のボタン／リンク:
     //       これまでどおりの順番（先にクラス付け替え → 後から inline transform）。
     el.addEventListener("click", function () {
       if (isChoiceAnchor) {
-        // 1) まず現在の見た目どおりに 1.06 倍を inline で固定
+        // 1) まず 1.06 倍を !important で強制し、他の CSS(transform) を完全に無効化する
         el.style.transformOrigin = "center center";
-        el.style.transform = "scale(1.06)";
+        try {
+          el.style.setProperty("transform", "scale(1.06)", "important");
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+        } catch (_e2) {
+          el.style.transform = "scale(1.06)";
+          el.style.transition = "none";
+        }
 
         // 2) そのあと hover 用クラスを外し、固定拡大用クラスを付与
         el.classList.remove("sa-hover");
@@ -303,8 +312,9 @@
 
         // Aパートでは「行全体クリック」を有効にするために、
         // <li> 自体にクリックリスナーを付与し、
-        // - 行のどこをクリックしても内部の <a> を 1.06 倍固定
-        // - sa-hover を外して sa-hover-fixed + inline transform を適用
+        // - 行のどこをクリックしても内部の <a> を scale(1.06) に固定
+        // - transform/transition を !important で上書き
+        // - sa-hover を外して sa-hover-fixed を付与
         // することで、マウスを離しても絶対に縮まないようにする。
         if (!el.getAttribute("data-sa-li-bound")) {
           el.setAttribute("data-sa-li-bound", "1");
@@ -314,12 +324,21 @@
             if (!anchor) {
               return;
             }
+
             if (anchor.classList) {
               anchor.classList.remove("sa-hover");
               anchor.classList.add("sa-hover-fixed");
             }
+
             anchor.style.transformOrigin = "center center";
-            anchor.style.transform = "scale(1.06)";
+            try {
+              anchor.style.setProperty("transform", "scale(1.06)", "important");
+              anchor.style.setProperty("transition", "none", "important");
+              anchor.style.setProperty("transition-property", "none", "important");
+            } catch (_e2) {
+              anchor.style.transform = "scale(1.06)";
+              anchor.style.transition = "none";
+            }
           });
         }
 
