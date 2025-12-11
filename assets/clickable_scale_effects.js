@@ -16,7 +16,7 @@
   // SCALE_STYLE_TEXT:
   //   ・.sa-hover           : hover 時のアニメーションを適用する共通クラス
   //   ・display:inline-block; padding:… により拡大時の文字切れを防止
-  //   ・.sa-hover:hover     : hover 中のみ 1.06 倍に拡大
+  //   ・.sa-hover:hover     : hover 中のみ 1.10 倍に拡大
   //
   //   ・.sa-hover-fixed     :
   //       - クリック後に付与される「固定拡大」用のクラス
@@ -39,7 +39,7 @@
     "display:inline-block;" +                 // hover版と同じボックス特性を維持
     "padding:2px 4px;" +
     "transform-origin:center center;" +
-    "transform:scale(1.10) !important;" +    // 常時 1.06 倍を強制
+    "transform:scale(1.10) !important;" +    // 常時 1.10 倍を強制
     "transition-property:none !important;" + // 以後はアニメーションさせない（サイズ固定）
     "}" +
     ".sa-hover-fixed:hover{" +
@@ -211,7 +211,7 @@
     el.setAttribute("data-sa-bound", "1");
 
     // 初期状態では hover 用のクラスを付与して、
-    // マウスオーバー時にだけ 1.06 倍へふわっと拡大させる。
+    // マウスオーバー時にだけ 1.10 倍へふわっと拡大させる。
     el.classList.add("sa-hover");
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
@@ -230,7 +230,7 @@
     // ▼ 選択肢 <li> 内の <a> 専用: 4種類のイベントすべてで scale(1.10) に固定する。
     //   - lockChoiceScale():
     //       transform/transition を JS 側から !important で上書きし、
-    //       hover/out や :active よりも強く常に 1.06 倍を維持させる。
+    //       hover/out や :active よりも強く常に 1.10 倍を維持させる。
     //       同時に sa-hover を外し、sa-hover-fixed を付与して「固定拡大」状態にする。
     if (isChoiceAnchor) {
       var lockChoiceScale = function () {
