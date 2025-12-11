@@ -560,9 +560,11 @@
           //    の順にスケールを変化させる三段アニメーションを付与する。
           //   - 時間を全体的に伸ばして、Bパートの結果表示に合う「ゆっくりめ」の動きにする。
           (function runTriplePulse(targetEl, correctLi) {
-            var d1 = 220; // 1.0 → 1.20 までの時間（ゆっくりめ）
-            var d2 = 220; // 1.20 → 1.00 までの時間（ゆっくりめ）
-            var d3 = 260; // 1.00 → 1.10 までの時間（最後を少し長めにして着地感を出す）
+            // d1: 最初の「ポンッ」と膨らむ部分だけ少し速め
+            // d2, d3: その後はゆっくり戻って・着地するように長めに取る
+            var d1 = 180; // 1.0 → 1.20 まで：やや速め
+            var d2 = 360; // 1.20 → 1.00 まで：ゆっくりめ
+            var d3 = 520; // 1.00 → 1.10 まで：さらにゆっくり着地
 
             // まず正解行の三段アニメーションを開始
             animateScale(targetEl, 1.0, 1.20, d1, easeInOutQuad, function () {
@@ -573,7 +575,7 @@
 
             // ▼ 同じ <ol> 内にある「その他の選択肢 li」に対しては、
             //    中身だけを 1.0 → 0.90 に縮小するアニメーションを付与する。
-            //    - こちらも少しだけ時間を伸ばして、全体のテンポを揃える。
+            //    - こちらも全体にあわせて、ゆっくり縮んでそのまま落ち着くテンポにする。
             try {
               var listNode = correctLi.parentNode;
               if (!listNode) {
@@ -607,7 +609,7 @@
                 //  - display:inline-block
                 //  - width:100%
                 //  - transform-origin:left center
-                //  - margin-left:-4px で、テキスト塊全体を少しだけリストマーカー側へ寄せる
+                //  - position + left で、テキスト塊全体をリストマーカー側へ寄せる
                 // を明示指定して「左端を基準に横方向だけすぼみつつ、インデントも少し浅くする」ようにする。
                 try {
                   otherInner.style.display = "inline-block";
@@ -615,15 +617,14 @@
                   otherInner.style.transformOrigin = "left center";
 
                   // ▼ 縦ラインをもっと強く左側へ寄せる
-                  // margin-left では限界があるため relative + left で確実に位置調整
                   otherInner.style.position = "relative";
                   otherInner.style.left = "-40px";
                 } catch (_eSetOrigin) {
                   // style 設定に失敗しても致命的ではないので、そのまま進める
                 }
 
-                // 時間は 260ms とし、正解アニメより少し長めでゆったり縮む感じにする。
-                animateScale(otherInner, 1.0, 0.90, 260, easeInOutQuad, null);
+                // 全体のテンポにあわせて、ゆっくり縮んでそのまま静止させる。
+                animateScale(otherInner, 1.0, 0.90, 520, easeInOutQuad, null);
               }
             } catch (_eShrinkOthers) {
               // 縮小処理で失敗しても、正解アニメ自体には影響させない
