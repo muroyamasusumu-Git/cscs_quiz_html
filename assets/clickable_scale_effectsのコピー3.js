@@ -52,9 +52,7 @@
     "transition-duration:0s !important;" +
     "transition-timing-function:linear !important;" +
     "animation:none !important;" +
-    "animation-name:none !important;" +
-    "animation-duration:0s !important;" +
-    "}" +
+    "}"+
     "#cscs-fade-highlight-layer *{" +
     "transition:none !important;" +
     "transition-property:none !important;" +
@@ -296,7 +294,7 @@
       };
 
       // mousedown / mouseup / click / pointerdown のどれが先に来ても、
-      // 必ず同じ lockChoiceScale() が呼ばれて 1.10 に固定されるようにする。
+      // 必ず同じ lockChoiceScale() が呼ばれて 1.06 に固定されるようにする。
       el.addEventListener("mousedown", lockChoiceScale);
       el.addEventListener("mouseup", lockChoiceScale);
       el.addEventListener("click", lockChoiceScale);
@@ -305,7 +303,7 @@
 
     // ▼クリックされた瞬間の処理
     //   - 選択肢アンカーの場合:
-    //       上の lockChoiceScale() によってすでに 1.10 固定されている前提だが、
+    //       上の lockChoiceScale() によってすでに 1.06 固定されている前提だが、
     //       念のため同じ固定処理をもう一度適用しておく。
     //   - その他のボタン／リンク:
     //       これまでどおり、click 時に sa-hover → sa-hover-fixed へ切り替え、

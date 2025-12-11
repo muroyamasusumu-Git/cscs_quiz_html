@@ -11,48 +11,6 @@
   var FADE_EASING = "ease-in-out"; // CSSトランジション用のイージング関数
   var SESSION_KEY = "cscs_page_fade_pending"; // 遷移元→遷移先に「フェード中だった」ことを伝えるためのsessionStorageキー
 
-  // クローンハイライト用の「アニメ全殺しCSS」を一度だけ注入するためのID
-  var HIGHLIGHT_KILL_STYLE_ID = "cscs-highlight-kill-style";
-
-  /**
-   * #cscs-fade-highlight-layer 配下のすべての要素について、
-   * CSS 側から transition / animation / transform を徹底的に無効化するスタイルを注入する。
-   * - クローン側で「意図しないアニメーション」が二重に走ることを防ぐための保険。
-   * - transform は後から JS 側で !important を付けて上書きできるよう、
-   *   ここでも !important 付きで一括リセットしておく。
-   */
-  function injectHighlightKillCss() {
-    try {
-      if (document.getElementById(HIGHLIGHT_KILL_STYLE_ID)) {
-        return;
-      }
-      var styleEl = document.createElement("style");
-      styleEl.id = HIGHLIGHT_KILL_STYLE_ID;
-      styleEl.type = "text/css";
-      var cssText =
-        "#cscs-fade-highlight-layer, " +
-        "#cscs-fade-highlight-layer *{" +
-        "transition:none !important;" +
-        "transition-property:none !important;" +
-        "transition-duration:0s !important;" +
-        "transition-timing-function:linear !important;" +
-        "animation:none !important;" +
-        "animation-name:none !important;" +
-        "animation-duration:0s !important;" +
-        "animation-timing-function:linear !important;" +
-        "transform-origin:center center !important;" +
-        "}";
-      if (styleEl.styleSheet) {
-        styleEl.styleSheet.cssText = cssText;
-      } else {
-        styleEl.appendChild(document.createTextNode(cssText));
-      }
-      document.head.appendChild(styleEl);
-    } catch (_e) {
-      // CSS注入に失敗しても致命的ではないので握りつぶす
-    }
-  }
-
   // =========================================
   // 画面全体を覆うフェード用オーバーレイを取得 or 新規作成
   // （毎回新しく作らず、既存のものを再利用）
@@ -104,9 +62,6 @@
       if (existing && existing.parentNode) {
         existing.parentNode.removeChild(existing); // 古いレイヤーをオーバーレイ内部から取り除く
       }
-
-      // ハイライトレイヤー用の「アニメ全殺しCSS」を必ず注入
-      injectHighlightKillCss();
 
       // 選択された choice (A/B/C/D など) を保存しておくための変数
       // - choiceNode が <li> の場合に、その <a> の href から choice パラメータを抽出してセットする
@@ -170,16 +125,6 @@
       layer.style.bottom = "0";
       layer.style.zIndex = "9999";          // オーバーレイ背景より前面に出すための z-index（コンテキストは overlay の内側で完結）
       layer.style.pointerEvents = "none";   // ハイライトレイヤー自体はマウス操作を一切受け付けない
-      try {
-        if (layer.style && typeof layer.style.setProperty === "function") {
-          layer.style.setProperty("transition", "none", "important");
-          layer.style.setProperty("animation", "none", "important");
-        } else {
-          layer.style.transition = "none";
-          layer.style.animation = "none";
-        }
-      } catch (_eLayerStyle) {
-      }
       overlay.appendChild(layer);           // body 直下ではなく overlay 配下にぶら下げることで、黒幕と一体化した前面表示にする
 
       // ハイライト対象を配列にまとめて、共通のクローン処理を適用する
@@ -270,6 +215,7 @@
                     an.classList.add("sa-hover-fixed");
                   }
                   an.style.transformOrigin = "center center";
+                  // ここでは scale(1.10) を前提に固定する（必要なら将来調整用）
                   try {
                     an.style.setProperty("transform", "scale(1.10)", "important");
                   } catch (_eSetScale) {
@@ -303,7 +249,7 @@
 
             // --- 追加処理① ---
             // 選択されていない <li> を透明化し、選択された <li> のみ残す。
-            // selectedChoiceCode（"A" / "B" / "C"）に基づいて href の choice=◯ を判定する。
+            // selectedChoiceCode（"A" / "B" / "C" / "D"）に基づいて href の choice=◯ を判定する。
             var selected = selectedChoiceCode;
             if (selected) {
               var lis = clone.querySelectorAll("li");
@@ -349,7 +295,7 @@
         var wrapper = document.createElement("div");
         wrapper.style.position = "fixed";
         wrapper.style.left = String(rect.left) + "px";
-        // 元の表示位置から 15px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
+        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
         wrapper.style.top = String(rect.top - 15) + "px";
         wrapper.style.width = String(rect.width) + "px";
         wrapper.style.margin = "0";
@@ -365,6 +311,20 @@
           }
         } catch (_eWrapper) {
         }
+
+        wrapper.appendChild(clone);              // クローンを wrapper に入れて
+        layer.appendChild(wrapper);              // wrapper ごとハイライトレイヤーに追加する
+
+        // クローンを配置するためのラッパーを作成し、元の位置に固定する
+        var wrapper = document.createElement("div");
+        wrapper.style.position = "fixed";
+        wrapper.style.left = String(rect.left) + "px";
+        // 元の表示位置から 10px だけ上方向にオフセットして、わずかに浮かび上がって見えるようにする
+        wrapper.style.top = String(rect.top - 15) + "px";
+        wrapper.style.width = String(rect.width) + "px";
+        wrapper.style.margin = "0";
+        wrapper.style.padding = "0";
+        wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない（クリックは元DOM側で処理済みの前提）
 
         wrapper.appendChild(clone);              // クローンを wrapper に入れて
         layer.appendChild(wrapper);              // wrapper ごとハイライトレイヤーに追加する
