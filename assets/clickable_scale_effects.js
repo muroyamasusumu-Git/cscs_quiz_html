@@ -252,6 +252,13 @@
     var selector = baseSelectors.join(",");
     var nodeList = root.querySelectorAll(selector);
 
+    // Bパートかどうかを事前に判定しておく（body.mode-b）
+    var body = document.body;
+    var isModeB = false;
+    if (body && body.classList && body.classList.contains("mode-b")) {
+      isModeB = true;
+    }
+
     for (var i = 0; i < nodeList.length; i++) {
       var el = nodeList[i];
 
@@ -266,10 +273,15 @@
         continue;
       }
 
+      // ▼ Bパートでは「選択肢テキスト自体」の拡大を無効化する。
+      //   ・Aパート: <a href="...">（選択肢テキスト）は拡大対象
+      //   ・Bパート: 同じ <a> でも、ol.opts 内にあるものは拡大対象から除外
+      if (isModeB && el.tagName === "A" && el.closest("ol.opts")) {
+        continue;
+      }
+
       // 通常のボタン/リンク/role=button などは、
       // isFocusableClickable で「クリック可能」と判断されたもののみに拡大効果を付ける。
-      //   ・選択肢テキストは <a href="..."> なのでここで拾われる
-      //   ・<li> にはバインドしていないため、マーカー（A./B./C./D.）は固定のまま
       if (isFocusableClickable(el)) {
         bindScaleToElement(el);
       }
@@ -281,11 +293,16 @@
   function setupGlobalBinding() {
     var body = document.body;
 
-    // body.classList に "mode-a" が付いているページだけを対象にする。
-    //   ・Aパートの <body> には "mode-a" が付与されている想定
-    //   ・Bパートなど他の画面では hover 拡大を無効化したいため、
-    //     ここで早期 return して一切バインドしない。
-    if (!body || !body.classList || !body.classList.contains("mode-a")) {
+    // body.classList に "mode-a" または "mode-b" が付いているページだけを対象にする。
+    //   ・Aパートの <body> には "mode-a"
+    //   ・Bパートの <body> には "mode-b"
+    //   が付与されている想定とし、それ以外の画面では hover 拡大を無効化する。
+    if (!body || !body.classList) {
+      return;
+    }
+    var isModeA = body.classList.contains("mode-a");
+    var isModeB = body.classList.contains("mode-b");
+    if (!isModeA && !isModeB) {
       return;
     }
 
