@@ -581,6 +581,13 @@
                 }
 
                 // 不正解側は 1.0 → 0.90 にだけ縮小して、そのサイズで落ち着かせる。
+                // 縮小の基準点を「左中央」にして、行頭位置がずれないようにする。
+                try {
+                  otherInner.style.transformOrigin = "left center";
+                } catch (_eSetOrigin) {
+                  // transform-origin の設定に失敗しても致命的ではないので、そのまま進める
+                }
+
                 // 時間は 260ms とし、正解アニメのテンポに近づける。
                 animateScale(otherInner, 1.0, 0.90, 260, easeInOutQuad, null);
               }
