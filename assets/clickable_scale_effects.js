@@ -305,32 +305,60 @@
     //     hover 状態（1.10倍）をそのまま固定する。
     //   - hover サポートなし（iPad 等）では、クリック時にスケール固定は行わない。
     el.addEventListener("click", function () {
-      if (!SUPPORTS_HOVER) {
+      // hover をサポートしていない環境では、
+      // 選択肢アンカー以外は従来どおり何もしない。
+      if (!SUPPORTS_HOVER && !isChoiceAnchor) {
         return;
       }
 
+      // 通常ボタン類は「一度 hover 済み」のものだけロック対象にする。
+      // 選択肢アンカー(<ol class="opts"> 内の <a>)は hover の有無に関係なく固定拡大させる。
       if (!isChoiceAnchor) {
         if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
           return;
         }
       }
 
-      el.classList.remove("sa-hover");
-      el.style.setProperty("pointer-events", "none", "important");
+      try {
+        // 現時点の見た目上の transform をそのまま取得し、inline スタイルとして凍結する。
+        // すでに hover で 1.10 倍になっていれば、その 1.10 の matrix をそのまま固定する。
+        var cs = window.getComputedStyle(el);
+        var tf = cs ? cs.transform : null;
 
-      requestAnimationFrame(function () {
-        el.classList.add("sa-hover-fixed");
+        el.style.transformOrigin = "center center";
+
+        if (tf && tf !== "none") {
+          // matrix(...) など、ブラウザが内部的に使っている値をそのまま固定
+          el.style.setProperty("transform", tf, "important");
+        } else {
+          // 念のため、transform が none の場合は 1.10 を直接指定して固定
+          el.style.setProperty("transform", "scale(1.10)", "important");
+        }
+
+        // ここで transition / animation を完全に殺しておくことで、
+        // 「1.0 に戻ろうとする」アニメーション自体を発生させない。
+        el.style.setProperty("transition", "none", "important");
+        el.style.setProperty("transition-property", "none", "important");
+        el.style.setProperty("transition-duration", "0s", "important");
+        el.style.setProperty("transition-timing-function", "linear", "important");
+        el.style.setProperty("animation", "none", "important");
+        el.style.setProperty("animation-name", "none", "important");
+        el.style.setProperty("animation-duration", "0s", "important");
+        el.style.setProperty("animation-timing-function", "linear", "important");
+      } catch (_eLock) {
+        // getComputedStyle に失敗した場合も、最低限 1.10 倍で固定しておく
         el.style.transformOrigin = "center center";
         el.style.setProperty("transform", "scale(1.10)", "important");
         el.style.setProperty("transition", "none", "important");
         el.style.setProperty("transition-property", "none", "important");
         el.style.setProperty("animation", "none", "important");
         el.style.setProperty("animation-name", "none", "important");
+      }
 
-        requestAnimationFrame(function () {
-          el.style.removeProperty("pointer-events");
-        });
-      });
+      // CSS 側の hover 効果はここで切り離し、
+      // 代わりに「固定表示」用クラスに切り替える。
+      el.classList.remove("sa-hover");
+      el.classList.add("sa-hover-fixed");
     });
   }
 
