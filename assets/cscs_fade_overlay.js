@@ -172,7 +172,7 @@
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
           // ※ここでは「選択した<li>だけ可視化し、それ以外の<li>は透明にする」処理も追加する
-          var cloneTag = clone.tagName ? cloneTag = clone.tagName.toLowerCase() : "";
+          var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
             clone.style.marginLeft = "18px";
             clone.style.marginBottom = "15px";
@@ -187,17 +187,35 @@
               for (var ii = 0; ii < lis.length; ii++) {
                 var li = lis[ii];
                 var link = li.querySelector("a");
-                if (!link || !link.href) {
-                  // クローン内で href を持たないものは選択対象外として透明にしておく
-                  li.style.opacity = "0";
+                if (!link) {
                   continue;
                 }
 
-                // ここでは、まだ href を残したまま「どの選択肢が選ばれたか」を判定する。
-                // - link.href に含まれる "choice=◯" と selectedChoiceCode を比較する。
-                var hrefStr = String(link.href);
-                var isSelected = hrefStr.indexOf("choice=" + selected) !== -1;
+                // クローン側の <a> から clickable 系の情報を除去する
+                // - href を外して "a[href]" セレクタから外す（clickable_scale_effects.js に拾われないようにする）
+                // - sa-hover / sa-hover-fixed / data-sa-bound など、拡大用のクラスやバインドフラグも消す
+                if (link.classList) {
+                  link.classList.remove("sa-hover");
+                  link.classList.remove("sa-hover-fixed");
+                }
+                link.removeAttribute("data-sa-bound");
+                link.removeAttribute("data-sa-clickable");
+                link.removeAttribute("role");
+                link.removeAttribute("href");
 
+                // 元の href を使って、choice=◯ が選択されたものかどうかを判定する
+                // （クローンでは clickable を外すため、元 DOM から取得した selectedChoiceCode を使う）
+                var isSelected = false;
+                if (selected && typeof selected === "string") {
+                  // data-choice などの属性があれば優先的に見る。無ければテキストからは判別しない。
+                  var dataChoice = link.getAttribute("data-choice");
+                  if (dataChoice && dataChoice.toUpperCase() === selected) {
+                    isSelected = true;
+                  }
+                }
+
+                // href 内の choice=◯ が判定に使えない場合でも、
+                // selectedChoiceCode が無ければ一律で非選択扱いにする。
                 if (!isSelected) {
                   // 選択されなかった選択肢 → 完全に透明化
                   li.style.opacity = "0";
@@ -207,19 +225,6 @@
                 // 選択された選択肢 → 表示（クローン側ではテキスト部分のみ 1.10 倍の「静止状態」で表示する）
                 li.style.opacity = "1";
 
-                // 以降は「クローンを clickable 対象から完全に外す」処理。
-                // - clickable_scale_effects.js の検出条件から除外するために clickable 系の属性・クラスを削除する。
-                if (link.classList) {
-                  // hover 拡大用クラスを外すことで、クローンに対しては CSS 側のスケールを効かせない。
-                  link.classList.remove("sa-hover");
-                  link.classList.remove("sa-hover-fixed");
-                }
-                link.removeAttribute("data-sa-bound");
-                link.removeAttribute("data-sa-clickable");
-                link.removeAttribute("role");
-                // "a[href]" セレクタから外すために、判定が終わったあとで href を削除する。
-                link.removeAttribute("href");
-
                 // クローン内の <a>（選択肢テキスト）だけを、最初から 1.10 倍で固定表示する。
                 // イベントやトランジションは一切付けず、完全に静止した 1.10 倍テキストとして扱う。
                 if (link && link.style) {
@@ -228,8 +233,6 @@
                   link.style.transform = "scale(1.10)";
                   link.style.transition = "none";
                   link.style.transitionProperty = "none";
-                  // pointerEvents を none にしておくことで、クローンのテキスト自体は
-                  // マウスオーバー／クリックのヒットターゲットにならず、元 DOM 側にだけイベントが届く。
                   link.style.pointerEvents = "none";
                 }
               }
