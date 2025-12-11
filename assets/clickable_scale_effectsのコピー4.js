@@ -263,8 +263,9 @@
     el.classList.add("sa-hover");
 
     // 選択肢行内の <a> かどうかを事前に判定しておく
-    // - <ol class="opts"> の内部にある <a> は「マウスオーバーのみ」アニメーション対象とし、
-    //   クリック時のスケール固定は行わない。
+    // - <ol class="opts"> の内部にある <a> の場合だけ、
+    //   mousedown / mouseup / click / pointerdown のすべてで
+    //   scale(1.10) を完全固定するテスト用の挙動にする。
     var isChoiceAnchor = false;
     try {
       if (el.tagName === "A" && el.closest("ol.opts")) {
@@ -274,22 +275,60 @@
       isChoiceAnchor = false;
     }
 
+    // ▼ 選択肢 <li> 内の <a> 専用: 4種類のイベントすべてで scale(1.10) に固定する。
+    //   - lockChoiceScale():
+    //       transform/transition を JS 側から !important で上書きし、
+    //       hover/out や :active よりも強く常に 1.10 倍を維持させる。
+    //       同時に sa-hover を外し、sa-hover-fixed を付与して「固定拡大」状態にする。
+    if (isChoiceAnchor) {
+      var lockChoiceScale = function () {
+        el.style.transformOrigin = "center center";
+        try {
+          el.style.setProperty("transform", "scale(1.10)", "important");
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+        } catch (_e2) {
+          el.style.transform = "scale(1.10)";
+          el.style.transition = "none";
+        }
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
+      };
+
+      // mousedown / mouseup / click / pointerdown のどれが先に来ても、
+      // 必ず同じ lockChoiceScale() が呼ばれて 1.10 に固定されるようにする。
+      el.addEventListener("mousedown", lockChoiceScale);
+      el.addEventListener("mouseup", lockChoiceScale);
+      el.addEventListener("click", lockChoiceScale);
+      el.addEventListener("pointerdown", lockChoiceScale);
+    }
+
     // ▼クリックされた瞬間の処理
     //   - 選択肢アンカーの場合:
-    //       クリック時のスケールアニメーションは一切行わず、
-    //       hover 時の 1.10 倍だけを維持する。
+    //       上の lockChoiceScale() によってすでに 1.10 固定されている前提だが、
+    //       念のため同じ固定処理をもう一度適用しておく。
     //   - その他のボタン／リンク:
     //       これまでどおり、click 時に sa-hover → sa-hover-fixed へ切り替え、
     //       inline の transform:scale(1.10) をセットする。
     el.addEventListener("click", function () {
       if (isChoiceAnchor) {
-        // 選択肢の <a> については、クリック時の追加スケール固定は行わない。
-        return;
+        el.style.transformOrigin = "center center";
+        try {
+          el.style.setProperty("transform", "scale(1.10)", "important");
+          el.style.setProperty("transition", "none", "important");
+          el.style.setProperty("transition-property", "none", "important");
+        } catch (_e3) {
+          el.style.transform = "scale(1.10)";
+          el.style.transition = "none";
+        }
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
+      } else {
+        el.classList.remove("sa-hover");
+        el.classList.add("sa-hover-fixed");
+        el.style.transformOrigin = "center center";
+        el.style.transform = "scale(1.10)";
       }
-      el.classList.remove("sa-hover");
-      el.classList.add("sa-hover-fixed");
-      el.style.transformOrigin = "center center";
-      el.style.transform = "scale(1.10)";
     });
   }
 
@@ -342,12 +381,49 @@
       // ▼ 選択肢の行 <li>（ol.opts li）について
       //   ・ブラウザは <li> に対して「A. / B. / C. / D.」などのマーカーを描画する。
       //   ・<li> 全体を拡大すると、このマーカーも一緒に拡大されてしまう。
-      //   ・今回の方針では「選択肢テキストの hover 時だけをアニメーションさせる」ため、
-      //     <li> 自体には hover / click のスケールアニメーションを一切付けない。
-      //   ・同じ行の中にある <a class=\"opt-link\" ...> は、bindScaleToElement() 側で
-      //     hover 用クラス（sa-hover）のみ付与される。
+      //   ・今回の要件では「A. / B. / C. / D. の部分は動かさず、テキストだけ拡大」したいので、
+      //     <li> 自体には sa-hover を付けないようにし、ここでは何もバインドしない。
+      //   ・その代わり、同じ行の中にある <a class="opt-link" ...> に対してのみ
+      //     isFocusableClickable() 判定を通じて sa-hover を付与する。
       if (el.tagName === "LI" && el.closest("ol.opts")) {
-        // Aパート / Bパートともに、<li> 自体にはスケール系の処理を何も行わない。
+        // Bパートでは選択肢そのものを拡大させない方針なので、
+        // ol.opts 内の <li> については何もせずスキップする。
+        if (isModeB) {
+          continue;
+        }
+
+        // Aパートでは「行全体クリック」を有効にするために、
+        // <li> 自体にクリックリスナーを付与し、
+        // - 行のどこをクリックしても内部の <a> を scale(1.10) に固定
+        // - transform/transition を !important で上書き
+        // - sa-hover を外して sa-hover-fixed を付与
+        // することで、マウスを離しても絶対に縮まないようにする。
+        if (!el.getAttribute("data-sa-li-bound")) {
+          el.setAttribute("data-sa-li-bound", "1");
+          el.addEventListener("click", function () {
+            var li = this;
+            var anchor = li.querySelector("a");
+            if (!anchor) {
+              return;
+            }
+
+            if (anchor.classList) {
+              anchor.classList.remove("sa-hover");
+              anchor.classList.add("sa-hover-fixed");
+            }
+
+            anchor.style.transformOrigin = "center center";
+            try {
+              anchor.style.setProperty("transform", "scale(1.10)", "important");
+              anchor.style.setProperty("transition", "none", "important");
+              anchor.style.setProperty("transition-property", "none", "important");
+            } catch (_e2) {
+              anchor.style.transform = "scale(1.10)";
+              anchor.style.transition = "none";
+            }
+          });
+        }
+
         continue;
       }
 
