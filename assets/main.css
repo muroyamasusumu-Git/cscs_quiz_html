@@ -119,15 +119,17 @@ body.mode-b .opts .is-correct {
 opacity: 1 !important;
 }
 
-/* 1) リスト番号（A/B/C/D）は絶対に変えない */
-body.mode-b .opts li::marker {
-  font-size: 1em; /* 既存マーカーのサイズ維持 */
-}
 
 /* 2) class="is-correct" の文字だけ大きくする */
 body.mode-b .opts li.is-correct {
   font-size: 106%;    /* ← 好きな大きさに変更 */
 }
+
+/* 1) リスト番号（A/B/C/D）は絶対に変えない */
+body.mode-b .opts li.is-correct::marker {
+  font-size: 100%; /* 既存マーカーのサイズ維持 */
+}
+
 
 
 .answer .opt-small {
