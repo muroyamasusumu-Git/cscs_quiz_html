@@ -309,24 +309,28 @@
         return;
       }
 
-      // 選択肢アンカー(<ol class="opts"> 内の <a>)は、
-      // hover の有無に関係なくクリックした瞬間に固定拡大させる。
-      // それ以外のボタン類は、従来どおり「一度 hover したものだけロック」する。
       if (!isChoiceAnchor) {
         if (!hasHover && el.getAttribute("data-sa-hovered") !== "1") {
           return;
         }
       }
 
-      // ▼ クリックした瞬間に完全固定（元に戻る transition を発生させない）
       el.classList.remove("sa-hover");
-      el.classList.add("sa-hover-fixed");
-      el.style.transformOrigin = "center center";
-      el.style.setProperty("transform", "scale(1.10)", "important");
-      el.style.setProperty("transition", "none", "important");
-      el.style.setProperty("transition-property", "none", "important");
-      el.style.setProperty("animation", "none", "important");
-      el.style.setProperty("animation-name", "none", "important");
+      el.style.setProperty("pointer-events", "none", "important");
+
+      requestAnimationFrame(function () {
+        el.classList.add("sa-hover-fixed");
+        el.style.transformOrigin = "center center";
+        el.style.setProperty("transform", "scale(1.10)", "important");
+        el.style.setProperty("transition", "none", "important");
+        el.style.setProperty("transition-property", "none", "important");
+        el.style.setProperty("animation", "none", "important");
+        el.style.setProperty("animation-name", "none", "important");
+
+        requestAnimationFrame(function () {
+          el.style.removeProperty("pointer-events");
+        });
+      });
     });
   }
 
