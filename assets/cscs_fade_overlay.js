@@ -466,17 +466,14 @@
     }
 
     // 問題文または選択肢のどちらかが取得できていれば、
-    // クリック処理（mousedown / mouseup / click）が一通り完了した次のイベントループで
+    // クリック処理が走った直後（ほぼ同時）のタイミングで
     // フェード用オーバーレイの上にハイライトレイヤーを作成する。
-    // これにより clickable_scale_effects.js 側での 1.10 倍固定などのスタイル反映が完全に終わった
-    // 「指を離したあとの最終状態」をクローンできるようにする。
-    // clickable_scale_effects.js の pointerup / click / transition が完全に終わって
-    // 「指を離した後の最終状態」が確定してからクローンするため、
-    // 遅延を大きくし、DOM が完全に settled した後に生成する。
+    // clickable_scale_effects.js 側のクリック時アニメーションを削った前提で、
+    // 「クリック直後の見た目」をそのままクローンする挙動にする。
     if (questionNode || choiceNode) {
       window.setTimeout(function () {
         createHighlightLayer(questionNode, choiceNode);
-      }, 400);
+      }, 0); // 0ms 遅延: クリック直後（次のイベントループ）にクローンを作成
     }
 
     // フェードアウトしている間、フェードの下にある「元の選択肢 <li>」も同じ時間で薄くなっていくようにする
