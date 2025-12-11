@@ -13,7 +13,7 @@
 
   // クローンハイライト用の「アニメ全殺しCSS」を一度だけ注入するためのID
   var HIGHLIGHT_KILL_STYLE_ID = "cscs-highlight-kill-style";
-
+    
   /**
    * #cscs-fade-highlight-layer 配下のすべての要素について、
    * CSS 側から transition / animation / transform を徹底的に無効化するスタイルを注入する。
@@ -560,6 +560,65 @@
 
       // フェード開始とほぼ同時にロックループをスタートさせる
       requestAnimationFrame(loop);
+    })();
+
+    // ▼ ここから追加処理：フェードアウト中に「他の選択肢」を少しだけ縮小させる。
+    //    - 選択された <li> と同じリスト内の兄弟 <li> を対象にする
+    //    - テキスト部分（<a>）があればそこを縮小対象にし、なければ <li> 全体を縮小させる
+    (function shrinkOtherChoicesDuringFade() {
+      if (!originalChoiceLi) {
+        return;
+      }
+
+      var listNode = originalChoiceLi.parentNode;
+      if (!listNode || listNode.nodeType !== 1) {
+        return;
+      }
+
+      var lis = null;
+      try {
+        lis = listNode.querySelectorAll("li");
+      } catch (_eLis) {
+        lis = null;
+      }
+      if (!lis || !lis.length) {
+        return;
+      }
+
+      // フェード時間に近い値で、ゆっくり目に縮小させる
+      var SHRINK_DURATION_MS = 480;
+
+      for (var si = 0; si < lis.length; si++) {
+        var li = lis[si];
+        if (!li || li === originalChoiceLi) {
+          continue;
+        }
+
+        // 縮小対象要素を決める：基本は <a>、無ければ <li> 自体
+        var target = null;
+        try {
+          target = li.querySelector("a");
+        } catch (_eFindA) {
+          target = null;
+        }
+        if (!target) {
+          target = li;
+        }
+        if (!target || !target.style) {
+          continue;
+        }
+
+        try {
+          // 左端を基準に横方向だけ少しすぼむように縮小する
+          target.style.transformOrigin = "left center";
+          target.style.transitionProperty = "transform";
+          target.style.transitionDuration = String(SHRINK_DURATION_MS) + "ms";
+          target.style.transitionTimingFunction = "ease-out";
+          target.style.transform = "scale(0.90)";
+        } catch (_eShrink) {
+          // transition 設定に失敗した場合は何もしない
+        }
+      }
     })();
 
     // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
