@@ -160,6 +160,43 @@
           clone.removeAttribute("data-cscs-slide-applied"); // 「一度だけ適用」フラグもクローンでは無効化する
           // --- 追加処理ここまで ---
 
+          // --- 追加処理②: clickable_scale_effects.js 由来のクラスをクローン側からすべて取り除き、
+          //                  クローン挿入時に「縮小→拡大」のアニメーションが再生されないようにする。
+          // 1) クローン自身から clickable 系クラスを除去
+          if (clone.classList && typeof clone.classList.remove === "function") {
+            clone.classList.remove("sa-hover");
+            clone.classList.remove("sa-hover-fixed");
+          } else {
+            var clsClickable = clone.getAttribute("class") || "";
+            if (clsClickable.indexOf("sa-hover") !== -1 || clsClickable.indexOf("sa-hover-fixed") !== -1) {
+              clsClickable = clsClickable.replace(/\bsa-hover-fixed\b/g, " ");
+              clsClickable = clsClickable.replace(/\bsa-hover\b/g, " ");
+              clsClickable = clsClickable.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+              clone.setAttribute("class", clsClickable);
+            }
+          }
+          // 2) クローン配下の子孫ノードからも clickable 系クラスを除去
+          try {
+            var clickableNodes = clone.querySelectorAll(".sa-hover, .sa-hover-fixed");
+            for (var ci = 0; ci < clickableNodes.length; ci++) {
+              var cn = clickableNodes[ci];
+              if (cn.classList && typeof cn.classList.remove === "function") {
+                cn.classList.remove("sa-hover");
+                cn.classList.remove("sa-hover-fixed");
+              } else {
+                var cnCls = cn.getAttribute("class") || "";
+                if (cnCls.indexOf("sa-hover") !== -1 || cnCls.indexOf("sa-hover-fixed") !== -1) {
+                  cnCls = cnCls.replace(/\bsa-hover-fixed\b/g, " ");
+                  cnCls = cnCls.replace(/\bsa-hover\b/g, " ");
+                  cnCls = cnCls.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+                  cn.setAttribute("class", cnCls);
+                }
+              }
+            }
+          } catch (_eClickable) {
+          }
+          // --- 追加処理② ここまで ---
+
           // クローン共通の識別用クラスを付与して、CSSから「クローンだけ」を安全に調整できるようにする
           if (clone.classList) {
             clone.classList.add("cscs-fade-highlight-clone"); // classList が使える場合は add で足す
