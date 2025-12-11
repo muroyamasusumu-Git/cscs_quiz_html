@@ -505,7 +505,7 @@
     bindScaleToAllClickables(document);
 
     // ▼ Bパートの正解選択肢(<li class="is-correct">)に、
-    //    ページ表示時に一度だけ「1.10 倍 → 元に戻る」アニメーションを付ける。
+    //    ページ表示時に一度だけ「1.20 倍 → 1.00 倍 → 1.10 倍」の三段アニメーションを付ける。
     //    - body.mode-b のときだけ有効
     //    - <li> 本体ではなく、内部のラッパー <span> に対して拡大をかけることで、
     //      A〜D のリストマーカーは拡大させず、テキスト部分だけを中央からふわっと動かす。
@@ -531,11 +531,23 @@
             li.appendChild(inner);
           }
 
-          // ▼ テキスト塊(inner) に対して 1.10 倍 → 元に戻るパルスアニメーションを付与。
+          // ▼ テキスト塊(inner) に対して
+          //      1.0 → 1.20 → 1.00 → 1.10
+          //    の順にスケールを変化させる三段アニメーションを付与する。
           //   - A〜D のリストマーカーは <li> に残るため、拡大の影響を受けない。
           //   - transform-origin は CSS 側で center center に指定しているため、
-          //     テキスト全体が中央からふわっと膨らむ。
-          ScaleAnimator.pulse(inner, 180, 1.10, easeInOutQuad);
+          //     テキスト全体が中央からふわっと膨らみ、その後少しだけ 1.10 倍で落ち着く。
+          (function runTriplePulse(targetEl) {
+            var d1 = 120; // 1.0 → 1.20 までの時間
+            var d2 = 120; // 1.20 → 1.00 までの時間
+            var d3 = 140; // 1.00 → 1.10 までの時間（最後ややゆっくり）
+
+            animateScale(targetEl, 1.0, 1.20, d1, easeInOutQuad, function () {
+              animateScale(targetEl, 1.20, 1.00, d2, easeInOutQuad, function () {
+                animateScale(targetEl, 1.00, 1.10, d3, easeInOutQuad, null);
+              });
+            });
+          })(inner);
         }
       } catch (_eCorrectPulse) {
         // 正解行が存在しない場合や取得失敗時も、他処理への影響は出さない
