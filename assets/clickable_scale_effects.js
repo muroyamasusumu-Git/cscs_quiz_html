@@ -504,11 +504,13 @@
     injectScaleStyleIfNeeded();
     bindScaleToAllClickables(document);
 
-    // ▼ Bパートの正解選択肢(<li class="is-correct">)に、
-    //    ページ表示時に一度だけ「1.20 倍 → 1.00 倍 → 1.10 倍」の三段アニメーションを付ける。
+    // ▼ Bパートの正解選択肢(<li class="is-correct">)とその他の選択肢に、
+    //    ページ表示時に一度だけスケールアニメーションを付ける。
     //    - body.mode-b のときだけ有効
-    //    - <li> 本体ではなく、内部のラッパー <span> に対して拡大をかけることで、
-    //      A〜D のリストマーカーは拡大させず、テキスト部分だけを中央からふわっと動かす。
+    //    - 正解: 中身だけを 1.0 → 1.20 → 1.00 → 1.10 に変化
+    //    - 不正解: 中身だけを 1.0 → 0.90 に縮小してそのままキープ
+    //    - <li> 本体ではなく、内部ラッパー <span> に対してスケールをかけることで、
+    //      A〜D のリストマーカーは拡大・縮小させず、テキスト部分だけを中央から動かす。
     if (isModeB) {
       try {
         var correctLis = document.querySelectorAll("li.is-correct");
@@ -531,23 +533,61 @@
             li.appendChild(inner);
           }
 
-          // ▼ テキスト塊(inner) に対して
+          // ▼ 正解テキスト塊(inner) に対して
           //      1.0 → 1.20 → 1.00 → 1.10
           //    の順にスケールを変化させる三段アニメーションを付与する。
-          //   - A〜D のリストマーカーは <li> に残るため、拡大の影響を受けない。
-          //   - transform-origin は CSS 側で center center に指定しているため、
+          //   - transform-origin は CSS / STYLE 側で center center にしているため、
           //     テキスト全体が中央からふわっと膨らみ、その後少しだけ 1.10 倍で落ち着く。
-          (function runTriplePulse(targetEl) {
+          (function runTriplePulse(targetEl, correctLi) {
             var d1 = 120; // 1.0 → 1.20 までの時間
             var d2 = 120; // 1.20 → 1.00 までの時間
             var d3 = 140; // 1.00 → 1.10 までの時間（最後ややゆっくり）
 
+            // まず正解行の三段アニメーションを開始
             animateScale(targetEl, 1.0, 1.20, d1, easeInOutQuad, function () {
               animateScale(targetEl, 1.20, 1.00, d2, easeInOutQuad, function () {
                 animateScale(targetEl, 1.00, 1.10, d3, easeInOutQuad, null);
               });
             });
-          })(inner);
+
+            // ▼ 同じ <ol> 内にある「その他の選択肢 li」に対しては、
+            //    中身だけを 1.0 → 0.90 に縮小するアニメーションを付与する。
+            //    - A〜D マーカーは <li> に残るため影響なし。
+            try {
+              var listNode = correctLi.parentNode;
+              if (!listNode) {
+                return;
+              }
+
+              var allLis = listNode.querySelectorAll("li");
+              for (var i = 0; i < allLis.length; i++) {
+                var otherLi = allLis[i];
+                if (otherLi === correctLi) {
+                  continue;
+                }
+
+                // 既にラッパーがある場合はそれを再利用し、
+                // 無い場合は <li> 直下の中身をすべて <span class="sa-correct-pulse-inner"> で包む。
+                // 正解と同じクラス名を使うが、役割は
+                //   - 「テキスト部分だけを 1 つの塊にする共通ラッパー」
+                // として扱う。
+                var otherInner = otherLi.querySelector(".sa-correct-pulse-inner");
+                if (!otherInner) {
+                  otherInner = document.createElement("span");
+                  otherInner.className = "sa-correct-pulse-inner";
+                  while (otherLi.firstChild) {
+                    otherInner.appendChild(otherLi.firstChild);
+                  }
+                  otherLi.appendChild(otherInner);
+                }
+
+                // 不正解側は 1.0 → 0.90 にだけ縮小して、そのサイズで落ち着かせる。
+                animateScale(otherInner, 1.0, 0.90, 200, easeInOutQuad, null);
+              }
+            } catch (_eShrinkOthers) {
+              // 縮小処理で失敗しても、正解アニメ自体には影響させない
+            }
+          })(inner, li);
         }
       } catch (_eCorrectPulse) {
         // 正解行が存在しない場合や取得失敗時も、他処理への影響は出さない
