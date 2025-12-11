@@ -471,9 +471,7 @@
     // clickable_scale_effects.js 側のクリック時アニメーションを削った前提で、
     // 「クリック直後の見た目」をそのままクローンする挙動にする。
     if (questionNode || choiceNode) {
-      window.setTimeout(function () {
-        createHighlightLayer(questionNode, choiceNode);
-      }, 100); // 0ms 遅延: クリック直後（次のイベントループ）にクローンを作成
+      createHighlightLayer(questionNode, choiceNode);
     }
 
     // 選択された元の <li> には、フェード中も一切の opacity 変更を行わない
