@@ -543,7 +543,7 @@
 
             // 不正解側と同じく、position + left でテキスト塊の左端位置を揃える
             inner.style.position = "relative";
-            inner.style.left = "-6px"; // (-40px + 34px) → 正解だけ右へ34px寄せる
+            inner.style.left = "30px"; // (-40px + 34px) → 正解だけ右へ34px寄せる
           } catch (_eCorrectOrigin) {
             // style 設定に失敗しても致命的ではないので、そのまま進める
           }
