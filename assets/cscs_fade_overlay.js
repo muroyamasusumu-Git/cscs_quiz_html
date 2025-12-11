@@ -310,10 +310,13 @@
     // フェード用オーバーレイの上にハイライトレイヤーを作成する。
     // これにより clickable_scale_effects.js 側での 1.10 倍固定などのスタイル反映が完全に終わった
     // 「指を離したあとの最終状態」をクローンできるようにする。
+    // clickable_scale_effects.js の pointerup / click / transition が完全に終わって
+    // 「指を離した後の最終状態」が確定してからクローンするため、
+    // 遅延を大きくし、DOM が完全に settled した後に生成する。
     if (questionNode || choiceNode) {
       window.setTimeout(function () {
         createHighlightLayer(questionNode, choiceNode);
-      }, 30);
+      }, 400);
     }
 
     // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
