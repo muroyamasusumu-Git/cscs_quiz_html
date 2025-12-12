@@ -47,6 +47,25 @@ font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "N
   overflow: auto !important;
 }
 
+body {
+  background:
+    radial-gradient(
+      ellipse at 40% 30%,
+      #181818 0%,
+      #141414 45%,
+      #0f0f0f 75%,
+      #0b0b0b 100%
+    ),
+    linear-gradient(
+      180deg,
+      #0e0e0e 0%,
+      #121212 30%,
+      #141414 70%,
+      #0f0f0f 100%
+    );
+  background-color: #0f0f0f;
+}
+
 #root {
 margin: 5px 20px 75px;
 }
