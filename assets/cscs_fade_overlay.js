@@ -466,13 +466,34 @@
     var overlay = getOrCreateFadeOverlay();
     overlay.style.opacity = "0";              // 最初は完全に透明な状態からスタートする
     overlay.style.pointerEvents = "auto";     // フェード中は画面操作を一括でブロックする
-    overlay.style.transition =
-      "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
 
-    // 少しだけ遅らせて opacity を上げ、CSS トランジションによるふわっとした暗転を発生させる
+    // 追加: 2段階の暗転カーブを作る（最初に素早く締めて、その後ゆっくり沈む）
+    // - phase1: 0 → (MAXの一部) を短めで到達（決まりを作る）
+    // - phase2: phase1 → MAX を残り時間で沈ませる（上品な余韻）
+    var totalMs = FADE_DURATION_MS;
+    var phase1Ms = Math.max(120, Math.round(totalMs * 0.35));
+    var phase2Ms = Math.max(120, totalMs - phase1Ms);
+    var phase1Opacity = Math.max(0, Math.min(FADE_MAX_OPACITY, FADE_MAX_OPACITY * 0.55));
+
+    // 追加: phase1 は少しだけ「キレ」を出すカーブ、phase2 は既存のカーブで沈ませる
+    var PHASE1_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
+    var PHASE2_EASING = String(FADE_EASING);
+
+    // phase1 の transition を設定
+    overlay.style.transition =
+      "opacity " + String(phase1Ms) + "ms " + String(PHASE1_EASING);
+
+    // 少しだけ遅らせて phase1 へ
     window.setTimeout(function () {
-      overlay.style.opacity = String(FADE_MAX_OPACITY);  // 設定された暗さまで徐々に暗転させる
+      overlay.style.opacity = String(phase1Opacity);
     }, 20);
+
+    // phase1 完了直後に phase2 へ移行
+    window.setTimeout(function () {
+      overlay.style.transition =
+        "opacity " + String(phase2Ms) + "ms " + String(PHASE2_EASING);
+      overlay.style.opacity = String(FADE_MAX_OPACITY);
+    }, 20 + phase1Ms);
 
     // フェード完了のタイミングで sessionStorage に「フェード中だった」情報を残し、その後に実際の遷移を行う
     window.setTimeout(function () {
@@ -487,7 +508,7 @@
       }
       // 実際のページ遷移をここで実行する
       location.href = nextUrl;
-    }, FADE_DURATION_MS + 40); // フェード時間より少しだけ長く待ち、完全に暗くなってから遷移する
+    }, 20 + phase1Ms + phase2Ms + 40); // phase1+phase2 を待ってから遷移する
   }
 
   /**
@@ -755,23 +776,42 @@
 
     // フェード用オーバーレイを取得（無ければ作成）
     var overlay = getOrCreateFadeOverlay();
+
+    // 追加: 復帰も2段階にする（最初に一気に薄くして、最後はゆっくり消す）
+    var totalMs = FADE_DURATION_MS;
+    var phase1Ms = Math.max(120, Math.round(totalMs * 0.30));
+    var phase2Ms = Math.max(120, totalMs - phase1Ms);
+
     // 遷移直後は「真っ暗な状態」からスタート
     overlay.style.opacity = String(FADE_MAX_OPACITY);
     overlay.style.pointerEvents = "none"; // 画面操作は通す
-    overlay.style.transition =
-      "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
 
-    // 少しだけ遅らせてから opacity を 0 に戻す → 黒から画面がふわっと現れる
+    // 追加: phase1 は少しだけ「キレ」を出し、phase2 は既存カーブで自然に抜く
+    var PHASE1_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
+    var PHASE2_EASING = String(FADE_EASING);
+
+    // phase1: MAX → (MAXの一部)
+    var phase1Opacity = Math.max(0, Math.min(FADE_MAX_OPACITY, FADE_MAX_OPACITY * 0.30));
+    overlay.style.transition =
+      "opacity " + String(phase1Ms) + "ms " + String(PHASE1_EASING);
+
     window.setTimeout(function () {
-      overlay.style.opacity = "0";
+      overlay.style.opacity = String(phase1Opacity);
     }, 20);
+
+    // phase2: (MAXの一部) → 0
+    window.setTimeout(function () {
+      overlay.style.transition =
+        "opacity " + String(phase2Ms) + "ms " + String(PHASE2_EASING);
+      overlay.style.opacity = "0";
+    }, 20 + phase1Ms);
 
     // フェードイン完了後、DOMからオーバーレイを削除して後始末
     window.setTimeout(function () {
       if (overlay && overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
-    }, FADE_DURATION_MS + 60);
+    }, 20 + phase1Ms + phase2Ms + 60);
   }
 
   // =========================================
