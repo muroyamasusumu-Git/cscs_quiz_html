@@ -142,17 +142,26 @@
         // 中身側（.sa-correct-pulse-inner / a）だけ underline を固定
         var cssText =
           "body.mode-b ol.opts li.is-correct{ text-decoration:none !important; }" +
-          "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner{" +
-            "text-decoration-line:underline !important;" +
-            "text-decoration-thickness:2px !important;" +
-            "text-underline-offset:3px !important;" +
-            "text-decoration-color:currentColor !important;" +
-          "}" +
+
+          // ▼ 下線は「擬似要素」で描く（transform / width / left の影響を受けにくい）
+          // - marker を巻き込まないため、li ではなく「中身」だけを対象にする
+          // - .sa-correct-pulse-inner と a の両対応
+          "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner," +
           "body.mode-b ol.opts li.is-correct a{" +
-            "text-decoration-line:underline !important;" +
-            "text-decoration-thickness:2px !important;" +
-            "text-underline-offset:3px !important;" +
-            "text-decoration-color:currentColor !important;" +
+            "position:relative !important;" +
+            "text-decoration:none !important;" +
+            "display:inline-block !important;" +
+          "}" +
+          "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner::after," +
+          "body.mode-b ol.opts li.is-correct a::after{" +
+            "content:\"\" !important;" +
+            "position:absolute !important;" +
+            "left:0 !important;" +
+            "right:0 !important;" +
+            "bottom:-4px !important;" +
+            "height:2px !important;" +
+            "background:currentColor !important;" +
+            "pointer-events:none !important;" +
           "}";
 
         if (styleEl.styleSheet) {
@@ -164,16 +173,17 @@
       }catch(_){}
     })();
 
-    // inline でも念のため固定（CSS優先だが、確実性を上げる）
+    // inline では ::after を作れないため、ここでは「下線を消す」＋「擬似要素が効く土台」だけ整える
     if (textEl && textEl.style) {
       try{
         if (typeof textEl.style.setProperty === "function") {
-          textEl.style.setProperty("text-decoration-line", "underline", "important");
-          textEl.style.setProperty("text-decoration-thickness", "2px", "important");
-          textEl.style.setProperty("text-underline-offset", "3px", "important");
-          textEl.style.setProperty("text-decoration-color", "currentColor", "important");
+          textEl.style.setProperty("text-decoration", "none", "important");
+          textEl.style.setProperty("position", "relative", "important");
+          textEl.style.setProperty("display", "inline-block", "important");
         } else {
-          textEl.style.textDecoration = "underline";
+          textEl.style.textDecoration = "none";
+          textEl.style.position = "relative";
+          textEl.style.display = "inline-block";
         }
       }catch(_){}
     }
