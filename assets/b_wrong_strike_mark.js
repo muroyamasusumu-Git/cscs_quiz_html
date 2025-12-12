@@ -80,13 +80,10 @@
           "text-decoration-thickness:2px !important;" +
           "text-decoration-color:currentColor !important;" +
         "}" +
-        "#cscs-fade-highlight-layer body.mode-b ol.opts li.cscs-wrong-strike .sa-correct-pulse-inner{" +
-          "text-decoration-line:none !important;" +
-          "text-decoration-thickness:0 !important;" +
-        "}" +
-        "#cscs-fade-highlight-layer body.mode-b ol.opts li.cscs-wrong-strike a{" +
-          "text-decoration-line:none !important;" +
-          "text-decoration-thickness:0 !important;" +
+        "body.mode-b ol.opts li.cscs-wrong-strike a{" +
+          "text-decoration-line:line-through !important;" +
+          "text-decoration-thickness:2px !important;" +
+          "text-decoration-color:currentColor !important;" +
         "}";
 
       if (styleEl.styleSheet) {
@@ -284,27 +281,45 @@
     }
 
     try {
+      // ol.opts の差し替え・再構築だけを監視する（属性監視はしない）
+      // - applyWrongStrike() 自身が class/style を触るため、attributes を監視すると自己ループで固まる
+      var optsRoot = null;
+      try {
+        optsRoot = document.querySelector("body.mode-b ol.opts");
+      } catch (_eFindOpts) {
+        optsRoot = null;
+      }
+      if (!optsRoot) {
+        return;
+      }
+
+      var scheduled = false;
+
+      function scheduleApply() {
+        // 1フレームに1回だけ再適用（連続変化をまとめる）
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(function () {
+          scheduled = false;
+          applyWrongStrike();
+        });
+      }
+
       var observer = new MutationObserver(function (mutations) {
-        // ol.opts 周辺に変化があったら再適用
+        // childList 変化（li追加/差し替え等）のみで再適用
         for (var i = 0; i < mutations.length; i++) {
           var m = mutations[i];
           if (!m) continue;
-
           if (m.type === "childList") {
-            applyWrongStrike();
-            return;
-          }
-          if (m.type === "attributes") {
-            applyWrongStrike();
+            scheduleApply();
             return;
           }
         }
       });
 
-      observer.observe(document.body, {
+      observer.observe(optsRoot, {
         childList: true,
-        subtree: true,
-        attributes: true
+        subtree: true
       });
     } catch (_eObs) {
       // 失敗しても初回適用だけは済んでいるのでOK
