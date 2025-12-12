@@ -144,14 +144,15 @@
           // li 自体は装飾しない（marker 巻き込み防止）
           "body.mode-b ol.opts li.is-correct{ text-decoration:none !important; }" +
 
-          // ▼ 正解選択肢の「文言部分」に直接 underline を指定
-          // - 擬似要素を使わない
-          // - 他CSSに潰されないよう !important を使用
+          // ▼ 正解選択肢の「文言部分」に下線を固定
+          // - text-decoration ではなく line を明示（環境差で潰れにくくする）
+          // - 線の太さ/オフセットも !important で固定
           "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner," +
           "body.mode-b ol.opts li.is-correct a{" +
-            "text-decoration: underline !important;" +
+            "text-decoration-line: underline !important;" +
             "text-decoration-thickness: 2px !important;" +
             "text-underline-offset: 3px !important;" +
+            "text-decoration-color: currentColor !important;" +
           "}";
 
         if (styleEl.styleSheet) {
@@ -237,5 +238,71 @@
     var obs2 = new MutationObserver(tryMark);
     obs2.observe(ans, { childList: true, subtree: true, characterData: true });
   }
+
+  // ▼ 11. ol.opts の中身が後から差し替わるケースに備えた監視（B結果演出で span が作り直される対策）
+  // - 監視対象は body.mode-b 配下の「フェード用クローンではない」 ol.opts のみ
+  // - childList 変化のみを監視（attributes を監視すると自分の class/style 変更で自己ループしやすい）
+  // - 連続変化は requestAnimationFrame で 1フレームに1回へまとめる
+  (function setupOptsObserver(){
+    try{
+      if (!window.MutationObserver) return;
+
+      // Bパート以外では監視しない（責務を限定）
+      try{
+        if (!document.body || !document.body.classList || !document.body.classList.contains("mode-b")) {
+          return;
+        }
+      }catch(_){
+        return;
+      }
+
+      var optsRoot = null;
+      try{
+        var all = document.querySelectorAll("ol.opts");
+        for (var i = 0; i < all.length; i++) {
+          var cand = all[i];
+          if (!cand) continue;
+
+          // #cscs-fade-highlight-layer 配下は「フェード用クローン」なので対象外
+          try{
+            if (cand.closest && cand.closest("#cscs-fade-highlight-layer")) {
+              continue;
+            }
+          }catch(_){}
+
+          optsRoot = cand;
+          break;
+        }
+      }catch(_){
+        optsRoot = null;
+      }
+      if (!optsRoot) return;
+
+      var scheduled = false;
+
+      function scheduleTryMark(){
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(function(){
+          scheduled = false;
+          tryMark();
+        });
+      }
+
+      var obs3 = new MutationObserver(function(mutations){
+        for (var i = 0; i < mutations.length; i++) {
+          var m = mutations[i];
+          if (!m) continue;
+          if (m.type === "childList") {
+            scheduleTryMark();
+            return;
+          }
+        }
+      });
+
+      obs3.observe(optsRoot, { childList: true, subtree: true });
+    }catch(_){
+    }
+  })();
 
 })();
