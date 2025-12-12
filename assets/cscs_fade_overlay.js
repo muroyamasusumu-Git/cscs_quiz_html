@@ -53,7 +53,8 @@
   // =========================================
   var FADE_DURATION_MS = 800;      // フェードにかける時間（ミリ秒）
   var FADE_MAX_OPACITY = 0.7;      // 画面をどれくらい暗くするか（0〜1）
-  var FADE_EASING = "ease-in-out"; // CSSトランジション用のイージング関数
+  // 追加: 立ち上がり/抜けが上品なカーブ（"ease-in-out" より「ぬるっ」とした高級感が出る）
+  var FADE_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
   var SESSION_KEY = "cscs_page_fade_pending"; // 遷移元→遷移先に「フェード中だった」ことを伝えるためのsessionStorageキー
 
   // クローンハイライト用の「アニメ全殺しCSS」を一度だけ注入するためのID
@@ -116,12 +117,28 @@
     overlay.style.top = "0";
     overlay.style.right = "0";
     overlay.style.bottom = "0";
-    overlay.style.backgroundColor = "#000000";  // 真っ黒
+
+    // 追加: フラットな真っ黒ではなく「ビネット＋微粒子」っぽい質感の暗幕にする
+    // - radial-gradient: 画面の外周を少し強めに落として“集中”を作る（ビネット）
+    // - repeating-linear-gradient: ほぼ見えないレベルの微粒子（ノイズ）で“幕感”を消す
+    overlay.style.background =
+      "radial-gradient(ellipse at 40% 30%, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.82) 55%, rgba(0,0,0,0.92) 100%)," +
+      "repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)";
+    overlay.style.backgroundBlendMode = "overlay";
+
+    // 追加: 対応環境では背面をほんのりブラーして“空気感”を出す（未対応なら無視される）
+    overlay.style.backdropFilter = "blur(2px) saturate(120%)";
+    overlay.style.webkitBackdropFilter = "blur(2px) saturate(120%)";
+
     overlay.style.opacity = "0";               // 初期状態は完全透明
     overlay.style.pointerEvents = "none";      // クリックなどは下の要素に通す
     overlay.style.zIndex = "9998";             // ほぼ最前面（他UIより上）
+
+    // 追加: アニメの対象を明示して、暗転をよりスムーズにする
+    overlay.style.willChange = "opacity";
     overlay.style.transition =
       "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
+
     document.body.appendChild(overlay);
     return overlay;
   }
