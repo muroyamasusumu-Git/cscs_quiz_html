@@ -42,7 +42,7 @@
  *  5. UI更新
  *     - 常に userChoice / correct の比較結果を #judge に描画。
  *     - トークン有無に関わらず視覚出力を保証（責務分離: UIと集計）。
- *     - 不正解の場合は、元の選択肢リスト上のユーザー選択に取り消し線スタイルを付与。
+ *     - 不正解の場合は、元の選択肢リスト上のユーザー選択に「cscs-wrong-choice」クラスを付与（見た目の演出は別JSに分離）。
  *
  *  6. トークン破棄
  *     - tally() 後に localStorage[Kt] および sessionStorage[KsT/KsC] を削除。
@@ -297,30 +297,20 @@
         return raw;
       }
 
-      // 誤答時に、元の選択肢リスト上の「選択済み不正解」だけに取り消し線を付ける
-      // - marker（A〜D）には線を付けない：<li> ではなく <a>（テキスト側）に限定して適用する
-      // - 他JSが inline style を上書きしても消えにくいよう、クラス＋ !important CSS で固定する
+      // 誤答時に、元の選択肢リスト上の「選択済み不正解」にクラスだけ付与する
+      // - ここでは見た目（打ち消し線/透明度/アニメ等）は一切制御しない
+      // - 見た目の演出は別JS（例: b_wrong_strike_mark.js）に完全分離する
       function markWrongChoiceOnList(letter){
         try{
           if(!letter) return;
           const idx = 'ABCDE'.indexOf(letter.toUpperCase());
           if(idx<0) return;
 
-          // 対象の <li> を特定
+          // 追加処理①：対象の <li> を特定し、誤答マーク用クラスだけを付与する
           const li = document.querySelector(`ol.opts li:nth-child(${idx+1})`);
           if(!li) return;
 
-          // まず <li> 自体には線を付けない（marker巻き込み防止）
-          try {
-            if (li.style && typeof li.style.setProperty === "function") {
-              li.style.setProperty("text-decoration", "none", "important");
-              li.style.setProperty("text-decoration-line", "none", "important");
-            } else if (li.style) {
-              li.style.textDecoration = "none";
-            }
-          } catch (_eLi) {}
-
-          // 不正解マーキング用クラスを付与（後からCSSで固定する）
+          // 追加処理②：クラス付与（スタイルは別JS/別CSSが担当）
           try{
             if (li.classList) {
               li.classList.add("cscs-wrong-choice");
@@ -331,57 +321,6 @@
               }
             }
           }catch(_eClass){}
-
-          // 取り消し線を「テキスト側」だけに当てる
-          // - Bパートでは <a> が存在せず、<span class="sa-correct-pulse-inner"> だけの構造になることがあるため、
-          //   まず .sa-correct-pulse-inner を優先し、無ければ a を対象にする。
-          let textEl = null;
-          try { textEl = li.querySelector(".sa-correct-pulse-inner"); } catch(_eSpan) { textEl = null; }
-          if (!textEl) {
-            try { textEl = li.querySelector("a"); } catch(_eA) { textEl = null; }
-          }
-
-          if (textEl && textEl.style) {
-            try{
-              textEl.style.setProperty("text-decoration-line", "line-through", "important");
-              textEl.style.setProperty("text-decoration-thickness", "2px", "important");
-              textEl.style.setProperty("text-decoration-color", "currentColor", "important");
-            }catch(_eTextStyle){
-              textEl.style.textDecoration = "line-through";
-            }
-          }
-
-          // CSS を 1回だけ注入して、クラスが付いたものは常に線が出るように固定
-          (function injectWrongStrikeCssOnce(){
-            const STYLE_ID = "cscs-wrong-choice-strike-style";
-            try{
-              if (document.getElementById(STYLE_ID)) return;
-
-              const styleEl = document.createElement("style");
-              styleEl.id = STYLE_ID;
-              styleEl.type = "text/css";
-
-              const cssText =
-                "ol.opts li.cscs-wrong-choice{ text-decoration:none !important; }" +
-                "ol.opts li.cscs-wrong-choice .sa-correct-pulse-inner{" +
-                "text-decoration-line:line-through !important;" +
-                "text-decoration-thickness:2px !important;" +
-                "text-decoration-color:currentColor !important;" +
-                "}" +
-                "ol.opts li.cscs-wrong-choice a{" +
-                "text-decoration-line:line-through !important;" +
-                "text-decoration-thickness:2px !important;" +
-                "text-decoration-color:currentColor !important;" +
-                "}";
-
-              if (styleEl.styleSheet) {
-                styleEl.styleSheet.cssText = cssText;
-              } else {
-                styleEl.appendChild(document.createTextNode(cssText));
-              }
-              document.head.appendChild(styleEl);
-            }catch(_eCss){}
-          })();
 
         }catch(e){
           wlog('markWrongChoiceOnList fail', e);
