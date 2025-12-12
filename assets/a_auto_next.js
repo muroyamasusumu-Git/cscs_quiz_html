@@ -390,6 +390,250 @@
   var verifyModeAutoRestartIntervalId = null;      // 検証モード再開カウントダウン表示用 setInterval ID
 
   // =========================
+  // 直近QID履歴 / 左下バー / 直近一覧ウィンドウ
+  // =========================
+
+  // 直近に訪れた QID 履歴（「押したらその問題へ飛ぶ」用）
+  var RECENT_QIDS_KEY = "cscs_auto_next_recent_qids";
+  var RECENT_QIDS_LIMIT = 30;
+
+  // 左下バー（ボタン群を横一列に並べる）
+  var AUTO_NEXT_BAR_ID = "cscs-auto-next-bar";
+  var AUTO_NEXT_BAR_INNER_ID = "cscs-auto-next-bar-inner";
+  var RECENT_PANEL_ID = "cscs-auto-next-recent-panel";
+
+  // 直近一覧パネル表示状態（トグル）
+  var recentPanelOpen = false;
+
+  // 直近履歴を読み込む（配列）
+  function loadRecentQids() {
+    var list = [];
+    try {
+      var raw = localStorage.getItem(RECENT_QIDS_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          list = parsed.filter(function (x) {
+            return typeof x === "string" && x.length > 0;
+          });
+        }
+      }
+    } catch (_e) {
+      list = [];
+    }
+    return list;
+  }
+
+  // 直近履歴を保存する
+  function saveRecentQids(list) {
+    try {
+      localStorage.setItem(RECENT_QIDS_KEY, JSON.stringify(list));
+    } catch (_e) {
+      // 保存失敗は致命的ではないので無視
+    }
+  }
+
+  // 現在ページのQIDを直近履歴へ積む（重複は連続重複のみ抑制）
+  function pushCurrentQidToRecentHistory() {
+    var info = parseSlideInfo();
+    if (!info) {
+      return;
+    }
+    var num3 = String(info.idx).padStart(3, "0");
+    var qid = info.day + "-" + num3;
+
+    var list = loadRecentQids();
+    if (list.length > 0 && list[list.length - 1] === qid) {
+      return;
+    }
+    list.push(qid);
+    if (list.length > RECENT_QIDS_LIMIT) {
+      list = list.slice(list.length - RECENT_QIDS_LIMIT);
+    }
+    saveRecentQids(list);
+  }
+
+  // 現在のパスから prefix（_build_cscs_ より前）を抽出
+  function getPathPrefixForBuild() {
+    var path = String(location.pathname || "");
+    var m = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
+    return m ? m[1] : "";
+  }
+
+  // qid("YYYYMMDD-NNN") → 해당 문제のAパートURLを組み立て
+  function buildUrlFromQidToAPart(qid) {
+    if (typeof qid !== "string") {
+      return null;
+    }
+    var m = qid.match(/^(\d{8})-(\d{3})$/);
+    if (!m) {
+      return null;
+    }
+    var day = m[1];
+    var num3 = m[2];
+    var prefix = getPathPrefixForBuild();
+    return prefix + "_build_cscs_" + day + "/slides/q" + num3 + "_a.html";
+  }
+
+  // 左下バーを作る（［↑前の問題へ］は左端固定、他は100px右へ）
+  function getOrCreateAutoNextBar() {
+    var bar = document.getElementById(AUTO_NEXT_BAR_ID);
+    if (bar) {
+      return bar;
+    }
+
+    var bodyEl = document.body;
+    if (!bodyEl) {
+      return null;
+    }
+
+    bar = document.createElement("div");
+    bar.id = AUTO_NEXT_BAR_ID;
+
+    // 左端に前ボタン、他は100px右へ（要望）
+    bar.style.cssText =
+      "position: fixed;" +
+      "left: 0px;" +
+      "bottom: 10px;" +
+      "z-index: 10000;" +
+      "width: 100%;" +
+      "display: block;" +
+      "pointer-events: none;";
+
+    // 内側の横並びレーン（ここを100px右へ）
+    var inner = document.createElement("div");
+    inner.id = AUTO_NEXT_BAR_INNER_ID;
+    inner.style.cssText =
+      "display: flex;" +
+      "align-items: center;" +
+      "gap: 12px;" +
+      "margin-left: 100px;" +
+      "pointer-events: none;";
+
+    bar.appendChild(inner);
+    bodyEl.appendChild(bar);
+
+    return bar;
+  }
+
+  // 横並びに要素を入れる “内側レーン” を返す
+  function getAutoNextBarInner() {
+    var bar = getOrCreateAutoNextBar();
+    if (!bar) {
+      return null;
+    }
+    var inner = document.getElementById(AUTO_NEXT_BAR_INNER_ID);
+    return inner || null;
+  }
+
+  // 直近一覧パネルを作る（前ボタンと被らないように “少し右へ”＆ “バーより上”）
+  function getOrCreateRecentPanel() {
+    var panel = document.getElementById(RECENT_PANEL_ID);
+    if (panel) {
+      return panel;
+    }
+
+    var bodyEl = document.body;
+    if (!bodyEl) {
+      return null;
+    }
+
+    panel = document.createElement("div");
+    panel.id = RECENT_PANEL_ID;
+
+    // 前ボタンを左端に置くので、パネルは left: 8px かつ width を控えめに
+    // バーに被らないように bottom を少し上へ
+    panel.style.cssText =
+      "position: fixed;" +
+      "left: 8px;" +
+      "bottom: 56px;" +
+      "z-index: 10001;" +
+      "max-height: 260px;" +
+      "overflow: auto;" +
+      "padding: 10px 12px;" +
+      "background: rgba(0,0,0,0.85);" +
+      "border: 1px solid rgba(255,255,255,0.25);" +
+      "font-size: 13px;" +
+      "line-height: 1.6;" +
+      "display: none;";
+
+    bodyEl.appendChild(panel);
+    return panel;
+  }
+
+  // 直近一覧を再描画する（縦一列リンク）
+  function renderRecentPanel() {
+    var panel = getOrCreateRecentPanel();
+    if (!panel) {
+      return;
+    }
+
+    var list = loadRecentQids().slice();
+    list.reverse(); // 直近が上
+
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var qid = list[i];
+      var url = buildUrlFromQidToAPart(qid);
+      if (!url) {
+        continue;
+      }
+      html +=
+        '<div style="margin: 2px 0;">' +
+        '<a href="' + url + '" data-cscs-recent-qid="' + qid + '" style="color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.45);">' +
+        qid +
+        "</a>" +
+        "</div>";
+    }
+
+    if (!html) {
+      html = '<div style="color: rgba(255,255,255,0.8);">履歴がありません</div>';
+    }
+
+    panel.innerHTML = html;
+
+    // パネル内リンクは「フェード連携」で遷移
+    panel.querySelectorAll("a[data-cscs-recent-qid]").forEach(function (a) {
+      if (a.dataset && a.dataset.cscsRecentBound === "1") {
+        return;
+      }
+      if (a.dataset) {
+        a.dataset.cscsRecentBound = "1";
+      }
+
+      a.addEventListener("click", function (ev) {
+        try {
+          ev.preventDefault();
+        } catch (_e) {}
+        var href = a.getAttribute("href");
+        if (!href) {
+          return;
+        }
+        goNextIfExists(href);
+      });
+    });
+  }
+
+  // パネルを開閉トグルする
+  function toggleRecentPanel() {
+    var panel = getOrCreateRecentPanel();
+    if (!panel) {
+      return;
+    }
+
+    recentPanelOpen = !recentPanelOpen;
+
+    if (recentPanelOpen) {
+      renderRecentPanel();
+      panel.style.display = "block";
+      panel.style.pointerEvents = "auto";
+    } else {
+      panel.style.display = "none";
+      panel.style.pointerEvents = "none";
+    }
+  }
+
+  // =========================
   // 自動送り ON/OFF の読み書き
   // =========================
 
@@ -504,100 +748,6 @@
       latest: qid,
       length: history.length
     });
-  }
-
-  // =========================
-  // 「前の問題へ」用：直近qid履歴（直近N件）
-  // - 画面左端の一覧パネルで使用する
-  // - 現在ページ表示時に qid を積む（重複は連続分だけ抑止）
-  // =========================
-  var RECENT_QID_HISTORY_KEY = "cscs_recent_qid_history";
-  var RECENT_QID_HISTORY_LIMIT = 60;
-
-  // 現在ページの qid（YYYYMMDD-NNN）を返す
-  function getCurrentQid() {
-    var info = parseSlideInfo();
-    if (!info) {
-      return null;
-    }
-    var num3 = String(info.idx).padStart(3, "0");
-    return info.day + "-" + num3;
-  }
-
-  // 直近qid履歴を読み込む
-  function loadRecentQidHistory() {
-    var list = [];
-    try {
-      var raw = localStorage.getItem(RECENT_QID_HISTORY_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          list = parsed.filter(function (x) {
-            return typeof x === "string" && /^\d{8}-\d{3}$/.test(x);
-          });
-        }
-      }
-    } catch (_e) {
-      list = [];
-    }
-    return list;
-  }
-
-  // 直近qid履歴を保存する
-  function saveRecentQidHistory(list) {
-    try {
-      localStorage.setItem(RECENT_QID_HISTORY_KEY, JSON.stringify(list));
-    } catch (_e) {
-      // 保存失敗は致命的ではないので無視
-    }
-  }
-
-  // 現在qidを直近履歴へ積む（連続重複のみ抑止）
-  function pushCurrentQidToRecentHistory() {
-    var qid = getCurrentQid();
-    if (!qid) {
-      return;
-    }
-
-    var list = loadRecentQidHistory();
-
-    // 直近（末尾）と同じなら積まない（連続重複抑止）
-    if (list.length > 0 && list[list.length - 1] === qid) {
-      return;
-    }
-
-    list.push(qid);
-
-    if (list.length > RECENT_QID_HISTORY_LIMIT) {
-      list = list.slice(list.length - RECENT_QID_HISTORY_LIMIT);
-    }
-
-    saveRecentQidHistory(list);
-
-    syncLog("RecentQid: push current qid.", {
-      qid: qid,
-      length: list.length
-    });
-  }
-
-  // qid（YYYYMMDD-NNN）→ そのqidのAパートURL を組み立てる
-  // - prefix は現在ページのパスから抽出する（このファイル内で完結）
-  function buildAPathFromQid(qid) {
-    if (typeof qid !== "string") {
-      return null;
-    }
-    var m = qid.match(/^(\d{8})-(\d{3})$/);
-    if (!m) {
-      return null;
-    }
-    var day = m[1];
-    var num3 = m[2];
-
-    var path = String(location.pathname || "");
-    var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
-    var prefix = prefixMatch ? prefixMatch[1] : "";
-
-    return prefix + "_build_cscs_" + day + "/slides/q" + num3 + "_a.html";
   }
 
   // =========================
@@ -1140,23 +1290,25 @@
       return existing;
     }
 
-    var div = document.createElement("div");
-    div.id = "auto-next-counter";
-    div.textContent = "";
+    var inner = getAutoNextBarInner();
+    if (!inner) {
+      return null;
+    }
 
-    div.style.cssText =
-      "position: fixed;" +
-      "left: 140px;" +          // 左から140px に固定表示
-      "bottom: 16px;" +
-      "padding: 6px 10px;" +
+    var span = document.createElement("span");
+    span.id = "auto-next-counter";
+    span.textContent = "";
+
+    // ボタン列の中の「テキスト表示」
+    span.style.cssText =
+      "padding: 6px 2px;" +
       "font-size: 13px;" +
-      "color: #fff;" +         // 白文字
-      "z-index: 9999;" +
+      "color: #fff;" +
       "pointer-events: none;" +
       "font-weight: 300;";
 
-    document.body.appendChild(div);
-    return div;
+    inner.appendChild(span);
+    return span;
   }
 
   // =========================
@@ -1173,9 +1325,6 @@
     btn.type = "button";
     btn.textContent = autoEnabled ? "[自動送り ON]" : "[自動送りOFF]";
     btn.style.cssText =
-      "position: fixed;" +
-      "left: 260px;" +
-      "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
@@ -1183,32 +1332,45 @@
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
-      "border: none;";
+      "border: none;" +
+      "pointer-events: auto;";
 
-    // クリックで ON/OFF を切り替える
+    // ▼ UIをバーへ配置してから、クリックハンドラを確実に登録する
+    var inner = getAutoNextBarInner();
+    if (inner) {
+      inner.appendChild(btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+
+    // ▼ クリックで ON/OFF を切り替える（return の前に必ず登録）
     btn.addEventListener("click", function () {
+      // ▼ ユーザー操作で自動送りを切り替える時は、
+      //   検証AUTOの「自動再開タイマー/表示カウント」が残っていると counter 表示を奪うため、
+      //   ここで確実に停止して「手動操作」を優先する。
+      clearVerifyModeAutoRestartTimers();
+
       autoEnabled = !autoEnabled;
       saveAutoAdvanceEnabled(autoEnabled);
       btn.textContent = autoEnabled ? "[自動送り ON]" : "[自動送りOFF]";
 
       if (autoEnabled) {
-        // ON にした瞬間から、ODOA / oncePerDayToday を考慮した NEXT_URL を再計算してカウントダウン開始
+        // ▼ ONにした瞬間、ODOA/oncePerDayToday を考慮した NEXT_URL を再計算して開始
         (async function () {
           NEXT_URL = await buildNextUrlConsideringOdoa();
           if (NEXT_URL) {
             startAutoAdvanceCountdown();
           } else {
-            // 遷移候補が無い場合は OFF 表示にしておく
+            // ▼ 遷移候補が無い場合は OFF 表示へ
             cancelAutoAdvanceCountdown(true);
           }
         })();
       } else {
-        // OFF にしたらカウントダウン停止 & 表示を更新
+        // ▼ OFF にしたらカウントダウン停止 & 表示更新
         cancelAutoAdvanceCountdown(true);
       }
     });
 
-    document.body.appendChild(btn);
     return btn;
   }
 
@@ -1226,9 +1388,6 @@
     btn.type = "button";
     btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番遷移]";
     btn.style.cssText =
-      "position: fixed;" +
-      "left: 350px;" +
-      "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
@@ -1236,15 +1395,24 @@
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
-      "border: none;";
+      "border: none;" +
+      "pointer-events: auto;";
 
-    // クリックでモード切替
+    // ▼ UIをバーへ配置してから、クリックハンドラを確実に登録する
+    var inner = getAutoNextBarInner();
+    if (inner) {
+      inner.appendChild(btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+
+    // ▼ クリックでモード切替（return の前に必ず登録）
     btn.addEventListener("click", function () {
       randomModeEnabled = !randomModeEnabled;
       saveRandomModeEnabled(randomModeEnabled);
       btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番遷移]";
 
-      // いったんカウントダウンを止めてから、新しい NEXT_URL で再スタート
+      // ▼ いったんカウントダウンを止めてから、新しい NEXT_URL で再スタート
       cancelAutoAdvanceCountdown(false);
 
       if (autoEnabled) {
@@ -1259,7 +1427,6 @@
       }
     });
 
-    document.body.appendChild(btn);
     return btn;
   }
 
@@ -1278,9 +1445,6 @@
     var sec = Math.round(AUTO_ADVANCE_MS / 1000);
     btn.textContent = "[" + sec + "秒]";
     btn.style.cssText =
-      "position: fixed;" +
-      "left: 416px;" +
-      "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
@@ -1288,9 +1452,18 @@
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
-      "border: none;";
+      "border: none;" +
+      "pointer-events: auto;";
 
-    // クリックごとに 10 → 15 → 20 → 25 → 30 → 60 → 10…とローテーション
+    // ▼ UIをバーへ配置してから、クリックハンドラを確実に登録する
+    var inner = getAutoNextBarInner();
+    if (inner) {
+      inner.appendChild(btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+
+    // ▼ クリックごとに 10 → 15 → 20 → 25 → 30 → 60 → 10…とローテーション
     btn.addEventListener("click", function () {
       var nextMs = getNextDurationValue();
       AUTO_ADVANCE_MS = nextMs;
@@ -1298,13 +1471,12 @@
       var secNow = Math.round(AUTO_ADVANCE_MS / 1000);
       btn.textContent = "[" + secNow + "秒]";
 
-      // 自動送りが ON のときは、新しい時間でカウントダウンをやり直す
+      // ▼ 自動送りが ON のときは、新しい時間でカウントダウンをやり直す
       if (autoEnabled) {
         startAutoAdvanceCountdown();
       }
     });
 
-    document.body.appendChild(btn);
     return btn;
   }
 
@@ -1356,9 +1528,6 @@
 
     // 他ボタンと同等の見た目にそろえる（有効な操作ボタンとして扱う）
     btn.style.cssText =
-      "position: fixed;" +
-      "left: 462px;" +
-      "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
@@ -1366,23 +1535,26 @@
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
-      "border: none;";
+      "border: none;" +
+      "pointer-events: auto;";
 
-    // クリックごとに検証モード "on" / "off" をトグルし、
-    // ラベル更新・localStorage 保存・ログ出力などは
-    // CSCS_VERIFY_MODE_HELPER.turnOn/turnOffVerifyMode 経由で一括実行する
+    // ▼ UIをバーへ配置してから、クリックハンドラを確実に登録する
+    var inner = getAutoNextBarInner();
+    if (inner) {
+      inner.appendChild(btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+
+    // ▼ クリックごとに検証モード "on" / "off" をトグルし、公開ヘルパー経由で統一実行する
     btn.addEventListener("click", function () {
       var currentMode = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on") ? "on" : "off";
       var nextMode = currentMode === "on" ? "off" : "on";
 
-      // ▼ ユーザー操作によるトグルは、必ず公開ヘルパー経由で行う
-      //    これにより consistency_check_debug.js などが
-      //    turnOn/turnOffVerifyMode をフックしている場合も確実に通過させる
       if (nextMode === "on") {
         if (window.CSCS_VERIFY_MODE_HELPER && typeof window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode === "function") {
           window.CSCS_VERIFY_MODE_HELPER.turnOnVerifyMode("user-toggle");
         } else {
-          // ヘルパーが存在しない場合はログだけ残して何もしない
           syncLog("VerifyMode: helper.turnOnVerifyMode is not available.", {
             reason: "user-toggle"
           });
@@ -1394,7 +1566,6 @@
         if (window.CSCS_VERIFY_MODE_HELPER && typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function") {
           window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("user-toggle");
         } else {
-          // ヘルパーが存在しない場合はログだけ残して何もしない
           syncLog("VerifyMode: helper.turnOffVerifyMode is not available.", {
             reason: "user-toggle"
           });
@@ -1403,8 +1574,6 @@
       }
     });
 
-    // 画面に追加
-    document.body.appendChild(btn);
     return btn;
   }
 
@@ -1426,9 +1595,6 @@
 
     // 他ボタンと同等の見た目にそろえる（位置だけ右側にずらす）
     btn.style.cssText =
-      "position: fixed;" +
-      "left: 570px;" +
-      "bottom: 14px;" +
       "padding: 6px 10px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
@@ -1436,30 +1602,38 @@
       "z-index: 10000;" +
       "cursor: pointer;" +
       "background: none;" +
-      "border: none;";
+      "border: none;" +
+      "pointer-events: auto;";
 
-    // クリックで TRYAL モード "on"/"off" をトグルし、検証モードとの排他制御と自動送り ON を行う
+    // ▼ UIをバーへ配置してから、クリックハンドラを確実に登録する
+    var inner = getAutoNextBarInner();
+    if (inner) {
+      inner.appendChild(btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+
+    // ▼ クリックで TRYAL モード "on"/"off" をトグルし、検証モード排他＆自動送りONを行う
     btn.addEventListener("click", function () {
       var current = (typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on") ? "on" : "off";
       var next = current === "on" ? "off" : "on";
 
-      // トライアルモードの状態を更新（グローバル＋localStorage）
+      // ▼ トライアルモードの状態を更新（グローバル＋localStorage）
       window.CSCS_TRIAL_MODE = next;
       saveTrialMode(next);
       btn.textContent = next === "on" ? "[TRYAL:ON]" : "[TRYAL:OFF]";
 
       if (next === "on") {
-        // TRYAL:ON 時は検証モードを必ず OFF にする
+        // ▼ TRYAL:ON 時は検証モードを必ず OFF にする
         if (window.CSCS_VERIFY_MODE_HELPER && typeof window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode === "function") {
           window.CSCS_VERIFY_MODE_HELPER.turnOffVerifyMode("trial-mode-on");
         } else {
-          // ヘルパーが存在しない場合は、最低限グローバル状態だけ OFF にそろえる
           setVerifyModeAndSyncUI("off", {
             reason: "trial-mode-on"
           });
         }
 
-        // 自動送りも ON に強制し、ボタン表示と localStorage を同期させる
+        // ▼ 自動送りも ON に強制し、ボタン表示と localStorage を同期させる
         autoEnabled = true;
         saveAutoAdvanceEnabled(true);
         var autoBtn = document.getElementById("auto-next-toggle");
@@ -1467,7 +1641,7 @@
           autoBtn.textContent = "[自動送り ON]";
         }
 
-        // TRYAL モードに入ったタイミングで NEXT_URL を再計算し、カウントダウンを開始する
+        // ▼ TRYAL 開始時に NEXT_URL を再計算し、カウントダウンを開始する
         (async function () {
           NEXT_URL = await buildNextUrlConsideringOdoa();
           if (NEXT_URL) {
@@ -1478,11 +1652,16 @@
         })();
       } else {
         // TRYAL:OFF では、検証モードは自動では触らず、自動送りの ON/OFF も現在状態を維持する
+
+        // ▼ ただし、過去に検証AUTOの自動再開が予約されていると、
+        //   以後の手動操作（自動送りOFFなど）に関係なくカウント表示が出続けることがあるため、
+        //   TRYAL終了時点で「検証AUTO再開タイマー/表示」を確実に停止しておく。
+        clearVerifyModeAutoRestartTimers();
+
         syncLog("TrialMode: turned OFF.", {});
       }
     });
 
-    document.body.appendChild(btn);
     return btn;
   }
 
@@ -1745,7 +1924,48 @@
       fadeOutAndNavigate(nextUrl);
     }
   }
+  
+  // =========================
+  // 「↑前の問題へ」ボタンの生成
+  // - 画面左端に固定（他の列は100px右へ逃がしているので干渉しにくい）
+  // - クリックで「直近問題ID一覧」パネルを開閉トグル
+  // =========================
+  function createPrevQuestionToggleButton() {
+    var existing = document.getElementById("auto-prev-toggle");
+    if (existing) {
+      return existing;
+    }
 
+    var bar = getOrCreateAutoNextBar();
+    if (!bar) {
+      return null;
+    }
+
+    var btn = document.createElement("a");
+    btn.id = "auto-prev-toggle";
+    btn.className = "back-to-top";
+    btn.textContent = "［↑前の問題へ］";
+
+    // 左端固定（バーの外側に置く）
+    btn.style.cssText =
+      "position: fixed;" +
+      "left: 0px;" +
+      "bottom: 10px;" +
+      "z-index: 10002;" +
+      "cursor: pointer;" +
+      "pointer-events: auto;";
+
+    btn.addEventListener("click", function (ev) {
+      try {
+        ev.preventDefault();
+      } catch (_e) {}
+      toggleRecentPanel();
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }  
+  
   // =========================
   // 「次の問題へ」リンク（back-to-top ボタン）の生成
   // - body 直下に a.back-to-top を追加する
@@ -1755,193 +1975,25 @@
   // =========================
   function createBackToTopLink() {
     // すでに存在していれば再利用
-    var existing = document.getElementById("cscs-manual-nav-row");
+    var existing = document.getElementById("auto-next-link");
     if (existing) {
       return existing;
     }
 
-    // body が無ければ何もしない（フォールバックしない）
-    var bodyEl = document.body;
-    if (!bodyEl) {
-      syncLog("BackToTop: <body> not found.");
+    var inner = getAutoNextBarInner();
+    if (!inner) {
+      syncLog("BackToTop: bar inner not found.");
       return null;
     }
 
-    // =========================
-    // 手動ナビ行（[↑前の問題へ][次の問題へ]）を固定表示で生成
-    // - 既存の .back-to-top を「単体で置く」方式をやめて、この行にまとめる
-    // =========================
-    var row = document.createElement("div");
-    row.id = "cscs-manual-nav-row";
-    row.style.cssText =
-      "position: fixed;" +
-      "left: 12px;" +
-      "bottom: 14px;" +
-      "z-index: 10000;" +
-      "display: flex;" +
-      "gap: 10px;" +
-      "align-items: center;" +
-      "pointer-events: auto;";
+    // a.back-to-top 要素を生成（スタイル調整は CSS 側の .back-to-top に委譲）
+    var link = document.createElement("a");
+    link.id = "auto-next-link";
+    link.className = "back-to-top";
+    link.textContent = "［次の問題へ］";
 
-    // [↑前の問題へ] ボタン
-    var prevBtn = document.createElement("button");
-    prevBtn.id = "cscs-prev-toggle";
-    prevBtn.type = "button";
-    prevBtn.textContent = "［↑前の問題へ］";
-    prevBtn.style.cssText =
-      "padding: 6px 10px;" +
-      "font-size: 13px;" +
-      "color: rgb(150, 150, 150);" +
-      "border-radius: 0px;" +
-      "cursor: pointer;" +
-      "background: none;" +
-      "border: none;";
-
-    // 左端パネル（直近qidリンク一覧）を生成（初回のみ）
-    function ensurePrevPanel() {
-      var panel = document.getElementById("cscs-prev-panel");
-      if (panel) {
-        return panel;
-      }
-
-      panel = document.createElement("div");
-      panel.id = "cscs-prev-panel";
-      panel.style.cssText =
-        "position: fixed;" +
-        "left: 0px;" +
-        "top: 0px;" +
-        "bottom: 0px;" +
-        "width: 260px;" +
-        "background: rgba(0,0,0,0.92);" +
-        "z-index: 10001;" +
-        "padding: 12px 10px;" +
-        "overflow-y: auto;" +
-        "display: none;" +
-        "pointer-events: auto;";
-
-      var title = document.createElement("div");
-      title.textContent = "直近の問題";
-      title.style.cssText =
-        "font-size: 14px;" +
-        "color: #fff;" +
-        "margin: 0 0 10px 0;" +
-        "font-weight: 600;";
-      panel.appendChild(title);
-
-      var listWrap = document.createElement("div");
-      listWrap.id = "cscs-prev-panel-list";
-      listWrap.style.cssText =
-        "display: flex;" +
-        "flex-direction: column;" +
-        "gap: 6px;";
-      panel.appendChild(listWrap);
-
-      bodyEl.appendChild(panel);
-      return panel;
-    }
-
-    // 左端パネルの内容（qidリンク縦一覧）を更新
-    function renderPrevPanelList() {
-      var panel = ensurePrevPanel();
-      var listWrap = document.getElementById("cscs-prev-panel-list");
-      if (!listWrap) {
-        return;
-      }
-
-      // いったん全削除して再構築（シンプルに）
-      while (listWrap.firstChild) {
-        listWrap.removeChild(listWrap.firstChild);
-      }
-
-      var list = loadRecentQidHistory();
-
-      // 表示は「新しい順」にしたいので後ろから
-      for (var i = list.length - 1; i >= 0; i--) {
-        var qid = list[i];
-
-        var a = document.createElement("a");
-        a.href = "#";
-        a.textContent = qid;
-        a.style.cssText =
-          "color: #9fd3ff;" +
-          "text-decoration: none;" +
-          "font-size: 13px;" +
-          "line-height: 1.35;" +
-          "padding: 4px 6px;" +
-          "border: 1px solid rgba(255,255,255,0.15);";
-
-        a.addEventListener("click", function (ev) {
-          try {
-            ev.preventDefault();
-          } catch (_e) {}
-
-          var targetQid = String(this.textContent || "");
-          var targetUrl = buildAPathFromQid(targetQid);
-          if (!targetUrl) {
-            syncLog("PrevPanel: targetUrl build failed.", { qid: targetQid });
-            return;
-          }
-
-          goNextIfExists(targetUrl);
-        });
-
-        listWrap.appendChild(a);
-      }
-
-      // 0件のときの表示
-      if (list.length === 0) {
-        var empty = document.createElement("div");
-        empty.textContent = "履歴がありません";
-        empty.style.cssText =
-          "color: rgba(255,255,255,0.7);" +
-          "font-size: 13px;" +
-          "padding: 6px 2px;";
-        listWrap.appendChild(empty);
-      }
-    }
-
-    // 左端パネルの開閉（[↑前の問題へ] でトグル）
-    function togglePrevPanel() {
-      var panel = ensurePrevPanel();
-      if (!panel) {
-        return;
-      }
-
-      var isOpen = panel.style.display !== "none";
-      if (isOpen) {
-        panel.style.display = "none";
-        syncLog("PrevPanel: closed.", {});
-        return;
-      }
-
-      // 開くときは最新内容で描画
-      renderPrevPanelList();
-      panel.style.display = "block";
-      syncLog("PrevPanel: opened.", {});
-    }
-
-    prevBtn.addEventListener("click", function (ev) {
-      try {
-        ev.preventDefault();
-      } catch (_e) {}
-      togglePrevPanel();
-    });
-
-    // [次の問題へ] ボタン（既存の挙動を踏襲：NEXT_URL→goNextIfExists）
-    var nextBtn = document.createElement("button");
-    nextBtn.id = "cscs-next-manual";
-    nextBtn.type = "button";
-    nextBtn.textContent = "［次の問題へ］";
-    nextBtn.style.cssText =
-      "padding: 6px 10px;" +
-      "font-size: 13px;" +
-      "color: rgb(150, 150, 150);" +
-      "border-radius: 0px;" +
-      "cursor: pointer;" +
-      "background: none;" +
-      "border: none;";
-
-    nextBtn.addEventListener("click", function (ev) {
+    // クリック時に ODOA と同じ NEXT_URL へ遷移させる
+    link.addEventListener("click", function (ev) {
       try {
         ev.preventDefault();
       } catch (_e) {}
@@ -1958,13 +2010,12 @@
       })();
     });
 
-    // 行に追加して body 直下へ
-    row.appendChild(prevBtn);
-    row.appendChild(nextBtn);
-    bodyEl.appendChild(row);
+    // バー内に追加（横並び）
+    link.style.pointerEvents = "auto";
+    inner.appendChild(link);
 
-    syncLog("BackToTop: manual nav row created under <body>.");
-    return row;
+    syncLog("BackToTop: link created under bar.");
+    return link;
   }
 
   // =========================
@@ -2193,6 +2244,15 @@
   // 初期化処理（ページ読み込み完了時）
   // =========================
   async function onReady() {
+    // 直近履歴に「今のQID」を積む（一覧ウィンドウ用）
+    pushCurrentQidToRecentHistory();
+
+    // 左下バーの器を確実に作る（ボタン群を横一列にする）
+    getOrCreateAutoNextBar();
+
+    // 左端に「↑前の問題へ」ボタンを作る（押下で一覧ウィンドウ開閉）
+    createPrevQuestionToggleButton();
+
     // まず ODOA / oncePerDayToday を考慮した「次の URL」を計算
     NEXT_URL = await buildNextUrlConsideringOdoa();
     if (!NEXT_URL) {
@@ -2201,19 +2261,14 @@
       return;
     }
 
-    // 現在ページの qid を「直近qid履歴」に積む
-    // - [↑前の問題へ] の左端一覧で使用する
-    pushCurrentQidToRecentHistory();
-
-    // 画面左下の制御ボタン類を作成
+    // 画面左下の制御ボタン類を作成（バー内で横一列）
+    createBackToTopLink();              // ［次の問題へ］
+    createAutoNextCounterElement();     // 「自動送りはOFFです / 次の問題までXX秒」
     createAutoNextToggleButton();       // 自動送り ON/OFF
     createAutoNextModeToggleButton();   // 順番／ランダム
     createAutoNextDurationButton();     // 待ち時間（秒）
     createVerifyModeToggleButton();     // 自動検証モード（A→B 自動遷移）
     createTrialModeToggleButton();      // TRYALモード（A→B 自動遷移＋計測あり）
-
-    // 画面下部：手動ナビ行（[↑前の問題へ][次の問題へ]）を追加
-    createBackToTopLink();
 
     // Bパートの選択肢エリアにも「次の問題へ」と同じ挙動を紐づける
     setupBChoicesClickToNext();
