@@ -119,6 +119,10 @@ body.mode-b .opts .is-correct {
 opacity: 1 !important;
 }
 
+body.mode-b .sa-correct-pulse-inner {
+  text-decoration: underline;
+}
+
 
 /*
   2) class="is-correct" の文字だけ大きくする
@@ -220,6 +224,7 @@ margin: 0 5px 0 0;
   text-decoration: underline !important;
   opacity: 0.5;
 }
+
 
 /* deep_dive_inline.js が付ける強制 inline style を無効化 */
 #cscs-consistency-explain-link-wrapper {
