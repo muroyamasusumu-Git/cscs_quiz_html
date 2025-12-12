@@ -118,6 +118,14 @@
     }
   }
 
+  // easeOutCubic(t):
+  //   ・最初が速く、後半ほどゆっくり減速して止まる（＝「最初早めで、あとゆっくり」）
+  //   ・Bパートの正解拡大で「キュッ → ふわっ」を作る用途向け
+  function easeOutCubic(t) {
+    var u = 1 - t;
+    return 1 - (u * u * u);
+  }
+
   // animateScale(el, from, to, duration, easing, onDone):
   //   ・要素 el の transform: scale() を「時間経過にあわせて連続的に変化」させる関数。
   //   ・from : 開始時の拡大率（例: 1.0）
@@ -566,7 +574,8 @@
             var otherShrinkDuration = 220; // ★その他の縮小スピード（短いほど速い）
 
             // 正解行のスケールアニメーション（1.0 → 1.10 の一段だけ）
-            animateScale(targetEl, 1.0, 1.10, correctDuration, easeInOutQuad, null);
+            // - 最初速く立ち上がって、後半ゆっくり止まる（「最初早めで、あとゆっくり」）
+            animateScale(targetEl, 1.0, 1.10, correctDuration, easeOutCubic, null);
 
             // ▼ 同じ <ol> 内にある「その他の選択肢 li」に対しては、
             //    中身だけを 1.0 → 0.90 に縮小するアニメーションを付与する。
