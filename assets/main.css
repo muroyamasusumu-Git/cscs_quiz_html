@@ -805,7 +805,7 @@ a { -webkit-tap-highlight-color: rgba(255,255,255,0.12); }
   position: fixed;
   left: 16px;
   bottom: 16px;
-  padding: 6px 10px;
+  padding: 6px 5px;
   background: rgba(255,255,255,0.08);
   color: #66d9ff;
   font-size: 16px;

@@ -494,7 +494,7 @@
     bar.style.cssText =
       "position: fixed;" +
       "left: 0px;" +
-      "bottom: 10px;" +
+      "bottom: 14px;" +
       "z-index: 10000;" +
       "width: 100%;" +
       "display: block;" +
@@ -508,7 +508,7 @@
       "display: flex;" +
       "align-items: center;" +
       "gap: 0px;" +
-      "margin-left: 288px;" +
+      "margin-left: 256px;" +
       "pointer-events: none;";
 
     bar.appendChild(inner);
@@ -1932,7 +1932,7 @@
   }
   
   // =========================
-  // 「↑前の問題へ」ボタンの生成
+  // 「前の問題へ」ボタンの生成
   // - 画面左端に固定（他の列は100px右へ逃がしているので干渉しにくい）
   // - クリックで「直近問題ID一覧」パネルを開閉トグル
   // =========================
@@ -2002,8 +2002,8 @@
     // ▼ 位置調整は CSS と一致させる（inline が優先されるためここで固定）
     link.style.cssText =
       "position: fixed;" +
-      "left: 159px;" +
-      "bottom: 11px;" +
+      "left: 136px;" +
+      "bottom: 14px;" +
       "pointer-events: auto;";
 
     // クリック時に ODOA と同じ NEXT_URL へ遷移させる
