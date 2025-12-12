@@ -1,9 +1,56 @@
 // assets/clickable_scale_effects.js
-// 押せるボタンやリンクに「ふわっと拡大 → 戻る」動きを付ける共通スクリプト
-// ・CSSはこのファイル内で <style> を自動挿入
-// ・hover: わずかに拡大（押せそう感）
-// ・click / Enter / Space: ポヨンと膨らんで戻る（pulse）
-// ・Aパート / Bパート 共通で利用可能
+/**
+ * Clickable Scale Effects (CSCS UI micro-interactions)
+ *
+ * ------------------------------------------------------------
+ * 目的（何のためのJSか）
+ * ------------------------------------------------------------
+ * - 「押せる/触れる」UI（主に選択肢テキスト）に、拡大(scale)による手触りを付ける。
+ * - hover できる端末(PC等)では hover 時に 1.10 倍で「押せそう感」を出す。
+ * - click 時は「クリック直後の見た目」を確実に固定し、フェード遷移の直前まで崩れないようにする。
+ *
+ * ------------------------------------------------------------
+ * cscs_fade_overlay.js との関係（重要）
+ * ------------------------------------------------------------
+ * - cscs_fade_overlay.js は「暗転→遷移」の直前に、画面上の問題文/選択肢を clone して
+ *   #cscs-fade-highlight-layer に貼り付ける（＝クリック直後の見た目を保持したまま暗転させたい）。
+ * - しかし、hover/active の解除や別JS/CSSの介入で transform が scale(1.0) に揺り戻ると、
+ *   「クリック直後の拡大表示」が暗転中に崩れて見える。
+ * - そのため本ファイルは、クリック時に transform を固定し、一定フレーム数 requestAnimationFrame で
+ *   上書きし続ける “ハードロック” を行う（暗転開始まで見た目を守る）。
+ * - さらに #cscs-fade-highlight-layer（=フェード側クローン領域）配下では、
+ *   二重アニメを避けるため **アニメーションを走らせず最終状態だけ即時適用**する設計になっている。
+ *
+ * ------------------------------------------------------------
+ * このJSがやっていること（全体像 / ChatGPT向けの要約）
+ * ------------------------------------------------------------
+ * 1) CSS を <style> で注入（SCALE_STYLE_TEXT）
+ *    - .sa-hover        : hover/active 時に scale(1.10)
+ *    - .sa-hover-fixed  : クリック後の固定表示（scale を常時維持、transition/animation 無効）
+ *    - .sa-correct-pulse-inner : Bパート結果演出で「テキスト塊だけ」を拡大/縮小するためのラッパー
+ *    - .sa-b-correct-underline : Bパート正解テキスト用の下線（視認性強化）
+ *    - #cscs-fade-highlight-layer 配下は transition/animation を殺して二重演出を防ぐ
+ *
+ * 2) スケールアニメ関数を提供（animateScale / ScaleAnimator）
+ *    - requestAnimationFrame で transform:scale を滑らかに変化させる。
+ *    - ただし #cscs-fade-highlight-layer 配下は「アニメ無しで最終scaleのみ」を即時適用する。
+ *
+ * 3) 対象要素を自動検出してバインド（bindScaleToAllClickables / bindScaleToElement）
+ *    - 影響範囲は原則「ol.opts a[href]（選択肢テキスト）」のみに限定。
+ *    - Bパート（body.mode-b）では、選択肢テキスト自体への hover/click 拡大は無効化（結果演出が主のため）。
+ *    - PC等の hover 環境では、hover 済み要素のクリック時に .sa-hover-fixed へ切替して固定化。
+ *    - クリック直後の transform を 1 回だけ取得し、その値を一定フレーム数 “上書きし続ける” ことで
+ *      揺り戻し（scale(1.0)）を物理的に封じる。
+ *
+ * 4) Bパート結果演出（setupGlobalBinding 内）
+ *    - li.is-correct の中身を .sa-correct-pulse-inner で包み、
+ *      正解は scale(1.10) へゆっくり拡大し、下線(.sa-b-correct-underline)を付ける。
+ *    - 同じリスト内の他の選択肢は scale(0.90) へ素早く縮小して「正解を目立たせる」。
+ *
+ * 公開:
+ *   window.ScaleAnimator          : 外部からスケール演出を呼ぶためのAPI
+ *   window.ScaleAnimatorBinding   : 動的DOM追加時に再バインドするためのAPI
+ */
 
 (function () {
   "use strict";

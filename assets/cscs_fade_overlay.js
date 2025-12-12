@@ -1,4 +1,49 @@
 // assets/cscs_fade_overlay.js
+/**
+ * CSCS Fade Overlay + Highlight Transition Controller
+ *
+ * 【このファイルは元々「フェードイン/フェードアウト専用」だったが、現在は clickable_scale_effects.js と密接に連動する。】
+ * clickable_scale_effects.js は「クリック直後の transform(scale) を固定する（sa-hover-fixed 等）」挙動を持つため、
+ * ページ遷移フェード中に hover/active/JS/CSS の揺り戻しで scale(1.0) に戻ることがある。
+ * その揺り戻しを確実に潰して「クリック直後の見た目のまま暗転→遷移」させるために、
+ * このファイル側でも transform/transition/animation を強制固定する処理（スケール系のハードロック）を持っている。
+ *
+ * ------------------------------------------------------------
+ * このJSがやっていること（全体像 / ChatGPT向けの要約）
+ * ------------------------------------------------------------
+ *
+ * 1) フェード用の黒幕オーバーレイを生成・再利用する
+ *    - id="cscs-global-fade-overlay" を body に 1 回だけ作り、
+ *      opacity の transition で暗転/復帰を表現する。
+ *
+ * 2) フェードアウト遷移（fadeOutTo）
+ *    - overlay を透明→指定の濃さへ変化させて暗転し、
+ *      sessionStorage に「フェード中だった」印を残してから nextUrl へ遷移する。
+ *    - mode-a の場合だけフェード時間を短くする等の分岐を持つ。
+ *
+ * 3) フェードイン（runFadeInIfNeeded）
+ *    - 遷移前に残された sessionStorage フラグを見て、
+ *      暗い状態から opacity=0 へ戻すことで復帰演出を行う。
+ *    - 完了後は overlay を DOM から削除する。
+ *
+ * 4) ハイライト付きフェードアウト（fadeOutToWithHighlight）
+ *    - クリック直後の「問題文 + 選択肢」の見た目を clone して、
+ *      #cscs-fade-highlight-layer（overlay 内の最前面レイヤー）に固定配置する。
+ *    - clone 側は意図しない二重アニメを避けるため、
+ *      transition/animation/transform を徹底的に無効化する（injectHighlightKillCss）。
+ *    - 選択肢 clone では「選択された1つだけ」を残し、他の li を透明化して視認性を上げる。
+ *
+ * 5) clickable_scale_effects.js 由来の「スケール揺り戻し」を潰すための処理（重要）
+ *    - フェード中、元DOM側（画面下に残る本物の選択肢）でも、
+ *      選択された <li>/<a> の transform を一定時間 requestAnimationFrame で上書きし続ける（ハードロック）。
+ *    - さらに「他の選択肢」を scale(0.90) に縮小して、選択済みを目立たせる演出も行う。
+ *
+ * 公開API:
+ *   window.CSCS_FADE.fadeOutTo(url, reason)
+ *   window.CSCS_FADE.fadeOutToWithHighlight(url, reason, { questionNode, choiceNode })
+ *   window.CSCS_FADE.runFadeInIfNeeded()
+ *   window.CSCS_FADE.fadeReload(reason)
+ */
 (function () {
   "use strict";
 
