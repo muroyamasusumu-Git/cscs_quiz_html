@@ -577,7 +577,7 @@
 
             // 不正解側と同じく、position + left でテキスト塊の左端位置を揃える
             inner.style.position = "relative";
-            inner.style.left = "-6px"; // 縦ラインを少し右へ寄せる（-10px → -6px）
+            inner.style.left = "5px"; // 縦ラインを少し右へ寄せる（-10px → -6px）
           } catch (_eCorrectOrigin) {
             // style 設定に失敗しても致命的ではないので、そのまま進める
           }
@@ -644,7 +644,7 @@
 
                   // ▼ 縦ラインをもっと強く左側へ寄せる
                   otherInner.style.position = "relative";
-                  otherInner.style.left = "-6px"; // 縦ラインを少し右へ寄せる（-10px → -6px）
+                  otherInner.style.left = "5px"; // 縦ラインを少し右へ寄せる（-10px → -6px）
                 } catch (_eSetOrigin) {
                   // style 設定に失敗しても致命的ではないので、そのまま進める
                 }
