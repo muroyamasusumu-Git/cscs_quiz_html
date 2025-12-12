@@ -1957,7 +1957,7 @@
     btn.style.cssText =
       "position: fixed;" +
       "left: 16px;" +
-      "bottom: 11px;" +
+      "bottom: 14px;" +
       "z-index: 10002;" +
       "cursor: pointer;" +
       "pointer-events: auto;";
