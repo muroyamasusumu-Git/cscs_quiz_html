@@ -128,56 +128,9 @@
       }
     }
 
-    // CSS を 1回だけ注入して underline を確実に固定
-    (function injectCorrectUnderlineCssOnce(){
-      var STYLE_ID = "cscs-b-correct-underline-style";
-      try{
-        if (document.getElementById(STYLE_ID)) return;
-
-        var styleEl = document.createElement("style");
-        styleEl.id = STYLE_ID;
-        styleEl.type = "text/css";
-
-        // li 自体には下線を引かない（marker巻き込み防止）
-        // 中身側（.sa-correct-pulse-inner / a）だけ underline を固定
-        var cssText =
-          // li 自体は装飾しない（marker 巻き込み防止）
-          "body.mode-b ol.opts li.is-correct{ text-decoration:none !important; }" +
-
-          // ▼ 正解選択肢の「文言部分」に下線を固定
-          // - text-decoration ではなく line を明示（環境差で潰れにくくする）
-          // - 線の太さ/オフセットも !important で固定
-          "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner," +
-          "body.mode-b ol.opts li.is-correct a{" +
-            "text-decoration-line: underline !important;" +
-            "text-decoration-thickness: 2px !important;" +
-            "text-underline-offset: 3px !important;" +
-            "text-decoration-color: currentColor !important;" +
-          "}";
-
-        if (styleEl.styleSheet) {
-          styleEl.styleSheet.cssText = cssText;
-        } else {
-          styleEl.appendChild(document.createTextNode(cssText));
-        }
-        document.head.appendChild(styleEl);
-      }catch(_){}
-    })();
-
-    // ▼ 正解の選択肢文言に「確実に」下線を入れる
-    //    - CSS や transform の影響を受けないよう inline style + !important を使用
-    //    - 下線の責務をここで完結させる（表示専用）
-    if (textEl && textEl.style) {
-      try{
-        if (typeof textEl.style.setProperty === "function") {
-          textEl.style.setProperty("text-decoration", "underline", "important");
-          textEl.style.setProperty("text-decoration-thickness", "2px", "important");
-          textEl.style.setProperty("text-underline-offset", "3px", "important");
-        } else {
-          textEl.style.textDecoration = "underline";
-        }
-      }catch(_){}
-    }
+    // 下線（underline）の付与は廃止：
+    // - 正解行のマーキングは is-correct クラス付与のみで行う
+    // - 文言側（a / .sa-correct-pulse-inner）への装飾は一切しない
 
     // さらに中の <a class="opt-link"> があれば、それにもクラスを追加（従来どおり）
     var a = li.querySelector("a.opt-link");
