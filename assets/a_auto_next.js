@@ -1993,11 +1993,18 @@
       return null;
     }
 
-    // a.back-to-top 要素を生成（スタイル調整は CSS 側の .back-to-top に委譲）
+    // a.back-to-top 要素を生成
     var link = document.createElement("a");
     link.id = "auto-next-link";
     link.className = "back-to-top";
     link.textContent = "［次の問題へ］";
+
+    // ▼ 位置調整は CSS と一致させる（inline が優先されるためここで固定）
+    link.style.cssText =
+      "position: fixed;" +
+      "left: 159px;" +
+      "bottom: 12px;" +
+      "pointer-events: auto;";
 
     // クリック時に ODOA と同じ NEXT_URL へ遷移させる
     link.addEventListener("click", function (ev) {
