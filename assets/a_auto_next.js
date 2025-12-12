@@ -544,12 +544,16 @@
 
     // 前ボタンを左端に置くので、パネルは left: 8px かつ width を控えめに
     // バーに被らないように bottom を少し上へ
+    // ▼ 直近一覧パネルは「画面上端近くまで」広がれるようにする
+    //   - bottom はバーとの干渉回避のため維持
+    //   - top を指定して高さ上限を解放
+    //   - max-height は使わず、top/bottom で可変にする
     panel.style.cssText =
       "position: fixed;" +
-      "left: 8px;" +
+      "left: 15px;" +
+      "top: 8px;" +
       "bottom: 56px;" +
       "z-index: 10001;" +
-      "max-height: 260px;" +
       "overflow: auto;" +
       "padding: 10px 12px;" +
       "background: rgba(0,0,0,0.85);" +
