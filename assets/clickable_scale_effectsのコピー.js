@@ -422,10 +422,29 @@
   }
 
   function bindScaleToAllClickables(root) {
-    // このファイルの影響範囲を「ol.opts（選択肢領域）」のみに限定する。
-    // - 画面全体の a/button/nav/monitor 等には一切バインドしない（共通UI演出を無効化）
-    // - 選択肢は <li> ではなく、テキスト側の <a> のみを対象にする（A〜Dマーカー拡大を防ぐ）
-    var selector = "ol.opts a[href]";
+    // baseSelectors:
+    //   - "a[href]"             : 画面内の通常リンク（選択肢リンクなどを含む）
+    //   - "button"              : <button> 要素全般
+    //   - "[role=\"button\"]"   : role 属性でボタン扱いされている要素
+    //   - "[data-sa-clickable]" : JS 側で明示的に「拡大対象」にしたい任意要素
+    //   - "ol.opts li"          : A/B パートの選択肢 1 行全体（行面クリックを有効にしたい）
+    //   - ".cscs-choice"        : そのほか問題選択 UI 系
+    //   - ".nav-button" / ".nav-btn" : ページ遷移ナビゲーションのボタン
+    //   - ".monitor-link" / ".monitor-button" : モニタ系 UI のリンク／ボタン
+    var baseSelectors = [
+      "a[href]",
+      "button",
+      "[role=\"button\"]",
+      "[data-sa-clickable=\"1\"]",
+      "ol.opts li",
+      ".cscs-choice",
+      ".nav-button",
+      ".nav-btn",
+      ".monitor-link",
+      ".monitor-button"
+    ];
+
+    var selector = baseSelectors.join(",");
     var nodeList = root.querySelectorAll(selector);
 
     // Bパートかどうかを事前に判定しておく（body.mode-b）
@@ -448,13 +467,27 @@
         // closest が使えない古い環境では従来どおりの挙動にフォールバック
       }
 
+      // ▼ 選択肢の行 <li>（ol.opts li）について
+      //   ・ブラウザは <li> に対して「A. / B. / C. / D.」などのマーカーを描画する。
+      //   ・<li> 全体を拡大すると、このマーカーも一緒に拡大されてしまう。
+      //   ・今回の方針では「選択肢テキストの hover 時だけをアニメーションさせる」ため、
+      //     <li> 自体には hover / click のスケールアニメーションを一切付けない。
+      //   ・同じ行の中にある <a class=\"opt-link\" ...> は、bindScaleToElement() 側で
+      //     hover 用クラス（sa-hover）のみ付与される。
+      if (el.tagName === "LI" && el.closest("ol.opts")) {
+        // Aパート / Bパートともに、<li> 自体にはスケール系の処理を何も行わない。
+        continue;
+      }
+
       // ▼ Bパートでは「選択肢テキスト自体」の拡大を無効化する。
-      //   - Bは結果演出（li.is-correct 等）を主とし、選択肢テキストへの hover/click 拡大は付けない
+      //   ・Aパート: <a href="...">（選択肢テキスト）は拡大対象
+      //   ・Bパート: 同じ <a> でも、ol.opts 内にあるものは拡大対象から除外
       if (isModeB && el.tagName === "A" && el.closest("ol.opts")) {
         continue;
       }
 
-      // ol.opts 内の <a href> だけを「クリック可能」とみなし、拡大効果を付ける。
+      // 通常のボタン/リンク/role=button などは、
+      // isFocusableClickable で「クリック可能」と判断されたもののみに拡大効果を付ける。
       if (isFocusableClickable(el)) {
         bindScaleToElement(el);
       }
