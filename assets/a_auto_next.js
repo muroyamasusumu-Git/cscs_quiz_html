@@ -1,11 +1,52 @@
 // assets/a_auto_next.js
-// Aパート（＆Bパート）で、一定時間後に次の問題へ自動遷移するためのスクリプト。
-// ・自動送り ON/OFF
-// ・順番モード／ランダムモード
-// ・待ち時間（10 / 15 / 20 / 25 / 30 / 60 秒）の切り替え
-// ・左下のカウンター表示
-// ・nav_list / フェード演出との連携
-// をまとめて面倒見ている。
+// 目的:
+//   Aパート / Bパートの「次の問題へ進む体験」をこの1ファイルで統括する。
+//   - 自動送り（タイマーでの自動遷移）
+//   - 手動送り（［次の問題へ］リンク / Bの選択肢エリアクリックでの遷移）
+//   - 順番遷移 / ランダム遷移
+//   - ODOA / SYNC 状態（/api/sync/state）を参照した「出題候補の除外」
+//   - フェード演出（CSCS_FADE）と nav_list（CSCS_NAV_LIST）への連携
+//
+// このファイルがやっていること（全体フロー）:
+//   1) 初期化（onReady）
+//      - 現在ページのスライド情報（day / idx / part）を URL から解析
+//      - /api/sync/state を必要に応じて読み込み（キャッシュして再利用）
+//      - モード状態（自動送り / ランダム / 検証AUTO / TRYAL / ODOA）を取得
+//      - その状態をもとに「次に遷移すべき URL（NEXT_URL）」を決定
+//      - 画面左下のUI（トグルボタン群 / カウンター）と手動遷移UIを生成
+//      - 自動送りONならカウントダウン開始、OFFなら停止表示
+//      - フェードイン演出を必要に応じて実行
+//
+//   2) 次URLの決定（buildNextUrlConsideringOdoa）
+//      - 通常（ODOA OFF）
+//          順番: buildSequentialNextUrl() / ランダム: buildRandomNextUrl()
+//      - ODOA ON
+//          通常時: oncePerDayToday を使い「今日すでに回答済み」を除外しつつ候補を探索
+//                  さらに consistency_status の「×」判定（NG）を自動遷移候補から除外
+//          検証AUTO時: consistency_status を使い「未チェック」のみを候補として探索
+//      ※ 情報源は /api/sync/state の JSON のみ（localStorage などへフォールバックしない方針）
+//
+//   3) 自動送り（startAutoAdvanceCountdown）
+//      - NEXT_URL を前提に「残り秒数」を左下カウンターへ毎秒表示
+//      - タイムアウトで goNextIfExists(NEXT_URL) を呼び出し遷移
+//      - 検証AUTO / TRYAL のときは、A/B で待ち時間を固定値に差し替える
+//          検証AUTO: A=5秒 / B=20秒
+//          TRYAL:    A=20秒 / B=30秒
+//
+//   4) 手動遷移（createBackToTopLink / setupBChoicesClickToNext）
+//      - ［次の問題へ］リンクを body 直下に追加し、クリックで NEXT_URL へ遷移
+//      - Bパートでは ol.opts（選択肢エリア）クリックでも同じ遷移を発火
+//      - 遷移前に HEAD で存在確認（goNextIfExists）して「無いURLへ飛ばない」保険をかける
+//
+//   5) ランダムの被り制御（random history）
+//      - localStorage の配列に「直近N件のqid（YYYYMMDD-NNN）」を保持
+//      - ランダム候補の選定時に直近履歴に入っている qid はスキップ
+//      - N は RANDOM_HISTORY_LIMIT（直近250件）で制御
+//
+// 注意:
+//   - フェード演出は CSCS_FADE があればそれを使用し、無ければ通常遷移。
+//   - nav_list があれば fadeOut/fadeIn を呼んで視覚連携する。
+//   - ここで新しい保険的フォールバック経路を勝手に増やさない（恒久方針に従う）。
 
 (function () {
   "use strict";
@@ -402,7 +443,7 @@
   // =========================
 
   var RANDOM_HISTORY_KEY = "cscs_auto_next_random_history";
-  var RANDOM_HISTORY_LIMIT = 100;
+  var RANDOM_HISTORY_LIMIT = 250;
   var randomHistoryCache = null;
 
   function loadRandomHistory() {
