@@ -402,6 +402,115 @@
   var AUTO_NEXT_BAR_INNER_ID = "cscs-auto-next-bar-inner";
   var RECENT_PANEL_ID = "cscs-auto-next-recent-panel";
 
+  // 直近一覧: qid → 問題文冒頭のキャッシュ（ネットワーク負荷を抑える）
+  var RECENT_QID_HEAD_CACHE = {};
+  var RECENT_QID_HEAD_CHARS = 5;
+
+  // qid を span の id として安全に使うための変換
+  function makeSafeDomIdFromQid(qid) {
+    return String(qid || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+  }
+
+  // 取得した HTML から、問題文の冒頭（<h1> の text）を取り出す
+  function extractQuestionHeadFromHtml(htmlText) {
+    try {
+      var doc = new DOMParser().parseFromString(String(htmlText || ""), "text/html");
+      var h1 = doc ? doc.querySelector("h1") : null;
+      if (!h1) {
+        return "";
+      }
+      var t = String(h1.textContent || "").trim();
+      if (!t) {
+        return "";
+      }
+      return t.slice(0, RECENT_QID_HEAD_CHARS);
+    } catch (_e) {
+      return "";
+    }
+  }
+
+  // qid の AパートHTML を fetch して、問題文冒頭を返す（取れない場合は空文字）
+  function fetchQuestionHead5FromUrl(qid, url) {
+    return new Promise(function (resolve) {
+      try {
+        if (RECENT_QID_HEAD_CACHE && Object.prototype.hasOwnProperty.call(RECENT_QID_HEAD_CACHE, qid)) {
+          resolve(String(RECENT_QID_HEAD_CACHE[qid] || ""));
+          return;
+        }
+
+        fetch(url, { cache: "no-store" })
+          .then(function (res) {
+            if (!res || !res.ok) {
+              resolve("");
+              return null;
+            }
+            return res.text();
+          })
+          .then(function (text) {
+            if (typeof text !== "string") {
+              resolve("");
+              return;
+            }
+            var head = extractQuestionHeadFromHtml(text);
+            RECENT_QID_HEAD_CACHE[qid] = head;
+            resolve(head);
+          })
+          .catch(function (_err) {
+            resolve("");
+          });
+      } catch (_e2) {
+        resolve("");
+      }
+    });
+  }
+
+  // 直近パネルの各行に、問題文冒頭を非同期で流し込む
+  function fillRecentPanelQuestionHeads(panel) {
+    try {
+      if (!panel) {
+        return;
+      }
+
+      var links = panel.querySelectorAll("a[data-cscs-recent-qid]");
+      if (!links || links.length === 0) {
+        return;
+      }
+
+      links.forEach(function (a) {
+        var qid = a.getAttribute("data-cscs-recent-qid");
+        var href = a.getAttribute("href");
+        if (!qid || !href) {
+          return;
+        }
+
+        var safe = makeSafeDomIdFromQid(qid);
+        var spanId = "cscs-recent-qhead-" + safe;
+        var span = document.getElementById(spanId);
+        if (!span) {
+          return;
+        }
+
+        // 既に入っているなら再取得しない
+        if (span.dataset && span.dataset.cscsFilled === "1") {
+          return;
+        }
+
+        fetchQuestionHead5FromUrl(qid, href).then(function (head) {
+          try {
+            if (head) {
+              span.textContent = " " + head;
+            } else {
+              span.textContent = "";
+            }
+            if (span.dataset) {
+              span.dataset.cscsFilled = "1";
+            }
+          } catch (_e3) {}
+        });
+      });
+    } catch (_e4) {}
+  }
+
   // 直近一覧パネル表示状態（トグル）
   var recentPanelOpen = false;
 
@@ -583,10 +692,15 @@
       if (!url) {
         continue;
       }
+
+      var safe = makeSafeDomIdFromQid(qid);
+      var spanId = "cscs-recent-qhead-" + safe;
+
       html +=
         '<div style="margin: 2px 0;">' +
         '<a href="' + url + '" data-cscs-recent-qid="' + qid + '" style="color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.45);">' +
         qid +
+        '<span id="' + spanId + '" data-cscs-filled="0" style="color: rgba(255,255,255,0.78);"></span>' +
         "</a>" +
         "</div>";
     }
@@ -617,6 +731,9 @@
         goNextIfExists(href);
       });
     });
+
+    // ▼ 各 qid の隣に「問題文冒頭5文字」を非同期で流し込む
+    fillRecentPanelQuestionHeads(panel);
   }
 
   // パネルを開閉トグルする
