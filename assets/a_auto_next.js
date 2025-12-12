@@ -1306,7 +1306,7 @@
       "font-size: 13px;" +
       "color: #fff;" +
       "pointer-events: none;" +
-      "width: 110px;" +
+      "width: 120px;" +
       "font-weight: 300;";
 
     inner.appendChild(span);
