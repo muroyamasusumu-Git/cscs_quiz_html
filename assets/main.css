@@ -218,6 +218,7 @@ margin: 0 5px 0 0;
 .explain_menu a {
   color: #ffffff !important;
   text-decoration: underline !important;
+  opacity: 0.6;
 }
 
 /* deep_dive_inline.js が付ける強制 inline style を無効化 */
@@ -234,7 +235,7 @@ font-size: 16px;
 margin: 10px 0 0;
 margin-right: 0 !important;
 width: 100% ;
-opacity: 0.4;
+opacity: 1.0;
 }
 
 .explain-text {
