@@ -24,8 +24,8 @@
     if (isModeB) {
       return [
         "#judge",
-        ".answer",
-        ".explain-text"  // Bパートの解説文(span.explain-text)を、少し遅れてスライドインさせる対象として追加
+        ".answer"
+        // ".explain-text"  // 解説スライドインを無効化
       ];
     }
 
@@ -120,23 +120,7 @@
           }
 
           if (isExplainText) {
-            // 解説テキストだけ、わずかに遅らせて「解説専用アニメーション」でスライドインさせる
-            // - display:inline なままだと横移動が分かりづらいので、CSS側で inline-block にしている
-            setTimeout(
-              (function (targetEl) {
-                return function () {
-                  if (!targetEl) {
-                    return;
-                  }
-                  try {
-                    targetEl.classList.add("cscs-slide-in-left-explain"); // 解説専用アニメーションを適用
-                  } catch (_e) {
-                    // classList.add に失敗しても他要素には影響させない
-                  }
-                };
-              })(el),
-              500 // 遅延時間（ミリ秒）。必要に応じて 200〜300ms 程度で微調整可能
-            );
+            // 解説スライドインは無効化（何もしない）
           } else {
             // 通常の要素は即時に汎用スライドインアニメーションを適用
             el.classList.add("cscs-slide-in-left");
