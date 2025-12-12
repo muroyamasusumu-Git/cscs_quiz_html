@@ -332,16 +332,22 @@
             }
           }catch(_eClass){}
 
-          // 取り消し線を「テキスト側（a）」だけに当てる
-          let a = null;
-          try { a = li.querySelector("a"); } catch(_eA) { a = null; }
-          if (a && a.style) {
+          // 取り消し線を「テキスト側」だけに当てる
+          // - Bパートでは <a> が存在せず、<span class="sa-correct-pulse-inner"> だけの構造になることがあるため、
+          //   まず .sa-correct-pulse-inner を優先し、無ければ a を対象にする。
+          let textEl = null;
+          try { textEl = li.querySelector(".sa-correct-pulse-inner"); } catch(_eSpan) { textEl = null; }
+          if (!textEl) {
+            try { textEl = li.querySelector("a"); } catch(_eA) { textEl = null; }
+          }
+
+          if (textEl && textEl.style) {
             try{
-              a.style.setProperty("text-decoration-line", "line-through", "important");
-              a.style.setProperty("text-decoration-thickness", "2px", "important");
-              a.style.setProperty("text-decoration-color", "currentColor", "important");
-            }catch(_eAStyle){
-              a.style.textDecoration = "line-through";
+              textEl.style.setProperty("text-decoration-line", "line-through", "important");
+              textEl.style.setProperty("text-decoration-thickness", "2px", "important");
+              textEl.style.setProperty("text-decoration-color", "currentColor", "important");
+            }catch(_eTextStyle){
+              textEl.style.textDecoration = "line-through";
             }
           }
 
@@ -357,6 +363,11 @@
 
               const cssText =
                 "ol.opts li.cscs-wrong-choice{ text-decoration:none !important; }" +
+                "ol.opts li.cscs-wrong-choice .sa-correct-pulse-inner{" +
+                "text-decoration-line:line-through !important;" +
+                "text-decoration-thickness:2px !important;" +
+                "text-decoration-color:currentColor !important;" +
+                "}" +
                 "ol.opts li.cscs-wrong-choice a{" +
                 "text-decoration-line:line-through !important;" +
                 "text-decoration-thickness:2px !important;" +
