@@ -24,8 +24,8 @@
     if (isModeB) {
       return [
         "#judge",
-        ".answer"
-        // ".explain-text"  // 解説スライドインを無効化
+        ".answer",
+        ".explain-text"  // Bパートの解説文(span.explain-text)を、少し遅れてスライドインさせる対象として追加
       ];
     }
 
@@ -46,30 +46,14 @@
     style.id = "cscs-slide-style";
     style.type = "text/css";
     style.textContent =
-      // Bパートの解説テキストは、最初は非表示（opacity:0）にして「チラ見え」を防ぐ
-      // - body.mode-b が付いているページだけに限定しているので、Aパートには影響しない
-      ".mode-b .explain-text {" +
-      "  opacity: 0;" +                                          // 初期描画時は透明な状態にしておく
-      "}" +
-      // 汎用スライドイン（h1 / #judge / .answer / ol.opts などに利用）
+      // 汎用スライドイン（h1 / #judge / .answer / ol.opts / .explain-text などに利用）
       ".cscs-slide-in-left {" +
       "  animation: cscsSlideInLeft 0.5s ease-out 0s 1;" +       // 左から 0.5 秒でスライドインする基本アニメーション
       "  animation-fill-mode: both;" +                           // アニメ後も最終状態を維持する
       "  transform-origin: center left;" +                       // 左側を基準にスライドさせる
       "}" +
-      // 解説テキスト専用のスライドイン（span.explain-text 用）
-      ".cscs-slide-in-left-explain {" +
-      "  animation: cscsSlideInLeftExplain 0.5s ease-out 0s 1;" + // 少し大きめに左からスライドイン
-      "  animation-fill-mode: both;" +                            // アニメ後も最終位置を維持
-      "  transform-origin: center left;" +                        // 左側基準
-      "  display: inline-block;" +                                // inline 要素だと横方向の移動が見えづらいので inline-block にする
-      "}" +
       "@keyframes cscsSlideInLeft {" +
       "  0% { transform: translateX(-40px); opacity: 0; }" +      // 通常要素は 40px 程度のスライド
-      "  100% { transform: translateX(0); opacity: 1; }" +
-      "}" +
-      "@keyframes cscsSlideInLeftExplain {" +
-      "  0% { transform: translateX(-80px); opacity: 0; }" +      // 解説は少し大きめに 80px 左から滑り込ませる
       "  100% { transform: translateX(0); opacity: 1; }" +
       "}";
 
@@ -106,24 +90,11 @@
           // 「この要素にはスライドイン処理を予約済み」というフラグを先に立てる
           el.setAttribute("data-cscs-slide-applied", "1");
 
-          // 解説テキスト(span.explain-text)かどうかを判定する
-          // - classList が使える環境では contains を優先
-          // - そうでない場合は class 属性文字列から判定する
-          var isExplainText = false;
-          if (el.classList && typeof el.classList.contains === "function") {
-            isExplainText = el.classList.contains("explain-text");
-          } else {
-            var clsText = el.getAttribute("class") || "";
-            if (clsText.indexOf("explain-text") !== -1) {
-              isExplainText = true;
-            }
-          }
-
-          if (isExplainText) {
-            // 解説スライドインは無効化（何もしない）
-          } else {
-            // 通常の要素は即時に汎用スライドインアニメーションを適用
+          // 解説も含めて、対象要素はすべて同じスライドインに統一する
+          try {
             el.classList.add("cscs-slide-in-left");
+          } catch (_e) {
+            // classList.add に失敗しても他要素には影響させない
           }
         }
       }
