@@ -97,7 +97,7 @@
    * @param {Element|null} choiceNode    元の選択肢コンテナDOMノード(<ol class="opts"> など。<li> が来た場合はここでリスト親に昇格させる)
    * @returns {Element|null}             作成されたハイライトレイヤー要素 or null
    */
-  function createHighlightLayer(questionNode, choiceNode) {
+  function createHighlightLayer(questionNode, choiceNode, selectedWasWrong) {
     try {
       // 既存のハイライトレイヤーがあれば一度削除して、毎回まっさらな状態から作り直す
       var existing = document.getElementById("cscs-fade-highlight-layer");
@@ -338,6 +338,28 @@
                       link.style.transition = "none";
                     }
                   }
+
+                  // ▼ 追加：選択済み不正解の場合だけ「テキスト部分」に打ち消し線を入れる（A〜Dのマーカーには付けない）
+                  // - li に入れると marker に影響する可能性があるため、span/a のテキスト要素だけを対象にする
+                  if (selectedWasWrong) {
+                    var textEl = null;
+                    try {
+                      textEl = li.querySelector(".sa-correct-pulse-inner");
+                    } catch (_eFindTextEl) {
+                      textEl = null;
+                    }
+                    if (!textEl) {
+                      textEl = link;
+                    }
+                    if (textEl && textEl.style) {
+                      try {
+                        textEl.style.setProperty("text-decoration", "line-through", "important");
+                        textEl.style.setProperty("text-decoration-line", "line-through", "important");
+                      } catch (_eDecImp) {
+                        textEl.style.textDecoration = "line-through";
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -489,7 +511,59 @@
     // clickable_scale_effects.js 側のクリック時アニメーションを削った前提で、
     // 「クリック直後の見た目」をそのままクローンする挙動にする。
     if (questionNode || choiceNode) {
-      createHighlightLayer(questionNode, choiceNode);
+      // ▼ 選択済みの選択肢が「不正解（打ち消し線が付いている）」かどうかを元DOMから判定して渡す
+      // - ここでは「元DOMに line-through が付いている」= 不正解扱い、として判定する
+      var selectedWasWrong = false;
+      try {
+        if (originalChoiceLi && originalChoiceLi.nodeType === 1) {
+          var wrongTarget = null;
+
+          try {
+            wrongTarget = originalChoiceLi.querySelector(".sa-correct-pulse-inner");
+          } catch (_eFindWrongSpan) {
+            wrongTarget = null;
+          }
+          if (!wrongTarget) {
+            try {
+              wrongTarget = originalChoiceLi.querySelector("a");
+            } catch (_eFindWrongA) {
+              wrongTarget = null;
+            }
+          }
+          if (!wrongTarget) {
+            wrongTarget = originalChoiceLi;
+          }
+
+          try {
+            var csWrong = window.getComputedStyle(wrongTarget);
+            if (csWrong && csWrong.textDecorationLine && String(csWrong.textDecorationLine).indexOf("line-through") !== -1) {
+              selectedWasWrong = true;
+            }
+          } catch (_eCsWrong) {
+            selectedWasWrong = false;
+          }
+
+          if (!selectedWasWrong) {
+            try {
+              var inlineDec = "";
+              try {
+                inlineDec = String(wrongTarget.style && wrongTarget.style.textDecoration ? wrongTarget.style.textDecoration : "");
+              } catch (_eInlineDec) {
+                inlineDec = "";
+              }
+              if (inlineDec && inlineDec.indexOf("line-through") !== -1) {
+                selectedWasWrong = true;
+              }
+            } catch (_eInlineWrong) {
+              selectedWasWrong = false;
+            }
+          }
+        }
+      } catch (_eDetectWrong) {
+        selectedWasWrong = false;
+      }
+
+      createHighlightLayer(questionNode, choiceNode, selectedWasWrong);
     }
 
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
