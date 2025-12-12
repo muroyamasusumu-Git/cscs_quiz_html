@@ -603,7 +603,7 @@
     bar.style.cssText =
       "position: fixed;" +
       "left: 0px;" +
-      "bottom: 14px;" +
+      "bottom: 10px;" +
       "z-index: 10000;" +
       "width: 100%;" +
       "display: block;" +
