@@ -2003,7 +2003,7 @@
     link.style.cssText =
       "position: fixed;" +
       "left: 159px;" +
-      "bottom: 12px;" +
+      "bottom: 11px;" +
       "pointer-events: auto;";
 
     // クリック時に ODOA と同じ NEXT_URL へ遷移させる
