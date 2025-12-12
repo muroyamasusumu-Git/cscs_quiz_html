@@ -56,8 +56,36 @@
     // A〜D 以外なら何もしない
     if (!/^[ABCD]$/.test(corr)) return false;
 
-    // 選択肢リストの <ol class="opts"> を取得
-    var ol = document.querySelector("ol.opts");
+    // Bパート以外では何もしない（責務を限定）
+    try{
+      if (!document.body || !document.body.classList || !document.body.classList.contains("mode-b")) {
+        return false;
+      }
+    }catch(_){
+      return false;
+    }
+
+    // 選択肢リストの <ol class="opts"> を取得（フェード用クローン配下は除外）
+    var ol = null;
+    try{
+      var all = document.querySelectorAll("ol.opts");
+      for (var i = 0; i < all.length; i++) {
+        var cand = all[i];
+        if (!cand) continue;
+
+        // #cscs-fade-highlight-layer 配下は「フェード用クローン」なので対象外
+        try{
+          if (cand.closest && cand.closest("#cscs-fade-highlight-layer")) {
+            continue;
+          }
+        }catch(_){}
+
+        ol = cand;
+        break;
+      }
+    }catch(_){
+      ol = null;
+    }
     if (!ol) return false;
 
     // A〜D → li の順番へのマッピング
@@ -67,12 +95,96 @@
     var li = ol.querySelector("li:nth-child(" + map[corr] + ")");
     if (!li) return false;
 
-    // li 自体に is-correct を付与（CSS 側でスタイルする想定）
-    li.classList.add("is-correct");
+    // li 自体に is-correct を付与（従来どおり）
+    try{
+      li.classList.add("is-correct");
+    }catch(_){}
 
-    // さらに中の <a class="opt-link"> があれば、それにもクラスを追加
+    // ▼ 下線は marker を巻き込まないよう「中身」だけに当てる
+    // 1) B結果演出でラップされる .sa-correct-pulse-inner を優先
+    // 2) 無ければ a.opt-link
+    // 3) それも無ければ li 内の a
+    var textEl = null;
+
+    try{
+      textEl = li.querySelector(".sa-correct-pulse-inner");
+    }catch(_){
+      textEl = null;
+    }
+
+    if (!textEl) {
+      try{
+        textEl = li.querySelector("a.opt-link");
+      }catch(_){
+        textEl = null;
+      }
+    }
+
+    if (!textEl) {
+      try{
+        textEl = li.querySelector("a");
+      }catch(_){
+        textEl = null;
+      }
+    }
+
+    // CSS を 1回だけ注入して underline を確実に固定
+    (function injectCorrectUnderlineCssOnce(){
+      var STYLE_ID = "cscs-b-correct-underline-style";
+      try{
+        if (document.getElementById(STYLE_ID)) return;
+
+        var styleEl = document.createElement("style");
+        styleEl.id = STYLE_ID;
+        styleEl.type = "text/css";
+
+        // li 自体には下線を引かない（marker巻き込み防止）
+        // 中身側（.sa-correct-pulse-inner / a）だけ underline を固定
+        var cssText =
+          "body.mode-b ol.opts li.is-correct{ text-decoration:none !important; }" +
+          "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner{" +
+            "text-decoration-line:underline !important;" +
+            "text-decoration-thickness:2px !important;" +
+            "text-underline-offset:3px !important;" +
+            "text-decoration-color:currentColor !important;" +
+          "}" +
+          "body.mode-b ol.opts li.is-correct a{" +
+            "text-decoration-line:underline !important;" +
+            "text-decoration-thickness:2px !important;" +
+            "text-underline-offset:3px !important;" +
+            "text-decoration-color:currentColor !important;" +
+          "}";
+
+        if (styleEl.styleSheet) {
+          styleEl.styleSheet.cssText = cssText;
+        } else {
+          styleEl.appendChild(document.createTextNode(cssText));
+        }
+        document.head.appendChild(styleEl);
+      }catch(_){}
+    })();
+
+    // inline でも念のため固定（CSS優先だが、確実性を上げる）
+    if (textEl && textEl.style) {
+      try{
+        if (typeof textEl.style.setProperty === "function") {
+          textEl.style.setProperty("text-decoration-line", "underline", "important");
+          textEl.style.setProperty("text-decoration-thickness", "2px", "important");
+          textEl.style.setProperty("text-underline-offset", "3px", "important");
+          textEl.style.setProperty("text-decoration-color", "currentColor", "important");
+        } else {
+          textEl.style.textDecoration = "underline";
+        }
+      }catch(_){}
+    }
+
+    // さらに中の <a class="opt-link"> があれば、それにもクラスを追加（従来どおり）
     var a = li.querySelector("a.opt-link");
-    if (a) a.classList.add("is-correct");
+    if (a) {
+      try{
+        a.classList.add("is-correct");
+      }catch(_){}
+    }
 
     return true;
   }
