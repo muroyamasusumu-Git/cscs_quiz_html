@@ -489,59 +489,7 @@
     // clickable_scale_effects.js 側のクリック時アニメーションを削った前提で、
     // 「クリック直後の見た目」をそのままクローンする挙動にする。
     if (questionNode || choiceNode) {
-      // ▼ 選択済みの選択肢が「不正解（打ち消し線が付いている）」かどうかを元DOMから判定して渡す
-      // - ここでは「元DOMに line-through が付いている」= 不正解扱い、として判定する
-      var selectedWasWrong = false;
-      try {
-        if (originalChoiceLi && originalChoiceLi.nodeType === 1) {
-          var wrongTarget = null;
-
-          try {
-            wrongTarget = originalChoiceLi.querySelector(".sa-correct-pulse-inner");
-          } catch (_eFindWrongSpan) {
-            wrongTarget = null;
-          }
-          if (!wrongTarget) {
-            try {
-              wrongTarget = originalChoiceLi.querySelector("a");
-            } catch (_eFindWrongA) {
-              wrongTarget = null;
-            }
-          }
-          if (!wrongTarget) {
-            wrongTarget = originalChoiceLi;
-          }
-
-          try {
-            var csWrong = window.getComputedStyle(wrongTarget);
-            if (csWrong && csWrong.textDecorationLine && String(csWrong.textDecorationLine).indexOf("line-through") !== -1) {
-              selectedWasWrong = true;
-            }
-          } catch (_eCsWrong) {
-            selectedWasWrong = false;
-          }
-
-          if (!selectedWasWrong) {
-            try {
-              var inlineDec = "";
-              try {
-                inlineDec = String(wrongTarget.style && wrongTarget.style.textDecoration ? wrongTarget.style.textDecoration : "");
-              } catch (_eInlineDec) {
-                inlineDec = "";
-              }
-              if (inlineDec && inlineDec.indexOf("line-through") !== -1) {
-                selectedWasWrong = true;
-              }
-            } catch (_eInlineWrong) {
-              selectedWasWrong = false;
-            }
-          }
-        }
-      } catch (_eDetectWrong) {
-        selectedWasWrong = false;
-      }
-
-      createHighlightLayer(questionNode, choiceNode, selectedWasWrong);
+      createHighlightLayer(questionNode, choiceNode, false);
     }
 
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
