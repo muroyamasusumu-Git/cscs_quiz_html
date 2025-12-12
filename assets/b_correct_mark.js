@@ -141,27 +141,17 @@
         // li 自体には下線を引かない（marker巻き込み防止）
         // 中身側（.sa-correct-pulse-inner / a）だけ underline を固定
         var cssText =
+          // li 自体は装飾しない（marker 巻き込み防止）
           "body.mode-b ol.opts li.is-correct{ text-decoration:none !important; }" +
 
-          // ▼ 下線は「擬似要素」で描く（transform / width / left の影響を受けにくい）
-          // - marker を巻き込まないため、li ではなく「中身」だけを対象にする
-          // - .sa-correct-pulse-inner と a の両対応
+          // ▼ 正解選択肢の「文言部分」に直接 underline を指定
+          // - 擬似要素を使わない
+          // - 他CSSに潰されないよう !important を使用
           "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner," +
           "body.mode-b ol.opts li.is-correct a{" +
-            "position:relative !important;" +
-            "text-decoration:none !important;" +
-            "display:inline-block !important;" +
-          "}" +
-          "body.mode-b ol.opts li.is-correct .sa-correct-pulse-inner::after," +
-          "body.mode-b ol.opts li.is-correct a::after{" +
-            "content:\"\" !important;" +
-            "position:absolute !important;" +
-            "left:0 !important;" +
-            "right:0 !important;" +
-            "bottom:-4px !important;" +
-            "height:2px !important;" +
-            "background:currentColor !important;" +
-            "pointer-events:none !important;" +
+            "text-decoration: underline !important;" +
+            "text-decoration-thickness: 2px !important;" +
+            "text-underline-offset: 3px !important;" +
           "}";
 
         if (styleEl.styleSheet) {
