@@ -511,7 +511,7 @@
       }
 
       // ▼ クリック直後の「現在の transform」を一度だけ読み取り、
-      //    それを fixedTransform としてロック対象値にする。
+      //    それを fixedTransform としてロック対象値にする（以後は computedStyle を読まない）
       var fixedTransform = "scale(1.10)";
       try {
         var cs = window.getComputedStyle(originalAnchor);
@@ -522,9 +522,29 @@
         fixedTransform = "scale(1.10)";
       }
 
+      // ▼ 追加：<li> 側も transform を固定する（テキスト側だけでなく親側の揺り戻しも潰す）
+      var fixedLiTransform = "none";
+      try {
+        var csLi = window.getComputedStyle(originalChoiceLi);
+        if (csLi && csLi.transform && csLi.transform !== "none") {
+          fixedLiTransform = csLi.transform;
+        }
+      } catch (_eGetCsLi) {
+        fixedLiTransform = "none";
+      }
+
+      // ▼ 追加：hover/active 由来の揺り戻しを物理的に封じるため、
+      //    ロック中は一時的に pointer-events を切る（フェード中に追加入力させない意図も兼ねる）
+      try {
+        originalAnchor.style.setProperty("pointer-events", "none", "important");
+        originalChoiceLi.style.setProperty("pointer-events", "none", "important");
+      } catch (_ePe) {
+      }
+
       // ▼ ロック継続時間（ミリ秒）
-      //    フェード時間(〜800ms)よりも十分長く、約 2 秒間は元選択肢のスケールを強制維持する。
-      var LOCK_DURATION_MS = 2000;
+      //    フェード時間より十分長く取り、遷移完了まで上書き合戦に確実に勝つ。
+      //    - 目安：FADE_DURATION_MS + 3000ms（最低 3500ms）
+      var LOCK_DURATION_MS = Math.max(3500, FADE_DURATION_MS + 3000);
       var startTime = performance.now();
 
       // 毎フレーム fixedTransform と transition/animation の kill を上書きし続けるループ
@@ -536,13 +556,27 @@
 
         var elapsed = now - startTime;
         if (elapsed > LOCK_DURATION_MS) {
-          // 一定時間経過後はロック解除（以後はフェード遷移側に任せる）
+          // ロック解除：pointer-events だけ戻す（他の style は遷移でページが変わるので戻さない）
+          try {
+            originalAnchor.style.removeProperty("pointer-events");
+            originalChoiceLi.style.removeProperty("pointer-events");
+          } catch (_eUnpe) {
+          }
           return;
         }
 
         try {
+          // ▼ 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
           originalAnchor.style.transformOrigin = "center center";
           originalAnchor.style.setProperty("transform", fixedTransform, "important");
+
+          // ▼ 親 <li> 側も、もし transform が入っている環境ならそれを固定する
+          if (fixedLiTransform && fixedLiTransform !== "none") {
+            originalChoiceLi.style.transformOrigin = "center center";
+            originalChoiceLi.style.setProperty("transform", fixedLiTransform, "important");
+          }
+
+          // ▼ transition/animation を毎フレーム完全に無効化して、CSS/JS の介入を潰す
           originalAnchor.style.setProperty("transition", "none", "important");
           originalAnchor.style.setProperty("transition-property", "none", "important");
           originalAnchor.style.setProperty("transition-duration", "0s", "important");
@@ -551,8 +585,17 @@
           originalAnchor.style.setProperty("animation-name", "none", "important");
           originalAnchor.style.setProperty("animation-duration", "0s", "important");
           originalAnchor.style.setProperty("animation-timing-function", "linear", "important");
+
+          originalChoiceLi.style.setProperty("transition", "none", "important");
+          originalChoiceLi.style.setProperty("transition-property", "none", "important");
+          originalChoiceLi.style.setProperty("transition-duration", "0s", "important");
+          originalChoiceLi.style.setProperty("transition-timing-function", "linear", "important");
+          originalChoiceLi.style.setProperty("animation", "none", "important");
+          originalChoiceLi.style.setProperty("animation-name", "none", "important");
+          originalChoiceLi.style.setProperty("animation-duration", "0s", "important");
+          originalChoiceLi.style.setProperty("animation-timing-function", "linear", "important");
         } catch (_eLock) {
-          // ここで失敗しても致命的ではないので何もしない
+          // ここで失敗しても致命的ではないので何もしない（フォールバック無し）
         }
 
         requestAnimationFrame(loop);
