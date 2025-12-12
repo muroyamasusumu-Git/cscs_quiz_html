@@ -239,7 +239,9 @@ opacity: 1.0;
 }
 
 .explain-text {
-  line-height: 1.25;
+    line-height: 1.25;
+    margin-bottom: 10px;
+    display: block;
 }
 
 #dd-inline .dd-body-cause {
