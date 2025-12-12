@@ -297,104 +297,12 @@
         return raw;
       }
 
-      // 誤答時に、元の選択肢リスト上の「選択済み不正解」だけに取り消し線を付ける
-      // - marker（A〜D）には線を付けない：<li> ではなく <a>（テキスト側）に限定して適用する
-      // - 他JSが inline style を上書きしても消えにくいよう、クラス＋ !important CSS で固定する
-      function markWrongChoiceOnList(letter){
-        try{
-          if(!letter) return;
-          const idx = 'ABCDE'.indexOf(letter.toUpperCase());
-          if(idx<0) return;
-
-          // 対象の <li> を特定
-          const li = document.querySelector(`ol.opts li:nth-child(${idx+1})`);
-          if(!li) return;
-
-          // まず <li> 自体には線を付けない（marker巻き込み防止）
-          try {
-            if (li.style && typeof li.style.setProperty === "function") {
-              li.style.setProperty("text-decoration", "none", "important");
-              li.style.setProperty("text-decoration-line", "none", "important");
-            } else if (li.style) {
-              li.style.textDecoration = "none";
-            }
-          } catch (_eLi) {}
-
-          // 不正解マーキング用クラスを付与（後からCSSで固定する）
-          try{
-            if (li.classList) {
-              li.classList.add("cscs-wrong-choice");
-            } else {
-              const cls = li.getAttribute("class") || "";
-              if (cls.indexOf("cscs-wrong-choice") === -1) {
-                li.setAttribute("class", (cls ? cls + " " : "") + "cscs-wrong-choice");
-              }
-            }
-          }catch(_eClass){}
-
-          // 取り消し線を「テキスト側」だけに当てる
-          // - Bパートでは <a> が存在せず、<span class="sa-correct-pulse-inner"> だけの構造になることがあるため、
-          //   まず .sa-correct-pulse-inner を優先し、無ければ a を対象にする。
-          let textEl = null;
-          try { textEl = li.querySelector(".sa-correct-pulse-inner"); } catch(_eSpan) { textEl = null; }
-          if (!textEl) {
-            try { textEl = li.querySelector("a"); } catch(_eA) { textEl = null; }
-          }
-
-          if (textEl && textEl.style) {
-            try{
-              textEl.style.setProperty("text-decoration-line", "line-through", "important");
-              textEl.style.setProperty("text-decoration-thickness", "2px", "important");
-              textEl.style.setProperty("text-decoration-color", "currentColor", "important");
-            }catch(_eTextStyle){
-              textEl.style.textDecoration = "line-through";
-            }
-          }
-
-          // CSS を 1回だけ注入して、クラスが付いたものは常に線が出るように固定
-          (function injectWrongStrikeCssOnce(){
-            const STYLE_ID = "cscs-wrong-choice-strike-style";
-            try{
-              if (document.getElementById(STYLE_ID)) return;
-
-              const styleEl = document.createElement("style");
-              styleEl.id = STYLE_ID;
-              styleEl.type = "text/css";
-
-              const cssText =
-                "ol.opts li.cscs-wrong-choice{ text-decoration:none !important; }" +
-                "ol.opts li.cscs-wrong-choice .sa-correct-pulse-inner{" +
-                "text-decoration-line:line-through !important;" +
-                "text-decoration-thickness:2px !important;" +
-                "text-decoration-color:currentColor !important;" +
-                "}" +
-                "ol.opts li.cscs-wrong-choice a{" +
-                "text-decoration-line:line-through !important;" +
-                "text-decoration-thickness:2px !important;" +
-                "text-decoration-color:currentColor !important;" +
-                "}";
-
-              if (styleEl.styleSheet) {
-                styleEl.styleSheet.cssText = cssText;
-              } else {
-                styleEl.appendChild(document.createTextNode(cssText));
-              }
-              document.head.appendChild(styleEl);
-            }catch(_eCss){}
-          })();
-
-        }catch(e){
-          wlog('markWrongChoiceOnList fail', e);
-        }
-      }
-
       if(result==='correct'){
         host.style.color='rgb(255,243,77)';
         host.style.fontSize='1.1em';
         host.textContent='◎ 正解!!';
       }else if(result==='wrong'){
         const text=findChoiceText(choice);
-        markWrongChoiceOnList(choice);
         host.innerHTML=
           '<span class="judge-msg judge-msg-wrong">× 不正解</span>' +
           '<span class="your-choice">' +
