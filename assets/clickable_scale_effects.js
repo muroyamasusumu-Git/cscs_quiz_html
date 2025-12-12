@@ -559,14 +559,18 @@
           (function runTriplePulse(targetEl, correctLi) {
             // 正解行は 1.0 → 1.10 だけにして、ゆっくりフワッと拡大させる
             // easeInOutQuad によって、立ち上がりはやや速く、その後なめらかに減速する。
+            // 正解行の拡大と「その他の選択肢の縮小」で速度を分ける
+            // - 正解行：従来どおり少しゆっくり
+            // - その他：もっと速く縮む（A→B遷移の視認性を上げる）
             var correctDuration = 520; // 正解アニメ全体の時間（ゆっくりめ）
+            var otherShrinkDuration = 220; // ★その他の縮小スピード（短いほど速い）
 
             // 正解行のスケールアニメーション（1.0 → 1.10 の一段だけ）
             animateScale(targetEl, 1.0, 1.10, correctDuration, easeInOutQuad, null);
 
             // ▼ 同じ <ol> 内にある「その他の選択肢 li」に対しては、
             //    中身だけを 1.0 → 0.90 に縮小するアニメーションを付与する。
-            //    - こちらも全体にあわせて、ゆっくり縮んでそのまま落ち着くテンポにする。
+            //    - こちらは otherShrinkDuration で速めに縮める
             try {
               var listNode = correctLi.parentNode;
               if (!listNode) {
@@ -615,7 +619,7 @@
                 }
 
                 // 全体のテンポにあわせて、ゆっくり縮んでそのまま静止させる。
-                animateScale(otherInner, 1.0, 0.90, correctDuration, easeInOutQuad, null);
+                animateScale(otherInner, 1.0, 0.90, otherShrinkDuration, easeInOutQuad, null);
               }
             } catch (_eShrinkOthers) {
               // 縮小処理で失敗しても、正解アニメ自体には影響させない
