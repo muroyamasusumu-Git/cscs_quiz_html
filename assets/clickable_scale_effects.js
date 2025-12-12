@@ -118,12 +118,12 @@
     }
   }
 
-  // easeOutCubic(t):
-  //   ・最初が速く、後半ほどゆっくり減速して止まる（＝「最初早めで、あとゆっくり」）
-  //   ・Bパートの正解拡大で「キュッ → ふわっ」を作る用途向け
-  function easeOutCubic(t) {
+  // easeOutQuint(t):
+  //   ・最初がかなり速く、後半は強めに減速して止まる
+  //   ・「最初速い」感を最大化したいとき向け（cubic より前半寄り）
+  function easeOutQuint(t) {
     var u = 1 - t;
-    return 1 - (u * u * u);
+    return 1 - (u * u * u * u * u);
   }
 
   // animateScale(el, from, to, duration, easing, onDone):
@@ -575,7 +575,7 @@
 
             // 正解行のスケールアニメーション（1.0 → 1.10 の一段だけ）
             // - 最初速く立ち上がって、後半ゆっくり止まる（「最初早めで、あとゆっくり」）
-            animateScale(targetEl, 1.0, 1.10, correctDuration, easeOutCubic, null);
+            animateScale(targetEl, 1.0, 1.10, correctDuration, easeOutQuint, null);
 
             // ▼ 同じ <ol> 内にある「その他の選択肢 li」に対しては、
             //    中身だけを 1.0 → 0.90 に縮小するアニメーションを付与する。
