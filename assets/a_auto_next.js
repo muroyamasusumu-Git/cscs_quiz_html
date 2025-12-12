@@ -503,11 +503,12 @@
     // 内側の横並びレーン（ここを100px右へ）
     var inner = document.createElement("div");
     inner.id = AUTO_NEXT_BAR_INNER_ID;
+    // ▼ 位置調整は CSS と一致させる（gap/margin-left は inline が強いのでここで揃える）
     inner.style.cssText =
       "display: flex;" +
       "align-items: center;" +
-      "gap: 12px;" +
-      "margin-left: 100px;" +
+      "gap: 0px;" +
+      "margin-left: 288px;" +
       "pointer-events: none;";
 
     bar.appendChild(inner);
@@ -1324,8 +1325,9 @@
     btn.id = "auto-next-toggle";
     btn.type = "button";
     btn.textContent = autoEnabled ? "[自動送り ON]" : "[自動送りOFF]";
+    // ▼ CSS の padding 指定と一致させる（inline が優先されるためここで揃える）
     btn.style.cssText =
-      "padding: 6px 10px;" +
+      "padding: 6px 5px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
       "border-radius: 0px;" +
@@ -1387,8 +1389,9 @@
     btn.id = "auto-next-mode-toggle";
     btn.type = "button";
     btn.textContent = randomModeEnabled ? "[ランダム]" : "[順番遷移]";
+    // ▼ CSS の padding 指定と一致させる（inline が優先されるためここで揃える）
     btn.style.cssText =
-      "padding: 6px 10px;" +
+      "padding: 6px 5px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
       "border-radius: 0px;" +
@@ -1444,8 +1447,9 @@
     btn.type = "button";
     var sec = Math.round(AUTO_ADVANCE_MS / 1000);
     btn.textContent = "[" + sec + "秒]";
+    // ▼ CSS の padding 指定と一致させる（inline が優先されるためここで揃える）
     btn.style.cssText =
-      "padding: 6px 10px;" +
+      "padding: 6px 5px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
       "border-radius: 0px;" +
@@ -1527,8 +1531,9 @@
     btn.textContent = initialMode === "on" ? "[検証AUTO:ON]" : "[検証AUTO:OFF]";
 
     // 他ボタンと同等の見た目にそろえる（有効な操作ボタンとして扱う）
+    // ▼ CSS の padding 指定と一致させる（inline が優先されるためここで揃える）
     btn.style.cssText =
-      "padding: 6px 10px;" +
+      "padding: 6px 5px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
       "border-radius: 0px;" +
@@ -1594,8 +1599,9 @@
     btn.textContent = trialOn ? "[TRYAL:ON]" : "[TRYAL:OFF]";
 
     // 他ボタンと同等の見た目にそろえる（位置だけ右側にずらす）
+    // ▼ CSS の padding 指定と一致させる（inline が優先されるためここで揃える）
     btn.style.cssText =
-      "padding: 6px 10px;" +
+      "padding: 6px 5px;" +
       "font-size: 13px;" +
       "color: rgb(150, 150, 150);" +
       "border-radius: 0px;" +
@@ -1947,10 +1953,11 @@
     btn.textContent = "［↑前の問題へ］";
 
     // 左端固定（バーの外側に置く）
+    // ▼ 位置調整は CSS と一致させる（left/bottom は inline が強いのでここで揃える）
     btn.style.cssText =
       "position: fixed;" +
-      "left: 0px;" +
-      "bottom: 10px;" +
+      "left: 16px;" +
+      "bottom: 11px;" +
       "z-index: 10002;" +
       "cursor: pointer;" +
       "pointer-events: auto;";
