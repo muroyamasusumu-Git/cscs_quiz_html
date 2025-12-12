@@ -1302,11 +1302,11 @@
 
     // ボタン列の中の「テキスト表示」
     span.style.cssText =
-      "padding: 6px 2px;" +
+      "padding: 6px 0px;" +
       "font-size: 13px;" +
       "color: #fff;" +
       "pointer-events: none;" +
-      "width: 120px;" +
+      "width: 110px;" +
       "font-weight: 300;";
 
     inner.appendChild(span);
