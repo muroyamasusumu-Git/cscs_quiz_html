@@ -338,28 +338,6 @@
                       link.style.transition = "none";
                     }
                   }
-
-                  // ▼ 追加：選択済み不正解の場合だけ「テキスト部分」に打ち消し線を入れる（A〜Dのマーカーには付けない）
-                  // - li に入れると marker に影響する可能性があるため、span/a のテキスト要素だけを対象にする
-                  if (selectedWasWrong) {
-                    var textEl = null;
-                    try {
-                      textEl = li.querySelector(".sa-correct-pulse-inner");
-                    } catch (_eFindTextEl) {
-                      textEl = null;
-                    }
-                    if (!textEl) {
-                      textEl = link;
-                    }
-                    if (textEl && textEl.style) {
-                      try {
-                        textEl.style.setProperty("text-decoration", "line-through", "important");
-                        textEl.style.setProperty("text-decoration-line", "line-through", "important");
-                      } catch (_eDecImp) {
-                        textEl.style.textDecoration = "line-through";
-                      }
-                    }
-                  }
                 }
               }
             }
