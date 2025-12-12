@@ -173,17 +173,17 @@
       }catch(_){}
     })();
 
-    // inline では ::after を作れないため、ここでは「下線を消す」＋「擬似要素が効く土台」だけ整える
+    // ▼ 正解の選択肢文言に「確実に」下線を入れる
+    //    - CSS や transform の影響を受けないよう inline style + !important を使用
+    //    - 下線の責務をここで完結させる（表示専用）
     if (textEl && textEl.style) {
       try{
         if (typeof textEl.style.setProperty === "function") {
-          textEl.style.setProperty("text-decoration", "none", "important");
-          textEl.style.setProperty("position", "relative", "important");
-          textEl.style.setProperty("display", "inline-block", "important");
+          textEl.style.setProperty("text-decoration", "underline", "important");
+          textEl.style.setProperty("text-decoration-thickness", "2px", "important");
+          textEl.style.setProperty("text-underline-offset", "3px", "important");
         } else {
-          textEl.style.textDecoration = "none";
-          textEl.style.position = "relative";
-          textEl.style.display = "inline-block";
+          textEl.style.textDecoration = "underline";
         }
       }catch(_){}
     }
