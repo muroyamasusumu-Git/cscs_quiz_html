@@ -119,6 +119,7 @@ body.mode-b .opts .is-correct {
 opacity: 1 !important;
 }
 
+
 /*
   2) class="is-correct" の文字だけ大きくする
 body.mode-b .opts li.is-correct {
