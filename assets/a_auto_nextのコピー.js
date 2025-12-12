@@ -507,100 +507,6 @@
   }
 
   // =========================
-  // 「前の問題へ」用：直近qid履歴（直近N件）
-  // - 画面左端の一覧パネルで使用する
-  // - 現在ページ表示時に qid を積む（重複は連続分だけ抑止）
-  // =========================
-  var RECENT_QID_HISTORY_KEY = "cscs_recent_qid_history";
-  var RECENT_QID_HISTORY_LIMIT = 60;
-
-  // 現在ページの qid（YYYYMMDD-NNN）を返す
-  function getCurrentQid() {
-    var info = parseSlideInfo();
-    if (!info) {
-      return null;
-    }
-    var num3 = String(info.idx).padStart(3, "0");
-    return info.day + "-" + num3;
-  }
-
-  // 直近qid履歴を読み込む
-  function loadRecentQidHistory() {
-    var list = [];
-    try {
-      var raw = localStorage.getItem(RECENT_QID_HISTORY_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          list = parsed.filter(function (x) {
-            return typeof x === "string" && /^\d{8}-\d{3}$/.test(x);
-          });
-        }
-      }
-    } catch (_e) {
-      list = [];
-    }
-    return list;
-  }
-
-  // 直近qid履歴を保存する
-  function saveRecentQidHistory(list) {
-    try {
-      localStorage.setItem(RECENT_QID_HISTORY_KEY, JSON.stringify(list));
-    } catch (_e) {
-      // 保存失敗は致命的ではないので無視
-    }
-  }
-
-  // 現在qidを直近履歴へ積む（連続重複のみ抑止）
-  function pushCurrentQidToRecentHistory() {
-    var qid = getCurrentQid();
-    if (!qid) {
-      return;
-    }
-
-    var list = loadRecentQidHistory();
-
-    // 直近（末尾）と同じなら積まない（連続重複抑止）
-    if (list.length > 0 && list[list.length - 1] === qid) {
-      return;
-    }
-
-    list.push(qid);
-
-    if (list.length > RECENT_QID_HISTORY_LIMIT) {
-      list = list.slice(list.length - RECENT_QID_HISTORY_LIMIT);
-    }
-
-    saveRecentQidHistory(list);
-
-    syncLog("RecentQid: push current qid.", {
-      qid: qid,
-      length: list.length
-    });
-  }
-
-  // qid（YYYYMMDD-NNN）→ そのqidのAパートURL を組み立てる
-  // - prefix は現在ページのパスから抽出する（このファイル内で完結）
-  function buildAPathFromQid(qid) {
-    if (typeof qid !== "string") {
-      return null;
-    }
-    var m = qid.match(/^(\d{8})-(\d{3})$/);
-    if (!m) {
-      return null;
-    }
-    var day = m[1];
-    var num3 = m[2];
-
-    var path = String(location.pathname || "");
-    var prefixMatch = path.match(/^(.*)_build_cscs_\d{8}\/slides\/q\d{3}_[ab](?:\.html)?$/);
-    var prefix = prefixMatch ? prefixMatch[1] : "";
-
-    return prefix + "_build_cscs_" + day + "/slides/q" + num3 + "_a.html";
-  }
-
-  // =========================
   // 自動送り待ち時間（ms）の読み書き
   // =========================
 
@@ -1755,7 +1661,7 @@
   // =========================
   function createBackToTopLink() {
     // すでに存在していれば再利用
-    var existing = document.getElementById("cscs-manual-nav-row");
+    var existing = document.querySelector(".back-to-top");
     if (existing) {
       return existing;
     }
@@ -1767,181 +1673,13 @@
       return null;
     }
 
-    // =========================
-    // 手動ナビ行（[↑前の問題へ][次の問題へ]）を固定表示で生成
-    // - 既存の .back-to-top を「単体で置く」方式をやめて、この行にまとめる
-    // =========================
-    var row = document.createElement("div");
-    row.id = "cscs-manual-nav-row";
-    row.style.cssText =
-      "position: fixed;" +
-      "left: 12px;" +
-      "bottom: 14px;" +
-      "z-index: 10000;" +
-      "display: flex;" +
-      "gap: 10px;" +
-      "align-items: center;" +
-      "pointer-events: auto;";
+    // a.back-to-top 要素を生成（スタイル調整は CSS 側の .back-to-top に委譲）
+    var link = document.createElement("a");
+    link.className = "back-to-top";
+    link.textContent = "［次の問題へ］";
 
-    // [↑前の問題へ] ボタン
-    var prevBtn = document.createElement("button");
-    prevBtn.id = "cscs-prev-toggle";
-    prevBtn.type = "button";
-    prevBtn.textContent = "［↑前の問題へ］";
-    prevBtn.style.cssText =
-      "padding: 6px 10px;" +
-      "font-size: 13px;" +
-      "color: rgb(150, 150, 150);" +
-      "border-radius: 0px;" +
-      "cursor: pointer;" +
-      "background: none;" +
-      "border: none;";
-
-    // 左端パネル（直近qidリンク一覧）を生成（初回のみ）
-    function ensurePrevPanel() {
-      var panel = document.getElementById("cscs-prev-panel");
-      if (panel) {
-        return panel;
-      }
-
-      panel = document.createElement("div");
-      panel.id = "cscs-prev-panel";
-      panel.style.cssText =
-        "position: fixed;" +
-        "left: 0px;" +
-        "top: 0px;" +
-        "bottom: 0px;" +
-        "width: 260px;" +
-        "background: rgba(0,0,0,0.92);" +
-        "z-index: 10001;" +
-        "padding: 12px 10px;" +
-        "overflow-y: auto;" +
-        "display: none;" +
-        "pointer-events: auto;";
-
-      var title = document.createElement("div");
-      title.textContent = "直近の問題";
-      title.style.cssText =
-        "font-size: 14px;" +
-        "color: #fff;" +
-        "margin: 0 0 10px 0;" +
-        "font-weight: 600;";
-      panel.appendChild(title);
-
-      var listWrap = document.createElement("div");
-      listWrap.id = "cscs-prev-panel-list";
-      listWrap.style.cssText =
-        "display: flex;" +
-        "flex-direction: column;" +
-        "gap: 6px;";
-      panel.appendChild(listWrap);
-
-      bodyEl.appendChild(panel);
-      return panel;
-    }
-
-    // 左端パネルの内容（qidリンク縦一覧）を更新
-    function renderPrevPanelList() {
-      var panel = ensurePrevPanel();
-      var listWrap = document.getElementById("cscs-prev-panel-list");
-      if (!listWrap) {
-        return;
-      }
-
-      // いったん全削除して再構築（シンプルに）
-      while (listWrap.firstChild) {
-        listWrap.removeChild(listWrap.firstChild);
-      }
-
-      var list = loadRecentQidHistory();
-
-      // 表示は「新しい順」にしたいので後ろから
-      for (var i = list.length - 1; i >= 0; i--) {
-        var qid = list[i];
-
-        var a = document.createElement("a");
-        a.href = "#";
-        a.textContent = qid;
-        a.style.cssText =
-          "color: #9fd3ff;" +
-          "text-decoration: none;" +
-          "font-size: 13px;" +
-          "line-height: 1.35;" +
-          "padding: 4px 6px;" +
-          "border: 1px solid rgba(255,255,255,0.15);";
-
-        a.addEventListener("click", function (ev) {
-          try {
-            ev.preventDefault();
-          } catch (_e) {}
-
-          var targetQid = String(this.textContent || "");
-          var targetUrl = buildAPathFromQid(targetQid);
-          if (!targetUrl) {
-            syncLog("PrevPanel: targetUrl build failed.", { qid: targetQid });
-            return;
-          }
-
-          goNextIfExists(targetUrl);
-        });
-
-        listWrap.appendChild(a);
-      }
-
-      // 0件のときの表示
-      if (list.length === 0) {
-        var empty = document.createElement("div");
-        empty.textContent = "履歴がありません";
-        empty.style.cssText =
-          "color: rgba(255,255,255,0.7);" +
-          "font-size: 13px;" +
-          "padding: 6px 2px;";
-        listWrap.appendChild(empty);
-      }
-    }
-
-    // 左端パネルの開閉（[↑前の問題へ] でトグル）
-    function togglePrevPanel() {
-      var panel = ensurePrevPanel();
-      if (!panel) {
-        return;
-      }
-
-      var isOpen = panel.style.display !== "none";
-      if (isOpen) {
-        panel.style.display = "none";
-        syncLog("PrevPanel: closed.", {});
-        return;
-      }
-
-      // 開くときは最新内容で描画
-      renderPrevPanelList();
-      panel.style.display = "block";
-      syncLog("PrevPanel: opened.", {});
-    }
-
-    prevBtn.addEventListener("click", function (ev) {
-      try {
-        ev.preventDefault();
-      } catch (_e) {}
-      togglePrevPanel();
-    });
-
-    // [次の問題へ] ボタン（既存の挙動を踏襲：NEXT_URL→goNextIfExists）
-    var nextBtn = document.createElement("button");
-    nextBtn.id = "cscs-next-manual";
-    nextBtn.type = "button";
-    nextBtn.textContent = "［次の問題へ］";
-    nextBtn.style.cssText =
-      "padding: 6px 10px;" +
-      "font-size: 13px;" +
-      "color: rgb(150, 150, 150);" +
-      "border-radius: 0px;" +
-      "cursor: pointer;" +
-      "background: none;" +
-      "border: none;";
-
-    nextBtn.addEventListener("click", function (ev) {
+    // クリック時に ODOA と同じ NEXT_URL へ遷移させる
+    link.addEventListener("click", function (ev) {
       try {
         ev.preventDefault();
       } catch (_e) {}
@@ -1958,13 +1696,10 @@
       })();
     });
 
-    // 行に追加して body 直下へ
-    row.appendChild(prevBtn);
-    row.appendChild(nextBtn);
-    bodyEl.appendChild(row);
-
-    syncLog("BackToTop: manual nav row created under <body>.");
-    return row;
+    // body 直下に追加
+    bodyEl.appendChild(link);
+    syncLog("BackToTop: link created under <body>.");
+    return link;
   }
 
   // =========================
@@ -2201,10 +1936,6 @@
       return;
     }
 
-    // 現在ページの qid を「直近qid履歴」に積む
-    // - [↑前の問題へ] の左端一覧で使用する
-    pushCurrentQidToRecentHistory();
-
     // 画面左下の制御ボタン類を作成
     createAutoNextToggleButton();       // 自動送り ON/OFF
     createAutoNextModeToggleButton();   // 順番／ランダム
@@ -2212,7 +1943,7 @@
     createVerifyModeToggleButton();     // 自動検証モード（A→B 自動遷移）
     createTrialModeToggleButton();      // TRYALモード（A→B 自動遷移＋計測あり）
 
-    // 画面下部：手動ナビ行（[↑前の問題へ][次の問題へ]）を追加
+    // A/B 共通コンテナ内に「次の問題へ」リンクを追加（ODOA と同じ NEXT_URL を使う）
     createBackToTopLink();
 
     // Bパートの選択肢エリアにも「次の問題へ」と同じ挙動を紐づける
