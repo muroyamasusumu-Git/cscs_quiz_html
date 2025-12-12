@@ -404,7 +404,7 @@
 
   // 直近一覧: qid → 問題文冒頭のキャッシュ（ネットワーク負荷を抑える）
   var RECENT_QID_HEAD_CACHE = {};
-  var RECENT_QID_HEAD_CHARS = 5;
+  var RECENT_QID_HEAD_CHARS = 15;
 
   // qid を span の id として安全に使うための変換
   function makeSafeDomIdFromQid(qid) {
