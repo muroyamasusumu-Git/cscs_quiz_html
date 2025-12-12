@@ -702,7 +702,7 @@
           target.style.transitionProperty = "transform";
           target.style.transitionDuration = String(SHRINK_DURATION_MS) + "ms";
           target.style.transitionTimingFunction = "ease-out";
-          target.style.transform = "scale(0.90)";
+          target.style.transform = "scale(0.95)";
         } catch (_eShrink) {
           // transition 設定に失敗した場合は何もしない
         }
