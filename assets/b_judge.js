@@ -61,19 +61,30 @@
  // === END SPEC HEADER (keep synchronized with implementation) ===
  
 (function(){
+  // ============================================================
+  // インストールガード（多重読み込み防止）
+  // - Cloudflare Pages / テンプレート側の都合で同JSが複数回読み込まれても、
+  //   「集計処理」が二重に走らないよう、window フラグで1回に制限する。
+  // ============================================================
   if (window.__cscsBJudgeInstalled) return;
   window.__cscsBJudgeInstalled = true;
 
-  // --- Preflight (tab-scoped): consumed タブなら最優先で Kt を即削除して再加算の芽を潰す ---
+  // ============================================================
+  // Preflight（タブ単位 / 最優先で再加算を潰す）
+  // - 同一タブで「すでにこの qid を消費済み（consumed）」なら、
+  //   A→B受け渡しのトークン(Kt)を先に削除して「再加算の芽」を潰す。
+  // - ここは run() より前に必ず走るため、リロード事故に強い。
+  // ============================================================
   try {
     // Bページの qid を URL から復元（_build_cscs_YYYYMMDD / qNNN_b）
     const mDay  = (location.pathname.match(/_build_cscs_(\d{8})/)||[])[1];
     const n3    = (location.pathname.match(/q(\d{3})_b/i)||[])[1];
     if (mDay && n3) {
       const qid   = `${mDay}-${n3}`;
-      const gk    = `cscs_ab_consumed:${qid}`;                  // guardKey は qid 固定
-      const ktKey = `cscs_from_a_token:${qid}`;                 // A→B トークン
+      const gk    = `cscs_ab_consumed:${qid}`;                  // ガード（タブ内で「このqidは消費済み」）
+      const ktKey = `cscs_from_a_token:${qid}`;                 // A→B トークン（集計の可否を決める鍵）
       if (sessionStorage.getItem(gk) === '1') {
+        // すでに consumed のタブであれば、残留トークンがあっても即削除して再加算を防ぐ
         try { localStorage.removeItem(ktKey); } catch(_) {}
       }
     }
@@ -83,6 +94,8 @@
   const wlog = (...a)=>{ try{ console.warn('[B:judge]', ...a); }catch(_){} };
 
   // ==== 0) Bページ判定 ====
+  // - このJSは「Bパートのページ」だけで動かす。
+  // - URL から day(YYYYMMDD) と num3(qNNN) を抜き、qid=YYYYMMDD-NNN を組み立てる。
   const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
   const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_b(?:\.html)?(?:\/)?$/i);
   if (!mDay || !mStem) return;
@@ -90,6 +103,11 @@
   const num3 = mStem[1].slice(1);
   const qid  = `${day}-${num3}`;
 
+  // ==== A→B 受け渡しキー（qid単位） ====
+  // - Kt: 「集計してよい」ことを示すトークン（A→Bで一度だけ消費されるべき）
+  // - Kc: A側で選んだ選択肢（UIの再描画に必要。token無しでも表示のため残る）
+  // - KsT/KsC: 影トークン方式（sessionStorage＝タブ限定）での受け渡し
+  //   → 影を最優先に読むことで「タブ間干渉」を最小化する
   const Kt = `cscs_from_a_token:${qid}`;
   const Kc = `cscs_from_a:${qid}`;
   const KsT = `cscs_ab_shadow_token:${qid}`;   // 影トークン（sessionStorage）
@@ -108,12 +126,25 @@
   }
 
   function backfillFromSessionIfNeeded(){
-    // 影トークン方式へ移行したため、A側ミラーからの復活は常時停止
+    // ============================================================
+    // バックフィル停止（shadow-mode）
+    // - 以前は A側ミラー(cscs_last_token_*) 等から「復活」させる余地があったが、
+    //   いまは影トークン(sessionStorage)を正とする設計に統一している。
+    // - ここを復活させると「過去トークンの誤消費→二重加算」リスクが上がるため常時停止。
+    // ============================================================
     try { dlog('backfill disabled (shadow-mode)', { qid }); } catch(_) {}
     return false;
   }
 
   async function readTokenWithRetries({retries=6,delayMs=30}={}){
+    // ============================================================
+    // トークン読取（優先順位つき）
+    // 1) 影トークン（sessionStorage: KsT/KsC）を最優先で読む
+    //    - タブ単位の受け渡しなので、他タブの影響を避けられる
+    // 2) localStorage（Kt/Kc）は「残っている場合のみ」読む
+    //    - backfill（過去ミラーからの復活）は意図的に行わない
+    // ============================================================
+
     // 1) 影トークン（sessionStorage）を最優先
     try{
       const st = sessionStorage.getItem(KsT);
@@ -266,15 +297,81 @@
         return raw;
       }
 
-      // 誤答時に、元の選択肢リスト上の該当 li に取り消し線を付ける
+      // 誤答時に、元の選択肢リスト上の「選択済み不正解」だけに取り消し線を付ける
+      // - marker（A〜D）には線を付けない：<li> ではなく <a>（テキスト側）に限定して適用する
+      // - 他JSが inline style を上書きしても消えにくいよう、クラス＋ !important CSS で固定する
       function markWrongChoiceOnList(letter){
         try{
           if(!letter) return;
           const idx = 'ABCDE'.indexOf(letter.toUpperCase());
           if(idx<0) return;
+
+          // 対象の <li> を特定
           const li = document.querySelector(`ol.opts li:nth-child(${idx+1})`);
           if(!li) return;
-          li.style.textDecoration = 'line-through';
+
+          // まず <li> 自体には線を付けない（marker巻き込み防止）
+          try {
+            if (li.style && typeof li.style.setProperty === "function") {
+              li.style.setProperty("text-decoration", "none", "important");
+              li.style.setProperty("text-decoration-line", "none", "important");
+            } else if (li.style) {
+              li.style.textDecoration = "none";
+            }
+          } catch (_eLi) {}
+
+          // 不正解マーキング用クラスを付与（後からCSSで固定する）
+          try{
+            if (li.classList) {
+              li.classList.add("cscs-wrong-choice");
+            } else {
+              const cls = li.getAttribute("class") || "";
+              if (cls.indexOf("cscs-wrong-choice") === -1) {
+                li.setAttribute("class", (cls ? cls + " " : "") + "cscs-wrong-choice");
+              }
+            }
+          }catch(_eClass){}
+
+          // 取り消し線を「テキスト側（a）」だけに当てる
+          let a = null;
+          try { a = li.querySelector("a"); } catch(_eA) { a = null; }
+          if (a && a.style) {
+            try{
+              a.style.setProperty("text-decoration-line", "line-through", "important");
+              a.style.setProperty("text-decoration-thickness", "2px", "important");
+              a.style.setProperty("text-decoration-color", "currentColor", "important");
+            }catch(_eAStyle){
+              a.style.textDecoration = "line-through";
+            }
+          }
+
+          // CSS を 1回だけ注入して、クラスが付いたものは常に線が出るように固定
+          (function injectWrongStrikeCssOnce(){
+            const STYLE_ID = "cscs-wrong-choice-strike-style";
+            try{
+              if (document.getElementById(STYLE_ID)) return;
+
+              const styleEl = document.createElement("style");
+              styleEl.id = STYLE_ID;
+              styleEl.type = "text/css";
+
+              const cssText =
+                "ol.opts li.cscs-wrong-choice{ text-decoration:none !important; }" +
+                "ol.opts li.cscs-wrong-choice a{" +
+                "text-decoration-line:line-through !important;" +
+                "text-decoration-thickness:2px !important;" +
+                "text-decoration-color:currentColor !important;" +
+                "}";
+
+              if (styleEl.styleSheet) {
+                styleEl.styleSheet.cssText = cssText;
+              } else {
+                styleEl.appendChild(document.createTextNode(cssText));
+              }
+              document.head.appendChild(styleEl);
+            }catch(_eCss){}
+          })();
+
         }catch(e){
           wlog('markWrongChoiceOnList fail', e);
         }
