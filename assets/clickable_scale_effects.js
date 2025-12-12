@@ -61,6 +61,11 @@
     "display:inline-block;" +                // テキスト塊だけを拡大させるためのインラインブロック
     "transform-origin:center center;" +      // 拡大の基準点を中央に固定
     "}" +
+    ".sa-b-correct-underline{" +
+    "text-decoration:underline;" +           // Bパート正解の下線
+    "text-underline-offset:4px;" +           // 文字から少し離す（見やすさ優先）
+    "text-decoration-thickness:2px;" +       // 下線を少し太く（視認性優先）
+    "}" +
     "#cscs-fade-highlight-layer .sa-hover," +
     "#cscs-fade-highlight-layer .sa-hover-fixed," +
     "#cscs-fade-highlight-layer a{" +
@@ -516,6 +521,9 @@
           //   A〜D のリストマーカーに被らないようにしつつ、
           //   不正解側(otherInner)と同じ左端ラインに揃える。
           try {
+            // Bパート正解の拡大テキストにだけ下線を付与する
+            inner.classList.add("sa-b-correct-underline");
+
             inner.style.display = "inline-block";
             inner.style.width = "100%";
             inner.style.transformOrigin = "left center";
