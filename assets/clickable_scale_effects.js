@@ -650,7 +650,7 @@
                 }
 
                 // 全体のテンポにあわせて、ゆっくり縮んでそのまま静止させる。
-                animateScale(otherInner, 1.0, 0.90, otherShrinkDuration, easeInOutQuad, null);
+                animateScale(otherInner, 1.0, 0.95, otherShrinkDuration, easeInOutQuad, null);
               }
             } catch (_eShrinkOthers) {
               // 縮小処理で失敗しても、正解アニメ自体には影響させない
