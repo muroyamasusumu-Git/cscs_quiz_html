@@ -475,7 +475,7 @@
     return prefix + "_build_cscs_" + day + "/slides/q" + num3 + "_a.html";
   }
 
-  // 左下バーを作る（［↑前の問題へ］は左端固定、他は100px右へ）
+  // 左下バーを作る（［前の問題へ］は左端固定、他は100px右へ）
   function getOrCreateAutoNextBar() {
     var bar = document.getElementById(AUTO_NEXT_BAR_ID);
     if (bar) {
@@ -1950,7 +1950,7 @@
     var btn = document.createElement("a");
     btn.id = "auto-prev-toggle";
     btn.className = "back-to-top";
-    btn.textContent = "［↑前の問題へ］";
+    btn.textContent = "［前の問題へ］";
 
     // 左端固定（バーの外側に置く）
     // ▼ 位置調整は CSS と一致させる（left/bottom は inline が強いのでここで揃える）
