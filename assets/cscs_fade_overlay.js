@@ -794,15 +794,23 @@
 
       // 毎フレーム fixedTransform と transition/animation の kill を上書きし続けるループ
       function loop(now) {
-        // DOM から外れていたらそこで終了
+        // DOM から外れていたらそこで終了（ただし片方が外れても、もう片方は続行する）
+        var hasAnchor = false;
+        var hasQuestion = false;
+
         try {
-          if (originalAnchor && (!document.body || !document.body.contains(originalAnchor))) {
-            return;
-          }
-          if (originalQuestionEl && (!document.body || !document.body.contains(originalQuestionEl))) {
-            return;
-          }
-        } catch (_eContains) {
+          hasAnchor = !!(originalAnchor && originalAnchor.style && document.body && document.body.contains(originalAnchor));
+        } catch (_eHasA) {
+          hasAnchor = false;
+        }
+        try {
+          hasQuestion = !!(originalQuestionEl && originalQuestionEl.style && document.body && document.body.contains(originalQuestionEl));
+        } catch (_eHasQ) {
+          hasQuestion = false;
+        }
+
+        // 両方とも対象が無くなった時だけ終了する
+        if (!hasAnchor && !hasQuestion) {
           return;
         }
 
@@ -810,13 +818,13 @@
         if (elapsed > LOCK_DURATION_MS) {
           // ロック解除：pointer-events だけ戻す（他の style は遷移でページが変わるので戻さない）
           try {
-            if (originalAnchor && originalAnchor.style) {
+            if (hasAnchor) {
               originalAnchor.style.removeProperty("pointer-events");
             }
             if (originalChoiceLi && originalChoiceLi.style) {
               originalChoiceLi.style.removeProperty("pointer-events");
             }
-            if (originalQuestionEl && originalQuestionEl.style) {
+            if (hasQuestion) {
               originalQuestionEl.style.removeProperty("pointer-events");
             }
           } catch (_eUnpe) {
@@ -830,7 +838,7 @@
           var fadeOpacity = String(1 - fadeT);
 
           // ▼ ① 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
-          if (originalAnchor && originalAnchor.style) {
+          if (hasAnchor) {
             originalAnchor.style.transformOrigin = "left center";
             originalAnchor.style.setProperty("transform", fixedTransform, "important");
 
@@ -838,8 +846,8 @@
             originalAnchor.style.setProperty("opacity", fadeOpacity, "important");
           }
 
-          // ▼ ③ 追加：元DOM側の「問題文（例: h1）」もフェードアウト（クローン二重表示対策）
-          if (originalQuestionEl && originalQuestionEl.style) {
+          // ▼ ③ 元DOM側の「問題文（例: h1）」もフェードアウト（クローン二重表示対策）
+          if (hasQuestion) {
             originalQuestionEl.style.setProperty("opacity", fadeOpacity, "important");
             originalQuestionEl.style.setProperty("transition", "none", "important");
             originalQuestionEl.style.setProperty("transition-property", "none", "important");
