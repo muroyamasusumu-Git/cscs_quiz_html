@@ -108,6 +108,14 @@
       // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
       + "transform: translate(-4%, -4%) rotate(-5deg);"
       + "background:"
+      // ▼ 中心コア（小さく・少しだけ強い）
+      + "radial-gradient("
+      + "ellipse 820px 240px at 23% 20%,"
+      + "rgba(70,70,70,0.45) 0%,"
+      + "rgba(50,50,50,0.32) 42%,"
+      + "rgba(0,0,0,0) 70%"
+      + "),"
+      // ▼ メインの楕円スポットライト（既存）
       + "radial-gradient("
       + "ellipse 1980px 567px at 23% 20%,"
       + "rgba(58,58,58,0.64) 0%,"
