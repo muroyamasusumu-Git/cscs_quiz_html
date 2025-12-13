@@ -536,11 +536,11 @@
     try {
       var body = document.body;
       if (body && body.classList && body.classList.contains("mode-a")) {
-        // A→B の遷移だけ弱フェード（両方“少し長く”した上でAをやや短めにする）
-        FADE_DURATION_MS = 700;
+        // A→B の遷移だけ短フェード（テンポを上げる）
+        FADE_DURATION_MS = 480;
         FADE_MAX_OPACITY = 0.7;
       } else {
-        // Bパートなど、通常フェード（今より少し長め）
+        // Bパートなど、通常フェード
         FADE_DURATION_MS = 950;
         FADE_MAX_OPACITY = 0.7;
       }
