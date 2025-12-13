@@ -108,6 +108,14 @@
       // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
       + "transform: translate(-4%, -4%) rotate(-5deg);"
       + "background:"
+      // ▼ 右端の“途切れ”隠し用の黒フェード（最前面にかぶせる）
+      + "linear-gradient("
+      + "to right,"
+      + "rgba(0,0,0,0) 0%,"
+      + "rgba(0,0,0,0) 78%,"
+      + "rgba(0,0,0,0.55) 92%,"
+      + "rgba(0,0,0,0.92) 100%"
+      + "),"
       // ▼ 中心コア（小さく・少しだけ強い）
       + "radial-gradient("
       + "ellipse 400px 130px at 23% 20%,"
@@ -131,9 +139,9 @@
       + "</filter>"
       + "<rect width='160' height='160' filter='url(%23n)'/>"
       + "</svg>\");"
-      + "background-repeat: no-repeat, no-repeat, repeat;"
-      + "background-attachment: fixed, fixed, fixed;"
-      + "background-blend-mode: normal, normal, soft-light;"
+      + "background-repeat: no-repeat, no-repeat, no-repeat, repeat;"
+      + "background-attachment: fixed, fixed, fixed, fixed;"
+      + "background-blend-mode: normal, normal, normal, soft-light;"
       + "}"
 
       + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
