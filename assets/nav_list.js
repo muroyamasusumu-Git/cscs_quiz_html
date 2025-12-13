@@ -681,7 +681,7 @@
         top: "0px",
         zIndex: "100000",
         background: "none",
-        padding: "4px 10px 5px",
+        padding: "5px 10px 5px",
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
         borderBottomColor: "rgb(42, 42, 42)",
