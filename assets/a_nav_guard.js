@@ -43,6 +43,7 @@
     opacity: 0.5;               /* topmeta-left の中に溶け込む軽めの表示 */
     font-weight: bold;
     width: auto;
+    color:#fff;
     text-align: center;
     margin-left: 0;            /* topmeta-left 内で他要素と軽く間隔を取る */
 }
