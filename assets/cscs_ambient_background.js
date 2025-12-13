@@ -103,11 +103,11 @@
       + "pointer-events: none;"
       + "z-index: 0;"
       // ▼ 楕円の中心を少し左上へ
-      + "transform-origin: 10% 10%;"
+      + "transform-origin: 18% 15%;"
       + "transform: rotate(-5deg);"
       + "background:"
       + "radial-gradient("
-      + "ellipse 1980px 567px at 10% 10%,"
+      + "ellipse 1980px 567px at 18% 15%,"
       + "rgba(58,58,58,0.64) 0%,"
       + "rgba(34,34,34,0.52) 38%,"
       + "rgba(0,0,0,0) 78%"
