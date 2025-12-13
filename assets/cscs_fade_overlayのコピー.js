@@ -51,7 +51,7 @@
   // フェード演出の基本パラメータ
   // ここを変えると「暗くなる速さ・暗さ・カーブ」が一括で調整できる
   // =========================================
-  var FADE_DURATION_MS = 950;      // フェードにかける時間（ミリ秒）
+  var FADE_DURATION_MS = 800;      // フェードにかける時間（ミリ秒）
   var FADE_MAX_OPACITY = 0.7;      // 画面をどれくらい暗くするか（0〜1）
   // 追加: 立ち上がり/抜けが上品なカーブ（"ease-in-out" より「ぬるっ」とした高級感が出る）
   var FADE_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
@@ -59,49 +59,6 @@
 
   // クローンハイライト用の「アニメ全殺しCSS」を一度だけ注入するためのID
   var HIGHLIGHT_KILL_STYLE_ID = "cscs-highlight-kill-style";
-
-  // フェード用の keyframes（2段階）＋テキストシャドウを一度だけ注入するためのID
-  var FADE_STYLE_ID = "cscs-fade-style";
-
-  /**
-   * フェード用の keyframes（2段階）と、全体の薄い text-shadow を注入する。
-   * - 2段階フェードを keyframes にして段差（カクつき）を出さない
-   * - テキストに薄い影を入れて、黒背景上での可読性を上げる
-   */
-  function injectFadeCss() {
-    try {
-      if (document.getElementById(FADE_STYLE_ID)) {
-        return;
-      }
-      var styleEl = document.createElement("style");
-      styleEl.id = FADE_STYLE_ID;
-      styleEl.type = "text/css";
-
-      var cssText = ""
-        + "@keyframes cscsFadeOut2Step{"
-        + "0%{opacity:0;}"
-        + "35%{opacity:var(--cscs-fade-mid,0.38);}"
-        + "100%{opacity:var(--cscs-fade-max,0.7);}"
-        + "}"
-        + "@keyframes cscsFadeIn2Step{"
-        + "0%{opacity:var(--cscs-fade-max,0.7);}"
-        + "30%{opacity:var(--cscs-fade-in-mid,0.22);}"
-        + "100%{opacity:0;}"
-        + "}"
-        + ".wrap, .wrap *{"
-        + "text-shadow:0 1px 2px rgba(0,0,0,0.35);"
-        + "}";
-
-      if (styleEl.styleSheet) {
-        styleEl.styleSheet.cssText = cssText;
-      } else {
-        styleEl.appendChild(document.createTextNode(cssText));
-      }
-      document.head.appendChild(styleEl);
-    } catch (_e) {
-      // CSS注入に失敗しても致命的ではないので握りつぶす
-    }
-  }
     
   /**
    * #cscs-fade-highlight-layer 配下のすべての要素について、
@@ -161,14 +118,17 @@
     overlay.style.right = "0";
     overlay.style.bottom = "0";
 
-    // 追加: ノイズではなく「ガラスっぽい暗幕」にする
-    // - 背景は単純な暗幕（軽いビネット）にして、質感は backdrop-filter のぼかしで作る
+    // 追加: フラットな真っ黒ではなく「ビネット＋微粒子」っぽい質感の暗幕にする
+    // - radial-gradient: 画面の外周を少し強めに落として“集中”を作る（ビネット）
+    // - repeating-linear-gradient: ほぼ見えないレベルの微粒子（ノイズ）で“幕感”を消す
     overlay.style.background =
-      "radial-gradient(ellipse at 40% 30%, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.82) 60%, rgba(0,0,0,0.92) 100%)";
+      "radial-gradient(ellipse at 40% 30%, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.82) 55%, rgba(0,0,0,0.92) 100%)," +
+      "repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)";
+    overlay.style.backgroundBlendMode = "overlay";
 
-    // 追加: 背面をもう少し強めにぼかして“おしゃれ感”を出す
-    overlay.style.backdropFilter = "blur(8px) saturate(125%)";
-    overlay.style.webkitBackdropFilter = "blur(8px) saturate(125%)";
+    // 追加: 対応環境では背面をほんのりブラーして“空気感”を出す（未対応なら無視される）
+    overlay.style.backdropFilter = "blur(2px) saturate(120%)";
+    overlay.style.webkitBackdropFilter = "blur(2px) saturate(120%)";
 
     overlay.style.opacity = "0";               // 初期状態は完全透明
     overlay.style.pointerEvents = "none";      // クリックなどは下の要素に通す
@@ -480,19 +440,16 @@
 
   function fadeOutTo(nextUrl, reason) {
 
-    // 追加: フェード用CSS（keyframes + text-shadow）を必ず注入
-    injectFadeCss();
-
     // ▼ 追加：Aパート（body.mode-a）の場合だけフェード弱くする
     try {
       var body = document.body;
       if (body && body.classList && body.classList.contains("mode-a")) {
-        // A→B の遷移だけ弱フェード（両方“少し長く”した上でAをやや短めにする）
-        FADE_DURATION_MS = 700;
-        FADE_MAX_OPACITY = 0.7;
+        // A→B の遷移だけ弱フェード
+        FADE_DURATION_MS = 500;   // ←お好みで
+        FADE_MAX_OPACITY = 0.7;   // ←お好みで
       } else {
-        // Bパートなど、通常フェード（今より少し長め）
-        FADE_DURATION_MS = 950;
+        // Bパートなど、通常フェードは元の強さに戻す
+        FADE_DURATION_MS = 800;
         FADE_MAX_OPACITY = 0.7;
       }
     } catch (_e) {
@@ -510,14 +467,33 @@
     overlay.style.opacity = "0";              // 最初は完全に透明な状態からスタートする
     overlay.style.pointerEvents = "auto";     // フェード中は画面操作を一括でブロックする
 
-    // 追加: keyframes 2段階で自然に暗転させる（transition切替をやめて段差を消す）
-    // - mid は MAX の 55% に固定し、自然な「決まり→沈み込み」を作る
-    try {
-      overlay.style.setProperty("--cscs-fade-max", String(FADE_MAX_OPACITY));
-      overlay.style.setProperty("--cscs-fade-mid", String(FADE_MAX_OPACITY * 0.55));
-    } catch (_eVar) {
-    }
-    overlay.style.animation = "cscsFadeOut2Step " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING) + " forwards";
+    // 追加: 2段階の暗転カーブを作る（最初に素早く締めて、その後ゆっくり沈む）
+    // - phase1: 0 → (MAXの一部) を短めで到達（決まりを作る）
+    // - phase2: phase1 → MAX を残り時間で沈ませる（上品な余韻）
+    var totalMs = FADE_DURATION_MS;
+    var phase1Ms = Math.max(120, Math.round(totalMs * 0.35));
+    var phase2Ms = Math.max(120, totalMs - phase1Ms);
+    var phase1Opacity = Math.max(0, Math.min(FADE_MAX_OPACITY, FADE_MAX_OPACITY * 0.55));
+
+    // 追加: phase1 は少しだけ「キレ」を出すカーブ、phase2 は既存のカーブで沈ませる
+    var PHASE1_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
+    var PHASE2_EASING = String(FADE_EASING);
+
+    // phase1 の transition を設定
+    overlay.style.transition =
+      "opacity " + String(phase1Ms) + "ms " + String(PHASE1_EASING);
+
+    // 少しだけ遅らせて phase1 へ
+    window.setTimeout(function () {
+      overlay.style.opacity = String(phase1Opacity);
+    }, 20);
+
+    // phase1 完了直後に phase2 へ移行
+    window.setTimeout(function () {
+      overlay.style.transition =
+        "opacity " + String(phase2Ms) + "ms " + String(PHASE2_EASING);
+      overlay.style.opacity = String(FADE_MAX_OPACITY);
+    }, 20 + phase1Ms);
 
     // フェード完了のタイミングで sessionStorage に「フェード中だった」情報を残し、その後に実際の遷移を行う
     window.setTimeout(function () {
@@ -532,7 +508,7 @@
       }
       // 実際のページ遷移をここで実行する
       location.href = nextUrl;
-    }, FADE_DURATION_MS + 60);
+    }, 20 + phase1Ms + phase2Ms + 40); // phase1+phase2 を待ってから遷移する
   }
 
   /**
@@ -798,30 +774,44 @@
       return;
     }
 
-    // 追加: フェード用CSS（keyframes + text-shadow）を必ず注入
-    injectFadeCss();
-
     // フェード用オーバーレイを取得（無ければ作成）
     var overlay = getOrCreateFadeOverlay();
+
+    // 追加: 復帰も2段階にする（最初に一気に薄くして、最後はゆっくり消す）
+    var totalMs = FADE_DURATION_MS;
+    var phase1Ms = Math.max(120, Math.round(totalMs * 0.30));
+    var phase2Ms = Math.max(120, totalMs - phase1Ms);
 
     // 遷移直後は「真っ暗な状態」からスタート
     overlay.style.opacity = String(FADE_MAX_OPACITY);
     overlay.style.pointerEvents = "none"; // 画面操作は通す
 
-    // 追加: keyframes 2段階で自然に復帰させる（暗転と同じ質で戻す）
-    try {
-      overlay.style.setProperty("--cscs-fade-max", String(FADE_MAX_OPACITY));
-      overlay.style.setProperty("--cscs-fade-in-mid", String(FADE_MAX_OPACITY * 0.30));
-    } catch (_eVar) {
-    }
-    overlay.style.animation = "cscsFadeIn2Step " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING) + " forwards";
+    // 追加: phase1 は少しだけ「キレ」を出し、phase2 は既存カーブで自然に抜く
+    var PHASE1_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
+    var PHASE2_EASING = String(FADE_EASING);
+
+    // phase1: MAX → (MAXの一部)
+    var phase1Opacity = Math.max(0, Math.min(FADE_MAX_OPACITY, FADE_MAX_OPACITY * 0.30));
+    overlay.style.transition =
+      "opacity " + String(phase1Ms) + "ms " + String(PHASE1_EASING);
+
+    window.setTimeout(function () {
+      overlay.style.opacity = String(phase1Opacity);
+    }, 20);
+
+    // phase2: (MAXの一部) → 0
+    window.setTimeout(function () {
+      overlay.style.transition =
+        "opacity " + String(phase2Ms) + "ms " + String(PHASE2_EASING);
+      overlay.style.opacity = "0";
+    }, 20 + phase1Ms);
 
     // フェードイン完了後、DOMからオーバーレイを削除して後始末
     window.setTimeout(function () {
       if (overlay && overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
-    }, FADE_DURATION_MS + 80);
+    }, 20 + phase1Ms + phase2Ms + 60);
   }
 
   // =========================================
