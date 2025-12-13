@@ -91,12 +91,14 @@
       var cssText = ""
         + "@keyframes cscsFadeOut2Step{"
         + "0%{opacity:0;}"
-        + "35%{opacity:var(--cscs-fade-mid,0.38);}"
+        + "20%{opacity:calc(var(--cscs-fade-mid,0.38) * 0.6);}"
+        + "55%{opacity:var(--cscs-fade-mid,0.38);}"
         + "100%{opacity:var(--cscs-fade-max,0.7);}"
         + "}"
         + "@keyframes cscsFadeIn2Step{"
         + "0%{opacity:var(--cscs-fade-max,0.7);}"
-        + "65%{opacity:var(--cscs-fade-in-mid,0.22);}"
+        + "45%{opacity:var(--cscs-fade-in-mid,0.22);}"
+        + "80%{opacity:calc(var(--cscs-fade-in-mid,0.22) * 0.4);}"
         + "100%{opacity:0;}"
         + "}"
         + ".wrap, .wrap *{"
@@ -186,10 +188,9 @@
     overlay.style.zIndex = "9998";             // ほぼ最前面（他UIより上）
 
     // 追加: アニメの対象を明示して、暗転をよりスムーズにする
-    overlay.style.willChange = "opacity, transform";
-    overlay.style.transform = "translateZ(0)";
-    // フェードは animation(keyframes) に一本化するため transition は使わない
-    overlay.style.transition = "none";
+    overlay.style.willChange = "opacity";
+    overlay.style.transition =
+      "opacity " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING);
 
     document.body.appendChild(overlay);
     return overlay;
@@ -545,8 +546,7 @@
     } catch (_eStopAnim) {
     }
 
-    // opacity は keyframes 側で制御する（JS からは触らない）
-    overlay.style.opacity = "";
+    overlay.style.opacity = "0";              // 最初は完全に透明な状態からスタートする
     overlay.style.pointerEvents = "auto";     // フェード中は画面操作を一括でブロックする
 
     // 追加: keyframes 2段階で自然に暗転させる（transition切替をやめて段差を消す）
