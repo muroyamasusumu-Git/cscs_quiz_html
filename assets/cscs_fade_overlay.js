@@ -411,7 +411,7 @@
           // ※ここでは「選択した<li>だけ可視化し、それ以外の<li>は透明にする」処理も追加する
           var cloneTag = clone.tagName ? clone.tagName.toLowerCase() : "";
           if (cloneTag === "ol" && clone.classList && clone.classList.contains("opts")) {
-            clone.style.marginLeft = "10px";
+            clone.style.marginLeft = "25px";
             clone.style.marginBottom = "15px";
             clone.style.lineHeight = "1"; // クローン専用行間。フェード破損を起こさない安全定義。
 
