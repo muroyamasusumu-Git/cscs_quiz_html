@@ -98,9 +98,6 @@
         + "0%{opacity:var(--cscs-fade-max,0.7);}"
         + "65%{opacity:var(--cscs-fade-in-mid,0.22);}"
         + "100%{opacity:0;}"
-        + "}"
-        + ".wrap, .wrap *{"
-        + "text-shadow:0 1px 2px rgba(0,0,0,0.30);"
         + "}";
 
       if (styleEl.styleSheet) {
