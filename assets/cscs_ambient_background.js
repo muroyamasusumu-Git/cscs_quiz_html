@@ -105,7 +105,7 @@
       + "transform-origin: 23% 20%;"
       // ▼ 楕円レイヤー全体を左上へオフセットしてから回転
       // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
-      + "transform: translate(-4%, -4%) rotate(-20deg);"
+      + "transform: translate(-4%, -4%) rotate(-25deg);"
       + "background:"
       // ▼ 全体の暗さ（黒オーバーレイ）
       // 目的: dim の値で、楕円スポットライト層も一括で少し暗めに寄せる
