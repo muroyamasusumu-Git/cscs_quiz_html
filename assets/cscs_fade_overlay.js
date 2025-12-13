@@ -634,8 +634,6 @@
 
     var questionNode = null;
     var choiceNode = null;
-    // フェードの「下」に残っている元の問題文（例: <h1>）を同時にフェードアウトさせるための参照
-    var originalQuestionNode = null;
     // フェードの「下」に残っている元の選択肢 <li> を同時にフェードアウトさせるための参照
     var originalChoiceLi = null;
 
@@ -644,8 +642,6 @@
       if (highlightTargets && typeof highlightTargets === "object") {
         if (highlightTargets.questionNode && highlightTargets.questionNode.nodeType === 1) {
           questionNode = highlightTargets.questionNode;
-          // 元DOM側（画面下に残る本物の問題文）も、クローンと二重に見えないようフェードアウト対象として保持する
-          originalQuestionNode = questionNode;
         }
         if (highlightTargets.choiceNode && highlightTargets.choiceNode.nodeType === 1) {
           choiceNode = highlightTargets.choiceNode;
@@ -687,32 +683,18 @@
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
     //    フェード中に scale(1.0) へ揺り戻されないように、transform をハードロックする。
     (function lockOriginalChoiceScale() {
-      if (!originalChoiceLi && !originalQuestionNode) {
+      if (!originalChoiceLi) {
         return;
-      }
-
-      // 元の問題文（例: <h1>）を対象とする（クローンと二重に見えないようにするため）
-      var originalQuestionEl = null;
-      try {
-        if (originalQuestionNode && originalQuestionNode.nodeType === 1) {
-          originalQuestionEl = originalQuestionNode;
-        }
-      } catch (_eFindQ) {
-        originalQuestionEl = null;
       }
 
       // 元の <li> の中の <a> を対象とする（実際にスケールしているのはテキスト側の <a> 想定）
       var originalAnchor = null;
       try {
-        if (originalChoiceLi && originalChoiceLi.nodeType === 1) {
-          originalAnchor = originalChoiceLi.querySelector("a");
-        }
+        originalAnchor = originalChoiceLi.querySelector("a");
       } catch (_eFindAnchor) {
         originalAnchor = null;
       }
-
-      // 両方とも対象が無ければ何もしない（フォールバック無し）
-      if (!originalQuestionEl && (!originalAnchor || !originalAnchor.style)) {
+      if (!originalAnchor || !originalAnchor.style) {
         return;
       }
 
@@ -720,11 +702,9 @@
       //    それを fixedTransform としてロック対象値にする（以後は computedStyle を読まない）
       var fixedTransform = "scale(1.10)";
       try {
-        if (originalAnchor) {
-          var cs = window.getComputedStyle(originalAnchor);
-          if (cs && cs.transform && cs.transform !== "none") {
-            fixedTransform = cs.transform;
-          }
+        var cs = window.getComputedStyle(originalAnchor);
+        if (cs && cs.transform && cs.transform !== "none") {
+          fixedTransform = cs.transform;
         }
       } catch (_eGetCs) {
         fixedTransform = "scale(1.10)";
@@ -733,11 +713,9 @@
       // ▼ 追加：<li> 側も transform を固定する（テキスト側だけでなく親側の揺り戻しも潰す）
       var fixedLiTransform = "none";
       try {
-        if (originalChoiceLi && originalChoiceLi.nodeType === 1) {
-          var csLi = window.getComputedStyle(originalChoiceLi);
-          if (csLi && csLi.transform && csLi.transform !== "none") {
-            fixedLiTransform = csLi.transform;
-          }
+        var csLi = window.getComputedStyle(originalChoiceLi);
+        if (csLi && csLi.transform && csLi.transform !== "none") {
+          fixedLiTransform = csLi.transform;
         }
       } catch (_eGetCsLi) {
         fixedLiTransform = "none";
@@ -749,23 +727,19 @@
       var fixedAnchorColor = null;
       var liMarkerRgb = { r: 255, g: 255, b: 255 };
       try {
-        if (originalAnchor) {
-          var csAColor = window.getComputedStyle(originalAnchor);
-          if (csAColor && csAColor.color) {
-            fixedAnchorColor = csAColor.color;
-          }
+        var csAColor = window.getComputedStyle(originalAnchor);
+        if (csAColor && csAColor.color) {
+          fixedAnchorColor = csAColor.color;
         }
       } catch (_eGetAColor) {
         fixedAnchorColor = null;
       }
       try {
-        if (originalChoiceLi && originalChoiceLi.nodeType === 1) {
-          var csLiColor = window.getComputedStyle(originalChoiceLi);
-          var liColorText = (csLiColor && csLiColor.color) ? csLiColor.color : "";
-          var mRgb = liColorText.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-          if (mRgb) {
-            liMarkerRgb = { r: parseInt(mRgb[1], 10), g: parseInt(mRgb[2], 10), b: parseInt(mRgb[3], 10) };
-          }
+        var csLiColor = window.getComputedStyle(originalChoiceLi);
+        var liColorText = (csLiColor && csLiColor.color) ? csLiColor.color : "";
+        var mRgb = liColorText.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+        if (mRgb) {
+          liMarkerRgb = { r: parseInt(mRgb[1], 10), g: parseInt(mRgb[2], 10), b: parseInt(mRgb[3], 10) };
         }
       } catch (_eGetLiColor) {
         liMarkerRgb = { r: 255, g: 255, b: 255 };
@@ -774,15 +748,8 @@
       // ▼ 追加：hover/active 由来の揺り戻しを物理的に封じるため、
       //    ロック中は一時的に pointer-events を切る（フェード中に追加入力させない意図も兼ねる）
       try {
-        if (originalAnchor && originalAnchor.style) {
-          originalAnchor.style.setProperty("pointer-events", "none", "important");
-        }
-        if (originalChoiceLi && originalChoiceLi.style) {
-          originalChoiceLi.style.setProperty("pointer-events", "none", "important");
-        }
-        if (originalQuestionEl && originalQuestionEl.style) {
-          originalQuestionEl.style.setProperty("pointer-events", "none", "important");
-        }
+        originalAnchor.style.setProperty("pointer-events", "none", "important");
+        originalChoiceLi.style.setProperty("pointer-events", "none", "important");
       } catch (_ePe) {
       }
 
@@ -794,23 +761,8 @@
 
       // 毎フレーム fixedTransform と transition/animation の kill を上書きし続けるループ
       function loop(now) {
-        // DOM から外れていたらそこで終了（ただし片方が外れても、もう片方は続行する）
-        var hasAnchor = false;
-        var hasQuestion = false;
-
-        try {
-          hasAnchor = !!(originalAnchor && originalAnchor.style && document.body && document.body.contains(originalAnchor));
-        } catch (_eHasA) {
-          hasAnchor = false;
-        }
-        try {
-          hasQuestion = !!(originalQuestionEl && originalQuestionEl.style && document.body && document.body.contains(originalQuestionEl));
-        } catch (_eHasQ) {
-          hasQuestion = false;
-        }
-
-        // 両方とも対象が無くなった時だけ終了する
-        if (!hasAnchor && !hasQuestion) {
+        // DOM から外れていたらそこで終了
+        if (!document.body || !document.body.contains(originalAnchor)) {
           return;
         }
 
@@ -818,100 +770,24 @@
         if (elapsed > LOCK_DURATION_MS) {
           // ロック解除：pointer-events だけ戻す（他の style は遷移でページが変わるので戻さない）
           try {
-            if (hasAnchor) {
-              originalAnchor.style.removeProperty("pointer-events");
-            }
-            if (originalChoiceLi && originalChoiceLi.style) {
-              originalChoiceLi.style.removeProperty("pointer-events");
-            }
-            if (hasQuestion) {
-              originalQuestionEl.style.removeProperty("pointer-events");
-            }
+            originalAnchor.style.removeProperty("pointer-events");
+            originalChoiceLi.style.removeProperty("pointer-events");
           } catch (_eUnpe) {
           }
           return;
         }
 
         try {
-          // フェード進行度（0→1）
+          // ▼ ① 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
+          originalAnchor.style.transformOrigin = "left center";
+          originalAnchor.style.setProperty("transform", fixedTransform, "important");
+
+          // ▼ ② 追加：元DOM側の「テキストのみ」をフェードアウトさせる（ズレ対策）
+          //    - オーバーレイの下に残る本物のテキストが、クローンと二重に見える瞬間を消す
+          //    - JSで毎フレーム opacity を上書きして、CSS側の介入を受けないようにする
           var fadeT = Math.min(1, Math.max(0, elapsed / Math.max(1, FADE_DURATION_MS)));
           var fadeOpacity = String(1 - fadeT);
-
-          // ▼ ① 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
-          if (hasAnchor) {
-            originalAnchor.style.transformOrigin = "left center";
-            originalAnchor.style.setProperty("transform", fixedTransform, "important");
-
-            // ▼ ② 元DOM側の「選択された選択肢テキスト」をフェードアウト（クローン二重表示対策）
-            originalAnchor.style.setProperty("opacity", fadeOpacity, "important");
-          }
-
-          // ▼ ③ 元DOM側の「問題文（例: h1）」もフェードアウト（クローン二重表示対策）
-          if (hasQuestion) {
-            originalQuestionEl.style.setProperty("opacity", fadeOpacity, "important");
-            originalQuestionEl.style.setProperty("transition", "none", "important");
-            originalQuestionEl.style.setProperty("transition-property", "none", "important");
-            originalQuestionEl.style.setProperty("transition-duration", "0s", "important");
-            originalQuestionEl.style.setProperty("transition-timing-function", "linear", "important");
-            originalQuestionEl.style.setProperty("animation", "none", "important");
-            originalQuestionEl.style.setProperty("animation-name", "none", "important");
-            originalQuestionEl.style.setProperty("animation-duration", "0s", "important");
-            originalQuestionEl.style.setProperty("animation-timing-function", "linear", "important");
-          }
-
-          // ▼ ④ 追加：選択された選択肢の「marker だけ」をフェードアウトさせる
-          try {
-            if (originalAnchor && originalAnchor.style && fixedAnchorColor) {
-              originalAnchor.style.setProperty("color", fixedAnchorColor, "important");
-            }
-            if (originalChoiceLi && originalChoiceLi.style) {
-              originalChoiceLi.style.setProperty(
-                "color",
-                "rgba(" + String(liMarkerRgb.r) + "," + String(liMarkerRgb.g) + "," + String(liMarkerRgb.b) + "," + String(1 - fadeT) + ")",
-                "important"
-              );
-            }
-          } catch (_eMarkerFade) {
-          }
-
-          // ▼ ⑤ 親 <li> 側も、もし transform が入っている環境ならそれを固定する
-          if (originalChoiceLi && originalChoiceLi.style && fixedLiTransform && fixedLiTransform !== "none") {
-            originalChoiceLi.style.transformOrigin = "left center";
-            originalChoiceLi.style.setProperty("transform", fixedLiTransform, "important");
-          }
-
-          // ▼ ⑥ 追加：opacity の揺り戻し（transition等）を潰すため、opacity用も含めて無効化を徹底する
-          if (originalAnchor && originalAnchor.style) {
-            originalAnchor.style.setProperty("transition", "none", "important");
-            originalAnchor.style.setProperty("transition-property", "none", "important");
-            originalAnchor.style.setProperty("transition-duration", "0s", "important");
-            originalAnchor.style.setProperty("transition-timing-function", "linear", "important");
-            originalAnchor.style.setProperty("animation", "none", "important");
-            originalAnchor.style.setProperty("animation-name", "none", "important");
-            originalAnchor.style.setProperty("animation-duration", "0s", "important");
-            originalAnchor.style.setProperty("animation-timing-function", "linear", "important");
-          }
-
-          if (originalChoiceLi && originalChoiceLi.style) {
-            originalChoiceLi.style.setProperty("transition", "none", "important");
-            originalChoiceLi.style.setProperty("transition-property", "none", "important");
-            originalChoiceLi.style.setProperty("transition-duration", "0s", "important");
-            originalChoiceLi.style.setProperty("transition-timing-function", "linear", "important");
-            originalChoiceLi.style.setProperty("animation", "none", "important");
-            originalChoiceLi.style.setProperty("animation-name", "none", "important");
-            originalChoiceLi.style.setProperty("animation-duration", "0s", "important");
-            originalChoiceLi.style.setProperty("animation-timing-function", "linear", "important");
-          }
-        } catch (_eLock) {
-          // ここで失敗しても致命的ではないので何もしない（フォールバック無し）
-        }
-
-        requestAnimationFrame(loop);
-      }
-
-      // フェード開始とほぼ同時にロックループをスタートさせる
-      requestAnimationFrame(loop);
-    })();
+          originalAnchor.style.setProperty("opacity", fadeOpacity, "important");
 
           // ▼ ③ 追加：選択された選択肢の「marker だけ」をフェードアウトさせる
           //    - marker は <li> の color に追従するため、<li>.color を rgba(..., alpha) で落とす
