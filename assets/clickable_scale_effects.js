@@ -118,9 +118,6 @@
     "text-underline-offset:4px;" +
     "text-decoration-thickness:2px;" +
     "}" +
-    ".sa-b-correct-underline{" +
-    "text-decoration:none;" +
-    "}" +
     "#cscs-fade-highlight-layer .sa-hover," +
     "#cscs-fade-highlight-layer .sa-hover-fixed," +
     "#cscs-fade-highlight-layer a{" +
@@ -577,8 +574,8 @@
           //   A〜D のリストマーカーに被らないようにしつつ、
           //   不正解側(otherInner)と同じ左端ラインに揃える。
           try {
-            // Bパート正解の拡大テキストにだけ下線を付与する
-            inner.classList.add("sa-b-correct-underline");
+            // Bパート正解の拡大テキストに下線を付与する（下線スタイルは共通クラスで統一）
+            inner.classList.add("sa-underline");
 
             inner.style.display = "inline-block";
             inner.style.width = "100%";
