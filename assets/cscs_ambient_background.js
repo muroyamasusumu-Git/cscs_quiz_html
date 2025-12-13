@@ -66,17 +66,8 @@
       + "inset: 0;"
       + "pointer-events: none;"
       + "z-index: 0;"
-      // ▼ 静的スポットライト（左上＝明るい黒 → 右＆左下＝暗い黒）
-      // 目的: 動き無しで、左上が光源っぽく見える黒グラデを作る
+      // ▼ 右＆左下の暗さ + ベース黒（回転しない）
       + "background:"
-      // 左上のスポットライト（明るい黒）
-      + "radial-gradient("
-      // 楕円スポットライト：Y方向だけ少し下へ（14% → 20%）
-      + "ellipse 1980px 567px at 23% 20%,"
-      + "rgba(58,58,58,0.64) 0%,"
-      + "rgba(34,34,34,0.52) 38%,"
-      + "rgba(0,0,0,0) 78%"
-      + "),"
       // 右側を暗く落とす
       + "linear-gradient("
       + "to right,"
@@ -93,6 +84,27 @@
       + "),"
       // ベースの黒
       + "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);"
+      + "background-repeat: no-repeat;"
+      + "background-attachment: fixed;"
+      + "}"
+
+      // ▼ 楕円スポットライト専用レイヤー（これだけ回転）
+      + "html." + BODY_CLASS + "::after{"
+      + "content:'';"
+      + "position: fixed;"
+      + "inset: 0;"
+      + "pointer-events: none;"
+      + "z-index: 0;"
+      // 回転の支点を「楕円の中心」に合わせる
+      + "transform-origin: 23% 20%;"
+      + "transform: rotate(20deg);"
+      + "background:"
+      + "radial-gradient("
+      + "ellipse 1980px 567px at 23% 20%,"
+      + "rgba(58,58,58,0.64) 0%,"
+      + "rgba(34,34,34,0.52) 38%,"
+      + "rgba(0,0,0,0) 78%"
+      + ");"
       + "background-repeat: no-repeat;"
       + "background-attachment: fixed;"
       + "}"
