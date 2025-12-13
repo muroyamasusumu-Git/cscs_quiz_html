@@ -267,14 +267,15 @@
         return null;                         // 問題文・選択肢の両方が無ければ何もせず終了
       }
 
-      // フェード用オーバーレイを必ず取得し、その「内側」にハイライトレイヤーをぶら下げる
-      // - こうすることで、オーバーレイのスタッキングコンテキストの中で z-index を完結させられる
+      // フェード用オーバーレイを必ず取得する（黒幕そのものは overlay が担当する）
+      // - ハイライト（クローン）は overlay の子にすると opacity の影響を受けて一緒に薄くなるため、
+      //   body 直下に置いて overlay のフェードに追従しないようにする。
       var overlay = getOrCreateFadeOverlay(); // 既存オーバーレイを取得（無ければ新規作成）
       if (!overlay) {
         return null;                         // 何らかの理由でオーバーレイが作れない場合はハイライトも諦める
       }
 
-      // フェードオーバーレイ内部に、ハイライト専用レイヤーを新規作成
+      // ハイライト専用レイヤーを新規作成（body直下に置き、overlayのopacityの影響を受けないようにする）
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -282,7 +283,7 @@
       layer.style.top = "0";
       layer.style.right = "0";
       layer.style.bottom = "0";
-      layer.style.zIndex = "9999";          // オーバーレイ背景より前面に出すための z-index（コンテキストは overlay の内側で完結）
+      layer.style.zIndex = "10000";         // overlay(9998) より確実に前面へ（body直下）
       layer.style.pointerEvents = "none";   // ハイライトレイヤー自体はマウス操作を一切受け付けない
       try {
         if (layer.style && typeof layer.style.setProperty === "function") {
@@ -294,7 +295,7 @@
         }
       } catch (_eLayerStyle) {
       }
-      overlay.appendChild(layer);           // body 直下ではなく overlay 配下にぶら下げることで、黒幕と一体化した前面表示にする
+      document.body.appendChild(layer);     // overlay配下ではなく body 直下に置く（クローンがフェードに追従しない）
 
       // ハイライト対象を配列にまとめて、共通のクローン処理を適用する
       var targets = [];
@@ -640,6 +641,47 @@
     if (questionNode || choiceNode) {
       createHighlightLayer(questionNode, choiceNode, false);
     }
+
+    // ▼ 追加処理：オーバーレイの下に残る「クローン元の選択された選択肢」を素早くフェードアウトさせる
+    // - クローン表示と本物表示の微妙なズレが見えることがあるため、本物側を透明化して視界から消す
+    // - クローンは body 直下にあるため、この opacity 変更に追従しない
+    (function fadeOutOriginalSelectedChoice() {
+      if (!originalChoiceLi || !originalChoiceLi.style) {
+        return;
+      }
+
+      try {
+        // 選択肢本体（<li>）をフェードアウト
+        originalChoiceLi.style.setProperty("transition", "opacity 160ms ease-out", "important");
+        originalChoiceLi.style.setProperty("opacity", "0", "important");
+      } catch (_eLiFade) {
+        try {
+          originalChoiceLi.style.transition = "opacity 160ms ease-out";
+          originalChoiceLi.style.opacity = "0";
+        } catch (_eLiFade2) {
+        }
+      }
+
+      // テキスト側（<a>）も保険で透明化（<li>だけだと環境によって残像っぽく見えるケースを潰す）
+      var a = null;
+      try {
+        a = originalChoiceLi.querySelector("a");
+      } catch (_eFindA) {
+        a = null;
+      }
+      if (a && a.style) {
+        try {
+          a.style.setProperty("transition", "opacity 160ms ease-out", "important");
+          a.style.setProperty("opacity", "0", "important");
+        } catch (_eAFade) {
+          try {
+            a.style.transition = "opacity 160ms ease-out";
+            a.style.opacity = "0";
+          } catch (_eAFade2) {
+          }
+        }
+      }
+    })();
 
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
     //    フェード中に scale(1.0) へ揺り戻されないように、transform をハードロックする。
