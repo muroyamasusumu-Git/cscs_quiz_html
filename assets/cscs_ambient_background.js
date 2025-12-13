@@ -60,6 +60,13 @@
       + "z-index: 1;"
       + "}"
 
+      // ▼ quiz UI を背景レイヤーより必ず前面に固定
+      // 目的: html::before / html::after の擬似要素が“上に被さる”事故を防ぐ
+      + ".wrap{"
+      + "position: relative;"
+      + "z-index: 2;"
+      + "}"
+
       + "html." + BODY_CLASS + "::before{"
       + "content:'';"
       + "position: fixed;"
