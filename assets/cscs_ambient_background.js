@@ -67,6 +67,12 @@
       + "pointer-events: none;"
       + "z-index: 0;"
       + "background:"
+      // 左側の円形グラデ（円⇄楕円）：角度や中心は固定し、rx/ry だけをJSで揺らす
+      + "radial-gradient("
+      + "ellipse var(--cscs-blob-rx,720px) var(--cscs-blob-ry,720px) at 12% 50%,"
+      + "rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-blob-a,0.32)) 0%,"
+      + "rgba(0,0,0,0) 70%"
+      + "),"
       + "linear-gradient("
       + "var(--cscs-bg-angle,135deg),"
       + "rgba(0,0,0,1) 0%,"
@@ -188,7 +194,7 @@
     var b2x = 75 + 18 * Math.sin((t * s) * 1.20 + 1.6);
     var b2y = 70 + 18 * Math.sin((t * s) * 1.05 + 3.4);
 
-    // CSS変数で反映（明度は固定、動くのは angle/position/center）
+    // CSS変数で反映（明度は固定、動くのは angle/position/center + 左の円の楕円半径）
     try {
       document.documentElement.style.setProperty("--cscs-g1", String(g1));
       document.documentElement.style.setProperty("--cscs-g2", String(g2));
@@ -205,6 +211,23 @@
       document.documentElement.style.setProperty("--cscs-c1a", String(c1a));
       document.documentElement.style.setProperty("--cscs-c2a", String(c2a));
       document.documentElement.style.setProperty("--cscs-c3a", String(c3a));
+
+      // 左側の円形グラデ：中心位置は固定（CSS側で at 12% 50%）
+      // ここでは “円⇄楕円” の変形（rx/ry）だけを時間で変化させる
+      var blobBase = (theme === "deep") ? 720 : 980;  // 基本サイズ
+      var blobAmp  = (theme === "deep") ? 220 : 260;  // 変形量（円→楕円の強さ）
+      var blobPhase = (t * s) * 0.90;                 // 変形スピード（角度や位置は触らない）
+
+      // 位相を90°ずらして「円→横楕円→縦楕円→円…」を作る
+      var blobRx = blobBase + blobAmp * Math.sin(blobPhase);
+      var blobRy = blobBase + blobAmp * Math.sin(blobPhase + Math.PI / 2);
+
+      // 強さ（アルファ）は intensity に連動（時間では揺らさない）
+      var blobA = 0.18 + 0.28 * clamp01(intensity);
+
+      document.documentElement.style.setProperty("--cscs-blob-rx", String(Math.round(blobRx)) + "px");
+      document.documentElement.style.setProperty("--cscs-blob-ry", String(Math.round(blobRy)) + "px");
+      document.documentElement.style.setProperty("--cscs-blob-a", String(blobA));
     } catch (_e) {
       // 失敗しても継続（フォールバックで別ルートは作らない）
     }
@@ -280,6 +303,12 @@
             document.documentElement.style.removeProperty("--cscs-c1a");
             document.documentElement.style.removeProperty("--cscs-c2a");
             document.documentElement.style.removeProperty("--cscs-c3a");
+
+            // 左側の円形グラデ（円⇄楕円）の制御変数も消す
+            document.documentElement.style.removeProperty("--cscs-blob-rx");
+            document.documentElement.style.removeProperty("--cscs-blob-ry");
+            document.documentElement.style.removeProperty("--cscs-blob-a");
+
             document.documentElement.style.removeProperty("--cscs-bg-opacity");
             document.documentElement.style.removeProperty("--cscs-bg-sat");
             document.documentElement.style.removeProperty("--cscs-bg-blur");
