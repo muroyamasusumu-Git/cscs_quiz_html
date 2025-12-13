@@ -2004,7 +2004,14 @@
       return;
     }
 
-    // ▼ ① まず「遷移責任者」である fadeOutTo を必ず呼ぶ
+    // ▼ ① nav_list が表示されていれば、フェードアウトして薄くする（視覚連携）
+    if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
+      try {
+        window.CSCS_NAV_LIST.fadeOut();
+      } catch (_e) {}
+    }
+
+    // ▼ ② 遷移の責任は「必ず fadeOutTo」に持たせる（＝ここが無いと遷移が切れる）
     if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
       window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
     } else {
@@ -2012,18 +2019,13 @@
       return;
     }
 
-    // ▼ ② その直後に、可能であればハイライトを乗せる（遷移はしない）
+    // ▼ ③ その直後に、可能ならハイライト用のロック処理だけ走らせる（遷移はしない補助）
+    //   - fadeOutToWithHighlight 側に「遷移責任」を持たせない（誤用防止）
+    //   - ハイライト対象が無い場合もあるので、空オブジェクトを渡して無害化する
     if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
       try {
         window.CSCS_FADE.fadeOutToWithHighlight(nextUrl, "a_auto_next", {});
-      } catch (_e) {}
-    }
-
-    // ▼ ③ nav_list 側のフェードは最後に（演出補助）
-    if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
-      try {
-        window.CSCS_NAV_LIST.fadeOut();
-      } catch (_e) {}
+      } catch (_e2) {}
     }
   }
 
