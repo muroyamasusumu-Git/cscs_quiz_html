@@ -2004,18 +2004,22 @@
       return;
     }
 
-    // ▼ 先に「全画面フェード」を開始する（A→Bで不発になりにくくする）
-    //   - fadeOutToWithHighlight があれば最優先で使う
-    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
-      window.CSCS_FADE.fadeOutToWithHighlight(nextUrl, "a_auto_next");
-    } else if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
+    // ▼ ① まず「遷移責任者」である fadeOutTo を必ず呼ぶ
+    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
       window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
     } else {
       location.href = nextUrl;
       return;
     }
 
-    // ▼ その後に nav_list 側も薄くする（演出の連携）
+    // ▼ ② その直後に、可能であればハイライトを乗せる（遷移はしない）
+    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
+      try {
+        window.CSCS_FADE.fadeOutToWithHighlight(nextUrl, "a_auto_next", {});
+      } catch (_e) {}
+    }
+
+    // ▼ ③ nav_list 側のフェードは最後に（演出補助）
     if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
       try {
         window.CSCS_NAV_LIST.fadeOut();
