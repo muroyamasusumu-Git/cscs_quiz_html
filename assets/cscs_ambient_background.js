@@ -23,16 +23,6 @@
   var speed = 0.22;     // 0..1（色相の進む速さ）
   var theme = "deep";   // "deep" or "soft"
 
-  // reduced motion 対応（酔い・負荷回避）
-  var prefersReducedMotion = false;
-  try {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      prefersReducedMotion = true;
-    }
-  } catch (_e) {
-    prefersReducedMotion = false;
-  }
-
   function injectStyleIfNeeded() {
     if (document.getElementById(STYLE_ID)) return;
 
@@ -182,110 +172,6 @@
     return x;
   }
 
-  // 時間でじわじわ色相をずらす（超ゆっくり）
-  // “波”を3本（h1/h2/h3）に分けて干渉させると、自然に見える
-  var rafId = null;
-  var startMs = 0;
-
-  function tick(now) {
-    if (!enabled || prefersReducedMotion) {
-      rafId = null;
-      return;
-    }
-    if (!document || !document.body) {
-      rafId = requestAnimationFrame(tick);
-      return;
-    }
-
-    if (!startMs) startMs = now;
-    var t = (now - startMs) / 1000; // seconds
-
-    // speed 0..1 -> 動きにスピードを付ける（“変化が分かる”寄り）
-    // 目的: 視覚的に「動いている」ことが分かる速さにする
-    var s = 0.030 + 0.140 * clamp01(speed);
-
-    // 白黒の濃度比率（明度）は固定（時間で明るく/暗くならない）
-    // 目的: 背景全体の明るさ感が上下しないようにする
-    var g1 = (theme === "deep") ? 40 : 200;
-    var g2 = (theme === "deep") ? 90 : 235;
-    var g3 = (theme === "deep") ? 65 : 215;
-
-    // intensity は「出方（アルファ）」に反映（時間で揺らさない）
-    // 目的: ユーザー操作での強弱は許可しつつ、時間変化で明るさがブレないようにする
-    var c1a = 0.14 + 0.40 * clamp01(intensity);
-    var c2a = 0.12 + 0.36 * clamp01(intensity);
-    var c3a = 0.10 + 0.34 * clamp01(intensity);
-
-    // 斜めグラデ角度：動きが分かるように少し大きめに揺らす
-    // 目的: “向き”の変化が見える
-    var ang = 135 + 34 * Math.sin((t * s) * 1.1 + 0.4);
-
-    // background-position：動きが分かるようにやや速め＆大きめ
-    // 目的: グラデが“流れている”のが分かる
-    var bx = 50 + 16 * Math.sin((t * s) * 1.0 + 1.2);
-    var by = 50 + 16 * Math.sin((t * s) * 0.9 + 2.1);
-
-    // radial中心：動きが分かるように漂い幅を維持しつつ少し速め
-    // 目的: 2つの塊が“漂う”のが分かる
-    var b1x = 20 + 18 * Math.sin((t * s) * 1.15 + 2.7);
-    var b1y = 25 + 18 * Math.sin((t * s) * 1.25 + 0.9);
-    var b2x = 75 + 18 * Math.sin((t * s) * 1.20 + 1.6);
-    var b2y = 70 + 18 * Math.sin((t * s) * 1.05 + 3.4);
-
-    // CSS変数で反映（明度は固定、動くのは angle/position/center + 左の円の楕円半径）
-    try {
-      document.documentElement.style.setProperty("--cscs-g1", String(g1));
-      document.documentElement.style.setProperty("--cscs-g2", String(g2));
-      document.documentElement.style.setProperty("--cscs-g3", String(g3));
-
-      document.documentElement.style.setProperty("--cscs-bg-angle", String(ang) + "deg");
-      document.documentElement.style.setProperty("--cscs-bg-x", String(bx) + "%");
-      document.documentElement.style.setProperty("--cscs-bg-y", String(by) + "%");
-      document.documentElement.style.setProperty("--cscs-b1x", String(b1x) + "%");
-      document.documentElement.style.setProperty("--cscs-b1y", String(b1y) + "%");
-      document.documentElement.style.setProperty("--cscs-b2x", String(b2x) + "%");
-      document.documentElement.style.setProperty("--cscs-b2y", String(b2y) + "%");
-
-      document.documentElement.style.setProperty("--cscs-c1a", String(c1a));
-      document.documentElement.style.setProperty("--cscs-c2a", String(c2a));
-      document.documentElement.style.setProperty("--cscs-c3a", String(c3a));
-
-      // 左側の円形グラデ：中心位置は固定（CSS側で at 12% 50%）
-      // ここでは “円⇄楕円” の変形（rx/ry）だけを時間で変化させる
-      var blobBase = (theme === "deep") ? 720 : 980;  // 基本サイズ
-      var blobAmp  = (theme === "deep") ? 220 : 260;  // 変形量（円→楕円の強さ）
-      var blobPhase = (t * s) * 0.90;                 // 変形スピード（角度や位置は触らない）
-
-      // 位相を90°ずらして「円→横楕円→縦楕円→円…」を作る
-      var blobRx = blobBase + blobAmp * Math.sin(blobPhase);
-      var blobRy = blobBase + blobAmp * Math.sin(blobPhase + Math.PI / 2);
-
-      // 強さ（アルファ）は intensity に連動（時間では揺らさない）
-      var blobA = 0.18 + 0.28 * clamp01(intensity);
-
-      document.documentElement.style.setProperty("--cscs-blob-rx", String(Math.round(blobRx)) + "px");
-      document.documentElement.style.setProperty("--cscs-blob-ry", String(Math.round(blobRy)) + "px");
-      document.documentElement.style.setProperty("--cscs-blob-a", String(blobA));
-    } catch (_e) {
-      // 失敗しても継続（フォールバックで別ルートは作らない）
-    }
-
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function start() {
-    if (!enabled || prefersReducedMotion) return;
-    if (rafId !== null) return;
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function stop() {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-  }
-
   function applyTheme() {
     if (!document || !document.body) return;
     try {
@@ -298,9 +184,7 @@
     injectStyleIfNeeded();
     ensureLayer();
 
-    // ▼ 動き無しモード：requestAnimationFrame を使わない
-    // 目的: 背景は静的に固定し、ブラウザ負荷・インスペクタの“動きまくり”をゼロにする
-    stop();
+    // 補足: アニメ処理（rAF/tick）は完全に削除し、背景は静的に固定する
   }
 
   // 公開API
@@ -308,11 +192,10 @@
     setEnabled: function (v) {
       enabled = !!v;
       if (enabled) {
+        // 補足: アニメ処理は削除済みのため、class付与のみ行う
         ensureLayer();
-        start();
       } else {
-        stop();
-        // body への影響を完全に取り除く（背景も元に戻す）
+        // 補足: アニメ処理は削除済みのため、停止処理は不要。class/属性とCSS変数を掃除する
         try {
           if (document && document.body) {
             document.documentElement.classList.remove(BODY_CLASS);
