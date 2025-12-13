@@ -2003,23 +2003,17 @@
     if (!nextUrl) {
       return;
     }
-
-    // ▼ 先に「全画面フェード」を開始する（A→Bで不発になりにくくする）
-    //   - fadeOutToWithHighlight があれば最優先で使う
-    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
-      window.CSCS_FADE.fadeOutToWithHighlight(nextUrl, "a_auto_next");
-    } else if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
-      window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
-    } else {
-      location.href = nextUrl;
-      return;
-    }
-
-    // ▼ その後に nav_list 側も薄くする（演出の連携）
+    // nav_list が表示されていれば、フェードアウトして薄くする
     if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
       try {
         window.CSCS_NAV_LIST.fadeOut();
       } catch (_e) {}
+    }
+    // 全画面フェードモジュールがあればそれを利用、なければ普通に遷移
+    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
+      window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
+    } else {
+      location.href = nextUrl;
     }
   }
 
