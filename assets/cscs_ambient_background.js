@@ -103,7 +103,7 @@
       + "pointer-events: none;"
       + "z-index: 0;"
       // ▼ 楕円の中心を少し左上へ
-      + "transform-origin: 20% 17%;"
+      + "transform-origin: 20% 10%;"
       + "transform: rotate(-5deg);"
       + "background:"
       + "radial-gradient("
