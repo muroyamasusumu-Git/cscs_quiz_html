@@ -113,7 +113,7 @@
       + "pointer-events: none;"
       + "z-index: 0;"
       // 回転の支点を「楕円の中心」に合わせる
-      + "transform-origin: 23% 20%;"
+      + "transform-origin: 20% 20%;"
       // ▼ 楕円レイヤー全体を左上へオフセットしてから回転
       // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
       + "transform: translate(-4%, -4%) rotate(-20deg);"
@@ -123,7 +123,7 @@
       + "linear-gradient(180deg, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 0%, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 100%),"
       // ▼ 中心コア（小さく・少しだけ強い）
       + "radial-gradient("
-      + "ellipse 400px 130px at 23% 30%,"
+      + "ellipse 400px 130px at 20% 30%,"
       + "rgba(70,70,70,0.45) 0%,"
       + "rgba(50,50,50,0.32) 42%,"
       + "rgba(0,0,0,0) 70%"
