@@ -102,12 +102,12 @@
       + "inset: 0;"
       + "pointer-events: none;"
       + "z-index: 0;"
-      // ▼ 楕円の中心を少し左上へ
-      + "transform-origin: 18% 15%;"
+      // 回転の支点を「楕円の中心」に合わせる
+      + "transform-origin: 23% 20%;"
       + "transform: rotate(-5deg);"
       + "background:"
       + "radial-gradient("
-      + "ellipse 1980px 567px at 18% 15%,"
+      + "ellipse 2080px 597px at 23% 20%,"
       + "rgba(58,58,58,0.64) 0%,"
       + "rgba(34,34,34,0.52) 38%,"
       + "rgba(0,0,0,0) 78%"
