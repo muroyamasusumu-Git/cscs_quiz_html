@@ -763,12 +763,36 @@
         // marker の left 位置を CSS 変数として li に保存する
         try {
           var aEl = li.querySelector("a");
-          if (aEl) {
-            var liRect = li.getBoundingClientRect();
-            var aRect = aEl.getBoundingClientRect();
-            var markerLeftPx = aRect.left - liRect.left;
-            li.style.setProperty("--cscs-marker-left", String(markerLeftPx) + "px");
+          if (!aEl) {
+            return;
           }
+
+          // --- 元の marker を模した span を一時生成 ---
+          var markerSpan = document.createElement("span");
+          markerSpan.textContent = li.getAttribute("data-cscs-marker") || "";
+          markerSpan.style.position = "absolute";
+          markerSpan.style.visibility = "hidden";
+          markerSpan.style.whiteSpace = "nowrap";
+
+          // li の先頭に差し込む
+          li.insertBefore(markerSpan, li.firstChild);
+
+          // 実測
+          var liRect = li.getBoundingClientRect();
+          var markerRect = markerSpan.getBoundingClientRect();
+          var aRect = aEl.getBoundingClientRect();
+
+          // marker右端 → テキスト開始までの gap
+          var gapPx = aRect.left - markerRect.right;
+
+          // padding-left に使う最終値
+          var paddingLeftPx = (markerRect.width + gapPx);
+
+          // CSS変数として保存
+          li.style.setProperty("--cscs-marker-left", String(paddingLeftPx) + "px");
+
+          // 後始末
+          li.removeChild(markerSpan);
         } catch (_eMeasure) {
         }
       }
