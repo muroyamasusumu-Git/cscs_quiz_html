@@ -140,7 +140,7 @@
         "animation-name:none !important;" +
         "animation-duration:0s !important;" +
         "animation-timing-function:linear !important;" +
-        "transform-origin:center center !important;" +
+        "transform-origin:left center !important;" +
         "}";
       if (styleEl.styleSheet) {
         styleEl.styleSheet.cssText = cssText;
@@ -383,7 +383,7 @@
                   if (!an.classList.contains("sa-hover-fixed")) {
                     an.classList.add("sa-hover-fixed");
                   }
-                  an.style.transformOrigin = "center center";
+                  an.style.transformOrigin = "left center";
                   try {
                     an.style.setProperty("transform", "scale(1.10)", "important");
                   } catch (_eSetScale) {
@@ -440,7 +440,7 @@
                   // クラスは一切変更せず、スタイルだけで拡大させる。
                   if (link && link.style) {
                     link.style.display = "inline-block";
-                    link.style.transformOrigin = "center center";
+                    link.style.transformOrigin = "left center";
                     try {
                       // ▼ ① クローン側の選択肢テキストは「静止状態」で固定拡大
                       link.style.setProperty("transform", "scale(1.10)", "important");
@@ -754,7 +754,7 @@
 
         try {
           // ▼ ① 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
-          originalAnchor.style.transformOrigin = "center center";
+          originalAnchor.style.transformOrigin = "left center";
           originalAnchor.style.setProperty("transform", fixedTransform, "important");
 
           // ▼ ② 追加：元DOM側の「テキストのみ」をフェードアウトさせる（ズレ対策）
@@ -781,7 +781,7 @@
 
           // ▼ ③ 親 <li> 側も、もし transform が入っている環境ならそれを固定する
           if (fixedLiTransform && fixedLiTransform !== "none") {
-            originalChoiceLi.style.transformOrigin = "center center";
+            originalChoiceLi.style.transformOrigin = "left center";
             originalChoiceLi.style.setProperty("transform", fixedLiTransform, "important");
           }
 
