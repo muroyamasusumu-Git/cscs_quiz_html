@@ -97,7 +97,8 @@
       + "z-index: 0;"
       // 回転の支点を「楕円の中心」に合わせる
       + "transform-origin: 23% 20%;"
-      + "transform: rotate(20deg);"
+      + "transform: rotate(-20deg);"
+      + "z-index: 0;"
       + "background:"
       + "radial-gradient("
       + "ellipse 1980px 567px at 23% 20%,"
