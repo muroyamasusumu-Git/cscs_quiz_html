@@ -101,7 +101,7 @@
       + "top: -12%;"
       + "right: -12%;"
       + "bottom: -22%;"
-      + "left: -52%;"
+      + "left: -32%;"
       + "pointer-events: none;"
       + "z-index: 0;"
       // 回転の支点を「楕円の中心」に合わせる
