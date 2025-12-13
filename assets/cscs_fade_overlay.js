@@ -67,6 +67,16 @@
   var MARKER_LOCK_STYLE_ID = "cscs-fade-marker-lock-style";
 
   // =========================================
+  // マーカー位置の手動微調整（デバッグ用途）
+  // - MARKER_TEXT_PAD_ADJUST_PX:
+  //     テキスト開始位置（li の padding-left）を右(+)/左(-)にズラす
+  // - MARKER_BEFORE_LEFT_ADJUST_PX:
+  //     マーカー自体（li::before）の left を右(+)/左(-)にズラす
+  // =========================================
+  var MARKER_TEXT_PAD_ADJUST_PX = 0;
+  var MARKER_BEFORE_LEFT_ADJUST_PX = 100;
+
+  // =========================================
   // フェードの競合防止（重要）
   // - runFadeInIfNeeded() の「後始末（overlay削除タイマー）」が残ったまま fadeOut が走ると、
   //   フェード途中で overlay が消えて「切れた」ように見えることがある。
@@ -141,7 +151,7 @@
         + ".cscs-fade-marker-lock > li::before{"
         + "content:attr(data-cscs-marker) !important;"
         + "position:absolute !important;"
-        + "left:0 !important;"
+        + "left:var(--cscs-marker-before-left, 0px) !important;"
         + "top:0 !important;"
         + "opacity:1 !important;"
         + "}";
@@ -785,11 +795,14 @@
           // marker右端 → テキスト開始までの gap
           var gapPx = aRect.left - markerRect.right;
 
-          // padding-left に使う最終値
-          var paddingLeftPx = (markerRect.width + gapPx);
+          // padding-left に使う最終値（手動微調整を加算）
+          var paddingLeftPx = (markerRect.width + gapPx) + Number(MARKER_TEXT_PAD_ADJUST_PX || 0);
 
-          // CSS変数として保存
+          // CSS変数として保存（テキスト開始位置）
           li.style.setProperty("--cscs-marker-left", String(paddingLeftPx) + "px");
+
+          // CSS変数として保存（マーカー自体の left）
+          li.style.setProperty("--cscs-marker-before-left", String(Number(MARKER_BEFORE_LEFT_ADJUST_PX || 0)) + "px");
 
           // 後始末
           li.removeChild(markerSpan);
