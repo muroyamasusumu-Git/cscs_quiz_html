@@ -74,7 +74,7 @@
   //     マーカー自体（li::before）の left を右(+)/左(-)にズラす
   // =========================================
   var MARKER_TEXT_PAD_ADJUST_PX = 0;
-  var MARKER_BEFORE_LEFT_ADJUST_PX = -30;
+  var MARKER_BEFORE_LEFT_ADJUST_PX = -40;
 
   // =========================================
   // フェードの競合防止（重要）
