@@ -94,6 +94,11 @@
     ".sa-hover:hover,.sa-hover:active{" +
     "transform:scale(1.10);" +
     "}" +
+    ".sa-hover:hover{" +
+    "text-decoration:underline;" +
+    "text-underline-offset:4px;" +
+    "text-decoration-thickness:2px;" +
+    "}" +
     ".sa-hover-fixed{" +
     "display:inline-block;" +                 // hover版と同じボックス特性を維持
     "padding:2px 4px;" +
@@ -108,10 +113,13 @@
     "display:inline-block;" +                // テキスト塊だけを拡大させるためのインラインブロック
     "transform-origin:center center;" +      // 拡大の基準点を中央に固定
     "}" +
+    ".sa-underline{" +
+    "text-decoration:underline;" +
+    "text-underline-offset:4px;" +
+    "text-decoration-thickness:2px;" +
+    "}" +
     ".sa-b-correct-underline{" +
-    "text-decoration:underline;" +           // Bパート正解の下線
-    "text-underline-offset:4px;" +           // 文字から少し離す（見やすさ優先）
-    "text-decoration-thickness:2px;" +       // 下線を少し太く（視認性優先）
+    "text-decoration:none;" +
     "}" +
     "#cscs-fade-highlight-layer .sa-hover," +
     "#cscs-fade-highlight-layer .sa-hover-fixed," +
@@ -418,6 +426,7 @@
       // これにより、:hover の on/off で transform が変化しなくなる。
       el.classList.remove("sa-hover");
       el.classList.add("sa-hover-fixed");
+      el.classList.add("sa-underline");
 
       // ▼ ロック中は hover/out 由来のイベントを遮断するため、
       //    一時的に pointer-events を無効化しておく。
