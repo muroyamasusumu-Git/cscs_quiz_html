@@ -69,9 +69,12 @@
       + "background:"
       // 左側の円形グラデ（円⇄楕円）：角度や中心は固定し、rx/ry だけをJSで揺らす
       + "radial-gradient("
-      + "ellipse var(--cscs-blob-rx,720px) var(--cscs-blob-ry,720px) at 12% 50%,"
+      // 左上光源：中心は左上固定（角度は触らない）
+      // さらに “上ほど強く/下ほど弱く” を作るため、透明になる距離を少し長めに取る
+      + "ellipse var(--cscs-blob-rx,720px) var(--cscs-blob-ry,720px) at 14% 14%,"
       + "rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-blob-a,0.32)) 0%,"
-      + "rgba(0,0,0,0) 70%"
+      + "rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), calc(var(--cscs-blob-a,0.32) * 0.55)) 28%,"
+      + "rgba(0,0,0,0) 78%"
       + "),"
       + "linear-gradient("
       + "var(--cscs-bg-angle,135deg),"
