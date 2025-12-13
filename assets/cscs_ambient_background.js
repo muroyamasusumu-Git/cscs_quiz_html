@@ -99,7 +99,9 @@
       + "html." + BODY_CLASS + "::after{"
       + "content:'';"
       + "position: fixed;"
-      + "inset: 0;"
+      // ▼ 回転で端が欠けるのを防ぐため、擬似要素を画面外へ広げる
+      // 目的: rotate() により右端が透明になって見える“途切れ”を、余白分のカバーで消す
+      + "inset: -12%;"
       + "pointer-events: none;"
       + "z-index: 0;"
       // 回転の支点を「楕円の中心」に合わせる
@@ -109,17 +111,15 @@
       + "transform: translate(-4%, -4%) rotate(-5deg);"
       + "background:"
       // ▼ 中心コア（小さく・少しだけ強い）
-      // 変更: 楕円の横方向（X半径）だけ拡大して、全体を横に引き伸ばす
       + "radial-gradient("
-      + "ellipse 520px 130px at 23% 20%,"
+      + "ellipse 400px 130px at 23% 20%,"
       + "rgba(70,70,70,0.45) 0%,"
       + "rgba(50,50,50,0.32) 42%,"
       + "rgba(0,0,0,0) 70%"
       + "),"
       // ▼ メインの楕円スポットライト（既存）
-      // 変更: 楕円の横方向（X半径）だけ拡大して、見た目の“横の広がり”を増やす
       + "radial-gradient("
-      + "ellipse 2450px 567px at 23% 20%,"
+      + "ellipse 1980px 567px at 23% 20%,"
       + "rgba(58,58,58,0.64) 0%,"
       + "rgba(34,34,34,0.52) 38%,"
       + "rgba(0,0,0,0) 78%"
