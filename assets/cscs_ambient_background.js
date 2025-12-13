@@ -90,7 +90,7 @@
       + "rgba(0,0,0,0.70) 100%"
       + "),"
       // ベースの黒
-      + "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);"
+      + "linear-gradient(180deg, rgba(14,14,14,1) 0%, rgba(12,12,12,1) 100%);"
       + "background-repeat: no-repeat;"
       + "background-attachment: fixed;"
       + "}"
