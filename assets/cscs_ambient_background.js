@@ -23,6 +23,10 @@
   var speed = 0.22;     // 0..1（色相の進む速さ）
   var theme = "deep";   // "deep" or "soft"
 
+  // ▼ 全体の暗さ（背景レイヤーのみ）: 0..1
+  // 目的: テスト時にここ1箇所で「全体的に少し暗め」を一括調整できるようにする
+  var dim = 0.18;
+
   function injectStyleIfNeeded() {
     if (document.getElementById(STYLE_ID)) return;
 
@@ -65,6 +69,9 @@
       + "z-index: 0;"
       // ▼ 右＆左下の暗さ + ベース黒（回転しない）
       + "background:"
+      // ▼ 全体の暗さ（黒オーバーレイ）
+      // 目的: dim の値で、背景レイヤー全体を一括で少し暗めに寄せる
+      + "linear-gradient(180deg, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 0%, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 100%),"
       // 右側を暗く落とす
       + "linear-gradient("
       + "to right,"
@@ -100,6 +107,9 @@
       // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
       + "transform: translate(-4%, -4%) rotate(-5deg);"
       + "background:"
+      // ▼ 全体の暗さ（黒オーバーレイ）
+      // 目的: dim の値で、楕円スポットライト層も一括で少し暗めに寄せる
+      + "linear-gradient(180deg, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 0%, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 100%),"
       // ▼ 中心コア（小さく・少しだけ強い）
       + "radial-gradient("
       + "ellipse 400px 130px at 23% 20%,"
@@ -123,9 +133,9 @@
       + "</filter>"
       + "<rect width='160' height='160' filter='url(%23n)'/>"
       + "</svg>\");"
-      + "background-repeat: no-repeat, no-repeat, repeat;"
-      + "background-attachment: fixed, fixed, fixed;"
-      + "background-blend-mode: normal, normal, soft-light;"
+      + "background-repeat: no-repeat, no-repeat, no-repeat, repeat;"
+      + "background-attachment: fixed, fixed, fixed, fixed;"
+      + "background-blend-mode: normal, normal, normal, soft-light;"
       + "}"
 
       + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
@@ -172,6 +182,19 @@
     return x;
   }
 
+  function applyDim() {
+    if (!document || !document.documentElement) return;
+
+    // ▼ dim(0..1) → 乗算しやすい黒オーバーレイの alpha(0..0.30) に変換
+    // 目的: 暗さを上げても「黒がベタ塗り」にならず、微調整がしやすい範囲に収める
+    var a = 0.30 * clamp01(dim);
+
+    try {
+      document.documentElement.style.setProperty("--cscs-ambient-dim-a", String(a));
+    } catch (_e) {
+    }
+  }
+
   function applyTheme() {
     if (!document || !document.body) return;
     try {
@@ -184,6 +207,10 @@
     injectStyleIfNeeded();
     ensureLayer();
 
+    // ▼ 背景の暗さ（黒オーバーレイ）を反映
+    // 目的: テスト用つまみ dim の値を、CSS変数へ一括反映する
+    applyDim();
+
     // 補足: アニメ処理（rAF/tick）は完全に削除し、背景は静的に固定する
   }
 
@@ -194,6 +221,10 @@
       if (enabled) {
         // 補足: アニメ処理は削除済みのため、class付与のみ行う
         ensureLayer();
+
+        // ▼ 背景の暗さ（黒オーバーレイ）を反映
+        // 目的: OFF→ON したときも dim の見た目が即座に戻るようにする
+        applyDim();
       } else {
         // 補足: アニメ処理は削除済みのため、停止処理は不要。class/属性とCSS変数を掃除する
         try {
@@ -225,6 +256,10 @@
             document.documentElement.style.removeProperty("--cscs-bg-opacity");
             document.documentElement.style.removeProperty("--cscs-bg-sat");
             document.documentElement.style.removeProperty("--cscs-bg-blur");
+
+            // ▼ 背景の暗さ（黒オーバーレイ）も掃除
+            // 目的: setEnabled(false) で見た目を完全に元へ戻す
+            document.documentElement.style.removeProperty("--cscs-ambient-dim-a");
           }
         } catch (_e) {
         }
