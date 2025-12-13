@@ -66,56 +66,34 @@
       + "inset: 0;"
       + "pointer-events: none;"
       + "z-index: 0;"
+      // ▼ 静的スポットライト（左上＝明るい黒 → 右＆左下＝暗い黒）
+      // 目的: 動き無しで、左上が光源っぽく見える黒グラデを作る
       + "background:"
-      // ▼ 影レイヤー（右側を暗く）
-      // 目的: 右側に行くほど暗く落とす（光源が左上にある前提を強化）
+      // 左上のスポットライト（明るい黒）
+      + "radial-gradient("
+      + "circle at 14% 14%,"
+      + "rgba(48,48,48,0.62) 0%,"
+      + "rgba(28,28,28,0.46) 26%,"
+      + "rgba(0,0,0,0) 62%"
+      + "),"
+      // 右側を暗く落とす
       + "linear-gradient("
       + "to right,"
       + "rgba(0,0,0,0) 0%,"
-      + "rgba(0,0,0,0.18) 55%,"
-      + "rgba(0,0,0,0.42) 100%"
+      + "rgba(0,0,0,0.22) 55%,"
+      + "rgba(0,0,0,0.58) 100%"
       + "),"
-      // ▼ 影レイヤー（左下を暗く）
-      // 目的: 左下の溜まりを暗くして、左上の光との対比を作る
-      + "radial-gradient("
-      + "circle at 18% 92%,"
-      + "rgba(0,0,0,0.55) 0%,"
-      + "rgba(0,0,0,0.34) 32%,"
-      + "rgba(0,0,0,0) 72%"
-      + "),"
-      // ▼ 光源レイヤー（左上の円⇄楕円）
-      // 目的: 光源の中心は固定し、形（rx/ry）だけをJSで変形させる
-      + "radial-gradient("
-      + "ellipse var(--cscs-blob-rx,720px) var(--cscs-blob-ry,720px) at 14% 14%,"
-      + "rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-blob-a,0.32)) 0%,"
-      + "rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), calc(var(--cscs-blob-a,0.32) * 0.55)) 28%,"
-      + "rgba(0,0,0,0) 78%"
-      + "),"
+      // 左下も暗く溜める
       + "linear-gradient("
-      + "var(--cscs-bg-angle,135deg),"
-      + "rgba(0,0,0,1) 0%,"
-      + "rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-c1a,0.35)) 28%,"
-      + "rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-c2a,0.30)) 58%,"
-      + "rgba(var(--cscs-g3,65), var(--cscs-g3,65), var(--cscs-g3,65), var(--cscs-c3a,0.28)) 82%,"
-      + "rgba(0,0,0,1) 100%"
+      + "to bottom,"
+      + "rgba(0,0,0,0) 0%,"
+      + "rgba(0,0,0,0.28) 60%,"
+      + "rgba(0,0,0,0.70) 100%"
       + "),"
-      + "radial-gradient(900px 700px at var(--cscs-b1x,20%) var(--cscs-b1y,25%), rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), 0.34) 0%, rgba(0,0,0,0) 68%),"
-      + "radial-gradient(1000px 800px at var(--cscs-b2x,75%) var(--cscs-b2y,70%), rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), 0.30) 0%, rgba(0,0,0,0) 70%),"
+      // ベースの黒
       + "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);"
-      + "background-size: 160% 160%, 140% 140%, 140% 140%, 100% 100%;"
-      + "background-position: var(--cscs-bg-x,50%) var(--cscs-bg-y,50%), 50% 50%, 50% 50%, 50% 50%;"
       + "background-repeat: no-repeat;"
       + "background-attachment: fixed;"
-      + "-webkit-mask-image: linear-gradient(to bottom,"
-      + "rgba(0,0,0,1) 0%,"
-      + "rgba(0,0,0,1) var(--cscs-wave-strong-stop,52%),"
-      + "rgba(0,0,0,0) 100%"
-      + ");"
-      + "mask-image: linear-gradient(to bottom,"
-      + "rgba(0,0,0,1) 0%,"
-      + "rgba(0,0,0,1) var(--cscs-wave-strong-stop,52%),"
-      + "rgba(0,0,0,0) 100%"
-      + ");"
       + "}"
 
       + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
@@ -278,17 +256,9 @@
     injectStyleIfNeeded();
     ensureLayer();
 
-    // ページが前面にない時は止めて、省電力＆負荷減
-    document.addEventListener("visibilitychange", function () {
-      if (document.hidden) {
-        stop();
-      } else {
-        start();
-      }
-    });
-
-    // 初期スタート
-    start();
+    // ▼ 動き無しモード：requestAnimationFrame を使わない
+    // 目的: 背景は静的に固定し、ブラウザ負荷・インスペクタの“動きまくり”をゼロにする
+    stop();
   }
 
   // 公開API
