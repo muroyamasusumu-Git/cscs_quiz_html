@@ -110,7 +110,7 @@
       + "background:"
       // ▼ 中心コア（小さく・少しだけ強い）
       + "radial-gradient("
-      + "ellipse 560px 160px at 23% 20%,"
+      + "ellipse 400px 130px at 23% 20%,"
       + "rgba(70,70,70,0.45) 0%,"
       + "rgba(50,50,50,0.32) 42%,"
       + "rgba(0,0,0,0) 70%"
