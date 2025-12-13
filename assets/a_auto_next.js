@@ -1423,7 +1423,7 @@
 
     // ボタン列の中の「テキスト表示」
     span.style.cssText =
-      "padding: 6px 0px;" +
+      "padding: 6px 2px 6px 0;" +
       "font-size: 13px;" +
       "color: #fff;" +
       "text-align: right;" +
