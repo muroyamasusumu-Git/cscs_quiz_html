@@ -650,19 +650,9 @@
         return;
       }
 
-      try {
-        // 選択肢本体（<li>）をフェードアウト
-        originalChoiceLi.style.setProperty("transition", "opacity 160ms ease-out", "important");
-        originalChoiceLi.style.setProperty("opacity", "0", "important");
-      } catch (_eLiFade) {
-        try {
-          originalChoiceLi.style.transition = "opacity 160ms ease-out";
-          originalChoiceLi.style.opacity = "0";
-        } catch (_eLiFade2) {
-        }
-      }
-
-      // テキスト側（<a>）も保険で透明化（<li>だけだと環境によって残像っぽく見えるケースを潰す）
+      // ▼ 追加処理①：まずテキスト（<a>）だけを先に消す
+      // - ズレが気になるのは主にテキスト側なので、ここは即座に透明化してズレを隠す
+      // - <li> 自体はこの時点では消さず、リストマーカー（A〜D）が一瞬消えるフレームを作らない
       var a = null;
       try {
         a = originalChoiceLi.querySelector("a");
@@ -671,16 +661,34 @@
       }
       if (a && a.style) {
         try {
-          a.style.setProperty("transition", "opacity 160ms ease-out", "important");
+          a.style.setProperty("transition", "opacity 80ms linear", "important");
           a.style.setProperty("opacity", "0", "important");
         } catch (_eAFade) {
           try {
-            a.style.transition = "opacity 160ms ease-out";
+            a.style.transition = "opacity 80ms linear";
             a.style.opacity = "0";
           } catch (_eAFade2) {
           }
         }
       }
+
+      // ▼ 追加処理②：クローンが描画された“次フレーム以降”に <li> をフェードアウトする
+      // - <li> を即座に opacity=0 にするとリストマーカーも同時に消えて「一瞬消え」が見える
+      // - 1フレーム遅らせることで、クローン側のマーカー表示に視覚が繋がり、チラつきを消す
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          try {
+            originalChoiceLi.style.setProperty("transition", "opacity 160ms ease-out", "important");
+            originalChoiceLi.style.setProperty("opacity", "0", "important");
+          } catch (_eLiFade) {
+            try {
+              originalChoiceLi.style.transition = "opacity 160ms ease-out";
+              originalChoiceLi.style.opacity = "0";
+            } catch (_eLiFade2) {
+            }
+          }
+        });
+      });
     })();
 
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
@@ -828,21 +836,22 @@
           continue;
         }
 
-        // 縮小対象は必ず <a> に限定する
-        // - <li>(display:list-item) に transform を掛けると、環境によって ::marker（A〜D）が一瞬消えることがあるため
+        // 縮小対象要素を決める：基本は <a>、無ければ <li> 自体
         var target = null;
         try {
           target = li.querySelector("a");
         } catch (_eFindA) {
           target = null;
         }
+        if (!target) {
+          target = li;
+        }
         if (!target || !target.style) {
-          // <a> が無い行は縮小しない（マーク消失の再発防止を優先）
           continue;
         }
 
         try {
-          // 左端を基準に横方向だけ少しすぼむように縮小する（list-item 自体には触らない）
+          // 左端を基準に横方向だけ少しすぼむように縮小する
           target.style.transformOrigin = "left center";
           target.style.transitionProperty = "transform";
           target.style.transitionDuration = String(SHRINK_DURATION_MS) + "ms";
