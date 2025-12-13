@@ -680,7 +680,7 @@
         position: "sticky",
         top: "0px",
         zIndex: "100000",
-        background: "rgb(17, 17, 17)",
+        background: "none",
         padding: "4px 10px 5px",
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
