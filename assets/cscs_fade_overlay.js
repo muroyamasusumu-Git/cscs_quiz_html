@@ -79,16 +79,16 @@
 
       var cssText = ""
         + "@keyframes cscsFadeOut2Step{"
-        + "0%{opacity:0; backdrop-filter:blur(2px);}"
-        + "20%{opacity:calc(var(--cscs-fade-mid,0.38) * 0.6); backdrop-filter:blur(3px);}"
-        + "55%{opacity:var(--cscs-fade-mid,0.38); backdrop-filter:blur(5px);}"
-        + "100%{opacity:var(--cscs-fade-max,0.7); backdrop-filter:blur(8px);}"
+        + "0%{opacity:0;}"
+        + "20%{opacity:calc(var(--cscs-fade-mid,0.38) * 0.6);}"
+        + "55%{opacity:var(--cscs-fade-mid,0.38);}"
+        + "100%{opacity:var(--cscs-fade-max,0.7);}"
         + "}"
         + "@keyframes cscsFadeIn2Step{"
-        + "0%{opacity:var(--cscs-fade-max,0.7); backdrop-filter:blur(8px);}"
-        + "45%{opacity:var(--cscs-fade-in-mid,0.22); backdrop-filter:blur(5px);}"
-        + "80%{opacity:calc(var(--cscs-fade-in-mid,0.22) * 0.4); backdrop-filter:blur(3px);}"
-        + "100%{opacity:0; backdrop-filter:blur(2px);}"
+        + "0%{opacity:var(--cscs-fade-max,0.7);}"
+        + "45%{opacity:var(--cscs-fade-in-mid,0.22);}"
+        + "80%{opacity:calc(var(--cscs-fade-in-mid,0.22) * 0.4);}"
+        + "100%{opacity:0;}"
         + "}"
         + ".wrap, .wrap *{"
         + "text-shadow:0 1px 2px rgba(0,0,0,0.30);"
@@ -389,19 +389,12 @@
 
           // クローン共通の識別用クラスを付与して、CSSから「クローンだけ」を安全に調整できるようにする
           if (clone.classList) {
-            clone.classList.add("cscs-fade-highlight-clone");
+            clone.classList.add("cscs-fade-highlight-clone"); // classList が使える場合は add で足す
           } else {
             var cls = clone.getAttribute("class") || "";
             if (cls.indexOf("cscs-fade-highlight-clone") === -1) {
-              clone.setAttribute("class", (cls ? cls + " " : "") + "cscs-fade-highlight-clone");
+              clone.setAttribute("class", (cls ? cls + " " : "") + "cscs-fade-highlight-clone"); // 属性操作でクラスを追加
             }
-          }
-
-          // ▼ 追加：クローン自体にも極薄の背景を持たせて段差を消す
-          try {
-            clone.style.backgroundColor = "rgba(0,0,0,0.10)";
-            clone.style.borderRadius = "4px";
-          } catch (_eCloneBg) {
           }
 
           // 選択肢コンテナ(<ol class="opts">)のクローンだけ、元レイアウトとの差を埋めるための微調整を行う
@@ -464,20 +457,8 @@
         wrapper.style.top = String(rect.top - 15) + "px";
         wrapper.style.width = String(rect.width) + "px";
         wrapper.style.margin = "0";
-        wrapper.style.padding = "6px 8px";   // ← 文字の周囲に最小限の空気を作る
-        wrapper.style.pointerEvents = "none";
-
-        // ▼ 追加：クローン用の「透過ガラス背景」
-        wrapper.style.background =
-          "linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.28))";
-        wrapper.style.backdropFilter = "blur(4px)";
-        wrapper.style.webkitBackdropFilter = "blur(4px)";
-        wrapper.style.borderRadius = "6px";
-
-        // 影は「浮かせる」ではなく「馴染ませる」ため極薄
-        wrapper.style.boxShadow =
-          "0 0 0 1px rgba(255,255,255,0.02), 0 6px 16px rgba(0,0,0,0.25)";
-
+        wrapper.style.padding = "0";
+        wrapper.style.pointerEvents = "none";    // ハイライトレイヤー上ではマウスイベントを拾わない（クリックは元DOM側で処理済みの前提）
         try {
           if (wrapper.style && typeof wrapper.style.setProperty === "function") {
             wrapper.style.setProperty("transition", "none", "important");
