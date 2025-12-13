@@ -67,10 +67,25 @@
       + "pointer-events: none;"
       + "z-index: 0;"
       + "background:"
-      // 左側の円形グラデ（円⇄楕円）：角度や中心は固定し、rx/ry だけをJSで揺らす
+      // ▼ 影レイヤー（右側を暗く）
+      // 目的: 右側に行くほど暗く落とす（光源が左上にある前提を強化）
+      + "linear-gradient("
+      + "to right,"
+      + "rgba(0,0,0,0) 0%,"
+      + "rgba(0,0,0,0.18) 55%,"
+      + "rgba(0,0,0,0.42) 100%"
+      + "),"
+      // ▼ 影レイヤー（左下を暗く）
+      // 目的: 左下の溜まりを暗くして、左上の光との対比を作る
       + "radial-gradient("
-      // 左上光源：中心は左上固定（角度は触らない）
-      // さらに “上ほど強く/下ほど弱く” を作るため、透明になる距離を少し長めに取る
+      + "circle at 18% 92%,"
+      + "rgba(0,0,0,0.55) 0%,"
+      + "rgba(0,0,0,0.34) 32%,"
+      + "rgba(0,0,0,0) 72%"
+      + "),"
+      // ▼ 光源レイヤー（左上の円⇄楕円）
+      // 目的: 光源の中心は固定し、形（rx/ry）だけをJSで変形させる
+      + "radial-gradient("
       + "ellipse var(--cscs-blob-rx,720px) var(--cscs-blob-ry,720px) at 14% 14%,"
       + "rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-blob-a,0.32)) 0%,"
       + "rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), calc(var(--cscs-blob-a,0.32) * 0.55)) 28%,"
