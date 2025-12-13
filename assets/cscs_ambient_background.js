@@ -8,8 +8,9 @@
  *
  * 公開API:
  *   window.CSCS_AMBIENT_BG.setEnabled(true|false)
- *   window.CSCS_AMBIENT_BG.setIntensity(0..1)
- *   window.CSCS_AMBIENT_BG.setSpeed(0..1)
+ * 公開API:
+ *   window.CSCS_AMBIENT_BG.setEnabled(true|false)
+ *   window.CSCS_AMBIENT_BG.setTheme("deep"|"soft")
  *   window.CSCS_AMBIENT_BG.setTheme("deep"|"soft")
  */
 (function () {
@@ -19,8 +20,6 @@
   var STYLE_ID = "cscs-ambient-bg-style";
 
   var enabled = true;
-  var intensity = 0.55; // 0..1（透明度・色の強さ）
-  var speed = 0.22;     // 0..1（色相の進む速さ）
   var theme = "deep";   // "deep" or "soft"
 
   // ▼ 全体の暗さ（背景レイヤーのみ）: 0..1
@@ -134,7 +133,7 @@
       + "rgba(58,58,58,0.64) 0%,"
       + "rgba(34,34,34,0.52) 38%,"
       + "rgba(0,0,0,0) 78%"
-      + "),"
+      + ");"
       + "background-repeat: no-repeat, no-repeat, no-repeat;"
       + "background-attachment: fixed, fixed, fixed;"
       + "background-blend-mode: normal, normal, normal;"
@@ -266,12 +265,6 @@
         } catch (_e) {
         }
       }
-    },
-    setIntensity: function (v) {
-      intensity = clamp01(v);
-    },
-    setSpeed: function (v) {
-      speed = clamp01(v);
     },
     setTheme: function (v) {
       if (v === "deep" || v === "soft") {
