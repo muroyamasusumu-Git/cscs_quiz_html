@@ -63,19 +63,6 @@
   // フェード用の keyframes（2段階）＋テキストシャドウを一度だけ注入するためのID
   var FADE_STYLE_ID = "cscs-fade-style";
 
-  // フェード中だけ「リストマーク(A〜D)を::markerに頼らず固定表示」するCSSを注入するためのID
-  var MARKER_LOCK_STYLE_ID = "cscs-fade-marker-lock-style";
-
-  // =========================================
-  // マーカー位置の手動微調整（デバッグ用途）
-  // - MARKER_TEXT_PAD_ADJUST_PX:
-  //     テキスト開始位置（li の padding-left）を右(+)/左(-)にズラす
-  // - MARKER_BEFORE_LEFT_ADJUST_PX:
-  //     マーカー自体（li::before）の left を右(+)/左(-)にズラす
-  // =========================================
-  var MARKER_TEXT_PAD_ADJUST_PX = 0;
-  var MARKER_BEFORE_LEFT_ADJUST_PX = -40;
-
   // =========================================
   // フェードの競合防止（重要）
   // - runFadeInIfNeeded() の「後始末（overlay削除タイマー）」が残ったまま fadeOut が走ると、
@@ -114,46 +101,6 @@
         + "}"
         + ".wrap, .wrap *{"
         + "text-shadow:0 1px 2px rgba(0,0,0,0.30);"
-        + "}";
-
-      if (styleEl.styleSheet) {
-        styleEl.styleSheet.cssText = cssText;
-      } else {
-        styleEl.appendChild(document.createTextNode(cssText));
-      }
-      document.head.appendChild(styleEl);
-    } catch (_e) {
-      // CSS注入に失敗しても致命的ではないので握りつぶす
-    }
-  }
-
-  /**
-   * フェード中に「A〜Dのリストマーク(::marker)が一瞬消える」描画崩れを防ぐため、
-   * ::marker を使わず li::before の通常描画でマークを固定表示するCSSを注入する。
-   */
-  function injectMarkerLockCss() {
-    try {
-      if (document.getElementById(MARKER_LOCK_STYLE_ID)) {
-        return;
-      }
-      var styleEl = document.createElement("style");
-      styleEl.id = MARKER_LOCK_STYLE_ID;
-      styleEl.type = "text/css";
-
-      var cssText = ""
-        + ".cscs-fade-marker-lock{"
-        + "list-style:none !important;"
-        + "}"
-        + ".cscs-fade-marker-lock > li{"
-        + "position:relative !important;"
-        + "padding-left:var(--cscs-marker-left) !important;"
-        + "}"
-        + ".cscs-fade-marker-lock > li::before{"
-        + "content:attr(data-cscs-marker) !important;"
-        + "position:absolute !important;"
-        + "left:var(--cscs-marker-before-left, 0px) !important;"
-        + "top:0 !important;"
-        + "opacity:1 !important;"
         + "}";
 
       if (styleEl.styleSheet) {
@@ -320,15 +267,14 @@
         return null;                         // 問題文・選択肢の両方が無ければ何もせず終了
       }
 
-      // フェード用オーバーレイを必ず取得する（黒幕そのものは overlay が担当する）
-      // - ハイライト（クローン）は overlay の子にすると opacity の影響を受けて一緒に薄くなるため、
-      //   body 直下に置いて overlay のフェードに追従しないようにする。
+      // フェード用オーバーレイを必ず取得し、その「内側」にハイライトレイヤーをぶら下げる
+      // - こうすることで、オーバーレイのスタッキングコンテキストの中で z-index を完結させられる
       var overlay = getOrCreateFadeOverlay(); // 既存オーバーレイを取得（無ければ新規作成）
       if (!overlay) {
         return null;                         // 何らかの理由でオーバーレイが作れない場合はハイライトも諦める
       }
 
-      // ハイライト専用レイヤーを新規作成（body直下に置き、overlayのopacityの影響を受けないようにする）
+      // フェードオーバーレイ内部に、ハイライト専用レイヤーを新規作成
       var layer = document.createElement("div");
       layer.id = "cscs-fade-highlight-layer";
       layer.style.position = "fixed";
@@ -336,7 +282,7 @@
       layer.style.top = "0";
       layer.style.right = "0";
       layer.style.bottom = "0";
-      layer.style.zIndex = "10000";         // overlay(9998) より確実に前面へ（body直下）
+      layer.style.zIndex = "9999";          // オーバーレイ背景より前面に出すための z-index（コンテキストは overlay の内側で完結）
       layer.style.pointerEvents = "none";   // ハイライトレイヤー自体はマウス操作を一切受け付けない
       try {
         if (layer.style && typeof layer.style.setProperty === "function") {
@@ -348,7 +294,7 @@
         }
       } catch (_eLayerStyle) {
       }
-      document.body.appendChild(layer);     // overlay配下ではなく body 直下に置く（クローンがフェードに追従しない）
+      overlay.appendChild(layer);           // body 直下ではなく overlay 配下にぶら下げることで、黒幕と一体化した前面表示にする
 
       // ハイライト対象を配列にまとめて、共通のクローン処理を適用する
       var targets = [];
@@ -496,14 +442,19 @@
                     link.style.display = "inline-block";
                     link.style.transformOrigin = "center center";
                     try {
+                      // ▼ ① クローン側の選択肢テキストは「静止状態」で固定拡大
                       link.style.setProperty("transform", "scale(1.10)", "important");
                       link.style.setProperty("transition", "none", "important");
                       link.style.setProperty("transition-property", "none", "important");
                       link.style.setProperty("animation", "none", "important");
                       link.style.setProperty("animation-name", "none", "important");
+
+                      // ▼ ② 追加：クローン側は「元DOMのopacityフェード」に追従させない（常に不透明で固定）
+                      link.style.setProperty("opacity", "1", "important");
                     } catch (_eLink) {
                       link.style.transform = "scale(1.10)";
                       link.style.transition = "none";
+                      link.style.opacity = "1";
                     }
                   }
                 }
@@ -695,163 +646,6 @@
       createHighlightLayer(questionNode, choiceNode, false);
     }
 
-    // ▼ 追加処理：フェード中に「リストマーク(A〜D)が一瞬消える」描画崩れを防ぐため、
-    //    ::marker を使わず li::before による固定マーク表示へ切り替える（フェード中だけ）
-    (function lockChoiceListMarkersDuringFade() {
-      if (!originalChoiceLi) {
-        return;
-      }
-
-      var listNode = originalChoiceLi.parentNode;
-      if (!listNode || listNode.nodeType !== 1) {
-        return;
-      }
-
-      var tag = listNode.tagName ? listNode.tagName.toLowerCase() : "";
-      if (tag !== "ol" && tag !== "ul") {
-        return;
-      }
-
-      // マーカー固定CSSを注入（1回だけ）
-      injectMarkerLockCss();
-
-      // リストに「フェード中だけマーカー固定」クラスを付与する
-      try {
-        if (listNode.classList && typeof listNode.classList.add === "function") {
-          listNode.classList.add("cscs-fade-marker-lock");
-        } else {
-          var c = listNode.getAttribute("class") || "";
-          if (c.indexOf("cscs-fade-marker-lock") === -1) {
-            listNode.setAttribute("class", (c ? c + " " : "") + "cscs-fade-marker-lock");
-          }
-        }
-      } catch (_eAddCls) {
-      }
-
-      // 各 li に data-cscs-marker="A" のように書き込み、li::before で表示する
-      var lis = null;
-      try {
-        lis = listNode.querySelectorAll("li");
-      } catch (_eLis) {
-        lis = null;
-      }
-      if (!lis || !lis.length) {
-        return;
-      }
-
-      for (var i = 0; i < lis.length; i++) {
-        var li = lis[i];
-        if (!li || li.nodeType !== 1) {
-          continue;
-        }
-
-        var marker = "";
-        try {
-          var a = li.querySelector("a");
-          if (a && a.href) {
-            var m = a.href.match(/choice=([A-Z])/);
-            if (m && m[1]) {
-              marker = m[1];
-            }
-          }
-        } catch (_eHref) {
-          marker = "";
-        }
-
-        // hrefから取れない場合は index ベースで A,B,C... にする（フェード中の視覚固定用）
-        if (!marker) {
-          marker = String.fromCharCode(65 + i);
-        }
-
-        try {
-          li.setAttribute("data-cscs-marker", marker);
-        } catch (_eSetAttr) {
-        }
-
-        // ▼ 追加処理：
-        // 元の描画状態から「テキスト開始位置」を実測し、
-        // marker の left 位置を CSS 変数として li に保存する
-        try {
-          var aEl = li.querySelector("a");
-          if (!aEl) {
-            return;
-          }
-
-          // --- 元の marker を模した span を一時生成 ---
-          var markerSpan = document.createElement("span");
-          markerSpan.textContent = li.getAttribute("data-cscs-marker") || "";
-          markerSpan.style.position = "absolute";
-          markerSpan.style.visibility = "hidden";
-          markerSpan.style.whiteSpace = "nowrap";
-
-          // li の先頭に差し込む
-          li.insertBefore(markerSpan, li.firstChild);
-
-          // 実測
-          var liRect = li.getBoundingClientRect();
-          var markerRect = markerSpan.getBoundingClientRect();
-          var aRect = aEl.getBoundingClientRect();
-
-          // marker右端 → テキスト開始までの gap
-          var gapPx = aRect.left - markerRect.right;
-
-          // padding-left に使う最終値（手動微調整を加算）
-          var paddingLeftPx = (markerRect.width + gapPx) + Number(MARKER_TEXT_PAD_ADJUST_PX || 0);
-
-          // CSS変数として保存（テキスト開始位置）
-          li.style.setProperty("--cscs-marker-left", String(paddingLeftPx) + "px");
-
-          // CSS変数として保存（マーカー自体の left）
-          li.style.setProperty("--cscs-marker-before-left", String(Number(MARKER_BEFORE_LEFT_ADJUST_PX || 0)) + "px");
-
-          // 後始末
-          li.removeChild(markerSpan);
-        } catch (_eMeasure) {
-        }
-      }
-    })();
-
-    // ▼ 追加処理：オーバーレイの下に残る「クローン元の選択された選択肢」を素早くフェードアウトさせる
-    // - クローン表示と本物表示の微妙なズレが見えることがあるため、本物側を透明化して視界から消す
-    // - クローンは body 直下にあるため、この opacity 変更に追従しない
-    (function fadeOutOriginalSelectedChoice() {
-      if (!originalChoiceLi || !originalChoiceLi.style) {
-        return;
-      }
-
-      try {
-        // 選択肢本体（<li>）をフェードアウト
-        originalChoiceLi.style.setProperty("transition", "opacity 160ms ease-out", "important");
-        originalChoiceLi.style.setProperty("opacity", "0", "important");
-      } catch (_eLiFade) {
-        try {
-          originalChoiceLi.style.transition = "opacity 160ms ease-out";
-          originalChoiceLi.style.opacity = "0";
-        } catch (_eLiFade2) {
-        }
-      }
-
-      // テキスト側（<a>）も保険で透明化（<li>だけだと環境によって残像っぽく見えるケースを潰す）
-      var a = null;
-      try {
-        a = originalChoiceLi.querySelector("a");
-      } catch (_eFindA) {
-        a = null;
-      }
-      if (a && a.style) {
-        try {
-          a.style.setProperty("transition", "opacity 160ms ease-out", "important");
-          a.style.setProperty("opacity", "0", "important");
-        } catch (_eAFade) {
-          try {
-            a.style.transition = "opacity 160ms ease-out";
-            a.style.opacity = "0";
-          } catch (_eAFade2) {
-          }
-        }
-      }
-    })();
-
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
     //    フェード中に scale(1.0) へ揺り戻されないように、transform をハードロックする。
     (function lockOriginalChoiceScale() {
@@ -926,17 +720,24 @@
         }
 
         try {
-          // ▼ 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
+          // ▼ ① 選択肢テキスト(<a>)を強制固定（縮小・揺り戻しを潰す）
           originalAnchor.style.transformOrigin = "center center";
           originalAnchor.style.setProperty("transform", fixedTransform, "important");
 
-          // ▼ 親 <li> 側も、もし transform が入っている環境ならそれを固定する
+          // ▼ ② 追加：元DOM側の「テキストのみ」をフェードアウトさせる（ズレ対策）
+          //    - オーバーレイの下に残る本物のテキストが、クローンと二重に見える瞬間を消す
+          //    - JSで毎フレーム opacity を上書きして、CSS側の介入を受けないようにする
+          var fadeT = Math.min(1, Math.max(0, elapsed / Math.max(1, FADE_DURATION_MS)));
+          var fadeOpacity = String(1 - fadeT);
+          originalAnchor.style.setProperty("opacity", fadeOpacity, "important");
+
+          // ▼ ③ 親 <li> 側も、もし transform が入っている環境ならそれを固定する
           if (fixedLiTransform && fixedLiTransform !== "none") {
             originalChoiceLi.style.transformOrigin = "center center";
             originalChoiceLi.style.setProperty("transform", fixedLiTransform, "important");
           }
 
-          // ▼ transition/animation を毎フレーム完全に無効化して、CSS/JS の介入を潰す
+          // ▼ ④ 追加：opacity の揺り戻し（transition等）を潰すため、opacity用も含めて無効化を徹底する
           originalAnchor.style.setProperty("transition", "none", "important");
           originalAnchor.style.setProperty("transition-property", "none", "important");
           originalAnchor.style.setProperty("transition-duration", "0s", "important");
