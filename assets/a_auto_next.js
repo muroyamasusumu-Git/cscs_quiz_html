@@ -2003,29 +2003,17 @@
     if (!nextUrl) {
       return;
     }
-
-    // ▼ ① nav_list が表示されていれば、フェードアウトして薄くする（視覚連携）
+    // nav_list が表示されていれば、フェードアウトして薄くする
     if (window.CSCS_NAV_LIST && typeof window.CSCS_NAV_LIST.fadeOut === "function") {
       try {
         window.CSCS_NAV_LIST.fadeOut();
       } catch (_e) {}
     }
-
-    // ▼ ② 遷移の責任は「必ず fadeOutTo」に持たせる（＝ここが無いと遷移が切れる）
+    // 全画面フェードモジュールがあればそれを利用、なければ普通に遷移
     if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutTo === "function") {
       window.CSCS_FADE.fadeOutTo(nextUrl, "a_auto_next");
     } else {
       location.href = nextUrl;
-      return;
-    }
-
-    // ▼ ③ その直後に、可能ならハイライト用のロック処理だけ走らせる（遷移はしない補助）
-    //   - fadeOutToWithHighlight 側に「遷移責任」を持たせない（誤用防止）
-    //   - ハイライト対象が無い場合もあるので、空オブジェクトを渡して無害化する
-    if (window.CSCS_FADE && typeof window.CSCS_FADE.fadeOutToWithHighlight === "function") {
-      try {
-        window.CSCS_FADE.fadeOutToWithHighlight(nextUrl, "a_auto_next", {});
-      } catch (_e2) {}
     }
   }
 
