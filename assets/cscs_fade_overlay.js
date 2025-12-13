@@ -56,7 +56,6 @@
   // 追加: 立ち上がり/抜けが上品なカーブ（"ease-in-out" より「ぬるっ」とした高級感が出る）
   var FADE_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
   var SESSION_KEY = "cscs_page_fade_pending"; // 遷移元→遷移先に「フェード中だった」ことを伝えるためのsessionStorageキー
-  var IS_FADING = false; // フェード多重発火防止フラグ
 
   // クローンハイライト用の「アニメ全殺しCSS」を一度だけ注入するためのID
   var HIGHLIGHT_KILL_STYLE_ID = "cscs-highlight-kill-style";
@@ -483,12 +482,6 @@
 
   function fadeOutTo(nextUrl, reason) {
 
-    // ▼ フェード中の多重呼び出しを防止（A→B 無フェード防止の要）
-    if (IS_FADING) {
-      return;
-    }
-    IS_FADING = true;
-
     // 追加: フェード用CSS（keyframes + text-shadow）を必ず注入
     injectFadeCss();
 
@@ -526,12 +519,6 @@
       overlay.style.setProperty("--cscs-fade-mid", String(FADE_MAX_OPACITY * 0.55));
     } catch (_eVar) {
     }
-    // ▼ 追加：animation を必ずリセットしてから再設定（A→Bで出ない問題の本体対策）
-    overlay.style.animation = "none";
-
-    // 強制 reflow（これが無いと再スタートしない）
-    overlay.offsetHeight;
-
     overlay.style.animation =
       "cscsFadeOut2Step "
       + String(FADE_DURATION_MS)
@@ -549,7 +536,6 @@
         // sessionStorage が利用できない環境でもフェードと遷移は継続させる
       }
       // 実際のページ遷移をここで実行する
-      IS_FADING = false;
       location.href = nextUrl;
     }, FADE_DURATION_MS + 60);
   }
