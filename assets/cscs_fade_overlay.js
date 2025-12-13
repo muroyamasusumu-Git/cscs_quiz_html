@@ -51,7 +51,7 @@
   // フェード演出の基本パラメータ
   // ここを変えると「暗くなる速さ・暗さ・カーブ」が一括で調整できる
   // =========================================
-  var FADE_DURATION_MS = 950;      // フェードにかける時間（ミリ秒）
+  var FADE_DURATION_MS = 1250;     // フェードにかける時間（ミリ秒）
   var FADE_MAX_OPACITY = 0.7;      // 画面をどれくらい暗くするか（0〜1）
   // 追加: 立ち上がり/抜けが上品なカーブ（"ease-in-out" より「ぬるっ」とした高級感が出る）
   var FADE_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
@@ -80,16 +80,18 @@
       var cssText = ""
         + "@keyframes cscsFadeOut2Step{"
         + "0%{opacity:0;}"
-        + "35%{opacity:var(--cscs-fade-mid,0.38);}"
+        + "20%{opacity:calc(var(--cscs-fade-mid,0.38) * 0.6);}"
+        + "55%{opacity:var(--cscs-fade-mid,0.38);}"
         + "100%{opacity:var(--cscs-fade-max,0.7);}"
         + "}"
         + "@keyframes cscsFadeIn2Step{"
         + "0%{opacity:var(--cscs-fade-max,0.7);}"
-        + "30%{opacity:var(--cscs-fade-in-mid,0.22);}"
+        + "45%{opacity:var(--cscs-fade-in-mid,0.22);}"
+        + "80%{opacity:calc(var(--cscs-fade-in-mid,0.22) * 0.4);}"
         + "100%{opacity:0;}"
         + "}"
         + ".wrap, .wrap *{"
-        + "text-shadow:0 1px 2px rgba(0,0,0,0.35);"
+        + "text-shadow:0 1px 2px rgba(0,0,0,0.30);"
         + "}";
 
       if (styleEl.styleSheet) {
@@ -517,7 +519,10 @@
       overlay.style.setProperty("--cscs-fade-mid", String(FADE_MAX_OPACITY * 0.55));
     } catch (_eVar) {
     }
-    overlay.style.animation = "cscsFadeOut2Step " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING) + " forwards";
+    overlay.style.animation =
+      "cscsFadeOut2Step "
+      + String(FADE_DURATION_MS)
+      + "ms cubic-bezier(0.18, 0.55, 0.25, 1) forwards";
 
     // フェード完了のタイミングで sessionStorage に「フェード中だった」情報を残し、その後に実際の遷移を行う
     window.setTimeout(function () {
@@ -814,7 +819,10 @@
       overlay.style.setProperty("--cscs-fade-in-mid", String(FADE_MAX_OPACITY * 0.30));
     } catch (_eVar) {
     }
-    overlay.style.animation = "cscsFadeIn2Step " + String(FADE_DURATION_MS) + "ms " + String(FADE_EASING) + " forwards";
+    overlay.style.animation =
+      "cscsFadeIn2Step "
+      + String(FADE_DURATION_MS)
+      + "ms cubic-bezier(0.22, 0.6, 0.3, 1) forwards";
 
     // フェードイン完了後、DOMからオーバーレイを削除して後始末
     window.setTimeout(function () {
