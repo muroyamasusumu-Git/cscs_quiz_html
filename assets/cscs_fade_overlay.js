@@ -63,6 +63,17 @@
   // フェード用の keyframes（2段階）＋テキストシャドウを一度だけ注入するためのID
   var FADE_STYLE_ID = "cscs-fade-style";
 
+  // =========================================
+  // フェードの競合防止（重要）
+  // - runFadeInIfNeeded() の「後始末（overlay削除タイマー）」が残ったまま fadeOut が走ると、
+  //   フェード途中で overlay が消えて「切れた」ように見えることがある。
+  // - それを防ぐため、削除タイマーIDを保持し、fadeOut開始時に必ずキャンセルする。
+  // - さらに保険として overlay に「消すなロック」を付け、削除側でチェックする。
+  // =========================================
+  var fadeInCleanupTimerId = null;   // runFadeIn の後始末（overlay削除）タイマーID
+  var fadeOutInProgress = false;     // fadeOut 開始〜遷移完了まで true
+  var OVERLAY_LOCK_ATTR = "data-cscs-fade-lock"; // "1" の間は overlay を削除しない
+
   /**
    * フェード用の keyframes（2段階）と、全体の薄い text-shadow を注入する。
    * - 2段階フェードを keyframes にして段差（カクつき）を出さない
@@ -485,6 +496,17 @@
     // 追加: フェード用CSS（keyframes + text-shadow）を必ず注入
     injectFadeCss();
 
+    // ▼ 追加：runFadeIn 側の「overlay削除タイマー」が残っているとフェードが途中で切れるので必ずキャンセルする
+    try {
+      fadeOutInProgress = true; // これ以降は「遷移まで overlay を消さない」扱いにする
+      if (fadeInCleanupTimerId !== null) {
+        window.clearTimeout(fadeInCleanupTimerId);
+        fadeInCleanupTimerId = null;
+      }
+    } catch (_eCancel) {
+    }
+    // ▲ 追加ここまで
+
     // ▼ 追加：Aパート（body.mode-a）の場合だけフェード弱くする
     try {
       var body = document.body;
@@ -509,6 +531,21 @@
 
     // フェード用オーバーレイを準備（既存があれば再利用、無ければ作成）
     var overlay = getOrCreateFadeOverlay();
+
+    // 追加: fadeOut中に overlay が DOM から消されないように「ロック」を付ける
+    try {
+      overlay.setAttribute(OVERLAY_LOCK_ATTR, "1");
+    } catch (_eLockAttr) {
+    }
+
+    // 追加: 直前に fadeIn が走っていた場合、animation が競合すると見た目が飛ぶので必ず一旦止める
+    try {
+      overlay.style.animation = "none";
+      overlay.style.transition = "none";
+      overlay.offsetHeight; // reflow（ここで確実に反映させる）
+    } catch (_eStopAnim) {
+    }
+
     overlay.style.opacity = "0";              // 最初は完全に透明な状態からスタートする
     overlay.style.pointerEvents = "auto";     // フェード中は画面操作を一括でブロックする
 
@@ -825,9 +862,30 @@
       + "ms cubic-bezier(0.22, 0.6, 0.3, 1) forwards";
 
     // フェードイン完了後、DOMからオーバーレイを削除して後始末
-    window.setTimeout(function () {
-      if (overlay && overlay.parentNode) {
+    // - ただし fadeOut が始まっている（またはロック中）なら削除しない（フェード途中で切れるのを防ぐ）
+    fadeInCleanupTimerId = window.setTimeout(function () {
+      try {
+        if (!overlay || !overlay.parentNode) {
+          fadeInCleanupTimerId = null;
+          return;
+        }
+
+        var locked = false;
+        try {
+          locked = (overlay.getAttribute(OVERLAY_LOCK_ATTR) === "1");
+        } catch (_eLocked) {
+          locked = false;
+        }
+
+        if (fadeOutInProgress || locked) {
+          fadeInCleanupTimerId = null;
+          return;
+        }
+
         overlay.parentNode.removeChild(overlay);
+        fadeInCleanupTimerId = null;
+      } catch (_eRm) {
+        fadeInCleanupTimerId = null;
       }
     }, FADE_DURATION_MS + 80);
   }
