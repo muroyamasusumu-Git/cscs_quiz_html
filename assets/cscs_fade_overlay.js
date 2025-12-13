@@ -63,6 +63,9 @@
   // フェード用の keyframes（2段階）＋テキストシャドウを一度だけ注入するためのID
   var FADE_STYLE_ID = "cscs-fade-style";
 
+  // フェード中だけ「リストマーク(A〜D)を::markerに頼らず固定表示」するCSSを注入するためのID
+  var MARKER_LOCK_STYLE_ID = "cscs-fade-marker-lock-style";
+
   // =========================================
   // フェードの競合防止（重要）
   // - runFadeInIfNeeded() の「後始末（overlay削除タイマー）」が残ったまま fadeOut が走ると、
@@ -101,6 +104,46 @@
         + "}"
         + ".wrap, .wrap *{"
         + "text-shadow:0 1px 2px rgba(0,0,0,0.30);"
+        + "}";
+
+      if (styleEl.styleSheet) {
+        styleEl.styleSheet.cssText = cssText;
+      } else {
+        styleEl.appendChild(document.createTextNode(cssText));
+      }
+      document.head.appendChild(styleEl);
+    } catch (_e) {
+      // CSS注入に失敗しても致命的ではないので握りつぶす
+    }
+  }
+
+  /**
+   * フェード中に「A〜Dのリストマーク(::marker)が一瞬消える」描画崩れを防ぐため、
+   * ::marker を使わず li::before の通常描画でマークを固定表示するCSSを注入する。
+   */
+  function injectMarkerLockCss() {
+    try {
+      if (document.getElementById(MARKER_LOCK_STYLE_ID)) {
+        return;
+      }
+      var styleEl = document.createElement("style");
+      styleEl.id = MARKER_LOCK_STYLE_ID;
+      styleEl.type = "text/css";
+
+      var cssText = ""
+        + ".cscs-fade-marker-lock{"
+        + "list-style:none !important;"
+        + "}"
+        + ".cscs-fade-marker-lock > li{"
+        + "position:relative !important;"
+        + "padding-left:2.0em !important;"
+        + "}"
+        + ".cscs-fade-marker-lock > li::before{"
+        + "content:attr(data-cscs-marker) !important;"
+        + "position:absolute !important;"
+        + "left:0 !important;"
+        + "top:0 !important;"
+        + "opacity:1 !important;"
         + "}";
 
       if (styleEl.styleSheet) {
@@ -642,6 +685,81 @@
       createHighlightLayer(questionNode, choiceNode, false);
     }
 
+    // ▼ 追加処理：フェード中に「リストマーク(A〜D)が一瞬消える」描画崩れを防ぐため、
+    //    ::marker を使わず li::before による固定マーク表示へ切り替える（フェード中だけ）
+    (function lockChoiceListMarkersDuringFade() {
+      if (!originalChoiceLi) {
+        return;
+      }
+
+      var listNode = originalChoiceLi.parentNode;
+      if (!listNode || listNode.nodeType !== 1) {
+        return;
+      }
+
+      var tag = listNode.tagName ? listNode.tagName.toLowerCase() : "";
+      if (tag !== "ol" && tag !== "ul") {
+        return;
+      }
+
+      // マーカー固定CSSを注入（1回だけ）
+      injectMarkerLockCss();
+
+      // リストに「フェード中だけマーカー固定」クラスを付与する
+      try {
+        if (listNode.classList && typeof listNode.classList.add === "function") {
+          listNode.classList.add("cscs-fade-marker-lock");
+        } else {
+          var c = listNode.getAttribute("class") || "";
+          if (c.indexOf("cscs-fade-marker-lock") === -1) {
+            listNode.setAttribute("class", (c ? c + " " : "") + "cscs-fade-marker-lock");
+          }
+        }
+      } catch (_eAddCls) {
+      }
+
+      // 各 li に data-cscs-marker="A" のように書き込み、li::before で表示する
+      var lis = null;
+      try {
+        lis = listNode.querySelectorAll("li");
+      } catch (_eLis) {
+        lis = null;
+      }
+      if (!lis || !lis.length) {
+        return;
+      }
+
+      for (var i = 0; i < lis.length; i++) {
+        var li = lis[i];
+        if (!li || li.nodeType !== 1) {
+          continue;
+        }
+
+        var marker = "";
+        try {
+          var a = li.querySelector("a");
+          if (a && a.href) {
+            var m = a.href.match(/choice=([A-Z])/);
+            if (m && m[1]) {
+              marker = m[1];
+            }
+          }
+        } catch (_eHref) {
+          marker = "";
+        }
+
+        // hrefから取れない場合は index ベースで A,B,C... にする（フェード中の視覚固定用）
+        if (!marker) {
+          marker = String.fromCharCode(65 + i);
+        }
+
+        try {
+          li.setAttribute("data-cscs-marker", marker);
+        } catch (_eSetAttr) {
+        }
+      }
+    })();
+
     // ▼ 追加処理：オーバーレイの下に残る「クローン元の選択された選択肢」を素早くフェードアウトさせる
     // - クローン表示と本物表示の微妙なズレが見えることがあるため、本物側を透明化して視界から消す
     // - クローンは body 直下にあるため、この opacity 変更に追従しない
@@ -828,21 +946,22 @@
           continue;
         }
 
-        // 縮小対象は必ず <a> に限定する
-        // - <li>(display:list-item) に transform を掛けると、環境によって ::marker（A〜D）が一瞬消えることがあるため
+        // 縮小対象要素を決める：基本は <a>、無ければ <li> 自体
         var target = null;
         try {
           target = li.querySelector("a");
         } catch (_eFindA) {
           target = null;
         }
+        if (!target) {
+          target = li;
+        }
         if (!target || !target.style) {
-          // <a> が無い行は縮小しない（マーク消失の再発防止を優先）
           continue;
         }
 
         try {
-          // 左端を基準に横方向だけ少しすぼむように縮小する（list-item 自体には触らない）
+          // 左端を基準に横方向だけ少しすぼむように縮小する
           target.style.transformOrigin = "left center";
           target.style.transitionProperty = "transform";
           target.style.transitionDuration = String(SHRINK_DURATION_MS) + "ms";
