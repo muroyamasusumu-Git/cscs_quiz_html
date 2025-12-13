@@ -88,7 +88,7 @@
     "transition-property:transform;" +
     "transition-duration:0.15s;" +
     "transition-timing-function:ease-out;" +
-    "transform-origin:center center;" +
+    "transform-origin:left center;" +
     "cursor:pointer;" +
     "}" +
     ".sa-hover:hover,.sa-hover:active{" +
@@ -102,7 +102,7 @@
     ".sa-hover-fixed{" +
     "display:inline-block;" +                 // hover版と同じボックス特性を維持
     "padding:2px 4px;" +
-    "transform-origin:center center;" +
+    "transform-origin:left center;" +
     "transform:scale(1.10) !important;" +    // 常時 1.10 倍を強制
     "transition-property:none !important;" + // 以後はアニメーションさせない（サイズ固定）
     "}" +
@@ -208,7 +208,7 @@
     try {
       if (el.closest && el.closest("#cscs-fade-highlight-layer")) {
         var finalScale = (typeof to === "number") ? to : 1.0;
-        el.style.transformOrigin = "center center";
+        el.style.transformOrigin = "left center";
         try {
           el.style.setProperty("transform", "scale(" + finalScale + ")", "important");
         } catch (_eSet) {
@@ -447,7 +447,7 @@
 
         try {
           // transform を毎フレーム lockedTransform に上書きし続ける。
-          el.style.transformOrigin = "center center";
+          el.style.transformOrigin = "left center";
           el.style.setProperty("transform", lockedTransform, "important");
 
           // 1.0 に戻ろうとする CSS transition/animation を毎フレーム完全に無効化する。
