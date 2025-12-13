@@ -762,37 +762,22 @@
         // 元の描画状態から「テキスト開始位置」を実測し、
         // marker の left 位置を CSS 変数として li に保存する
         try {
-          var aEl = li.querySelector("a");
-          if (!aEl) {
-            return;
+          // 追加: このプロジェクトのB選択肢は <a> ではなく .sa-correct-pulse-inner(span) がテキスト本体なので、
+          //       その「最終描画位置（left/scale反映後）」を基準にテキスト開始位置を取る
+          var textEl = li.querySelector(".sa-correct-pulse-inner");
+          if (!textEl) {
+            continue;
           }
 
-          // --- 元の marker を模した span を一時生成 ---
-          var markerSpan = document.createElement("span");
-          markerSpan.textContent = li.getAttribute("data-cscs-marker") || "";
-          markerSpan.style.position = "absolute";
-          markerSpan.style.visibility = "hidden";
-          markerSpan.style.whiteSpace = "nowrap";
-
-          // li の先頭に差し込む
-          li.insertBefore(markerSpan, li.firstChild);
-
-          // 実測
+          // 追加: li 左端から見た「テキスト開始位置」を実座標で算出する（transform/left の影響込み）
           var liRect = li.getBoundingClientRect();
-          var markerRect = markerSpan.getBoundingClientRect();
-          var aRect = aEl.getBoundingClientRect();
+          var textRect = textEl.getBoundingClientRect();
 
-          // marker右端 → テキスト開始までの gap
-          var gapPx = aRect.left - markerRect.right;
+          // テキスト開始位置（描画後の実座標）
+          var paddingLeftPx = textRect.left - liRect.left;
 
-          // padding-left に使う最終値
-          var paddingLeftPx = (markerRect.width + gapPx);
-
-          // CSS変数として保存
+          // CSS変数として保存（li::before の marker を置いた上で、テキストが被らない位置まで押し出す）
           li.style.setProperty("--cscs-marker-left", String(paddingLeftPx) + "px");
-
-          // 後始末
-          li.removeChild(markerSpan);
         } catch (_eMeasure) {
         }
       }
