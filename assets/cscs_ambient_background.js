@@ -24,7 +24,7 @@
 
   // ▼ 全体の暗さ（背景レイヤーのみ）: 0..1
   // 目的: テスト時にここ1箇所で「全体的に少し暗め」を一括調整できるようにする
-  var dim = 0.18;
+  var dim = 0.10;
 
   function injectStyleIfNeeded() {
     if (document.getElementById(STYLE_ID)) return;
