@@ -51,6 +51,21 @@
       + "}"
       + "html." + BODY_CLASS + "{"
       + "min-height:100vh;"
+      + "background-color: rgba(0,0,0,1);"
+      + "}"
+
+      + "body{"
+      + "background: transparent;"
+      + "position: relative;"
+      + "z-index: 1;"
+      + "}"
+
+      + "html." + BODY_CLASS + "::before{"
+      + "content:'';"
+      + "position: fixed;"
+      + "inset: 0;"
+      + "pointer-events: none;"
+      + "z-index: 0;"
       + "background:"
       + "linear-gradient("
       + "var(--cscs-bg-angle,135deg),"
@@ -65,20 +80,30 @@
       + "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);"
       + "background-size: 160% 160%, 140% 140%, 140% 140%, 100% 100%;"
       + "background-position: var(--cscs-bg-x,50%) var(--cscs-bg-y,50%), 50% 50%, 50% 50%, 50% 50%;"
-      + "background-attachment: fixed;"
       + "background-repeat: no-repeat;"
-      + "background-color: rgba(0,0,0,1);"
+      + "background-attachment: fixed;"
+      + "-webkit-mask-image: linear-gradient(to bottom,"
+      + "rgba(0,0,0,1) 0%,"
+      + "rgba(0,0,0,1) var(--cscs-wave-strong-stop,52%),"
+      + "rgba(0,0,0,0) 100%"
+      + ");"
+      + "mask-image: linear-gradient(to bottom,"
+      + "rgba(0,0,0,1) 0%,"
+      + "rgba(0,0,0,1) var(--cscs-wave-strong-stop,52%),"
+      + "rgba(0,0,0,0) 100%"
+      + ");"
       + "}"
 
-      + "body." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
+      + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
+      + "background-color: rgba(245,245,245,1);"
+      + "}"
+
+      + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']::before{"
       + "background:"
       + "radial-gradient(1200px 800px at 25% 20%, rgba(var(--cscs-g1,200), var(--cscs-g1,200), var(--cscs-g1,200), 0.36) 0%, rgba(255,255,255,0) 62%),"
       + "radial-gradient(1100px 700px at 75% 65%, rgba(var(--cscs-g2,235), var(--cscs-g2,235), var(--cscs-g2,235), 0.32) 0%, rgba(255,255,255,0) 65%),"
       + "radial-gradient(1400px 900px at 45% 85%, rgba(var(--cscs-g3,215), var(--cscs-g3,215), var(--cscs-g3,215), 0.30) 0%, rgba(255,255,255,0) 70%),"
       + "linear-gradient(180deg, rgba(245,245,245,1) 0%, rgba(225,225,225,1) 100%);"
-      + "background-attachment: fixed;"
-      + "background-repeat: no-repeat;"
-      + "background-color: rgba(245,245,245,1);"
       + "}"
       ;
 
@@ -99,7 +124,7 @@
 
     // テーマは body 属性に保持（CSSが body の属性で出し分け）
     try {
-      document.body.setAttribute("data-cscs-ambient-theme", theme);
+      document.documentElement.setAttribute("data-cscs-ambient-theme", theme);
     } catch (_eTheme) {
     }
 
@@ -203,7 +228,7 @@
   function applyTheme() {
     if (!document || !document.body) return;
     try {
-      document.body.setAttribute("data-cscs-ambient-theme", theme);
+      document.documentElement.setAttribute("data-cscs-ambient-theme", theme);
     } catch (_e) {
     }
   }
@@ -238,7 +263,7 @@
         try {
           if (document && document.body) {
             document.documentElement.classList.remove(BODY_CLASS);
-            document.body.removeAttribute("data-cscs-ambient-theme");
+            document.documentElement.removeAttribute("data-cscs-ambient-theme");
             document.body.style.removeProperty("--cscs-h1");
             document.body.style.removeProperty("--cscs-h2");
             document.body.style.removeProperty("--cscs-h3");
