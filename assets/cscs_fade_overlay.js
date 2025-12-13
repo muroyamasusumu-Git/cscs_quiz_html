@@ -52,7 +52,7 @@
   // ここを変えると「暗くなる速さ・暗さ・カーブ」が一括で調整できる
   // =========================================
   var FADE_DURATION_MS = 1250;     // フェードにかける時間（ミリ秒）
-  var FADE_MAX_OPACITY = 0.7;      // 画面をどれくらい暗くするか（0〜1）
+  var FADE_MAX_OPACITY = 0.82;     // 画面をどれくらい暗くするか（0〜1）
   // 追加: 立ち上がり/抜けが上品なカーブ（"ease-in-out" より「ぬるっ」とした高級感が出る）
   var FADE_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
   var SESSION_KEY = "cscs_page_fade_pending"; // 遷移元→遷移先に「フェード中だった」ことを伝えるためのsessionStorageキー
@@ -91,12 +91,12 @@
       var cssText = ""
         + "@keyframes cscsFadeOut2Step{"
         + "0%{opacity:0;}"
-        + "35%{opacity:var(--cscs-fade-mid,0.38);}"
-        + "100%{opacity:var(--cscs-fade-max,0.7);}"
+        + "35%{opacity:var(--cscs-fade-mid,0.45);}"
+        + "100%{opacity:var(--cscs-fade-max,0.82);}"
         + "}"
         + "@keyframes cscsFadeIn2Step{"
-        + "0%{opacity:var(--cscs-fade-max,0.7);}"
-        + "65%{opacity:var(--cscs-fade-in-mid,0.22);}"
+        + "0%{opacity:var(--cscs-fade-max,0.82);}"
+        + "65%{opacity:var(--cscs-fade-in-mid,0.26);}"
         + "100%{opacity:0;}"
         + "}";
 
@@ -188,9 +188,9 @@
     backdrop.style.background =
       "radial-gradient(ellipse at 40% 30%, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.82) 60%, rgba(0,0,0,0.92) 100%)";
 
-    // 追加: 背面をもう少し強めにぼかして“おしゃれ感”を出す
-    backdrop.style.backdropFilter = "blur(4px) saturate(112%)";
-    backdrop.style.webkitBackdropFilter = "blur(4px) saturate(112%)";
+    // 追加: ぼかしは使わない（遷移時のブラー感を完全に排除）
+    backdrop.style.backdropFilter = "none";
+    backdrop.style.webkitBackdropFilter = "none";
 
     // 初期状態は完全透明（暗転しない）
     backdrop.style.opacity = "0";
