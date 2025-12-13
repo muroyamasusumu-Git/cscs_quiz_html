@@ -108,24 +108,18 @@
       // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
       + "transform: translate(-4%, -4%) rotate(-5deg);"
       + "background:"
-      // ▼ 右端の“途切れ”隠し用の黒フェード（背景黒 #121212 に合わせる）
-      + "linear-gradient("
-      + "to right,"
-      + "rgba(18,18,18,0.02) 0%,"
-      + "rgba(18,18,18,0.02) 82%,"
-      + "rgba(18,18,18,0.55) 94%,"
-      + "rgba(18,18,18,0.92) 100%"
-      + "),"
       // ▼ 中心コア（小さく・少しだけ強い）
+      // 変更: 楕円の横方向（X半径）だけ拡大して、全体を横に引き伸ばす
       + "radial-gradient("
-      + "ellipse 400px 130px at 23% 20%,"
+      + "ellipse 520px 130px at 23% 20%,"
       + "rgba(70,70,70,0.45) 0%,"
       + "rgba(50,50,50,0.32) 42%,"
       + "rgba(0,0,0,0) 70%"
       + "),"
       // ▼ メインの楕円スポットライト（既存）
+      // 変更: 楕円の横方向（X半径）だけ拡大して、見た目の“横の広がり”を増やす
       + "radial-gradient("
-      + "ellipse 1980px 567px at 23% 20%,"
+      + "ellipse 2450px 567px at 23% 20%,"
       + "rgba(58,58,58,0.64) 0%,"
       + "rgba(34,34,34,0.52) 38%,"
       + "rgba(0,0,0,0) 78%"
@@ -139,9 +133,9 @@
       + "</filter>"
       + "<rect width='160' height='160' filter='url(%23n)'/>"
       + "</svg>\");"
-      + "background-repeat: no-repeat, no-repeat, no-repeat, repeat;"
-      + "background-attachment: fixed, fixed, fixed, fixed;"
-      + "background-blend-mode: normal, normal, normal, soft-light;"
+      + "background-repeat: no-repeat, no-repeat, repeat;"
+      + "background-attachment: fixed, fixed, fixed;"
+      + "background-blend-mode: normal, normal, soft-light;"
       + "}"
 
       + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
