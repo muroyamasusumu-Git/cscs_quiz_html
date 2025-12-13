@@ -1426,6 +1426,7 @@
       "padding: 6px 0px;" +
       "font-size: 13px;" +
       "color: #fff;" +
+      "text-align: right;" +
       "pointer-events: none;" +
       "width: 120px;" +
       "font-weight: 300;";
