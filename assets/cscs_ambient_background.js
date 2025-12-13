@@ -49,31 +49,31 @@
       + "background:"
       + "linear-gradient("
       + "var(--cscs-bg-angle,135deg),"
-      + "rgba(4,5,7,1) 0%,"
-      + "hsla(var(--cscs-h1,210), 60%, 12%, var(--cscs-c1a,0.22)) 28%,"
-      + "hsla(var(--cscs-h2,285), 60%, 12%, var(--cscs-c2a,0.18)) 58%,"
-      + "hsla(var(--cscs-h3,170), 60%, 12%, var(--cscs-c3a,0.16)) 82%,"
-      + "rgba(2,2,3,1) 100%"
+      + "rgba(0,0,0,1) 0%,"
+      + "rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-c1a,0.35)) 28%,"
+      + "rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-c2a,0.30)) 58%,"
+      + "rgba(var(--cscs-g3,65), var(--cscs-g3,65), var(--cscs-g3,65), var(--cscs-c3a,0.28)) 82%,"
+      + "rgba(0,0,0,1) 100%"
       + "),"
-      + "radial-gradient(900px 700px at var(--cscs-b1x,20%) var(--cscs-b1y,25%), hsla(var(--cscs-h2,285), 70%, 14%, 0.18) 0%, rgba(0,0,0,0) 68%),"
-      + "radial-gradient(1000px 800px at var(--cscs-b2x,75%) var(--cscs-b2y,70%), hsla(var(--cscs-h1,210), 70%, 14%, 0.16) 0%, rgba(0,0,0,0) 70%),"
-      + "linear-gradient(180deg, rgba(6,7,10,1) 0%, rgba(2,2,3,1) 100%);"
-      + "background-size: 140% 140%, 140% 140%, 140% 140%, 100% 100%;"
+      + "radial-gradient(900px 700px at var(--cscs-b1x,20%) var(--cscs-b1y,25%), rgba(var(--cscs-g2,90), var(--cscs-g2,90), var(--cscs-g2,90), 0.34) 0%, rgba(0,0,0,0) 68%),"
+      + "radial-gradient(1000px 800px at var(--cscs-b2x,75%) var(--cscs-b2y,70%), rgba(var(--cscs-g1,40), var(--cscs-g1,40), var(--cscs-g1,40), 0.30) 0%, rgba(0,0,0,0) 70%),"
+      + "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);"
+      + "background-size: 160% 160%, 140% 140%, 140% 140%, 100% 100%;"
       + "background-position: var(--cscs-bg-x,50%) var(--cscs-bg-y,50%), 50% 50%, 50% 50%, 50% 50%;"
       + "background-attachment: fixed;"
       + "background-repeat: no-repeat;"
-      + "background-color: rgba(2,2,3,1);"
+      + "background-color: rgba(0,0,0,1);"
       + "}"
 
       + "body." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
       + "background:"
-      + "radial-gradient(1200px 800px at 25% 20%, hsla(var(--cscs-h1,210), 65%, 78%, 0.25) 0%, rgba(255,255,255,0) 62%),"
-      + "radial-gradient(1100px 700px at 75% 65%, hsla(var(--cscs-h2,285), 65%, 78%, 0.22) 0%, rgba(255,255,255,0) 65%),"
-      + "radial-gradient(1400px 900px at 45% 85%, hsla(var(--cscs-h3,170), 65%, 78%, 0.20) 0%, rgba(255,255,255,0) 70%),"
-      + "linear-gradient(180deg, rgba(248,249,252,1) 0%, rgba(238,241,248,1) 100%);"
+      + "radial-gradient(1200px 800px at 25% 20%, rgba(var(--cscs-g1,200), var(--cscs-g1,200), var(--cscs-g1,200), 0.36) 0%, rgba(255,255,255,0) 62%),"
+      + "radial-gradient(1100px 700px at 75% 65%, rgba(var(--cscs-g2,235), var(--cscs-g2,235), var(--cscs-g2,235), 0.32) 0%, rgba(255,255,255,0) 65%),"
+      + "radial-gradient(1400px 900px at 45% 85%, rgba(var(--cscs-g3,215), var(--cscs-g3,215), var(--cscs-g3,215), 0.30) 0%, rgba(255,255,255,0) 70%),"
+      + "linear-gradient(180deg, rgba(245,245,245,1) 0%, rgba(225,225,225,1) 100%);"
       + "background-attachment: fixed;"
       + "background-repeat: no-repeat;"
-      + "background-color: rgba(248,249,252,1);"
+      + "background-color: rgba(245,245,245,1);"
       + "}"
       ;
 
@@ -126,49 +126,51 @@
     if (!startMs) startMs = now;
     var t = (now - startMs) / 1000; // seconds
 
-    // speed 0..1 -> 実際の進み（秒あたりの位相変化）を極小にする
-    var s = 0.002 + 0.010 * clamp01(speed);
+    // speed 0..1 -> 変化が「見える」速度へ（デバッグ用に少し速め）
+    // 目的: 視覚的に「何が動いているか」を確認できるようにする
+    var s = 0.010 + 0.060 * clamp01(speed);
 
-    // 3つの色相（0..360）
-    var h1 = 210 + 55 * Math.sin((t * s) * 2.0);
-    var h2 = 285 + 60 * Math.sin((t * s) * 1.6 + 1.8);
-    var h3 = 170 + 50 * Math.sin((t * s) * 1.2 + 3.1);
+    // 白黒の「明度」を3本の波で作る（0..255）
+    // 目的: 色相ではなく、白〜黒の濃淡だけで変化を表現する
+    var base1 = (theme === "deep") ? 40 : 200;
+    var base2 = (theme === "deep") ? 90 : 235;
+    var base3 = (theme === "deep") ? 65 : 215;
 
-    // opacity / saturation を intensity に連動
-    var op = 0.10 + 0.70 * clamp01(intensity);
-    var sat = 100 + 35 * clamp01(intensity);
+    var amp1  = (theme === "deep") ? 55 : 35;
+    var amp2  = (theme === "deep") ? 70 : 40;
+    var amp3  = (theme === "deep") ? 60 : 35;
 
-    // テーマにより、ちょい調整
-    var blur = 0;
-    if (theme === "deep") {
-      blur = 0; // deep はシャープ寄り
-    } else {
-      blur = 0; // soft でも基本は無し（必要なら 0.5〜1px くらいに）
-    }
+    var g1 = base1 + amp1 * Math.sin((t * s) * 2.0);
+    var g2 = base2 + amp2 * Math.sin((t * s) * 1.6 + 1.8);
+    var g3 = base3 + amp3 * Math.sin((t * s) * 1.2 + 3.1);
 
-    // CSS変数で反映
+    // intensity は「出方（アルファ）」に反映（デバッグ用にやや強め）
+    // 目的: 変化が肉眼で分かるようにする
+    var c1a = 0.14 + 0.40 * clamp01(intensity);
+    var c2a = 0.12 + 0.36 * clamp01(intensity);
+    var c3a = 0.10 + 0.34 * clamp01(intensity);
+
+    // 斜めグラデ角度：変化が分かりやすいように揺れ幅を増やす
+    // 目的: 背景の「流れ方向」が動いていることを確認する
+    var ang = 135 + 30 * Math.sin((t * s) * 0.9 + 0.4);
+
+    // background-position：変化が分かりやすいように移動量を増やす
+    // 目的: グラデーションが「移動している」ことを確認する
+    var bx = 50 + 14 * Math.sin((t * s) * 0.7 + 1.2);
+    var by = 50 + 14 * Math.sin((t * s) * 0.6 + 2.1);
+
+    // radial中心：変化が分かりやすいように漂い幅を増やす
+    // 目的: 2つの光源っぽい塊が動いていることを確認する
+    var b1x = 20 + 18 * Math.sin((t * s) * 0.8 + 2.7);
+    var b1y = 25 + 18 * Math.sin((t * s) * 0.9 + 0.9);
+    var b2x = 75 + 18 * Math.sin((t * s) * 0.85 + 1.6);
+    var b2y = 70 + 18 * Math.sin((t * s) * 0.75 + 3.4);
+
+    // CSS変数で反映（白黒なので g1/g2/g3 を渡す）
     try {
-      document.body.style.setProperty("--cscs-h1", String(h1));
-      document.documentElement.style.setProperty("--cscs-h2", String(h2));
-      document.documentElement.style.setProperty("--cscs-h3", String(h3));
-
-      // 黒の中に「色が入り込む量」：intensity に追従（薄め推奨）
-      var c1a = 0.08 + 0.22 * clamp01(intensity);
-      var c2a = 0.06 + 0.20 * clamp01(intensity);
-      var c3a = 0.05 + 0.18 * clamp01(intensity);
-
-      // 斜めグラデの角度をほんの少し揺らす（揺れ幅は小さく）
-      var ang = 135 + 10 * Math.sin((t * s) * 0.9 + 0.4);
-
-      // 斜めグラデを“流す”ための background-position（ゆっくり）
-      var bx = 50 + 6 * Math.sin((t * s) * 0.7 + 1.2);
-      var by = 50 + 6 * Math.sin((t * s) * 0.6 + 2.1);
-
-      // 薄いradialの中心も少し漂わせる
-      var b1x = 20 + 10 * Math.sin((t * s) * 0.8 + 2.7);
-      var b1y = 25 + 10 * Math.sin((t * s) * 0.9 + 0.9);
-      var b2x = 75 + 10 * Math.sin((t * s) * 0.85 + 1.6);
-      var b2y = 70 + 10 * Math.sin((t * s) * 0.75 + 3.4);
+      document.documentElement.style.setProperty("--cscs-g1", String(Math.max(0, Math.min(255, g1))));
+      document.documentElement.style.setProperty("--cscs-g2", String(Math.max(0, Math.min(255, g2))));
+      document.documentElement.style.setProperty("--cscs-g3", String(Math.max(0, Math.min(255, g3))));
 
       document.documentElement.style.setProperty("--cscs-bg-angle", String(ang) + "deg");
       document.documentElement.style.setProperty("--cscs-bg-x", String(bx) + "%");
@@ -181,10 +183,6 @@
       document.documentElement.style.setProperty("--cscs-c1a", String(c1a));
       document.documentElement.style.setProperty("--cscs-c2a", String(c2a));
       document.documentElement.style.setProperty("--cscs-c3a", String(c3a));
-
-      document.documentElement.style.setProperty("--cscs-bg-opacity", String(op));
-      document.documentElement.style.setProperty("--cscs-bg-sat", String(sat) + "%");
-      document.documentElement.style.setProperty("--cscs-bg-blur", String(blur) + "px");
     } catch (_e) {
       // 失敗しても継続（フォールバックで別ルートは作らない）
     }
@@ -247,6 +245,9 @@
             document.body.style.removeProperty("--cscs-h1");
             document.body.style.removeProperty("--cscs-h2");
             document.body.style.removeProperty("--cscs-h3");
+            document.documentElement.style.removeProperty("--cscs-g1");
+            document.documentElement.style.removeProperty("--cscs-g2");
+            document.documentElement.style.removeProperty("--cscs-g3");
             document.body.style.removeProperty("--cscs-bg-angle");
             document.body.style.removeProperty("--cscs-bg-x");
             document.body.style.removeProperty("--cscs-bg-y");
