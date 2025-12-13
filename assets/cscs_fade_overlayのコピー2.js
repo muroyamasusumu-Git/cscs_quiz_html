@@ -57,9 +57,6 @@
   var FADE_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
   var SESSION_KEY = "cscs_page_fade_pending"; // 遷移元→遷移先に「フェード中だった」ことを伝えるためのsessionStorageキー
 
-  // フェードアウトがすでに開始されたかどうか（多重起動防止用）
-  var isFadeOutStarted = false;
-
   // クローンハイライト用の「アニメ全殺しCSS」を一度だけ注入するためのID
   var HIGHLIGHT_KILL_STYLE_ID = "cscs-highlight-kill-style";
 
@@ -485,12 +482,6 @@
 
   function fadeOutTo(nextUrl, reason) {
 
-    // 多重起動防止（すでにフェード開始済みなら何もしない）
-    if (isFadeOutStarted) {
-      return;
-    }
-    isFadeOutStarted = true;
-
     // 追加: フェード用CSS（keyframes + text-shadow）を必ず注入
     injectFadeCss();
 
@@ -785,7 +776,8 @@
       }
     })();
 
-    // フェードアウトは呼び出し元で開始済みの前提（ここでは行わない）
+    // フェードアウトと sessionStorage の処理は既存の fadeOutTo に委譲して、一貫した挙動を保つ
+    fadeOutTo(nextUrl, reason);
   }
 
   // =========================================
