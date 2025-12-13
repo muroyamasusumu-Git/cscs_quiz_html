@@ -680,6 +680,62 @@
       createHighlightLayer(questionNode, choiceNode, false);
     }
 
+    // ▼ 追加：クローン元の「問題文（例: h1）」だけをフェードアウトさせる（クローン二重表示対策）
+    // - フェード本体（overlay/backdrop）には触らない
+    // - requestAnimationFrame で opacity を上書きし続け、CSS の介入（transition等）で揺れないようにする
+    // - 選択肢ロックとは独立して動かし、片方がDOMから外れてもフェード全体が壊れないようにする
+    (function fadeOutOriginalQuestionOnly() {
+      if (!questionNode || questionNode.nodeType !== 1 || !questionNode.style) {
+        return;
+      }
+
+      var originalQuestionEl = questionNode;
+
+      // フェード中に hover 等で意図せず変化しないよう、アニメ系は殺して opacity だけを制御する
+      try {
+        originalQuestionEl.style.setProperty("transition", "none", "important");
+        originalQuestionEl.style.setProperty("transition-property", "none", "important");
+        originalQuestionEl.style.setProperty("transition-duration", "0s", "important");
+        originalQuestionEl.style.setProperty("transition-timing-function", "linear", "important");
+        originalQuestionEl.style.setProperty("animation", "none", "important");
+        originalQuestionEl.style.setProperty("animation-name", "none", "important");
+        originalQuestionEl.style.setProperty("animation-duration", "0s", "important");
+        originalQuestionEl.style.setProperty("animation-timing-function", "linear", "important");
+      } catch (_eKillQAnim) {
+      }
+
+      var startTime = performance.now();
+
+      function loopQ(now) {
+        // DOMから外れていたら終了（フェード全体には影響させない）
+        try {
+          if (!document.body || !document.body.contains(originalQuestionEl)) {
+            return;
+          }
+        } catch (_eContainsQ) {
+          return;
+        }
+
+        var elapsed = now - startTime;
+
+        // フェードの進行度（0→1）を FADE_DURATION_MS に同期させて線形に落とす
+        var fadeT = Math.min(1, Math.max(0, elapsed / Math.max(1, FADE_DURATION_MS)));
+        var fadeOpacity = String(1 - fadeT);
+
+        try {
+          originalQuestionEl.style.setProperty("opacity", fadeOpacity, "important");
+        } catch (_eSetQOpacity) {
+        }
+
+        // fadeOutTo が遷移するまで十分残す（安全側に少し長め）
+        if (elapsed <= (FADE_DURATION_MS + 500)) {
+          requestAnimationFrame(loopQ);
+        }
+      }
+
+      requestAnimationFrame(loopQ);
+    })();
+
     // ▼ ここから追加処理：クローン元（画面下に残っている本物の選択肢）側でも
     //    フェード中に scale(1.0) へ揺り戻されないように、transform をハードロックする。
     (function lockOriginalChoiceScale() {
