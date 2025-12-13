@@ -172,24 +172,39 @@
     overlay.style.right = "0";
     overlay.style.bottom = "0";
 
+    // overlay 自体は「器」として扱い、opacity は常に 1 に固定する（子要素のクローンを薄くしないため）
+    overlay.style.opacity = "1";
+    overlay.style.pointerEvents = "none";      // 通常はクリックなどは下の要素に通す
+    overlay.style.zIndex = "9998";             // ほぼ最前面（他UIより上）
+
+    // 追加: 暗転（背景・ぼかし・opacityアニメ）は子要素 backdrop だけに持たせる
+    var backdrop = document.createElement("div");
+    backdrop.id = "cscs-global-fade-backdrop";
+    backdrop.style.position = "absolute";
+    backdrop.style.left = "0";
+    backdrop.style.top = "0";
+    backdrop.style.right = "0";
+    backdrop.style.bottom = "0";
+
     // 追加: ノイズではなく「ガラスっぽい暗幕」にする
     // - 背景は単純な暗幕（軽いビネット）にして、質感は backdrop-filter のぼかしで作る
-    overlay.style.background =
+    backdrop.style.background =
       "radial-gradient(ellipse at 40% 30%, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.82) 60%, rgba(0,0,0,0.92) 100%)";
 
     // 追加: 背面をもう少し強めにぼかして“おしゃれ感”を出す
-    overlay.style.backdropFilter = "blur(4px) saturate(112%)";
-    overlay.style.webkitBackdropFilter = "blur(4px) saturate(112%)";
+    backdrop.style.backdropFilter = "blur(4px) saturate(112%)";
+    backdrop.style.webkitBackdropFilter = "blur(4px) saturate(112%)";
 
-    overlay.style.opacity = "0";               // 初期状態は完全透明
-    overlay.style.pointerEvents = "none";      // クリックなどは下の要素に通す
-    overlay.style.zIndex = "9998";             // ほぼ最前面（他UIより上）
+    // 初期状態は完全透明（暗転しない）
+    backdrop.style.opacity = "0";
+    backdrop.style.pointerEvents = "none";
 
     // 追加: アニメの対象を明示して、暗転をよりスムーズにする
-    overlay.style.willChange = "opacity, transform";
-    overlay.style.transform = "translateZ(0)";
-    // フェードは animation(keyframes) に一本化するため transition は使わない
-    overlay.style.transition = "none";
+    backdrop.style.willChange = "opacity, transform";
+    backdrop.style.transform = "translateZ(0)";
+    backdrop.style.transition = "none";
+
+    overlay.appendChild(backdrop);
 
     document.body.appendChild(overlay);
     return overlay;
@@ -551,26 +566,39 @@
     } catch (_eLockAttr) {
     }
 
+    // 暗転は overlay 内の backdrop にだけかける（クローンを薄くしない）
+    var backdrop = null;
+    try {
+      backdrop = document.getElementById("cscs-global-fade-backdrop");
+    } catch (_eBackdropGet) {
+      backdrop = null;
+    }
+    if (!backdrop) {
+      return;
+    }
+
     // 追加: 直前に fadeIn が走っていた場合、animation が競合すると見た目が飛ぶので必ず一旦止める
     try {
-      overlay.style.animation = "none";
-      overlay.style.transition = "none";
-      overlay.offsetHeight; // reflow（ここで確実に反映させる）
+      backdrop.style.animation = "none";
+      backdrop.style.transition = "none";
+      backdrop.offsetHeight; // reflow（ここで確実に反映させる）
     } catch (_eStopAnim) {
     }
 
+    // フェード中は画面操作を一括でブロックする（器側で操作を止める）
+    overlay.style.pointerEvents = "auto";
+
     // opacity は keyframes 側で制御する（JS からは触らない）
-    overlay.style.opacity = "";
-    overlay.style.pointerEvents = "auto";     // フェード中は画面操作を一括でブロックする
+    backdrop.style.opacity = "";
 
     // 追加: keyframes 2段階で自然に暗転させる（transition切替をやめて段差を消す）
     // - mid は MAX の 55% に固定し、自然な「決まり→沈み込み」を作る
     try {
-      overlay.style.setProperty("--cscs-fade-max", String(FADE_MAX_OPACITY));
-      overlay.style.setProperty("--cscs-fade-mid", String(FADE_MAX_OPACITY * 0.55));
+      backdrop.style.setProperty("--cscs-fade-max", String(FADE_MAX_OPACITY));
+      backdrop.style.setProperty("--cscs-fade-mid", String(FADE_MAX_OPACITY * 0.55));
     } catch (_eVar) {
     }
-    overlay.style.animation =
+    backdrop.style.animation =
       "cscsFadeOut2Step "
       + String(FADE_DURATION_MS)
       + "ms cubic-bezier(0.18, 0.55, 0.25, 1) forwards";
@@ -906,17 +934,28 @@
     // フェード用オーバーレイを取得（無ければ作成）
     var overlay = getOrCreateFadeOverlay();
 
-    // 遷移直後は「真っ暗な状態」からスタート
-    overlay.style.opacity = String(FADE_MAX_OPACITY);
+    // 暗転は overlay 内の backdrop にだけかける（クローンを薄くしない）
+    var backdrop = null;
+    try {
+      backdrop = document.getElementById("cscs-global-fade-backdrop");
+    } catch (_eBackdropGet) {
+      backdrop = null;
+    }
+    if (!backdrop) {
+      return;
+    }
+
+    // 遷移直後は「真っ暗な状態」からスタート（backdrop を暗くして開始）
+    backdrop.style.opacity = String(FADE_MAX_OPACITY);
     overlay.style.pointerEvents = "none"; // 画面操作は通す
 
     // 追加: keyframes 2段階で自然に復帰させる（暗転と同じ質で戻す）
     try {
-      overlay.style.setProperty("--cscs-fade-max", String(FADE_MAX_OPACITY));
-      overlay.style.setProperty("--cscs-fade-in-mid", String(FADE_MAX_OPACITY * 0.30));
+      backdrop.style.setProperty("--cscs-fade-max", String(FADE_MAX_OPACITY));
+      backdrop.style.setProperty("--cscs-fade-in-mid", String(FADE_MAX_OPACITY * 0.30));
     } catch (_eVar) {
     }
-    overlay.style.animation =
+    backdrop.style.animation =
       "cscsFadeIn2Step "
       + String(FADE_DURATION_MS)
       + "ms cubic-bezier(0.22, 0.6, 0.3, 1) forwards";
