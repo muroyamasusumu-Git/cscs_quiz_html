@@ -178,8 +178,8 @@
       "radial-gradient(ellipse at 40% 30%, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.82) 60%, rgba(0,0,0,0.92) 100%)";
 
     // 追加: 背面をもう少し強めにぼかして“おしゃれ感”を出す
-    overlay.style.backdropFilter = "blur(8px) saturate(125%)";
-    overlay.style.webkitBackdropFilter = "blur(8px) saturate(125%)";
+    overlay.style.backdropFilter = "blur(4px) saturate(112%)";
+    overlay.style.webkitBackdropFilter = "blur(4px) saturate(112%)";
 
     overlay.style.opacity = "0";               // 初期状態は完全透明
     overlay.style.pointerEvents = "none";      // クリックなどは下の要素に通す
