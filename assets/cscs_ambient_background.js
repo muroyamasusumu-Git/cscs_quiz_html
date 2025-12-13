@@ -45,7 +45,12 @@
     // - 背景レイヤーは最背面に固定
     // - .wrap 側を前面に保つ（z-indexの衝突を避けるため、必要なら .wrap に position:relative; z-index:1; を足す）
     var cssText = ""
+      + "html, body{"
+      + "height:100%;"
+      + "min-height:100%;"
+      + "}"
       + "body." + BODY_CLASS + "{"
+      + "min-height:100vh;"
       + "background:"
       + "linear-gradient("
       + "var(--cscs-bg-angle,135deg),"
@@ -126,51 +131,43 @@
     if (!startMs) startMs = now;
     var t = (now - startMs) / 1000; // seconds
 
-    // speed 0..1 -> 変化が「見える」速度へ（デバッグ用に少し速め）
-    // 目的: 視覚的に「何が動いているか」を確認できるようにする
-    var s = 0.010 + 0.060 * clamp01(speed);
+    // speed 0..1 -> 動きにスピードを付ける（“変化が分かる”寄り）
+    // 目的: 視覚的に「動いている」ことが分かる速さにする
+    var s = 0.030 + 0.140 * clamp01(speed);
 
-    // 白黒の「明度」を3本の波で作る（0..255）
-    // 目的: 色相ではなく、白〜黒の濃淡だけで変化を表現する
-    var base1 = (theme === "deep") ? 40 : 200;
-    var base2 = (theme === "deep") ? 90 : 235;
-    var base3 = (theme === "deep") ? 65 : 215;
+    // 白黒の濃度比率（明度）は固定（時間で明るく/暗くならない）
+    // 目的: 背景全体の明るさ感が上下しないようにする
+    var g1 = (theme === "deep") ? 40 : 200;
+    var g2 = (theme === "deep") ? 90 : 235;
+    var g3 = (theme === "deep") ? 65 : 215;
 
-    var amp1  = (theme === "deep") ? 55 : 35;
-    var amp2  = (theme === "deep") ? 70 : 40;
-    var amp3  = (theme === "deep") ? 60 : 35;
-
-    var g1 = base1 + amp1 * Math.sin((t * s) * 2.0);
-    var g2 = base2 + amp2 * Math.sin((t * s) * 1.6 + 1.8);
-    var g3 = base3 + amp3 * Math.sin((t * s) * 1.2 + 3.1);
-
-    // intensity は「出方（アルファ）」に反映（デバッグ用にやや強め）
-    // 目的: 変化が肉眼で分かるようにする
+    // intensity は「出方（アルファ）」に反映（時間で揺らさない）
+    // 目的: ユーザー操作での強弱は許可しつつ、時間変化で明るさがブレないようにする
     var c1a = 0.14 + 0.40 * clamp01(intensity);
     var c2a = 0.12 + 0.36 * clamp01(intensity);
     var c3a = 0.10 + 0.34 * clamp01(intensity);
 
-    // 斜めグラデ角度：変化が分かりやすいように揺れ幅を増やす
-    // 目的: 背景の「流れ方向」が動いていることを確認する
-    var ang = 135 + 30 * Math.sin((t * s) * 0.9 + 0.4);
+    // 斜めグラデ角度：動きが分かるように少し大きめに揺らす
+    // 目的: “向き”の変化が見える
+    var ang = 135 + 34 * Math.sin((t * s) * 1.1 + 0.4);
 
-    // background-position：変化が分かりやすいように移動量を増やす
-    // 目的: グラデーションが「移動している」ことを確認する
-    var bx = 50 + 14 * Math.sin((t * s) * 0.7 + 1.2);
-    var by = 50 + 14 * Math.sin((t * s) * 0.6 + 2.1);
+    // background-position：動きが分かるようにやや速め＆大きめ
+    // 目的: グラデが“流れている”のが分かる
+    var bx = 50 + 16 * Math.sin((t * s) * 1.0 + 1.2);
+    var by = 50 + 16 * Math.sin((t * s) * 0.9 + 2.1);
 
-    // radial中心：変化が分かりやすいように漂い幅を増やす
-    // 目的: 2つの光源っぽい塊が動いていることを確認する
-    var b1x = 20 + 18 * Math.sin((t * s) * 0.8 + 2.7);
-    var b1y = 25 + 18 * Math.sin((t * s) * 0.9 + 0.9);
-    var b2x = 75 + 18 * Math.sin((t * s) * 0.85 + 1.6);
-    var b2y = 70 + 18 * Math.sin((t * s) * 0.75 + 3.4);
+    // radial中心：動きが分かるように漂い幅を維持しつつ少し速め
+    // 目的: 2つの塊が“漂う”のが分かる
+    var b1x = 20 + 18 * Math.sin((t * s) * 1.15 + 2.7);
+    var b1y = 25 + 18 * Math.sin((t * s) * 1.25 + 0.9);
+    var b2x = 75 + 18 * Math.sin((t * s) * 1.20 + 1.6);
+    var b2y = 70 + 18 * Math.sin((t * s) * 1.05 + 3.4);
 
-    // CSS変数で反映（白黒なので g1/g2/g3 を渡す）
+    // CSS変数で反映（明度は固定、動くのは angle/position/center）
     try {
-      document.documentElement.style.setProperty("--cscs-g1", String(Math.max(0, Math.min(255, g1))));
-      document.documentElement.style.setProperty("--cscs-g2", String(Math.max(0, Math.min(255, g2))));
-      document.documentElement.style.setProperty("--cscs-g3", String(Math.max(0, Math.min(255, g3))));
+      document.documentElement.style.setProperty("--cscs-g1", String(g1));
+      document.documentElement.style.setProperty("--cscs-g2", String(g2));
+      document.documentElement.style.setProperty("--cscs-g3", String(g3));
 
       document.documentElement.style.setProperty("--cscs-bg-angle", String(ang) + "deg");
       document.documentElement.style.setProperty("--cscs-bg-x", String(bx) + "%");
@@ -248,19 +245,19 @@
             document.documentElement.style.removeProperty("--cscs-g1");
             document.documentElement.style.removeProperty("--cscs-g2");
             document.documentElement.style.removeProperty("--cscs-g3");
-            document.body.style.removeProperty("--cscs-bg-angle");
-            document.body.style.removeProperty("--cscs-bg-x");
-            document.body.style.removeProperty("--cscs-bg-y");
-            document.body.style.removeProperty("--cscs-b1x");
-            document.body.style.removeProperty("--cscs-b1y");
-            document.body.style.removeProperty("--cscs-b2x");
-            document.body.style.removeProperty("--cscs-b2y");
-            document.body.style.removeProperty("--cscs-c1a");
-            document.body.style.removeProperty("--cscs-c2a");
-            document.body.style.removeProperty("--cscs-c3a");
-            document.body.style.removeProperty("--cscs-bg-opacity");
-            document.body.style.removeProperty("--cscs-bg-sat");
-            document.body.style.removeProperty("--cscs-bg-blur");
+            document.documentElement.style.removeProperty("--cscs-bg-angle");
+            document.documentElement.style.removeProperty("--cscs-bg-x");
+            document.documentElement.style.removeProperty("--cscs-bg-y");
+            document.documentElement.style.removeProperty("--cscs-b1x");
+            document.documentElement.style.removeProperty("--cscs-b1y");
+            document.documentElement.style.removeProperty("--cscs-b2x");
+            document.documentElement.style.removeProperty("--cscs-b2y");
+            document.documentElement.style.removeProperty("--cscs-c1a");
+            document.documentElement.style.removeProperty("--cscs-c2a");
+            document.documentElement.style.removeProperty("--cscs-c3a");
+            document.documentElement.style.removeProperty("--cscs-bg-opacity");
+            document.documentElement.style.removeProperty("--cscs-bg-sat");
+            document.documentElement.style.removeProperty("--cscs-bg-blur");
           }
         } catch (_e) {
         }
