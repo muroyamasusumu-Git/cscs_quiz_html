@@ -687,6 +687,30 @@
         fixedLiTransform = "none";
       }
 
+      // ▼ 追加：選択された <li> の marker を「その <li> だけ」フェードアウトさせるための準備
+      // - marker は多くのブラウザで <li> の color に追従するため、<li>.color を alpha 付きで落とす
+      // - ただし <li> の color を触ると <a> テキストが継承で変化する可能性があるので、<a> 側の色は固定する
+      var fixedAnchorColor = null;
+      var liMarkerRgb = { r: 255, g: 255, b: 255 };
+      try {
+        var csAColor = window.getComputedStyle(originalAnchor);
+        if (csAColor && csAColor.color) {
+          fixedAnchorColor = csAColor.color;
+        }
+      } catch (_eGetAColor) {
+        fixedAnchorColor = null;
+      }
+      try {
+        var csLiColor = window.getComputedStyle(originalChoiceLi);
+        var liColorText = (csLiColor && csLiColor.color) ? csLiColor.color : "";
+        var mRgb = liColorText.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+        if (mRgb) {
+          liMarkerRgb = { r: parseInt(mRgb[1], 10), g: parseInt(mRgb[2], 10), b: parseInt(mRgb[3], 10) };
+        }
+      } catch (_eGetLiColor) {
+        liMarkerRgb = { r: 255, g: 255, b: 255 };
+      }
+
       // ▼ 追加：hover/active 由来の揺り戻しを物理的に封じるため、
       //    ロック中は一時的に pointer-events を切る（フェード中に追加入力させない意図も兼ねる）
       try {
@@ -730,6 +754,21 @@
           var fadeT = Math.min(1, Math.max(0, elapsed / Math.max(1, FADE_DURATION_MS)));
           var fadeOpacity = String(1 - fadeT);
           originalAnchor.style.setProperty("opacity", fadeOpacity, "important");
+
+          // ▼ ③ 追加：選択された選択肢の「marker だけ」をフェードアウトさせる
+          //    - marker は <li> の color に追従するため、<li>.color を rgba(..., alpha) で落とす
+          //    - ただし <li> の color を落とすと <a> テキストが継承で薄くなることがあるので、<a> の色は固定する
+          try {
+            if (fixedAnchorColor) {
+              originalAnchor.style.setProperty("color", fixedAnchorColor, "important");
+            }
+            originalChoiceLi.style.setProperty(
+              "color",
+              "rgba(" + String(liMarkerRgb.r) + "," + String(liMarkerRgb.g) + "," + String(liMarkerRgb.b) + "," + String(1 - fadeT) + ")",
+              "important"
+            );
+          } catch (_eMarkerFade) {
+          }
 
           // ▼ ③ 親 <li> 側も、もし transform が入っている環境ならそれを固定する
           if (fixedLiTransform && fixedLiTransform !== "none") {
