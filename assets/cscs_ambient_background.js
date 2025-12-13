@@ -49,7 +49,7 @@
       + "height:100%;"
       + "min-height:100%;"
       + "}"
-      + "body." + BODY_CLASS + "{"
+      + "html." + BODY_CLASS + "{"
       + "min-height:100vh;"
       + "background:"
       + "linear-gradient("
@@ -91,7 +91,7 @@
 
     // このJS専用のスコープを body に付与（他要素へは一切影響しない）
     try {
-      document.body.classList.add(BODY_CLASS);
+      document.documentElement.classList.add(BODY_CLASS);
     } catch (_eClass) {
       // classList が無い環境は対象外（フォールバックは作らない）
       return null;
@@ -237,7 +237,7 @@
         // body への影響を完全に取り除く（背景も元に戻す）
         try {
           if (document && document.body) {
-            document.body.classList.remove(BODY_CLASS);
+            document.documentElement.classList.remove(BODY_CLASS);
             document.body.removeAttribute("data-cscs-ambient-theme");
             document.body.style.removeProperty("--cscs-h1");
             document.body.style.removeProperty("--cscs-h2");
