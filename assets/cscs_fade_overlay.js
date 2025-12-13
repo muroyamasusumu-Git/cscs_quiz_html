@@ -141,7 +141,7 @@
         + ".cscs-fade-marker-lock > li::before{"
         + "content:attr(data-cscs-marker) !important;"
         + "position:absolute !important;"
-        + "left:0 !important;"
+        + "left:var(--cscs-marker-left) !important;"
         + "top:0 !important;"
         + "opacity:1 !important;"
         + "}";
@@ -756,6 +756,20 @@
         try {
           li.setAttribute("data-cscs-marker", marker);
         } catch (_eSetAttr) {
+        }
+
+        // ▼ 追加処理：
+        // 元の描画状態から「テキスト開始位置」を実測し、
+        // marker の left 位置を CSS 変数として li に保存する
+        try {
+          var aEl = li.querySelector("a");
+          if (aEl) {
+            var liRect = li.getBoundingClientRect();
+            var aRect = aEl.getBoundingClientRect();
+            var markerLeftPx = aRect.left - liRect.left;
+            li.style.setProperty("--cscs-marker-left", String(markerLeftPx) + "px");
+          }
+        } catch (_eMeasure) {
         }
       }
     })();
