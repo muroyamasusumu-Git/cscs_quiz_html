@@ -136,7 +136,7 @@
         + "}"
         + ".cscs-fade-marker-lock > li{"
         + "position:relative !important;"
-        + "padding-left:2.0em !important;"
+        + "padding-left:0 !important;"
         + "}"
         + ".cscs-fade-marker-lock > li::before{"
         + "content:attr(data-cscs-marker) !important;"
