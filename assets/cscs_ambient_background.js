@@ -112,14 +112,14 @@
       + "linear-gradient(180deg, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 0%, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 100%),"
       // ▼ 中心コア（小さく・少しだけ強い）
       + "radial-gradient("
-      + "ellipse 400px 130px at 23% 20%,"
+      + "ellipse 400px 130px at 23% 30%,"
       + "rgba(70,70,70,0.45) 0%,"
       + "rgba(50,50,50,0.32) 42%,"
       + "rgba(0,0,0,0) 70%"
       + "),"
       // ▼ メインの楕円スポットライト（既存）
       + "radial-gradient("
-      + "ellipse 1980px 567px at 23% 20%,"
+      + "ellipse 1980px 567px at 23% 30%,"
       + "rgba(58,58,58,0.64) 0%,"
       + "rgba(34,34,34,0.52) 38%,"
       + "rgba(0,0,0,0) 78%"
