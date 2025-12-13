@@ -449,12 +449,21 @@
                       link.style.setProperty("animation", "none", "important");
                       link.style.setProperty("animation-name", "none", "important");
 
-                      // ▼ ② 追加：クローン側は「元DOMのopacityフェード」に追従させない（常に不透明で固定）
+                      // ▼ ② クローン側は「元DOMのopacityフェード」に追従させない（常に不透明で固定）
                       link.style.setProperty("opacity", "1", "important");
+
+                      // ▼ ③ 追加：クローンの「選択された選択肢テキスト」のみに、下線スタイルを強制付与する
+                      //       - 元DOM側の下線クラス依存を避け、クローン側だけ確実に同じ見た目へ揃える
+                      link.style.setProperty("text-decoration", "underline", "important");
+                      link.style.setProperty("text-underline-offset", "4px", "important");
+                      link.style.setProperty("text-decoration-thickness", "2px", "important");
                     } catch (_eLink) {
                       link.style.transform = "scale(1.10)";
                       link.style.transition = "none";
                       link.style.opacity = "1";
+                      link.style.textDecoration = "underline";
+                      link.style.textUnderlineOffset = "4px";
+                      link.style.textDecorationThickness = "2px";
                     }
                   }
                 }
