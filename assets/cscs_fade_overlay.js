@@ -537,7 +537,7 @@
       var body = document.body;
       if (body && body.classList && body.classList.contains("mode-a")) {
         // A→B の遷移だけ短フェード（テンポを上げる）
-        FADE_DURATION_MS = 480;
+        FADE_DURATION_MS = 400;
         FADE_MAX_OPACITY = 0.7;
       } else {
         // Bパートなど、通常フェード
