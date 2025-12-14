@@ -19,7 +19,7 @@
     #cscs-field-star-summary {
         font-size: 11px;
         margin-top: 0;
-        padding: 10px 10px 0 5px;
+        padding: 10px 10px 0 0;
         color: rgb(255, 255, 255);
         opacity: 0.55;
         width: 98.0%;
