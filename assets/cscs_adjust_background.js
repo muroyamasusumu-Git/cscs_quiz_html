@@ -80,7 +80,9 @@
     uiVisible: false,     // パネル表示ON/OFF（初期は閉じる：右下⚙︎で開く）
     hideOtherUI: false,   // 背景調整用に「他のUIを非表示（visibility）」にする
 
-    afterBox: { top: -30, right: -10, bottom: -50, left: -20 },  // %
+    // ▼ デフォルトは「はみ出し無し」を基準にする
+    // 目的: 初期状態で afterBox 調整が不要な状態にし、見た目の基準点を明確にする
+    afterBox: { top: 0, right: 0, bottom: 0, left: 0 },  // %
 
     afterBoxAuto: {
       // ▼ 画面比率と回転角から「欠けないための必要最小余白」を自動計算する
@@ -92,11 +94,15 @@
       safety: 1.45
     },
 
-    origin: { x: 20, y: 20 }, // %
-    translate: { x: -4, y: -4 }, // %
-    rotate: 10, // deg
+    // ▼ デフォルトは「変換ゼロ（回転0・移動0・支点中央）」にする
+    // 目的: 初期状態で欠け・ズレ・はみ出しが起きない基準状態を作る
+    origin: { x: 50, y: 50 }, // %
+    translate: { x: 0, y: 0 }, // %
+    rotate: 0, // deg
 
-    spot: { x: 23, y: 30 }, // %
+    // ▼ 楕円スポット中心もデフォルトは中央に置く
+    // 目的: 位置調整をしていない状態の見た目を安定させる
+    spot: { x: 50, y: 50 }, // %
 
     ellipse: {
       // ▼ 楕円スポット（radial）のON/OFF
