@@ -1,17 +1,42 @@
 // assets/cscs_ambient_background.js
 /**
- * CSCS Ambient Background (slow gradient drift)
+ * CSCS Ambient Background (container + safety rails)
  *
- * 目的:
- * - ページ全体の背景に「ごくゆっくり変化するグラデーション」を敷く
- * - quiz のUI(= .wrap) より背面に固定し、クリックやレイアウトに干渉しない
+ * 【役割分担（adjust_background.js との責務分離）】
+ *   - cscs_ambient_background.js（このファイル / ambient側）:
+ *       “背景の器” を作るだけ。
+ *       具体的には、背景レイヤーDOMを最背面に固定し、クリックを奪わないことを保証するための
+ *       1) 安全柵CSS注入（pointer-events:none / z-index / fixed配置 / .wrap前面化）
+ *       2) 背景レイヤーDOM生成（IDを確定して不変化）
+ *          #cscs-ambient-layer（器）
+ *            ├ #cscs-ambient-base（最低限の下地グラデ）
+ *            └ #cscs-ambient-tuned（調整用の描画先）
+ *                └ #cscs-ambient-tuned-rot（回転/平行移動/origin等のtransform適用先）
+ *       3) ON/OFF 管理（htmlクラス付与/除去、layer表示/非表示）
+ *       4) theme状態の保持（data-cscs-ambient-theme を更新するだけ）
  *
- * 公開API:
- *   window.CSCS_AMBIENT_BG.setEnabled(true|false)
- * 公開API:
- *   window.CSCS_AMBIENT_BG.setEnabled(true|false)
- *   window.CSCS_AMBIENT_BG.setTheme("deep"|"soft")
- *   window.CSCS_AMBIENT_BG.setTheme("deep"|"soft")
+ *   - cscs_adjust_background.js（adjust側）:
+ *       “見た目の生成（描画）” を担当。
+ *       このファイルが用意する #cscs-ambient-tuned-rot に対して <style> を注入し、
+ *       gradient合成や transform を使って実際の見た目を作る。
+ *       ambient側は tuned の background を勝手に描かない（責務を侵食しない）。
+ *
+ * 【このファイルが実際にやっていること（詳細）】
+ *   - injectStyleIfNeeded():
+ *       背景DOMがUIより前に出てクリックを奪う事故を防ぐためのCSSを 1回だけ注入する。
+ *       body背景は触らず、背景は専用DOMレイヤーに集約する。
+ *
+ *   - ensureLayer():
+ *       enabled=true のときだけ、htmlへ “背景ONスコープ” を付与し（BODY_CLASS）、
+ *       背景DOM（layer/base/tuned/tuned-rot）を1セットだけ生成して body 直下へ挿入する。
+ *       すでに layer が存在する場合は、tuned-rot が無い時だけ正規構造として補完する。
+ *
+ *   - setEnabled(true|false):
+ *       true: ensureLayer() を呼び、器を復帰させる。
+ *       false: BODY_CLASS と theme属性を外し、layer を display:none にして背景を無効化する。
+ *
+ *   - setTheme("deep"|"soft"):
+ *       見た目は変えず、data-cscs-ambient-theme だけ更新する（器の属性として保持）。
  */
 (function () {
   "use strict";
@@ -19,12 +44,19 @@
   var BODY_CLASS = "cscs-ambient-bg-on";
   var STYLE_ID = "cscs-ambient-bg-style";
 
+  // ▼ Ambient 層DOM ID（確定：以後不変）
+  // 目的: adjust 側の「描画先」を永久に固定し、以後の改修コストを下げる
+  var LAYER_ID = "cscs-ambient-layer";
+  var BASE_ID  = "cscs-ambient-base";
+  var TUNED_ID = "cscs-ambient-tuned";
+
+  // ▼ 回転専用 tuned 子要素（確定：以後不変）
+  // 目的: 1枚DOM（tuned）では transform 回転が UI/描画と衝突しやすいので、
+  //       回転・平行移動・origin などの transform はこの子要素だけに集約できるようにする
+  var TUNED_ROT_ID = "cscs-ambient-tuned-rot";
+
   var enabled = true;
   var theme = "deep";   // "deep" or "soft"
-
-  // ▼ 全体の暗さ（背景レイヤーのみ）: 0..1
-  // 目的: テスト時にここ1箇所で「全体的に少し暗め」を一括調整できるようにする
-  var dim = 0.10;
 
   function injectStyleIfNeeded() {
     if (document.getElementById(STYLE_ID)) return;
@@ -42,11 +74,16 @@
       + "height:100%;"
       + "min-height:100%;"
       + "}"
+
+      // ▼ Ambient ON のスコープ（背景の“器”がある状態）
+      // 目的: 背景は ambient がON/OFF管理し、adjust は触らない
       + "html." + BODY_CLASS + "{"
       + "min-height:100vh;"
       + "background-color: rgba(0,0,0,1);"
       + "}"
 
+      // ▼ body は背景を持たない（背景は専用DOMレイヤーに集約）
+      // 目的: 擬似要素やbody背景の取り合いを避ける
       + "body{"
       + "background: transparent;"
       + "position: relative;"
@@ -54,101 +91,49 @@
       + "}"
 
       // ▼ quiz UI を背景レイヤーより必ず前面に固定
-      // 目的: html::before / html::after の擬似要素が“上に被さる”事故を防ぐ
+      // 目的: 背景DOMが前面に来てクリックを奪う事故を防ぐ
       + ".wrap{"
       + "position: relative;"
       + "z-index: 2;"
       + "}"
 
-      + "html." + BODY_CLASS + "::before{"
-      + "content:'';"
+      // ▼ 背景レイヤーの器（固定・最背面・クリック不干渉）
+      // 目的: adjust が常に同じ描画先にCSSを注入できるようにする
+      + "#" + LAYER_ID + "{"
       + "position: fixed;"
       + "inset: 0;"
       + "pointer-events: none;"
       + "z-index: 0;"
-      // ▼ 右＆左下の暗さ + ベース黒（回転しない）
-      + "background:"
-      // ▼ 左上 → 右下へ抜ける直線グラデーション（ほぼ水平）
-      // 目的: 斜め感を弱め、光の流れを水平寄りにする
-      + "linear-gradient("
-      + "340deg,"
-      + "rgba(255,255,255,0.10) 0%,"
-      + "rgba(255,255,255,0.04) 28%,"
-      + "rgba(255,255,255,0.00) 58%"
-      + "),"
-      // ▼ 全体の暗さ（黒オーバーレイ）
-      // 目的: dim の値で、背景レイヤー全体を一括で少し暗めに寄せる
-      + "linear-gradient(180deg, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 0%, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 100%),"
-      // 右側を暗く落とす
-      + "linear-gradient("
-      + "to right,"
-      + "rgba(0,0,0,0) 0%,"
-      + "rgba(0,0,0,0.22) 55%,"
-      + "rgba(0,0,0,0.58) 100%"
-      + "),"
-      // 左下も暗く溜める
-      + "linear-gradient("
-      + "to bottom,"
-      + "rgba(0,0,0,0) 0%,"
-      + "rgba(0,0,0,0.28) 60%,"
-      + "rgba(0,0,0,0.70) 100%"
-      + "),"
-      // ベースの黒
-      + "linear-gradient(180deg, rgba(18,18,18,1) 0%, rgba(14,14,14,1) 100%);"
-      + "background-repeat: no-repeat;"
-      + "background-attachment: fixed;"
       + "}"
 
-      // ▼ 楕円スポットライト専用レイヤー（これだけ回転）
-      + "html." + BODY_CLASS + "::after{"
-      + "content:'';"
-      + "position: fixed;"
-      // ▼ 回転で端が欠けるのを防ぐため、擬似要素を画面外へ広げる
-      // 目的: rotate() により右端・下端が透明になって見える“途切れ”を、方向別の余白で確実にカバーする
-      + "top: -30%;"
-      + "right: -10%;"
-      + "bottom: -50%;"
-      + "left: -20%;"
-      + "pointer-events: none;"
-      + "z-index: 0;"
-      // 回転の支点を「楕円の中心」に合わせる
-      + "transform-origin: 20% 20%;"
-      // ▼ 楕円レイヤー全体を左上へオフセットしてから回転
-      // 目的: 楕円の「中心(at 23% 20%)」ではなく、見た目全体を左上へ寄せる
-      + "transform: translate(-4%, -4%) rotate(-20deg);"
-      + "background:"
-      // ▼ 全体の暗さ（黒オーバーレイ）
-      // 目的: dim の値で、楕円スポットライト層も一括で少し暗めに寄せる
-      + "linear-gradient(180deg, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 0%, rgba(0,0,0,var(--cscs-ambient-dim-a,0)) 100%),"
-      // ▼ 中心コア（小さく・少しだけ強い）
-      + "radial-gradient("
-      + "ellipse 400px 130px at 20% 30%,"
-      + "rgba(70,70,70,0.45) 0%,"
-      + "rgba(50,50,50,0.32) 42%,"
-      + "rgba(0,0,0,0) 70%"
-      + "),"
-      // ▼ メインの楕円スポットライト（既存）
-      + "radial-gradient("
-      + "ellipse 1980px 567px at 23% 30%,"
-      + "rgba(58,58,58,0.64) 0%,"
-      + "rgba(34,34,34,0.52) 38%,"
-      + "rgba(0,0,0,0) 78%"
-      + ");"
-      + "background-repeat: no-repeat, no-repeat, no-repeat;"
-      + "background-attachment: fixed, fixed, fixed;"
-      + "background-blend-mode: normal, normal, normal;"
+      // ▼ 下地（必ず存在）
+      // 目的: tuned がOFF/空でも真っ黒に落ちず、最低限の背景を保証
+      + "#" + BASE_ID + "{"
+      + "position: absolute;"
+      + "inset: 0;"
+      + "background: linear-gradient(180deg, rgba(18,18,18,1) 0%, rgba(14,14,14,1) 100%);"
       + "}"
 
-      + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']{"
-      + "background-color: rgba(245,245,245,1);"
+      // ▼ 調整レイヤー（adjust の描画先）
+      // 目的: 見た目生成は adjust に一本化。ambient はここを邪魔しない
+      + "#" + TUNED_ID + "{"
+      + "position: absolute;"
+      + "inset: 0;"
+      + "background: transparent;"
       + "}"
 
-      + "html." + BODY_CLASS + "[data-cscs-ambient-theme='soft']::before{"
-      + "background:"
-      + "radial-gradient(1200px 800px at 25% 20%, rgba(var(--cscs-g1,200), var(--cscs-g1,200), var(--cscs-g1,200), 0.36) 0%, rgba(255,255,255,0) 62%),"
-      + "radial-gradient(1100px 700px at 75% 65%, rgba(var(--cscs-g2,235), var(--cscs-g2,235), var(--cscs-g2,235), 0.32) 0%, rgba(255,255,255,0) 65%),"
-      + "radial-gradient(1400px 900px at 45% 85%, rgba(var(--cscs-g3,215), var(--cscs-g3,215), var(--cscs-g3,215), 0.30) 0%, rgba(255,255,255,0) 70%),"
-      + "linear-gradient(180deg, rgba(245,245,245,1) 0%, rgba(225,225,225,1) 100%);"
+      // ▼ 回転専用 tuned 子要素（adjust が transform を当てる対象）
+      // 目的: 回転・平行移動・origin を tuned 本体から分離し、描画の自由度を上げる
+      // 注意: 見た目（background 等）は adjust が注入する。ambient は器として配置のみ保証する
+      + "#" + TUNED_ROT_ID + "{"
+      + "position: absolute;"
+      + "top:0px;"
+      + "right:0px;"
+      + "bottom:0px;"
+      + "left:0px;"
+      + "background: transparent;"
+      + "transform: none;"
+      + "transform-origin: 50% 50%;"
       + "}"
       ;
 
@@ -157,47 +142,75 @@
   }
 
   function ensureLayer() {
+    if (!enabled) return null;
     if (!document || !document.body) return null;
 
-    // このJS専用のスコープを body に付与（他要素へは一切影響しない）
+    // ▼ Ambient ON のスコープ付与（ON/OFF管理は ambient のみ）
+    // 目的: adjust が BODY_CLASS を触らないルールを守れるようにする
     try {
       document.documentElement.classList.add(BODY_CLASS);
     } catch (_eClass) {
-      // classList が無い環境は対象外（フォールバックは作らない）
       return null;
     }
 
-    // テーマは body 属性に保持（CSSが body の属性で出し分け）
+    // ▼ テーマ属性は“器の属性”として保持（見た目生成は行わない）
+    // 目的: 将来的に必要なら参照できるように、状態だけ残す
     try {
       document.documentElement.setAttribute("data-cscs-ambient-theme", theme);
     } catch (_eTheme) {
     }
 
-    return document.body;
-  }
+    // ▼ 背景レイヤーDOM（layer/base/tuned）を確実に1セットだけ作る
+    // 目的: adjust の描画先ID（#cscs-ambient-tuned）を不変に固定する
+    var layer = document.getElementById(LAYER_ID);
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = LAYER_ID;
 
-  function clamp01(x) {
-    if (typeof x !== "number" || isNaN(x)) return 0;
-    if (x < 0) return 0;
-    if (x > 1) return 1;
-    return x;
-  }
+      var base = document.createElement("div");
+      base.id = BASE_ID;
 
-  function applyDim() {
-    if (!document || !document.documentElement) return;
+      var tuned = document.createElement("div");
+      tuned.id = TUNED_ID;
 
-    // ▼ dim(0..1) → 乗算しやすい黒オーバーレイの alpha(0..0.30) に変換
-    // 目的: 暗さを上げても「黒がベタ塗り」にならず、微調整がしやすい範囲に収める
-    var a = 0.30 * clamp01(dim);
+      // ▼ 回転専用の子要素を追加（tuned の子として固定）
+      // 目的: adjust 側で rotate/translate/origin をこの要素にだけ適用できるようにする
+      var tunedRot = document.createElement("div");
+      tunedRot.id = TUNED_ROT_ID;
 
-    try {
-      document.documentElement.style.setProperty("--cscs-ambient-dim-a", String(a));
-    } catch (_e) {
+      tuned.appendChild(tunedRot);
+
+      layer.appendChild(base);
+      layer.appendChild(tuned);
+
+      // body 直下に挿入（最背面だが、CSSのz-indexで安全柵を保証）
+      document.body.insertBefore(layer, document.body.firstChild);
+    } else {
+      // ▼ 既存DOMに tuned-rot が無い場合だけ追加
+      // 目的: 既存ページ/キャッシュ状態でも “器” を最新構造に寄せる（勝手なフォールバック生成ではなく、器の正規構造の補完）
+      var tunedEl = document.getElementById(TUNED_ID);
+      if (tunedEl && !document.getElementById(TUNED_ROT_ID)) {
+        var tunedRot2 = document.createElement("div");
+        tunedRot2.id = TUNED_ROT_ID;
+        tunedEl.appendChild(tunedRot2);
+      }
     }
+
+    // ▼ OFF→ON 復帰時の表示復元
+    // 目的: setEnabled(false) で隠した layer を確実に再表示
+    try {
+      layer.style.display = "";
+    } catch (_eDisplay) {
+    }
+
+    return layer;
   }
 
   function applyTheme() {
     if (!document || !document.body) return;
+
+    // ▼ “器の属性”としてテーマ状態だけを保持
+    // 目的: 見た目生成は行わず、状態のみ残す（将来必要なら参照できる）
     try {
       document.documentElement.setAttribute("data-cscs-ambient-theme", theme);
     } catch (_e) {
@@ -205,14 +218,15 @@
   }
 
   function init() {
+    // ▼ 安全柵CSS（z-index / pointer-events / レイヤー固定）を注入
+    // 目的: 背景DOMがUIのクリックを奪わないことを常に保証
     injectStyleIfNeeded();
+
+    // ▼ 背景レイヤーDOM（layer/base/tuned）を準備
+    // 目的: adjust の描画先（#cscs-ambient-tuned）を常に存在させる
     ensureLayer();
 
-    // ▼ 背景の暗さ（黒オーバーレイ）を反映
-    // 目的: テスト用つまみ dim の値を、CSS変数へ一括反映する
-    applyDim();
-
-    // 補足: アニメ処理（rAF/tick）は完全に削除し、背景は静的に固定する
+    // 補足: 描画（グラデ/楕円/明暗/beam）は adjust 側のみが担当する
   }
 
   // 公開API
@@ -220,53 +234,27 @@
     setEnabled: function (v) {
       enabled = !!v;
       if (enabled) {
-        // 補足: アニメ処理は削除済みのため、class付与のみ行う
+        // ▼ ON: BODY_CLASS 付与 + 器DOM生成（ambient のみが担当）
+        // 目的: adjust が「背景がある前提」で安全にCSS注入できる状態を作る
         ensureLayer();
-
-        // ▼ 背景の暗さ（黒オーバーレイ）を反映
-        // 目的: OFF→ON したときも dim の見た目が即座に戻るようにする
-        applyDim();
       } else {
-        // 補足: アニメ処理は削除済みのため、停止処理は不要。class/属性とCSS変数を掃除する
+        // ▼ OFF: BODY_CLASS を外し、器DOMを隠す（または撤去）
+        // 目的: 背景ON/OFFの責務を ambient に固定し、adjust と完全分離する
         try {
           if (document && document.body) {
             document.documentElement.classList.remove(BODY_CLASS);
             document.documentElement.removeAttribute("data-cscs-ambient-theme");
-            document.body.style.removeProperty("--cscs-h1");
-            document.body.style.removeProperty("--cscs-h2");
-            document.body.style.removeProperty("--cscs-h3");
-            document.documentElement.style.removeProperty("--cscs-g1");
-            document.documentElement.style.removeProperty("--cscs-g2");
-            document.documentElement.style.removeProperty("--cscs-g3");
-            document.documentElement.style.removeProperty("--cscs-bg-angle");
-            document.documentElement.style.removeProperty("--cscs-bg-x");
-            document.documentElement.style.removeProperty("--cscs-bg-y");
-            document.documentElement.style.removeProperty("--cscs-b1x");
-            document.documentElement.style.removeProperty("--cscs-b1y");
-            document.documentElement.style.removeProperty("--cscs-b2x");
-            document.documentElement.style.removeProperty("--cscs-b2y");
-            document.documentElement.style.removeProperty("--cscs-c1a");
-            document.documentElement.style.removeProperty("--cscs-c2a");
-            document.documentElement.style.removeProperty("--cscs-c3a");
 
-            // 左側の円形グラデ（円⇄楕円）の制御変数も消す
-            document.documentElement.style.removeProperty("--cscs-blob-rx");
-            document.documentElement.style.removeProperty("--cscs-blob-ry");
-            document.documentElement.style.removeProperty("--cscs-blob-a");
-
-            document.documentElement.style.removeProperty("--cscs-bg-opacity");
-            document.documentElement.style.removeProperty("--cscs-bg-sat");
-            document.documentElement.style.removeProperty("--cscs-bg-blur");
-
-            // ▼ 背景の暗さ（黒オーバーレイ）も掃除
-            // 目的: setEnabled(false) で見た目を完全に元へ戻す
-            document.documentElement.style.removeProperty("--cscs-ambient-dim-a");
+            var layer = document.getElementById(LAYER_ID);
+            if (layer) layer.style.display = "none";
           }
         } catch (_e) {
         }
       }
     },
     setTheme: function (v) {
+      // ▼ “器の属性”としてテーマ状態だけ更新
+      // 目的: 見た目生成はしない（描画は adjust の責務）
       if (v === "deep" || v === "soft") {
         theme = v;
         applyTheme();

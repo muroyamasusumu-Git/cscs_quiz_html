@@ -1,57 +1,25 @@
-// assets/cscs_adjust_background.js
+// cscs_adjust_background.js
 /*
- * CSCS Adjust Background (Ambient Tuner)
+ * 概要:
+ *   右下の ⚙︎ ボタンから「背景（ambient）の見え方」をその場で調整できるパネルを表示します。
+ *   調整したパラメータ（各値）を localStorage に保存し、theme1 / theme2 / theme3 の3種類を切り替えて使えます。
  *
- * 【役割分担（ambient_background.js との責務分離）】
- *   - cscs_ambient_background.js（ambient側）:
- *       「背景レイヤーの器（DOMと安全柵CSS）」を作るだけ。
- *       具体的には #cscs-ambient-layer / #cscs-ambient-base / #cscs-ambient-tuned /
- *       #cscs-ambient-tuned-rot を “確定ID” で常に用意し、最背面固定・クリック不干渉・z-index安全を保証する。
- *       ON/OFF と theme状態は ambient が管理する（描画はしない）。
+ * 使い方:
+ *   - 右下 ⚙︎ を押すとパネルが開閉します（折りたたみボタンはありません）。
+ *   - パネル内のスライダー/トグルで背景を調整すると即時反映されます。
+ *   - 「Theme」欄で theme1〜3 を選び、「Save（保存）」でそのテーマに保存できます。
+ *   - 「Load（読込）」で保存済みテーマを読み込み、即時反映します。
+ *   - 「Reset to default（初期値に戻す）」でこのJSの初期状態（デフォルト）に戻します。
  *
- *   - cscs_adjust_background.js（adjust側 / このファイル）:
- *       「見た目の生成（描画）」と「調整UI」と「localStorage保存」を担当する。
- *       ambient が用意した “器” のうち、#cscs-ambient-tuned-rot に対して <style> を注入し、
- *       radial-gradient / linear-gradient の合成や transform（rotate/translate/origin）で見た目を作る。
- *       器が無い場合は何もしない（フォールバックで器を作らない）。
- *
- * 【このファイルが実際にやっていること（流れ）】
- *   1) State（st）を保持
- *      - 見た目パラメータ（spot/alpha/stop/rotate/translate/origin/afterBox など）
- *      - 表示系（enabled: 上書きCSSの有効/無効, uiVisible: パネル開閉, hideOtherUI: 背景確認モード）
- *
- *   2) CSS注入（apply）
- *      - <style id="cscs-ambient-tuner-style"> を用意し、その textContent を差し替える。
- *      - 描画先は #cscs-ambient-tuned-rot に固定（擬似要素は使わない）。
- *      - enabled=OFF のときは、background/transform/top/right/bottom/left を明示的にクリアして
- *        「前回の見た目が残る事故」を防ぐ。
- *
- *   3) 調整UI（右下⚙︎ + パネル）
- *      - スライダー/トグル操作で st を更新し、即時 apply() で反映する。
- *      - Hide other UI は html にクラスを付け、visibility で “背景以外” を隠す（背景レイヤーDOMは表示維持）。
- *
- *   4) テーマ保存（theme1〜theme3 / 値だけ）
- *      - localStorage に “値だけ” を保存する（uiVisible のような一時UI状態は保存しない）。
- *      - Load は保存が無い場合は何もしない（フォールバックで勝手に作らない）。
- *      - 最後に Load した theme 名は LAST_THEME_KEY に保存し、ページ遷移後に自動復元する。
- *
- * 【依存関係（重要）】
- *   - このファイルは ambient 側が用意する #cscs-ambient-tuned-rot を “描画先” として使う。
- *   - そのDOMが無い場合は apply() が何もせず終了する（器の生成は ambient の責務なので行わない）。
+ * 注意:
+ *   - 保存/読込は “値だけ” を扱います（uiVisible などの一時UI状態は保存しません）。
+ *   - 保存データが無いテーマを Load した場合は何もしません（フォールバックで勝手に作りません）。
  */
 
 (() => {
   "use strict";
 
-  // ▼ ambient 側で確定した DOM ID（以後不変）
-  // 目的: adjust の描画先を固定し、以後の改修をラクにする
-  const AMBIENT_LAYER_ID = "cscs-ambient-layer";
-  const AMBIENT_BASE_ID  = "cscs-ambient-base";
-  const AMBIENT_TUNED_ID = "cscs-ambient-tuned";
-
-  // ▼ 回転専用 tuned 子要素（ambient 側で追加した描画先）
-  // 目的: 回転・平行移動・origin をこの要素に集約し、描画もここへ寄せる
-  const AMBIENT_TUNED_ROT_ID = "cscs-ambient-tuned-rot";
+  const BODY_CLASS = "cscs-ambient-bg-on"; // 背景レイヤーON時に html に付けるクラス（既存ambient背景と揃える）
 
   const STYLE_ID = "cscs-ambient-tuner-style"; // このチューナーが上書きCSSを入れる <style> のID
   const PANEL_ID = "cscs-ambient-tuner-panel"; // 調整パネルDOMのID
@@ -125,15 +93,10 @@
   const DEFAULT_VALUES = JSON.parse(JSON.stringify(st));
   delete DEFAULT_VALUES.uiVisible;
 
-  function getTunedRotElOrNull() {
-    // ▼ 器（DOM）が無ければ何もしない（フォールバックで勝手に作らない）
-    // 目的: adjust が ambient の責務（器生成）を侵食しない
+  function ensureHtmlClass() {
     try {
-      const el = document.getElementById(AMBIENT_TUNED_ROT_ID);
-      return el || null;
-    } catch (_e) {
-      return null;
-    }
+      document.documentElement.classList.add(BODY_CLASS);
+    } catch (_e) {}
   }
 
   function ensureStyleEl() {
@@ -158,14 +121,7 @@
       "html." + HIDE_UI_CLASS + " #" + PANEL_ID + "," +
       "html." + HIDE_UI_CLASS + " #" + PANEL_ID + " *," +
       "html." + HIDE_UI_CLASS + " #" + BTN_ID + "," +
-      "html." + HIDE_UI_CLASS + " #" + BTN_ID + " *," +
-
-      // ▼ 背景レイヤーDOMは必ず見せる（背景確認モードのため）
-      // 目的: Hide other UI 中でも背景自体が消えないようにする
-      "html." + HIDE_UI_CLASS + " #" + AMBIENT_LAYER_ID + "," +
-      "html." + HIDE_UI_CLASS + " #" + AMBIENT_BASE_ID + "," +
-      "html." + HIDE_UI_CLASS + " #" + AMBIENT_TUNED_ID + "," +
-      "html." + HIDE_UI_CLASS + " #" + AMBIENT_TUNED_ROT_ID + "{" +
+      "html." + HIDE_UI_CLASS + " #" + BTN_ID + " *{" +
         "visibility:visible !important;" +
       "}";
 
@@ -185,9 +141,7 @@
   }
 
   function cssDimA() { // dim → 0..0.30相当
-    // ▼ ambient は dim を持たない（見た目は adjust 側に寄せる）
-    // 目的: ambient の見た目パラメータ依存を断ち、責務を完全分離する
-    if (st.dim === null) return "0";
+    if (st.dim === null) return "var(--cscs-ambient-dim-a,0)";
     return String(0.30 * clamp01(st.dim));
   }
 
@@ -195,121 +149,99 @@
     return String(0.18 * clamp01(st.bright));
   }
 
-  function buildTunedCss() {
+  function buildAfterCss() {
     const dimA = cssDimA();
     const brightA = cssBrightA();
-
-    const spx = st.spot.x + "%";
-    const spy = st.spot.y + "%";
-
-    // ▼ 擬似要素を使わず、#cscs-ambient-tuned の background で合成
-    // 目的: 描画を「専用DOMレイヤー方式」に統一し、擬似要素の取り合いを根絶する
-    const layers = [];
-
-    // Beam（任意）
-    if (st.beam.enabled) {
-      const b = st.beam;
-      layers.push(
-        "linear-gradient(" + b.angle + "deg," +
-          "rgba(255,255,255," + b.a0 + ") " + b.p0 + "%," +
-          "rgba(255,255,255," + b.a1 + ") " + b.p1 + "%," +
-          "rgba(255,255,255," + b.a2 + ") " + b.p2 + "%" +
-        ")"
-      );
-    }
-
-    // 明るさオーバーレイ（bright）
-    layers.push("linear-gradient(180deg, rgba(255,255,255," + brightA + ") 0%, rgba(255,255,255," + brightA + ") 100%)");
-
-    // 暗さオーバーレイ（dim）
-    layers.push("linear-gradient(180deg, rgba(0,0,0," + dimA + ") 0%, rgba(0,0,0," + dimA + ") 100%)");
-
-    // 右側を暗く落とす（旧 ::before 相当）
-    layers.push("linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.58) 100%)");
-
-    // 左下も暗く溜める（旧 ::before 相当）
-    layers.push("linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 60%, rgba(0,0,0,0.70) 100%)");
-
-    // 小さいコア楕円（旧 ::after 相当）
-    layers.push(
-      "radial-gradient(ellipse " + st.core.w + "px " + st.core.h + "px at " + spx + " " + spy + "," +
-        "rgba(70,70,70," + st.alpha.core0 + ") 0%," +
-        "rgba(50,50,50," + st.alpha.core1 + ") " + st.stop.core1 + "%," +
-        "rgba(0,0,0,0) " + st.stop.core2 + "%" +
-      ")"
-    );
-
-    // 大きいメイン楕円（旧 ::after 相当）
-    layers.push(
-      "radial-gradient(ellipse " + st.main.w + "px " + st.main.h + "px at " + spx + " " + spy + "," +
-        "rgba(58,58,58," + st.alpha.main0 + ") 0%," +
-        "rgba(34,34,34," + st.alpha.main1 + ") " + st.stop.main1 + "%," +
-        "rgba(0,0,0,0) " + st.stop.main2 + "%" +
-      ")"
-    );
 
     const bx = st.afterBox;
     const ox = st.origin;
     const tr = st.translate;
 
+    const spx = st.spot.x + "%";
+    const spy = st.spot.y + "%";
+
+    const afterBg =
+      // 明るさオーバーレイ（bright）
+      "linear-gradient(180deg, rgba(255,255,255," + brightA + ") 0%, rgba(255,255,255," + brightA + ") 100%)," +
+      // 暗さオーバーレイ（dim）
+      "linear-gradient(180deg, rgba(0,0,0," + dimA + ") 0%, rgba(0,0,0," + dimA + ") 100%)," +
+      // 小さいコア楕円
+      "radial-gradient(ellipse " + st.core.w + "px " + st.core.h + "px at " + spx + " " + spy + "," +
+        "rgba(70,70,70," + st.alpha.core0 + ") 0%," +
+        "rgba(50,50,50," + st.alpha.core1 + ") " + st.stop.core1 + "%," +
+        "rgba(0,0,0,0) " + st.stop.core2 + "%" +
+      ")," +
+      // 大きいメイン楕円
+      "radial-gradient(ellipse " + st.main.w + "px " + st.main.h + "px at " + spx + " " + spy + "," +
+        "rgba(58,58,58," + st.alpha.main0 + ") 0%," +
+        "rgba(34,34,34," + st.alpha.main1 + ") " + st.stop.main1 + "%," +
+        "rgba(0,0,0,0) " + st.stop.main2 + "%" +
+      ")";
+
     return (
-      "#" + AMBIENT_TUNED_ROT_ID + "{" +
-        // ▼ afterBox（回転で欠けないための余白）を tuned-rot の外枠として適用
-        // 目的: 回転しても画面端が欠けにくい描画領域を確保する
+      "html." + BODY_CLASS + "::after{" +
+        "content:'';" +
+        "position:fixed;" +
+        "pointer-events:none;" +
+        "z-index:0;" +
         "top:" + bx.top + "%;" +
         "right:" + bx.right + "%;" +
         "bottom:" + bx.bottom + "%;" +
         "left:" + bx.left + "%;" +
-
-        // ▼ origin / translate / rotate を tuned-rot に集約
-        // 目的: 回転などの transform を 1要素に閉じ込め、他要素（tuned本体）と責務分離する
         "transform-origin:" + ox.x + "% " + ox.y + "%;" +
         "transform: translate(" + tr.x + "%," + tr.y + "%) rotate(" + st.rotate + "deg);" +
+        "background:" + afterBg + ";" +
+        "background-repeat:no-repeat,no-repeat,no-repeat,no-repeat;" +
+        "background-attachment:fixed,fixed,fixed,fixed;" +
+        "background-blend-mode:normal,normal,normal,normal;" +
+      "}"
+    );
+  }
 
-        // ▼ 描画（background合成）も tuned-rot に寄せる
-        // 目的: 回転と描画の適用対象を一致させ、UIの afterBox/origin/translate/rotate が有効に働くようにする
-        "background:" + layers.join(",") + ";" +
+  function buildBeforeCssIfNeeded() {
+    if (!st.beam.enabled) return "";
+
+    const dimA = cssDimA();
+    const brightA = cssBrightA();
+    const b = st.beam;
+
+    const beam =
+      "linear-gradient(" + b.angle + "deg," +
+        "rgba(255,255,255," + b.a0 + ") " + b.p0 + "%," +
+        "rgba(255,255,255," + b.a1 + ") " + b.p1 + "%," +
+        "rgba(255,255,255," + b.a2 + ") " + b.p2 + "%" +
+      ")";
+
+    return (
+      "html." + BODY_CLASS + "::before{" +
+        "background:" +
+          beam + "," +
+          "linear-gradient(180deg, rgba(255,255,255," + brightA + ") 0%, rgba(255,255,255," + brightA + ") 100%)," +
+          "linear-gradient(180deg, rgba(0,0,0," + dimA + ") 0%, rgba(0,0,0," + dimA + ") 100%)," +
+          "linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.58) 100%)," +
+          "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 60%, rgba(0,0,0,0.70) 100%)," +
+          "linear-gradient(180deg, rgba(18,18,18,1) 0%, rgba(14,14,14,1) 100%);" +
         "background-repeat:no-repeat;" +
         "background-attachment:fixed;" +
       "}"
     );
   }
 
-  // buildBeforeCssIfNeeded は廃止（擬似要素を使わない）
-  // buildDimOverride も廃止（ambient の CSS 変数に依存しない）
+  function buildDimOverride() {
+    if (st.dim === null) return "";
+    return "html." + BODY_CLASS + "{--cscs-ambient-dim-a:" + cssDimA() + ";}";
+  }
 
   function apply() {
+    ensureHtmlClass();
     const el = ensureStyleEl();
 
-    // ▼ 器（DOM）が無ければ何もしない（フォールバックで作らない）
-    // 目的: adjust が ambient の責務（器生成）を侵食しない
-    const tunedRot = getTunedRotElOrNull();
-    if (!tunedRot) {
+    if (!st.enabled) {
       el.textContent = "";
       return;
     }
 
-    // ▼ このチューナーのCSS注入をOFF（tuned は空にする）
-    // 目的: 器は残したまま、adjust の描画だけを確実に無効化する
-    if (!st.enabled) {
-      // ▼ 上書きをOFFにしたとき、前回の描画（background/transform）がDOMに残らないようにクリアする
-      // 目的: Override OFF で「背景が残る」事故を防ぎ、OFF=無効を確実にする
-      el.textContent =
-        "#" + AMBIENT_TUNED_ROT_ID + "{" +
-          "background:transparent;" +
-          "transform:none;" +
-          "transform-origin:50% 50%;" +
-          "top:0%;" +
-          "right:0%;" +
-          "bottom:0%;" +
-          "left:0%;" +
-        "}";
-      return;
-    }
-
-    // ▼ tuned レイヤーにのみ CSS を注入（擬似要素は禁止）
-    // 目的: 描画責務を adjust に一本化し、描画先DOMを不変にする
-    el.textContent = buildTunedCss();
+    el.textContent = buildDimOverride() + buildBeforeCssIfNeeded() + buildAfterCss();
   }
 
   // removeAll は廃止：
@@ -765,7 +697,7 @@
 
     group.appendChild(el("div", { style: { height: "10px" } }));
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Dim override（暗さの一時上書き）" }));
-    group.appendChild(el("div", { style: { fontSize: "11px", opacity: "0.85", marginBottom: "6px" }, text: "null = dim を上書きしない（= 0扱い）" }));
+    group.appendChild(el("div", { style: { fontSize: "11px", opacity: "0.85", marginBottom: "6px" }, text: "null = 既存の --cscs-ambient-dim-a をそのまま利用" }));
 
     const dimWrap = el("div", { style: { marginBottom: "10px" } });
     const dimVal = el("span", { style: { fontSize: "11px", opacity: "0.85", minWidth: "46px", textAlign: "right" }, text: st.dim === null ? "null" : String(st.dim) });
@@ -905,6 +837,7 @@
     // remove は廃止: UI自体を消去する導線を無くす（混乱防止）
   };
 
+  ensureHtmlClass();
   apply();
   applyHideOtherUI();
 
