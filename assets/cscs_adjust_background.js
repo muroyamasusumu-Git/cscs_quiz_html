@@ -80,6 +80,8 @@
     uiVisible: false,     // パネル表示ON/OFF（初期は閉じる：右下⚙︎で開く）
     hideOtherUI: false,   // 背景調整用に「他のUIを非表示（visibility）」にする
 
+    ambientLayerEnabled: true, // 背景そのもの（ambient layer DOM）をON/OFFする
+
     // ▼ デフォルトは「はみ出し無し」を基準にする
     // 目的: 初期状態で afterBox 調整が不要な状態にし、見た目の基準点を明確にする
     afterBox: { top: 0, right: 0, bottom: 0, left: 0 },  // %
@@ -231,6 +233,16 @@
       ensureHideUiStyle();
       if (st.hideOtherUI) document.documentElement.classList.add(HIDE_UI_CLASS);
       else document.documentElement.classList.remove(HIDE_UI_CLASS);
+    } catch (_e) {}
+  }
+
+  function applyAmbientLayerEnabled() {
+    // ▼ 背景そのもの（ambient layer）のON/OFFを ambient 側APIに委譲
+    // 目的: adjust は「器（DOM）を作らない」方針を維持しつつ、背景の表示有無だけを操作できるようにする
+    try {
+      if (window.CSCS_AMBIENT_BG && typeof window.CSCS_AMBIENT_BG.setEnabled === "function") {
+        window.CSCS_AMBIENT_BG.setEnabled(!!st.ambientLayerEnabled);
+      }
     } catch (_e) {}
   }
 
@@ -937,6 +949,11 @@
     themeRow2.appendChild(resetBtn);
     group.appendChild(themeRow2);
 
+    group.appendChild(toggle("Ambient layer（背景そのものをON/OFF）", () => st.ambientLayerEnabled, (v) => (st.ambientLayerEnabled = v), () => {
+      applyAmbientLayerEnabled();
+    }));
+    group.appendChild(el("div", { style: { height: "6px" } }));
+
     group.appendChild(toggle("Override CSS（このチューナーの上書きを有効化）", () => st.enabled, (v) => (st.enabled = v)));
     group.appendChild(el("div", { style: { height: "6px" } }));
 
@@ -1286,6 +1303,7 @@
 
   apply();
   applyHideOtherUI();
+  applyAmbientLayerEnabled();
 
   window.addEventListener("resize", () => {
     // ▼ 端末回転・リサイズ時に afterBox 自動計算を追従させる
