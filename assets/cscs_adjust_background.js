@@ -83,7 +83,7 @@
     afterBox: { top: -30, right: -10, bottom: -50, left: -20 },  // %
     origin: { x: 20, y: 20 }, // %
     translate: { x: -4, y: -4 }, // %
-    rotate: -20, // deg
+    rotate: 10, // deg
 
     spot: { x: 23, y: 30 }, // %
 
