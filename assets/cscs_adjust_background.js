@@ -148,6 +148,14 @@
       p0: 0,
       p1: 28,
       p2: 58
+    },
+
+    // ▼ 反対方向の直線光（上下左右真逆）
+    // 目的: beam.angle の真逆（+180deg）に同質の光を追加し、画面のバランスを取れるようにする
+    beam2: {
+      enabled: false,
+      offset: 180,   // beam.angle + 180deg
+      strength: 1.00
     }
   };
 
@@ -333,12 +341,10 @@
     // 目的: 描画を「専用DOMレイヤー方式」に統一し、擬似要素の取り合いを根絶する
     const layers = [];
 
-    // Beam（任意）
-    if (st.beam.enabled) {
+    // Beam（直線光：1本目）
+    if (st.beam && st.beam.enabled) {
       const b = st.beam;
 
-      // ▼ Beam の強度倍率を a0/a1/a2 に反映
-      // 目的: 右下の直線光の「光の強さ」を strength 一発で調整できるようにする
       const s = Number(b.strength);
       const strength = isFinite(s) ? s : 1;
 
@@ -348,6 +354,28 @@
 
       layers.push(
         "linear-gradient(" + b.angle + "deg," +
+          "rgba(255,255,255," + a0 + ") " + b.p0 + "%," +
+          "rgba(255,255,255," + a1 + ") " + b.p1 + "%," +
+          "rgba(255,255,255," + a2 + ") " + b.p2 + "%" +
+        ")"
+      );
+    }
+
+    // Beam（直線光：2本目／上下左右真逆）
+    if (st.beam2 && st.beam2.enabled && st.beam && st.beam.enabled) {
+      const b = st.beam;
+
+      const s2 = Number(st.beam2.strength);
+      const strength2 = isFinite(s2) ? s2 : 1;
+
+      const a0 = Number(b.a0) * strength2;
+      const a1 = Number(b.a1) * strength2;
+      const a2 = Number(b.a2) * strength2;
+
+      const angle2 = (Number(b.angle) + Number(st.beam2.offset || 180)) % 360;
+
+      layers.push(
+        "linear-gradient(" + angle2 + "deg," +
           "rgba(255,255,255," + a0 + ") " + b.p0 + "%," +
           "rgba(255,255,255," + a1 + ") " + b.p1 + "%," +
           "rgba(255,255,255," + a2 + ") " + b.p2 + "%" +
@@ -889,7 +917,21 @@
     group.appendChild(toggle("Override CSS（このチューナーの上書きを有効化）", () => st.enabled, (v) => (st.enabled = v)));
     group.appendChild(el("div", { style: { height: "6px" } }));
 
-    group.appendChild(toggle("Beam(::before)（斜めの光を追加して見え方確認）", () => st.beam.enabled, (v) => (st.beam.enabled = v)));
+    group.appendChild(toggle("Beam 1（斜めの光）", () => st.beam.enabled, (v) => (st.beam.enabled = v)));
+    group.appendChild(el("div", { style: { height: "4px" } }));
+
+    group.appendChild(toggle("Beam 2（反対方向の光）", () => (st.beam2 && st.beam2.enabled), (v) => {
+      if (!st.beam2) st.beam2 = { enabled: true, offset: 180, strength: 1.0 };
+      st.beam2.enabled = !!v;
+    }));
+
+    group.appendChild(slider("Beam2 strength (x)", 0, 3, 0.01,
+      () => (st.beam2 ? st.beam2.strength : 1),
+      (v) => {
+        if (!st.beam2) st.beam2 = { enabled: true, offset: 180, strength: 1.0 };
+        st.beam2.strength = v;
+      }
+    ));
     group.appendChild(el("div", { style: { height: "6px" } }));
 
     group.appendChild(toggle("Ellipse(::after)（楕円の光をON/OFF）", () => (st.ellipse && st.ellipse.enabled), (v) => {
