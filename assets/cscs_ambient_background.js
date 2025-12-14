@@ -73,6 +73,7 @@
       + "html, body{"
       + "height:100%;"
       + "min-height:100%;"
+      + "overflow-x:hidden;"
       + "}"
 
       // ▼ Ambient ON のスコープ（背景の“器”がある状態）
