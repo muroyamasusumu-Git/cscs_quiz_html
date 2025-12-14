@@ -38,17 +38,21 @@
             style.textContent = `
 #cscs-odoa-toggle {
     font-size: 11px;
-    padding: 0px 6px;
-    position: static;            /* 位置固定を完全解除 */
-    opacity: 0.5;               /* topmeta-left の中に溶け込む軽めの表示 */
+    padding: 2px 8px;
+    position: static;
     font-weight: bold;
     width: auto;
-    color:#fff;
     text-align: center;
-    margin-left: 0;            /* topmeta-left 内で他要素と軽く間隔を取る */
-}
+    margin-left: 0;
 
-/* Bパート用：ODOA ボタンを「押せないラベル」にしつつ白黒反転させる */
+    /* ▼ 見た目調整 */
+    color: #ffffff;                    /* 文字：白 */
+    background-color: rgba(0,0,0,0.35);/* 薄い黒 */
+    border-radius: 999px;              /* 丸い形を維持 */
+    border: none;                      /* 枠線なし */
+    box-shadow: none;                  /* シャドウなし */
+    opacity: 1;                        /* ボタン自体の視認性は確保 */
+}
 #cscs-odoa-toggle.cscs-odoa-readonly {
     pointer-events: none;
 }
