@@ -81,6 +81,17 @@
     hideOtherUI: false,   // 背景調整用に「他のUIを非表示（visibility）」にする
 
     afterBox: { top: -30, right: -10, bottom: -50, left: -20 },  // %
+
+    afterBoxAuto: {
+      // ▼ 画面比率と回転角から「欠けないための必要最小余白」を自動計算する
+      // 目的: 端末の縦横比が変わったり、rotate角度を変えた時に afterBox を手調整しなくて済むようにする
+      enabled: true,
+
+      // ▼ 安全係数（計算値に掛ける倍率）
+      // 目的: レンダリング差や background-attachment:fixed 等のクセで「ギリギリ欠ける」を防ぐ
+      safety: 1.45
+    },
+
     origin: { x: 20, y: 20 }, // %
     translate: { x: -4, y: -4 }, // %
     rotate: 10, // deg
@@ -208,6 +219,45 @@
     return String(0.18 * clamp01(st.bright));
   }
 
+  function calcAutoAfterBoxFromViewport(rotateDeg, safety) {
+    // ▼ 画面比率 + 回転角から、回転後の外接矩形サイズを求めて余白(%)に変換する
+    // 目的: 「回転で欠けない」ための afterBox を自動で算出できるようにする
+    const w = Number(window.innerWidth);
+    const h = Number(window.innerHeight);
+    const r = Number(rotateDeg);
+    const k = Number(safety);
+
+    const rad = r * Math.PI / 180;
+    const sin = Math.abs(Math.sin(rad));
+    const cos = Math.abs(Math.cos(rad));
+
+    const Wp = w * cos + h * sin; // 回転後の外接矩形幅
+    const Hp = w * sin + h * cos; // 回転後の外接矩形高
+
+    const dW = Wp - w;
+    const dH = Hp - h;
+
+    const leftRight = -((dW / 2) / w) * 100;
+    const topBottom = -((dH / 2) / h) * 100;
+
+    const s = isFinite(k) ? k : 1;
+    return {
+      top: topBottom * s,
+      right: leftRight * s,
+      bottom: topBottom * s,
+      left: leftRight * s
+    };
+  }
+
+  function getEffectiveAfterBox() {
+    // ▼ afterBoxAuto がONなら、現在の端末サイズと rotate から afterBox を自動計算して使う
+    // 目的: rotate を変えた時／端末回転・リサイズ時も欠けにくい余白を常に適用する
+    if (st.afterBoxAuto && st.afterBoxAuto.enabled) {
+      return calcAutoAfterBoxFromViewport(st.rotate, st.afterBoxAuto.safety);
+    }
+    return st.afterBox;
+  }
+
   function buildTunedCss() {
     const dimA = cssDimA();
     const brightA = cssBrightA();
@@ -277,7 +327,7 @@
       );
     }
 
-    const bx = st.afterBox;
+    const bx = getEffectiveAfterBox();
     const ox = st.origin;
     const tr = st.translate;
 
@@ -464,6 +514,15 @@
       bottom: Number(v.afterBox.bottom),
       left: Number(v.afterBox.left)
     };
+
+    if (v.afterBoxAuto) {
+      // ▼ afterBoxAuto の復元（自動安全マージンのON/OFFと安全係数）
+      // 目的: テーマ読込で「自動余白」設定も同じ状態に戻せるようにする
+      st.afterBoxAuto = {
+        enabled: !!v.afterBoxAuto.enabled,
+        safety: Number(v.afterBoxAuto.safety)
+      };
+    }
 
     if (v.origin) st.origin = { x: Number(v.origin.x), y: Number(v.origin.y) };
     if (v.translate) st.translate = { x: Number(v.translate.x), y: Number(v.translate.y) };
@@ -798,6 +857,20 @@
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Coverage box (%)（回転で欠けないための“余白”）" }));
     group.appendChild(el("div", { style: { height: "6px" } }));
 
+    group.appendChild(toggle("Auto afterBox（画面比率+角度から余白を自動計算）", () => (st.afterBoxAuto && st.afterBoxAuto.enabled), (v) => {
+      // ▼ 自動安全マージンのON/OFF
+      // 目的: 手動調整(afterBoxスライダー)と自動計算を切り替えられるようにする
+      if (!st.afterBoxAuto) st.afterBoxAuto = { enabled: true, safety: 1.45 };
+      st.afterBoxAuto.enabled = !!v;
+    }));
+    group.appendChild(slider("Auto safety (x)（自動余白の安全係数）", 1, 3, 0.01, () => (st.afterBoxAuto ? st.afterBoxAuto.safety : 1.45), (v) => {
+      // ▼ 自動計算値に掛ける倍率
+      // 目的: 「計算上はOKだが実機でギリ欠ける」ケースを係数で吸収できるようにする
+      if (!st.afterBoxAuto) st.afterBoxAuto = { enabled: true, safety: 1.45 };
+      st.afterBoxAuto.safety = Number(v);
+    }));
+    group.appendChild(el("div", { style: { height: "6px" } }));
+
     group.appendChild(slider("Top (%)（上側へどれだけはみ出すか）", -80, 0, 1, () => st.afterBox.top, (v) => (st.afterBox.top = v)));
     group.appendChild(slider("Right (%)（右側へどれだけはみ出すか）", -80, 0, 1, () => st.afterBox.right, (v) => (st.afterBox.right = v)));
     group.appendChild(slider("Bottom (%)（下側へどれだけはみ出すか）", -80, 0, 1, () => st.afterBox.bottom, (v) => (st.afterBox.bottom = v)));
@@ -979,6 +1052,12 @@
 
   apply();
   applyHideOtherUI();
+
+  window.addEventListener("resize", () => {
+    // ▼ 端末回転・リサイズ時に afterBox 自動計算を追従させる
+    // 目的: 画面比率が変わった瞬間に「欠け」を起こしにくくする
+    if (st.afterBoxAuto && st.afterBoxAuto.enabled) apply();
+  });
 
   // ★ 最後に使用していた theme を自動復元
   // 目的: ページ遷移・再読込後も同じ背景を維持する
