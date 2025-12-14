@@ -1336,8 +1336,13 @@
     var qidInlineBox = document.createElement("div");
     qidInlineBox.id = "cscs-field-qid-inline";
     qidInlineBox.style.marginTop = "10px";
-    qidInlineBox.style.paddingTop = "6px";
-    qidInlineBox.style.borderTop = "1px solid rgba(255,255,255,0.18)";
+
+    // ▼ ここから追加：qid一覧が「開かれている時だけ」ボーダーを出す
+    // - 初期状態（未表示）はボーダー無し
+    qidInlineBox.style.paddingTop = "0px";               // ボーダー無しの時は余白も無し
+    qidInlineBox.style.borderTop = "none";               // 初期はボーダー非表示
+    // ▲ ここまで追加
+
     qidInlineBox.style.fontSize = "11px";
     qidInlineBox.style.lineHeight = "1.4";
     qidInlineBox.style.opacity = "0.85";
@@ -1415,6 +1420,20 @@
           var name = row.field;
           var qids = getQidsForFieldInline(name) || [];
 
+          // ▼ ここから追加：qid一覧の開閉に合わせてボーダー表示を切り替えるヘルパー
+          function setQidInlineBorderVisible(visible) {
+            if (visible) {
+              // qid一覧を表示する時だけボーダーを出す
+              qidInlineBox.style.borderTop = "1px solid rgba(255,255,255,0.18)";
+              qidInlineBox.style.paddingTop = "6px";
+            } else {
+              // 閉じたらボーダーを消す（余白も消す）
+              qidInlineBox.style.borderTop = "none";
+              qidInlineBox.style.paddingTop = "0px";
+            }
+          }
+          // ▲ ここまで追加
+
           // すでにこの分野を開いていた場合はトグルで閉じる
           if (
             qidInlineBox.dataset.currentField &&
@@ -1422,6 +1441,11 @@
           ) {
             qidInlineBox.innerHTML = "";
             qidInlineBox.dataset.currentField = "";
+
+            // ▼ 追加：閉じたのでボーダーも非表示に戻す
+            setQidInlineBorderVisible(false);
+            // ▲ 追加
+
             // トグルで閉じた場合は sessionStorage 上の「開いている分野名」もクリアする
             saveFieldSummaryOpenFieldName("");
             return;
@@ -1430,6 +1454,11 @@
           // 別の分野を開くので中身をリセット
           qidInlineBox.innerHTML = "";
           qidInlineBox.dataset.currentField = name;
+
+          // ▼ 追加：開いたのでボーダーを表示する
+          setQidInlineBorderVisible(true);
+          // ▲ 追加
+
           // 新しく開いた分野名を sessionStorage に保存し、ページ更新後も同じ分野を再表示できるようにする
           saveFieldSummaryOpenFieldName(name);
 
@@ -1455,6 +1484,11 @@
           closeBtn.onclick = function () {
             qidInlineBox.innerHTML = "";
             qidInlineBox.dataset.currentField = "";
+
+            // ▼ 追加：明示的に閉じたのでボーダーも非表示に戻す
+            setQidInlineBorderVisible(false);
+            // ▲ 追加
+
             // 明示的に閉じた場合は、sessionStorage 上の「開いている分野名」もクリアする
             saveFieldSummaryOpenFieldName("");
           };
