@@ -51,7 +51,7 @@
     border-radius: 999px;              /* 丸い形を維持 */
     border: none;                      /* 枠線なし */
     box-shadow: none;                  /* シャドウなし */
-    opacity: 1;                        /* ボタン自体の視認性は確保 */
+    opacity: 0.5;                        /* ボタン自体の視認性は確保 */
 }
 #cscs-odoa-toggle.cscs-odoa-readonly {
     pointer-events: none;
