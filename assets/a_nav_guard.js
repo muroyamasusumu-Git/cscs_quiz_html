@@ -38,7 +38,7 @@
             style.textContent = `
 #cscs-odoa-toggle {
     font-size: 11px;
-    padding: 2px 8px;
+    padding: 3px 8px;
     position: static;
     font-weight: bold;
     width: auto;
