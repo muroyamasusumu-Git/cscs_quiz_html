@@ -38,7 +38,7 @@
             style.textContent = `
 #cscs-odoa-toggle {
     font-size: 11px;
-    padding: 3px 8px;
+    padding: 0 8px;
     position: static;
     font-weight: bold;
     width: auto;
@@ -47,11 +47,12 @@
 
     /* ▼ 見た目調整 */
     color: #ffffff;                    /* 文字：白 */
-    background-color: rgba(0,0,0,0.35);/* 薄い黒 */
+    background-color: rgba(0,0,0,0.85);/* 薄い黒 */
     border-radius: 999px;              /* 丸い形を維持 */
     border: none;                      /* 枠線なし */
     box-shadow: none;                  /* シャドウなし */
     opacity: 0.8;                        /* ボタン自体の視認性は確保 */
+    height: 25px;
 }
 #cscs-odoa-toggle.cscs-odoa-readonly {
     pointer-events: none;
