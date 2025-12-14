@@ -944,6 +944,26 @@
     group.appendChild(toggle("Beam 1（斜めの光）", () => st.beam.enabled, (v) => (st.beam.enabled = v)));
     group.appendChild(el("div", { style: { height: "4px" } }));
 
+    // ▼ Beam2 の ON/OFF を Beam1 直下へ移動
+    // 目的: Beam 系の主トグルを上下に並べて操作しやすくする
+    group.appendChild(toggle("Beam 2（2本目の光）", () => (st.beam2 && st.beam2.enabled), (v) => {
+      // ▼ Beam2 を存在保証しつつ ON/OFF を切替
+      // 目的: Beam2 を beam と同格で扱い、単独でも有効化できるようにする
+      if (!st.beam2) st.beam2 = {
+        enabled: false,
+        angle: 160,
+        strength: 1.00,
+        a0: 0.10,
+        a1: 0.04,
+        a2: 0.00,
+        p0: 0,
+        p1: 28,
+        p2: 58
+      };
+      st.beam2.enabled = !!v;
+    }));
+    group.appendChild(el("div", { style: { height: "4px" } }));
+
     group.appendChild(toggle("Ellipse(::after)（楕円の光をON/OFF）", () => (st.ellipse && st.ellipse.enabled), (v) => {
       // ▼ 楕円スポットのON/OFF切替
       // 目的: 楕円だけ消して背景/Beamの見え方を比較できるようにする
@@ -1116,26 +1136,9 @@
     group.appendChild(slider("Beam mid stop (%)（中間までの距離）", 0, 100, 1, () => st.beam.p1, (v) => (st.beam.p1 = v)));
     group.appendChild(slider("Beam end stop (%)（消えるまでの距離）", 0, 100, 1, () => st.beam.p2, (v) => (st.beam.p2 = v)));
 
-    // ▼ Beam2（2本目）は Beam1 設定の直下に配置する
-    // 目的: UI上の「Beam1 → Beam2」の関係が視覚的に連続して見えるようにする
+    // ▼ Beam2（2本目）のON/OFFトグルは、上部（Beam1直下）へ移動済み
+    // 目的: 重複表示を避け、操作位置を一箇所に統一する
     group.appendChild(el("div", { style: { height: "6px" } }));
-
-    group.appendChild(toggle("Beam 2（2本目の光）", () => (st.beam2 && st.beam2.enabled), (v) => {
-      // ▼ Beam2 を存在保証しつつ ON/OFF を切替
-      // 目的: Beam2 を beam と同格で扱い、単独でも有効化できるようにする
-      if (!st.beam2) st.beam2 = {
-        enabled: false,
-        angle: 160,
-        strength: 1.00,
-        a0: 0.10,
-        a1: 0.04,
-        a2: 0.00,
-        p0: 0,
-        p1: 28,
-        p2: 58
-      };
-      st.beam2.enabled = !!v;
-    }));
 
     group.appendChild(slider("Beam2 angle (deg)（2本目の向き）", 0, 360, 1,
       () => (st.beam2 ? st.beam2.angle : 160),
