@@ -1132,11 +1132,33 @@
     // このタイミングでスタイルを一度だけ注入
     injectFieldSummaryStyles();
 
-    // A/Bパートのメインコンテナ（.wrap）の直後に挿入する前提
+    // A/Bパートのメインコンテナ（.wrap）を取得（field_summary はこの中に入れる）
     var wrapContainer = document.querySelector(".wrap");
     if (!wrapContainer) {
       console.warn(".wrap が見つからないため field_summary を表示できませんでした。");
       return;
+    }
+
+    // field_summary の挿入位置：
+    //   - 原則：.wrap 内の #cscs-consistency-panel の「直後」
+    //   - 見つからない場合：.wrap の末尾（最低限 .wrap 内には入れる）
+    var consistencyPanel = document.getElementById("cscs-consistency-panel");
+    var insertAfterEl = null;
+    if (consistencyPanel && wrapContainer.contains(consistencyPanel)) {
+      insertAfterEl = consistencyPanel;
+    } else {
+      console.warn("field_summary.js: #cscs-consistency-panel が .wrap 内に見つからないため、.wrap 末尾に挿入します。");
+      insertAfterEl = null;
+    }
+
+    // DOM挿入を一箇所に集約するヘルパー
+    function insertIntoWrapAfterConsistency(el) {
+      if (!el) return;
+      if (insertAfterEl) {
+        insertAfterEl.insertAdjacentElement("afterend", el);
+      } else {
+        wrapContainer.appendChild(el);
+      }
     }
 
     // すでに表示済みなら二重生成しない
@@ -1152,7 +1174,8 @@
         errorPanel.textContent = "field_summary: /assets/cscs_meta_all.json から分野一覧を取得できませんでした。";
         errorPanel.style.fontSize = "11px";
         errorPanel.style.opacity = "0.7";
-        wrapContainer.insertAdjacentElement("afterend", errorPanel);
+        // 取得失敗パネルも「.wrap 内＆整合性パネル直後」に入れる
+        insertIntoWrapAfterConsistency(errorPanel);
         return;
       }
     }
@@ -1166,7 +1189,8 @@
         errorPanelSync.textContent = "field_summary: /api/sync/state から streak3 を取得できませんでした。";
         errorPanelSync.style.fontSize = "11px";
         errorPanelSync.style.opacity = "0.7";
-        wrapContainer.insertAdjacentElement("afterend", errorPanelSync);
+        // 取得失敗パネルも「.wrap 内＆整合性パネル直後」に入れる
+        insertIntoWrapAfterConsistency(errorPanelSync);
         return;
       }
     }
@@ -2608,7 +2632,8 @@
     // パネルにリストを追加し、.wrap の直後に挿入
     panel.appendChild(list);
     panel.appendChild(qidInlineBox);
-    wrapContainer.insertAdjacentElement("afterend", panel);
+    // 通常パネルも「.wrap 内＆整合性パネル直後」に入れる
+    insertIntoWrapAfterConsistency(panel);
   }
 
   // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
