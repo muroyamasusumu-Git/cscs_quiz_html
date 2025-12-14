@@ -110,6 +110,11 @@
     beam: {
       enabled: false,
       angle: 340,
+
+      // ▼ Beam の全体強度（倍率）
+      // 目的: 右下の直線光の「光の強さ」をまとめて増減できるようにする
+      strength: 1.00,
+
       a0: 0.10,
       a1: 0.04,
       a2: 0.00,
@@ -209,11 +214,21 @@
     // Beam（任意）
     if (st.beam.enabled) {
       const b = st.beam;
+
+      // ▼ Beam の強度倍率を a0/a1/a2 に反映
+      // 目的: 右下の直線光の「光の強さ」を strength 一発で調整できるようにする
+      const s = Number(b.strength);
+      const strength = isFinite(s) ? s : 1;
+
+      const a0 = Number(b.a0) * strength;
+      const a1 = Number(b.a1) * strength;
+      const a2 = Number(b.a2) * strength;
+
       layers.push(
         "linear-gradient(" + b.angle + "deg," +
-          "rgba(255,255,255," + b.a0 + ") " + b.p0 + "%," +
-          "rgba(255,255,255," + b.a1 + ") " + b.p1 + "%," +
-          "rgba(255,255,255," + b.a2 + ") " + b.p2 + "%" +
+          "rgba(255,255,255," + a0 + ") " + b.p0 + "%," +
+          "rgba(255,255,255," + a1 + ") " + b.p1 + "%," +
+          "rgba(255,255,255," + a2 + ") " + b.p2 + "%" +
         ")"
       );
     }
@@ -469,6 +484,11 @@
     if (v.beam) st.beam = {
       enabled: !!v.beam.enabled,
       angle: Number(v.beam.angle),
+
+      // ▼ Beam 強度倍率を復元
+      // 目的: テーマ読込で「右下の直線光の強さ」も同じ見え方に戻せるようにする
+      strength: Number(v.beam.strength),
+
       a0: Number(v.beam.a0),
       a1: Number(v.beam.a1),
       a2: Number(v.beam.a2),
@@ -838,6 +858,11 @@
     group.appendChild(el("div", { style: { height: "6px" } }));
 
     group.appendChild(slider("Beam angle (deg)（光の向き）", 0, 360, 1, () => st.beam.angle, (v) => (st.beam.angle = v)));
+
+    // ▼ 右下の直線光の強さ（倍率）
+    // 目的: Beam の見え方を「強度」だけ素早く調整できるようにする
+    group.appendChild(slider("Beam strength (x)（直線光の強さ倍率）", 0, 3, 0.01, () => st.beam.strength, (v) => (st.beam.strength = v)));
+
     group.appendChild(slider("Beam mid stop (%)（中間までの距離）", 0, 100, 1, () => st.beam.p1, (v) => (st.beam.p1 = v)));
     group.appendChild(slider("Beam end stop (%)（消えるまでの距離）", 0, 100, 1, () => st.beam.p2, (v) => (st.beam.p2 = v)));
 
