@@ -68,6 +68,7 @@ h1 + .inline-metas {
   display: block;
   font-weight: 400;
   color: #a8b0b8;
+  margin-left: -5px;
 }
 
 /* ===== お気に入り種別ごとの色分け ===== */
