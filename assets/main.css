@@ -67,6 +67,8 @@ html, body {
     width: 69% !important;
     overflow-y: auto !important;
     z-index: 2 !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-x: none !important;
     transform: translateZ(0) !important;  /* レイヤーを揃えて描画ズレを減らす */    
 }
 
