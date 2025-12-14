@@ -35,7 +35,7 @@
         gap: 1px;
         font-size: 12px;
         margin-bottom: 13px;
-        margin-left: 0;
+        margin-left: 0px;
     }
 
     .cscs-star-main-compact {
@@ -1295,7 +1295,7 @@
     needLine.innerHTML = html;
 
     needLine.style.marginBottom = "10px";
-    needLine.style.marginLeft = "-8px";
+    needLine.style.marginLeft = "0px";
     needLine.style.fontWeight = "500";
     needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
