@@ -472,18 +472,24 @@
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
 
-    // ★ .wrap の「内側・閉じタグ直前」に挿入する
-    var wrap = document.querySelector(".wrap");
-    if (wrap) {
-      // wrap の最後の子として追加（＝ </div class="wrap"> の直前）
-      wrap.appendChild(div);
+    // ★ #cscs-field-star-summary が存在する場合は、その直前に挿入する
+    //    （整合性パネルを Field/Star サマリより上に固定する）
+    var target = document.getElementById("cscs-field-star-summary");
+    if (target && target.parentNode) {
+      target.parentNode.insertBefore(div, target);
     } else {
-      // 念のためのフォールバック（通常ここには来ない）
-      var root = document.getElementById("root");
-      if (root) {
-        root.appendChild(div);
+      // ★ target が無い場合は従来通り、.wrap の末尾に挿入する
+      var wrap = document.querySelector(".wrap");
+      if (wrap) {
+        wrap.appendChild(div);
       } else {
-        document.body.appendChild(div);
+        // 念のためのフォールバック（通常ここには来ない）
+        var root = document.getElementById("root");
+        if (root) {
+          root.appendChild(div);
+        } else {
+          document.body.appendChild(div);
+        }
       }
     }
 
