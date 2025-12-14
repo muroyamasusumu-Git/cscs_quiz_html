@@ -60,6 +60,7 @@ html, body {
     position: fixed !important;
     top: 0 !important;
     bottom: 20px !important;
+    left: 20px !important;
     margin: 0;
     line-height: 1;
     width: 69%;
