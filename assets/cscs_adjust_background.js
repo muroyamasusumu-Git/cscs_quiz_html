@@ -549,9 +549,9 @@
       style: {
         position: "fixed",
         right: "6px",
-        bottom: "54px",
+        top: "calc(10px + env(safe-area-inset-top))",
+        bottom: "calc(54px + env(safe-area-inset-bottom))",
         width: "300px",
-        maxHeight: "calc(100vh - 90px)",
         overflow: "auto",
         zIndex: 999999,
         color: "#fff",
