@@ -944,105 +944,6 @@
     group.appendChild(toggle("Beam 1（斜めの光）", () => st.beam.enabled, (v) => (st.beam.enabled = v)));
     group.appendChild(el("div", { style: { height: "4px" } }));
 
-    group.appendChild(toggle("Beam 2（2本目の光）", () => (st.beam2 && st.beam2.enabled), (v) => {
-      // ▼ Beam2 を存在保証しつつ ON/OFF を切替
-      // 目的: Beam2 を beam と同格で扱い、単独でも有効化できるようにする
-      if (!st.beam2) st.beam2 = {
-        enabled: false,
-        angle: 160,
-        strength: 1.00,
-        a0: 0.10,
-        a1: 0.04,
-        a2: 0.00,
-        p0: 0,
-        p1: 28,
-        p2: 58
-      };
-      st.beam2.enabled = !!v;
-    }));
-
-    group.appendChild(slider("Beam2 angle (deg)（2本目の向き）", 0, 360, 1,
-      () => (st.beam2 ? st.beam2.angle : 160),
-      (v) => {
-        // ▼ Beam2 の角度を更新
-        // 目的: 2本目の光を任意方向へ回せるようにする
-        if (!st.beam2) st.beam2 = {
-          enabled: true,
-          angle: 160,
-          strength: 1.00,
-          a0: 0.10,
-          a1: 0.04,
-          a2: 0.00,
-          p0: 0,
-          p1: 28,
-          p2: 58
-        };
-        st.beam2.angle = v;
-      }
-    ));
-
-    group.appendChild(slider("Beam2 strength (x)（2本目の強さ倍率）", 0, 3, 0.01,
-      () => (st.beam2 ? st.beam2.strength : 1),
-      (v) => {
-        // ▼ Beam2 の強度倍率を更新
-        // 目的: 2本目の光量を即座に調整できるようにする
-        if (!st.beam2) st.beam2 = {
-          enabled: true,
-          angle: 160,
-          strength: 1.00,
-          a0: 0.10,
-          a1: 0.04,
-          a2: 0.00,
-          p0: 0,
-          p1: 28,
-          p2: 58
-        };
-        st.beam2.strength = v;
-      }
-    ));
-
-    group.appendChild(slider("Beam2 mid stop (%)（2本目：中間まで）", 0, 100, 1,
-      () => (st.beam2 ? st.beam2.p1 : 28),
-      (v) => {
-        // ▼ Beam2 の中間フェード位置を更新
-        // 目的: 光の広がり（中間）を独立調整できるようにする
-        if (!st.beam2) st.beam2 = {
-          enabled: true,
-          angle: 160,
-          strength: 1.00,
-          a0: 0.10,
-          a1: 0.04,
-          a2: 0.00,
-          p0: 0,
-          p1: 28,
-          p2: 58
-        };
-        st.beam2.p1 = v;
-      }
-    ));
-
-    group.appendChild(slider("Beam2 end stop (%)（2本目：消えるまで）", 0, 100, 1,
-      () => (st.beam2 ? st.beam2.p2 : 58),
-      (v) => {
-        // ▼ Beam2 の終端フェード位置を更新
-        // 目的: 光が消える距離を独立調整できるようにする
-        if (!st.beam2) st.beam2 = {
-          enabled: true,
-          angle: 160,
-          strength: 1.00,
-          a0: 0.10,
-          a1: 0.04,
-          a2: 0.00,
-          p0: 0,
-          p1: 28,
-          p2: 58
-        };
-        st.beam2.p2 = v;
-      }
-    ));
-
-    group.appendChild(el("div", { style: { height: "6px" } }));
-
     group.appendChild(toggle("Ellipse(::after)（楕円の光をON/OFF）", () => (st.ellipse && st.ellipse.enabled), (v) => {
       // ▼ 楕円スポットのON/OFF切替
       // 目的: 楕円だけ消して背景/Beamの見え方を比較できるようにする
@@ -1214,6 +1115,107 @@
 
     group.appendChild(slider("Beam mid stop (%)（中間までの距離）", 0, 100, 1, () => st.beam.p1, (v) => (st.beam.p1 = v)));
     group.appendChild(slider("Beam end stop (%)（消えるまでの距離）", 0, 100, 1, () => st.beam.p2, (v) => (st.beam.p2 = v)));
+
+    // ▼ Beam2（2本目）は Beam1 設定の直下に配置する
+    // 目的: UI上の「Beam1 → Beam2」の関係が視覚的に連続して見えるようにする
+    group.appendChild(el("div", { style: { height: "6px" } }));
+
+    group.appendChild(toggle("Beam 2（2本目の光）", () => (st.beam2 && st.beam2.enabled), (v) => {
+      // ▼ Beam2 を存在保証しつつ ON/OFF を切替
+      // 目的: Beam2 を beam と同格で扱い、単独でも有効化できるようにする
+      if (!st.beam2) st.beam2 = {
+        enabled: false,
+        angle: 160,
+        strength: 1.00,
+        a0: 0.10,
+        a1: 0.04,
+        a2: 0.00,
+        p0: 0,
+        p1: 28,
+        p2: 58
+      };
+      st.beam2.enabled = !!v;
+    }));
+
+    group.appendChild(slider("Beam2 angle (deg)（2本目の向き）", 0, 360, 1,
+      () => (st.beam2 ? st.beam2.angle : 160),
+      (v) => {
+        // ▼ Beam2 の角度を更新
+        // 目的: 2本目の光を任意方向へ回せるようにする
+        if (!st.beam2) st.beam2 = {
+          enabled: true,
+          angle: 160,
+          strength: 1.00,
+          a0: 0.10,
+          a1: 0.04,
+          a2: 0.00,
+          p0: 0,
+          p1: 28,
+          p2: 58
+        };
+        st.beam2.angle = v;
+      }
+    ));
+
+    group.appendChild(slider("Beam2 strength (x)（2本目の強さ倍率）", 0, 3, 0.01,
+      () => (st.beam2 ? st.beam2.strength : 1),
+      (v) => {
+        // ▼ Beam2 の強度倍率を更新
+        // 目的: 2本目の光量を即座に調整できるようにする
+        if (!st.beam2) st.beam2 = {
+          enabled: true,
+          angle: 160,
+          strength: 1.00,
+          a0: 0.10,
+          a1: 0.04,
+          a2: 0.00,
+          p0: 0,
+          p1: 28,
+          p2: 58
+        };
+        st.beam2.strength = v;
+      }
+    ));
+
+    group.appendChild(slider("Beam2 mid stop (%)（2本目：中間まで）", 0, 100, 1,
+      () => (st.beam2 ? st.beam2.p1 : 28),
+      (v) => {
+        // ▼ Beam2 の中間フェード位置を更新
+        // 目的: 光の広がり（中間）を独立調整できるようにする
+        if (!st.beam2) st.beam2 = {
+          enabled: true,
+          angle: 160,
+          strength: 1.00,
+          a0: 0.10,
+          a1: 0.04,
+          a2: 0.00,
+          p0: 0,
+          p1: 28,
+          p2: 58
+        };
+        st.beam2.p1 = v;
+      }
+    ));
+
+    group.appendChild(slider("Beam2 end stop (%)（2本目：消えるまで）", 0, 100, 1,
+      () => (st.beam2 ? st.beam2.p2 : 58),
+      (v) => {
+        // ▼ Beam2 の終端フェード位置を更新
+        // 目的: 光が消える距離を独立調整できるようにする
+        if (!st.beam2) st.beam2 = {
+          enabled: true,
+          angle: 160,
+          strength: 1.00,
+          a0: 0.10,
+          a1: 0.04,
+          a2: 0.00,
+          p0: 0,
+          p1: 28,
+          p2: 58
+        };
+        st.beam2.p2 = v;
+      }
+    ));
 
     panel.appendChild(group);
     document.body.appendChild(panel);
