@@ -57,13 +57,22 @@ margin: 10px 20px 75px;
 }
 
 .wrap {
-    position: relative;
+    position: fixed !important;
+    bottom: 20px !important;
     margin: 0;
     line-height: 1;
     width: 69%;
     overflow-y: auto;
-    transform: translateZ(0);  /* レイヤーを揃えて描画ズレを減らす */
+    transform: translateZ(0);  /* レイヤーを揃えて描画ズレを減らす */    
 }
+
+
+
+
+
+
+
+
 
 p {
 margin: 0;
