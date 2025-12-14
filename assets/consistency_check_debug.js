@@ -472,17 +472,13 @@
     div.id = "cscs-consistency-panel";
     div.setAttribute("role", "dialog");
 
-    // ★ .wrap の「直後」に挿入する。なければ #root、その次に body にフォールバック。
+    // ★ .wrap の「内側・閉じタグ直前」に挿入する
     var wrap = document.querySelector(".wrap");
-    if (wrap && wrap.parentNode) {
-      // wrap の次の兄弟ノードの直前に挿入（= wrap のすぐ後ろ）
-      if (wrap.nextSibling) {
-        wrap.parentNode.insertBefore(div, wrap.nextSibling);
-      } else {
-        // wrap が末尾なら、親の末尾にそのまま追加
-        wrap.parentNode.appendChild(div);
-      }
+    if (wrap) {
+      // wrap の最後の子として追加（＝ </div class="wrap"> の直前）
+      wrap.appendChild(div);
     } else {
+      // 念のためのフォールバック（通常ここには来ない）
       var root = document.getElementById("root");
       if (root) {
         root.appendChild(div);
