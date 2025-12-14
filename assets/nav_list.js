@@ -673,6 +673,109 @@
     var consRateStr = formatPercent1(consRate);
 
     // ▼ 全体サマリー（画面上部に固定されるヘッダー）DOM構築
+    // ▼（仮）日別/問題別 達成ゲージ（ダミー値）を summary の上に置く
+    var progressHost = document.createElement("div");
+    progressHost.id = "nl-progress-header";
+    try{
+      Object.assign(progressHost.style, {
+        position: "sticky",
+        top: "0px",
+        zIndex: "100001",
+        background: "none",
+        padding: "8px 10px 10px",
+        borderBottomWidth: "1px",
+        borderBottomStyle: "solid",
+        borderBottomColor: "rgb(42, 42, 42)",
+        textAlign: "left",
+        opacity: "0.9"
+      });
+    }catch(_){}
+
+    // ▼（仮）見た目用CSS（ヘッダー内のマス目とバー）
+    // ここは「nav_list 内だけ」に閉じるため、クラスは nl- 接頭辞で統一
+    try{
+      var style2 = document.createElement("style");
+      style2.textContent =
+        "#nl-progress-header{ font-family: ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; }" +
+        "#nl-progress-header .nl-ph-row{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }" +
+        "#nl-progress-header .nl-ph-title{ font-size:12px; letter-spacing:0.02em; opacity:0.85; }" +
+        "#nl-progress-header .nl-ph-value{ font-size:12px; font-variant-numeric: tabular-nums; opacity:0.7; }" +
+        "#nl-progress-header .nl-ph-grid{ margin-top:6px; display:grid; gap:2px; }" +
+        "#nl-progress-header .nl-ph-cell{ width:6px; height:6px; border-radius:2px; background: rgba(255,255,255,0.10); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }" +
+        "#nl-progress-header .nl-ph-cell.is-on{ background: rgba(255,255,255,0.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }" +
+        "#nl-progress-header .nl-ph-cell.is-today{ background: rgba(255,255,255,0.92); box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 0 10px rgba(255,255,255,0.10); }" +
+        "#nl-progress-header .nl-ph-spacer{ height:10px; }" +
+        "#nl-progress-header .nl-ph-bar{ margin-top:6px; height:8px; border-radius:999px; background: rgba(255,255,255,0.10); overflow:hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }" +
+        "#nl-progress-header .nl-ph-bar > div{ height:100%; width:0%; background: rgba(255,255,255,0.80); border-radius:999px; }";
+      document.head.appendChild(style2);
+    }catch(_){}
+
+    // ▼（仮）マス目を作るヘルパー（ダミー値）
+    // - total=90 のマスを grid に並べ、filled 個だけ is-on で埋める
+    // - todayIndex は「今日のマス」を少し強調する（見た目だけ）
+    function buildProgressGrid(total, filled, cols, todayIndex){
+      var grid = document.createElement("div");
+      grid.className = "nl-ph-grid";
+      try{
+        grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 6px)";
+      }catch(_){}
+
+      var i;
+      for (i = 0; i < total; i++){
+        var cell = document.createElement("div");
+        cell.className = "nl-ph-cell";
+        if (i < filled) cell.className += " is-on";
+        if (typeof todayIndex === "number" && i === todayIndex) cell.className += " is-today";
+        grid.appendChild(cell);
+      }
+      return grid;
+    }
+
+    // ▼（仮）バーを作るヘルパー（ダミー値）
+    function buildProgressBar(total, filled){
+      var outer = document.createElement("div");
+      outer.className = "nl-ph-bar";
+      var inner = document.createElement("div");
+      var pct = total > 0 ? Math.max(0, Math.min(100, (filled / total) * 100)) : 0;
+      inner.style.width = String(pct) + "%";
+      outer.appendChild(inner);
+      return outer;
+    }
+
+    // ▼（仮）日別 63/90（90マスをそのまま表示）
+    var dayRow = document.createElement("div");
+    dayRow.className = "nl-ph-row";
+    var dayTitle = document.createElement("div");
+    dayTitle.className = "nl-ph-title";
+    dayTitle.textContent = "日別";
+    var dayValue = document.createElement("div");
+    dayValue.className = "nl-ph-value";
+    dayValue.textContent = "63 / 90";
+    dayRow.appendChild(dayTitle);
+    dayRow.appendChild(dayValue);
+    progressHost.appendChild(dayRow);
+    // 15×6=90 マス（“1マス=1日”を守る）
+    progressHost.appendChild(buildProgressGrid(90, 63, 15, 62));
+
+    // スペーサー
+    var sp = document.createElement("div");
+    sp.className = "nl-ph-spacer";
+    progressHost.appendChild(sp);
+
+    // ▼（仮）問題 18/30（バー）
+    var qRow = document.createElement("div");
+    qRow.className = "nl-ph-row";
+    var qTitle = document.createElement("div");
+    qTitle.className = "nl-ph-title";
+    qTitle.textContent = "問題";
+    var qValue = document.createElement("div");
+    qValue.className = "nl-ph-value";
+    qValue.textContent = "18 / 30";
+    qRow.appendChild(qTitle);
+    qRow.appendChild(qValue);
+    progressHost.appendChild(qRow);
+    progressHost.appendChild(buildProgressBar(30, 18));
+
     var summaryHost = document.createElement("div");
     summaryHost.id = "nl-summary-header";
     try{
@@ -1504,6 +1607,7 @@
     bodyHost.appendChild(leftCol);
     bodyHost.appendChild(rightCol);
 
+    panel.appendChild(progressHost);
     panel.appendChild(summaryHost);
     panel.appendChild(bodyHost);
 
