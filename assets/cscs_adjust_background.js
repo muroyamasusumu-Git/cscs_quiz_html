@@ -219,41 +219,97 @@
     return String(0.18 * clamp01(st.bright));
   }
 
-  function calcAutoAfterBoxFromViewport(rotateDeg, safety) {
-    // ▼ 画面比率 + 回転角から、回転後の外接矩形サイズを求めて余白(%)に変換する
-    // 目的: 「回転で欠けない」ための afterBox を自動で算出できるようにする
+  function calcAutoAfterBoxFromViewport(rotateDeg, origin, translate, safety) {
+    // ▼ 端末サイズ + origin/translate/rotate から、変換後の4隅を計算して必要余白(%)に変換する
+    // 目的: origin や translate を使っても「欠けないための最小余白」を自動算出できるようにする
     const w = Number(window.innerWidth);
     const h = Number(window.innerHeight);
+
     const r = Number(rotateDeg);
     const k = Number(safety);
 
+    if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) {
+      return { top: 0, right: 0, bottom: 0, left: 0 };
+    }
+
+    // ▼ transform-origin は % なので、viewport を基準に px へ変換
+    // 目的: 回転の支点ズレ（20/20等）を計算に含める
+    const oxp = origin && isFinite(origin.x) ? Number(origin.x) : 50;
+    const oyp = origin && isFinite(origin.y) ? Number(origin.y) : 50;
+    const ox = (oxp / 100) * w;
+    const oy = (oyp / 100) * h;
+
+    // ▼ translate(% , %) は要素サイズ基準なので、viewport を基準に px へ変換
+    // 目的: 平行移動による片側欠けを計算に含める
+    const txp = translate && isFinite(translate.x) ? Number(translate.x) : 0;
+    const typ = translate && isFinite(translate.y) ? Number(translate.y) : 0;
+    const tx = (txp / 100) * w;
+    const ty = (typ / 100) * h;
+
+    // ▼ 回転角をラジアンへ
+    // 目的: 4隅の回転変換を行う
     const rad = r * Math.PI / 180;
-    const sin = Math.abs(Math.sin(rad));
-    const cos = Math.abs(Math.cos(rad));
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
 
-    const Wp = w * cos + h * sin; // 回転後の外接矩形幅
-    const Hp = w * sin + h * cos; // 回転後の外接矩形高
+    function applyTransform(px, py) {
+      // ▼ transform の順序: translate → rotate（CSSの transform: translate(...) rotate(...) に一致）
+      // 目的: 実際の見た目と同じ順番で座標を変換する
+      const x1 = px + tx;
+      const y1 = py + ty;
 
-    const dW = Wp - w;
-    const dH = Hp - h;
+      // ▼ origin を中心に回転
+      // 目的: 支点が 50/50 以外でも正しく外接矩形を求める
+      const dx = x1 - ox;
+      const dy = y1 - oy;
 
-    const leftRight = -((dW / 2) / w) * 100;
-    const topBottom = -((dH / 2) / h) * 100;
+      const x2 = ox + (dx * cos - dy * sin);
+      const y2 = oy + (dx * sin + dy * cos);
 
-    const s = isFinite(k) ? k : 1;
+      return { x: x2, y: y2 };
+    }
+
+    // ▼ viewport矩形の4隅を変換して min/max を取る
+    // 目的: 回転+平行移動+支点ズレ込みの「必要な拡張量」を求める
+    const p0 = applyTransform(0, 0);
+    const p1 = applyTransform(w, 0);
+    const p2 = applyTransform(w, h);
+    const p3 = applyTransform(0, h);
+
+    const minX = Math.min(p0.x, p1.x, p2.x, p3.x);
+    const maxX = Math.max(p0.x, p1.x, p2.x, p3.x);
+    const minY = Math.min(p0.y, p1.y, p2.y, p3.y);
+    const maxY = Math.max(p0.y, p1.y, p2.y, p3.y);
+
+    // ▼ 「画面からはみ出した分」だけが必要余白（左右上下で非対称になる）
+    // 目的: 無駄に全方向へ広げず、必要最小限の afterBox を得る
+    const needLeftPx = Math.max(0, 0 - minX);
+    const needRightPx = Math.max(0, maxX - w);
+    const needTopPx = Math.max(0, 0 - minY);
+    const needBottomPx = Math.max(0, maxY - h);
+
+    // ▼ px → % に変換（afterBox は top/right/bottom/left を % で「外へはみ出す」指定なのでマイナス）
+    // 目的: tuned-rot の top/right/bottom/left にそのまま適用できる形式にする
+    const baseLeft = -((needLeftPx / w) * 100);
+    const baseRight = -((needRightPx / w) * 100);
+    const baseTop = -((needTopPx / h) * 100);
+    const baseBottom = -((needBottomPx / h) * 100);
+
+    const s = isFinite(k) && k > 0 ? k : 1;
+
     return {
-      top: topBottom * s,
-      right: leftRight * s,
-      bottom: topBottom * s,
-      left: leftRight * s
+      top: baseTop * s,
+      right: baseRight * s,
+      bottom: baseBottom * s,
+      left: baseLeft * s
     };
   }
 
   function getEffectiveAfterBox() {
-    // ▼ afterBoxAuto がONなら、現在の端末サイズと rotate から afterBox を自動計算して使う
+    // ▼ afterBoxAuto がONなら、端末サイズ + transform条件(origin/translate/rotate) から afterBox を自動計算して使う
     // 目的: rotate を変えた時／端末回転・リサイズ時も欠けにくい余白を常に適用する
     if (st.afterBoxAuto && st.afterBoxAuto.enabled) {
-      return calcAutoAfterBoxFromViewport(st.rotate, st.afterBoxAuto.safety);
+      return calcAutoAfterBoxFromViewport(st.rotate, st.origin, st.translate, st.afterBoxAuto.safety);
     }
     return st.afterBox;
   }
@@ -580,6 +636,25 @@
     applyHideOtherUI();
   }
 
+  // ▼ 現在アクティブな theme（最後に Load したもの）を保持
+  // 目的: rotate変更などの「自動反映」時に、保存先を迷わず自動保存できるようにする
+  let currentThemeName = null;
+
+  // ▼ 自動保存（デバウンス）
+  // 目的: スライダー連続操作中に毎回 localStorage 書き込みしない（最後の値だけ保存）
+  let autoSaveTimer = null;
+  function scheduleAutoSaveIfPossible() {
+    if (!currentThemeName) return; // フォールバックで勝手に保存先を作らない
+    if (autoSaveTimer) {
+      try { window.clearTimeout(autoSaveTimer); } catch (_e) {}
+    }
+    autoSaveTimer = window.setTimeout(() => {
+      try {
+        saveTheme(currentThemeName);
+      } catch (_e) {}
+    }, 450);
+  }
+
   function saveTheme(name) { // 現在の値を theme1〜3 のどれかに保存
     // 目的: 調整した “値だけ” を localStorage に保存して後で呼び出せるようにする
     const n = String(name);
@@ -588,6 +663,7 @@
     try {
       const data = exportValuesOnly();
       localStorage.setItem(themeKey(n), JSON.stringify(data));
+      currentThemeName = n; // ▼ 手動Saveでも「今のテーマ」を確定させる（保存先の迷子防止）
       console.log("CSCS_ADJUST_BG saved:", n);
     } catch (_e) {}
   }
@@ -617,6 +693,7 @@
         localStorage.setItem(LAST_THEME_KEY, n);
       } catch (_e) {}
 
+      currentThemeName = n; // ▼ 自動保存の保存先を「最後にLoadしたテーマ」に固定する
       console.log("CSCS_ADJUST_BG loaded:", n);
     } catch (_e) {}
   }
@@ -846,7 +923,19 @@
     group.appendChild(slider("Spot X (%)（スポット中心の左右位置）", 0, 100, 1, () => st.spot.x, (v) => (st.spot.x = v)));
     group.appendChild(slider("Spot Y (%)（スポット中心の上下位置）", 0, 100, 1, () => st.spot.y, (v) => (st.spot.y = v)));
 
-    group.appendChild(slider("Rotate (deg)（楕円レイヤー全体の回転）", -60, 60, 1, () => st.rotate, (v) => (st.rotate = v)));
+    group.appendChild(slider("Rotate (deg)（楕円レイヤー全体の回転）", -60, 60, 1, () => st.rotate, (v) => {
+      // ▼ 回転角度の更新
+      // 目的: 角度変更を st に反映する
+      st.rotate = v;
+
+      // ▼ afterBoxAuto が有効なら、角度変更に合わせて「必要最小余白」を自動計算して使う（buildTunedCss内で反映される）
+      // 目的: 手動で afterBox を触らずに「欠け」を抑える
+      // ※ apply() は slider() の共通処理で呼ばれるため、ここでは呼ばない
+
+      // ▼ 最後に Load した theme がある時だけ自動保存（フォールバックで勝手に保存先は作らない）
+      // 目的: 「角度→自動余白→自動反映→自動保存」の流れを成立させる
+      scheduleAutoSaveIfPossible();
+    }));
     group.appendChild(slider("Origin X (%)（回転の支点X：左=0/右=100）", 0, 100, 1, () => st.origin.x, (v) => (st.origin.x = v)));
     group.appendChild(slider("Origin Y (%)（回転の支点Y：上=0/下=100）", 0, 100, 1, () => st.origin.y, (v) => (st.origin.y = v)));
 
