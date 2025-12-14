@@ -1140,25 +1140,14 @@
     }
 
     // field_summary の挿入位置：
-    //   - 原則：.wrap 内の #cscs-consistency-panel の「直後」
-    //   - 見つからない場合：.wrap の末尾（最低限 .wrap 内には入れる）
-    var consistencyPanel = document.getElementById("cscs-consistency-panel");
-    var insertAfterEl = null;
-    if (consistencyPanel && wrapContainer.contains(consistencyPanel)) {
-      insertAfterEl = consistencyPanel;
-    } else {
-      console.warn("field_summary.js: #cscs-consistency-panel が .wrap 内に見つからないため、.wrap 末尾に挿入します。");
-      insertAfterEl = null;
-    }
-
-    // DOM挿入を一箇所に集約するヘルパー
-    function insertIntoWrapAfterConsistency(el) {
+    //   - 常に .wrap の閉じタグ直前（＝最下部）
+    // 目的:
+    //   - DOM順序を安定させる
+    //   - 他パネル（consistency 等）への依存を完全に断つ
+    //   - 「どの画面でも同じ位置」に表示される保証を持たせる
+    function insertIntoWrapEnd(el) {
       if (!el) return;
-      if (insertAfterEl) {
-        insertAfterEl.insertAdjacentElement("afterend", el);
-      } else {
-        wrapContainer.appendChild(el);
-      }
+      wrapContainer.appendChild(el);
     }
 
     // すでに表示済みなら二重生成しない
@@ -1175,7 +1164,7 @@
         errorPanel.style.fontSize = "11px";
         errorPanel.style.opacity = "0.7";
         // 取得失敗パネルも「.wrap 内＆整合性パネル直後」に入れる
-        insertIntoWrapAfterConsistency(errorPanel);
+        insertIntoWrapEnd(errorPanel);
         return;
       }
     }
@@ -2633,7 +2622,7 @@
     panel.appendChild(list);
     panel.appendChild(qidInlineBox);
     // 通常パネルも「.wrap 内＆整合性パネル直後」に入れる
-    insertIntoWrapAfterConsistency(panel);
+    insertIntoWrapEnd(panel);
   }
 
   // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
