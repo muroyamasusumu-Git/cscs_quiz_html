@@ -129,7 +129,7 @@
       main2: 78
     },
 
-    dim: null,   // 暗さ（0..1 / null=既存変数を使う）
+    dim: 0.0,   // 暗さ（0..1 / 0=解除）
     bright: 0.0, // 明るさ（0..1：白い薄膜で全体を明るくする）
 
     beam: {
@@ -234,11 +234,10 @@
     } catch (_e) {}
   }
 
-  function cssDimA() { // dim → 0..0.30相当
-    // ▼ ambient は dim を持たない（見た目は adjust 側に寄せる）
-    // 目的: ambient の見た目パラメータ依存を断ち、責務を完全分離する
-    if (st.dim === null) return "0";
-    return String(0.30 * clamp01(st.dim));
+  function cssDimA() { // dim → 0..0.60相当（より暗くできる）
+    // ▼ dim は 0=解除（暗くしない）
+    // 目的: null運用を廃止し、「0=解除」で一貫した操作にする
+    return String(0.60 * clamp01(st.dim));
   }
 
   function cssBrightA() { // bright → 0..0.18相当（白膜。上げすぎると白っぽくなるので控えめ）
@@ -656,9 +655,9 @@
       main2: Number(v.stop.main2)
     };
 
-    // dim は null を許可（既存CSS変数に戻す用途）
-    if (v.dim === null) st.dim = null;
-    else if (v.dim !== undefined) st.dim = clamp01(v.dim);
+    // ▼ dim は 0=解除（null運用は廃止）
+    // 目的: 保存/復元も「0..1」で統一する
+    if (v.dim !== undefined) st.dim = clamp01(v.dim);
 
     if (v.bright !== undefined) st.bright = clamp01(v.bright);
 
@@ -1074,52 +1073,32 @@
 
     group.appendChild(el("div", { style: { height: "10px" } }));
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Dim override（暗さの一時上書き）" }));
-    group.appendChild(el("div", { style: { fontSize: "11px", opacity: "0.85", marginBottom: "6px" }, text: "null = dim を上書きしない（= 0扱い）" }));
+    group.appendChild(el("div", { style: { fontSize: "11px", opacity: "0.85", marginBottom: "6px" }, text: "0 = 解除（暗くしない）" }));
 
     const dimWrap = el("div", { style: { marginBottom: "10px" } });
-    const dimVal = el("span", { style: { fontSize: "11px", opacity: "0.85", minWidth: "46px", textAlign: "right" }, text: st.dim === null ? "null" : String(st.dim) });
+    const dimVal = el("span", { style: { fontSize: "11px", opacity: "0.85", minWidth: "46px", textAlign: "right" }, text: String(st.dim) });
 
     const dimInput = el("input", {
       type: "range",
       min: "0",
       max: "1",
       step: "0.01",
-      value: st.dim === null ? "0.10" : String(st.dim),
+      value: String(st.dim),
       style: { width: "100%" }
     });
 
     dimInput.addEventListener("input", () => {
+      // ▼ 0..1 の範囲で暗さを上書き（0=解除）
+      // 目的: 「解除ボタン無し」でも最小値=解除で直感的に戻せるようにする
       st.dim = clamp01(dimInput.value);
       dimVal.textContent = String(st.dim);
       apply();
     });
 
-    const dimNullBtn = el("button", {
-      type: "button",
-      style: {
-        fontSize: "11px",
-        padding: "6px 8px",
-        borderRadius: "10px",
-        border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(255,255,255,0.08)",
-        color: "#fff",
-        cursor: "pointer",
-        whiteSpace: "nowrap"
-      },
-      text: "Set null（上書きを解除）"
-    });
-
-    dimNullBtn.addEventListener("click", () => {
-      st.dim = null;
-      dimVal.textContent = "null";
-      apply();
-    });
-
-    dimWrap.appendChild(rowLabel("Dim (0..1)（背景全体の暗さ：0=暗くしない/1=最大）"));
+    dimWrap.appendChild(rowLabel("Dim (0..1)（背景全体の暗さ：0=解除/1=最大）"));
     dimWrap.appendChild(el("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
       dimInput,
-      dimVal,
-      dimNullBtn
+      dimVal
     ]));
     group.appendChild(dimWrap);
 
