@@ -701,7 +701,7 @@
         "#nl-progress-header .nl-ph-title{ font-size:12px; letter-spacing:0.02em; opacity:0.85; }" +
         "#nl-progress-header .nl-ph-value{ font-size:12px; font-variant-numeric: tabular-nums; opacity:0.7; }" +
         "#nl-progress-header .nl-ph-grid{ margin-top:6px; display:grid; gap:2px; width:100%; }" +
-        "#nl-progress-header .nl-ph-cell{ height:6px; border-radius:2px; background: rgba(255,255,255,0.10); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }" +
+        "#nl-progress-header .nl-ph-cell{ height:6px; border-radius:2px; background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); }" +
         "#nl-progress-header .nl-ph-cell.is-on{ background: rgba(255,255,255,0.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }" +
         "#nl-progress-header .nl-ph-cell.is-today{ background: rgba(255,255,255,0.92); box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 0 10px rgba(255,255,255,0.10); }" +
         "#nl-progress-header .nl-ph-spacer{ height:10px; }" +
@@ -743,8 +743,12 @@
     }
 
     // ▼（仮）日別 63/90（90マスをそのまま表示）
+    // 15×6=90 マス（“1マス=1日”を守る）
+    progressHost.appendChild(buildProgressGrid(90, 63, 15, 62));
+
     var dayRow = document.createElement("div");
     dayRow.className = "nl-ph-row";
+    dayRow.style.marginTop = "6px";
     var dayTitle = document.createElement("div");
     dayTitle.className = "nl-ph-title";
     dayTitle.textContent = "日別";
@@ -754,17 +758,19 @@
     dayRow.appendChild(dayTitle);
     dayRow.appendChild(dayValue);
     progressHost.appendChild(dayRow);
-    // 15×6=90 マス（“1マス=1日”を守る）
-    progressHost.appendChild(buildProgressGrid(90, 63, 15, 62));
 
     // スペーサー
     var sp = document.createElement("div");
     sp.className = "nl-ph-spacer";
     progressHost.appendChild(sp);
 
-    // ▼（仮）問題 18/30（バー）
+    // ▼（仮）問題 18/30（30マス）
+    // 15×2=30 マス（“1マス=1問”を守る）
+    progressHost.appendChild(buildProgressGrid(30, 18, 15, null));
+
     var qRow = document.createElement("div");
     qRow.className = "nl-ph-row";
+    qRow.style.marginTop = "6px";
     var qTitle = document.createElement("div");
     qTitle.className = "nl-ph-title";
     qTitle.textContent = "問題";
@@ -774,7 +780,6 @@
     qRow.appendChild(qTitle);
     qRow.appendChild(qValue);
     progressHost.appendChild(qRow);
-    progressHost.appendChild(buildProgressBar(30, 18));
 
     var summaryHost = document.createElement("div");
     summaryHost.id = "nl-summary-header";
