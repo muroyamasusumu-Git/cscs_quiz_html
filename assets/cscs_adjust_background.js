@@ -67,6 +67,10 @@
   // 目的: ページ跨ぎで「最後に使った背景」を自動復元する
   const LAST_THEME_KEY = "cscs_adjust_background_last_theme";
 
+  // ★ 端末ごとに「背景そのもの（ambient layer）のON/OFF」を固定保存するキー
+  // 目的: theme Save をしなくても、OFF状態がページ遷移/再読込で維持されるようにする
+  const AMBIENT_LAYER_ENABLED_KEY = "cscs_adjust_background_ambient_layer_enabled";
+
   const clamp01 = (x) => { // 0..1 に丸める（dim/bright用）
     x = Number(x);
     if (!isFinite(x)) return 0;
@@ -243,6 +247,25 @@
       if (window.CSCS_AMBIENT_BG && typeof window.CSCS_AMBIENT_BG.setEnabled === "function") {
         window.CSCS_AMBIENT_BG.setEnabled(!!st.ambientLayerEnabled);
       }
+    } catch (_e) {}
+  }
+
+  function loadAmbientLayerEnabledFromLS() {
+    // ▼ 端末ごとの「背景OFF状態」を localStorage から復元
+    // 目的: theme Save をしなくても OFF が維持されるようにする
+    try {
+      const raw = localStorage.getItem(AMBIENT_LAYER_ENABLED_KEY);
+      if (raw === null) return; // 保存が無いなら何もしない（フォールバックで勝手に決めない）
+      if (raw === "1") st.ambientLayerEnabled = true;
+      else if (raw === "0") st.ambientLayerEnabled = false;
+    } catch (_e) {}
+  }
+
+  function saveAmbientLayerEnabledToLS() {
+    // ▼ 端末ごとの「背景ON/OFF」を即時保存
+    // 目的: トグル操作のたびに、次ページでも同じ状態になるよう固定する
+    try {
+      localStorage.setItem(AMBIENT_LAYER_ENABLED_KEY, st.ambientLayerEnabled ? "1" : "0");
     } catch (_e) {}
   }
 
@@ -950,6 +973,9 @@
     group.appendChild(themeRow2);
 
     group.appendChild(toggle("Ambient layer（背景そのものをON/OFF）", () => st.ambientLayerEnabled, (v) => (st.ambientLayerEnabled = v), () => {
+      // ▼ 端末ごとのON/OFFを固定保存してから反映
+      // 目的: theme Save なしでも OFF が維持されるようにする
+      saveAmbientLayerEnabledToLS();
       applyAmbientLayerEnabled();
     }));
     group.appendChild(el("div", { style: { height: "6px" } }));
@@ -1303,6 +1329,10 @@
 
   apply();
   applyHideOtherUI();
+
+  // ▼ 端末ごとの「背景そのものOFF」を復元してから反映
+  // 目的: theme Save をしなくても OFF が維持されるようにする
+  loadAmbientLayerEnabledFromLS();
   applyAmbientLayerEnabled();
 
   window.addEventListener("resize", () => {
