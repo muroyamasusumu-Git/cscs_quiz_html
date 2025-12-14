@@ -995,8 +995,38 @@
     group.appendChild(el("div", { style: { height: "6px" } }));
     group.appendChild(slider("Bright (0..1)（全体を明るく：白い薄膜）", 0, 1, 0.01, () => st.bright, (v) => (st.bright = clamp01(v))));
 
-    // ★ Dim override は Global の直下へ（Brightのすぐ下）
-    // 目的: 「全体の明暗」系の操作を1箇所に集約し、探さなくて済むようにする
+    // ▼ Global の直下に Dim override を配置
+    // 目的: 「全体の明るさ/暗さ」を同じブロックで連続調整できるようにする
+    group.appendChild(el("div", { style: { height: "10px" } }));
+    group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Dim override（暗さの一時上書き）" }));
+    group.appendChild(el("div", { style: { fontSize: "11px", opacity: "0.85", marginBottom: "6px" }, text: "0 = 解除（暗くしない）" }));
+
+    const dimWrap = el("div", { style: { marginBottom: "10px" } });
+    const dimVal = el("span", { style: { fontSize: "11px", opacity: "0.85", minWidth: "46px", textAlign: "right" }, text: String(st.dim) });
+
+    const dimInput = el("input", {
+      type: "range",
+      min: "0",
+      max: "1",
+      step: "0.01",
+      value: String(st.dim),
+      style: { width: "100%" }
+    });
+
+    dimInput.addEventListener("input", () => {
+      // ▼ 0..1 の範囲で暗さを上書き（0=解除）
+      // 目的: 「解除ボタン無し」でも最小値=解除で直感的に戻せるようにする
+      st.dim = clamp01(dimInput.value);
+      dimVal.textContent = String(st.dim);
+      apply();
+    });
+
+    dimWrap.appendChild(rowLabel("Dim (0..1)（背景全体の暗さ：0=解除/1=最大）"));
+    dimWrap.appendChild(el("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
+      dimInput,
+      dimVal
+    ]));
+    group.appendChild(dimWrap);
 
     group.appendChild(el("div", { style: { height: "10px" } }));
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Ellipse (::after)（楕円スポット）" }));
@@ -1073,37 +1103,6 @@
     group.appendChild(slider("Core end stop（コア：完全に消える位置）", 0, 100, 1, () => st.stop.core2, (v) => (st.stop.core2 = v)));
     group.appendChild(slider("Main mid stop（メイン：中間へ落ちる位置）", 0, 100, 1, () => st.stop.main1, (v) => (st.stop.main1 = v)));
     group.appendChild(slider("Main end stop（メイン：完全に消える位置）", 0, 100, 1, () => st.stop.main2, (v) => (st.stop.main2 = v)));
-
-    group.appendChild(el("div", { style: { height: "10px" } }));
-    group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Dim override（暗さの一時上書き）" }));
-    group.appendChild(el("div", { style: { fontSize: "11px", opacity: "0.85", marginBottom: "6px" }, text: "0 = 解除（暗くしない）" }));
-
-    const dimWrap = el("div", { style: { marginBottom: "10px" } });
-    const dimVal = el("span", { style: { fontSize: "11px", opacity: "0.85", minWidth: "46px", textAlign: "right" }, text: String(st.dim) });
-
-    const dimInput = el("input", {
-      type: "range",
-      min: "0",
-      max: "1",
-      step: "0.01",
-      value: String(st.dim),
-      style: { width: "100%" }
-    });
-
-    dimInput.addEventListener("input", () => {
-      // ▼ 0..1 の範囲で暗さを上書き（0=解除）
-      // 目的: 「解除ボタン無し」でも最小値=解除で直感的に戻せるようにする
-      st.dim = clamp01(dimInput.value);
-      dimVal.textContent = String(st.dim);
-      apply();
-    });
-
-    dimWrap.appendChild(rowLabel("Dim (0..1)（背景全体の暗さ：0=解除/1=最大）"));
-    dimWrap.appendChild(el("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
-      dimInput,
-      dimVal
-    ]));
-    group.appendChild(dimWrap);
 
     group.appendChild(el("div", { style: { height: "10px" } }));
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Beam (optional)（直線光の微調整）" }));
