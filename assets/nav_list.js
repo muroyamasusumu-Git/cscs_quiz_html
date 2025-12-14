@@ -701,9 +701,9 @@
         "#nl-progress-header .nl-ph-title{ font-size:12px; letter-spacing:0.02em; opacity:0.85; }" +
         "#nl-progress-header .nl-ph-value{ font-size:12px; font-variant-numeric: tabular-nums; opacity:0.7; }" +
         "#nl-progress-header .nl-ph-grid{ margin-top:6px; display:grid; gap:2px; width:100%; }" +
-        "#nl-progress-header .nl-ph-cell{ height:6px; border-radius:2px; background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); }" +
-        "#nl-progress-header .nl-ph-cell.is-on{ background: rgba(255,255,255,0.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }" +
-        "#nl-progress-header .nl-ph-cell.is-today{ background: rgba(255,255,255,0.92); box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 0 10px rgba(255,255,255,0.10); }" +
+        "#nl-progress-header .nl-ph-cell{ height:6px; border-radius:2px; background: rgba(255,255,255,0.02); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); }" +
+        "#nl-progress-header .nl-ph-cell.is-on{ background: rgba(255,255,255,0.18); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45); }" +
+        "#nl-progress-header .nl-ph-cell.is-today{ background: rgba(255,255,255,0.26); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35); }" +
         "#nl-progress-header .nl-ph-spacer{ height:10px; }" +
         "#nl-progress-header .nl-ph-bar{ margin-top:6px; height:8px; border-radius:999px; background: rgba(255,255,255,0.10); overflow:hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }" +
         "#nl-progress-header .nl-ph-bar > div{ height:100%; width:0%; background: rgba(255,255,255,0.80); border-radius:999px; }";
