@@ -61,15 +61,32 @@ html, body {
     top: 10px !important;
     bottom: 50px !important;
     left: 20px !important;
-    font-size: 32px !important;
-    margin: 0 !important;
-    line-height: 1 !important;
+
     width: 69% !important;
-    overflow-y: auto !important;
+    margin: 0 !important;
+
+    font-size: 32px !important;
+    line-height: 1 !important;
+
     z-index: 2 !important;
-    overflow-x: hidden !important;
+
+    /* ▼ スクロール制御 */
+    overflow-y: auto !important;      /* 縦スクロールのみ許可 */
+    overflow-x: hidden !important;    /* 横スクロール完全禁止 */
     overscroll-behavior-x: none !important;
-    transform: translateZ(0) !important;  /* レイヤーを揃えて描画ズレを減らす */    
+
+    /* ▼ スクロールバー非表示（見た目のみ） */
+    scrollbar-width: none !important; /* Firefox */
+    -webkit-overflow-scrolling: touch !important; /* iOS 慣性 */
+
+    /* ▼ 描画安定化 */
+    transform: translateZ(0) !important;  /* レイヤーを揃えて描画ズレを減らす */
+}
+
+/* ▼ Chrome / Edge / Safari */
+.wrap::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
 }
 
 
