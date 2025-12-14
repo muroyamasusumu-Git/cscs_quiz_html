@@ -548,7 +548,7 @@ body.mode-a #cc-check-wrapper {
 }
 
 body.mode-b #cc-check-wrapper {
-    bottom: 70px;
+    top: 315px;
     right: 140px;
     opacity: 0.6 !important;
 }
