@@ -71,6 +71,10 @@
   // 目的: theme Save をしなくても、OFF状態がページ遷移/再読込で維持されるようにする
   const AMBIENT_LAYER_ENABLED_KEY = "cscs_adjust_background_ambient_layer_enabled";
 
+  // ★ 端末ごとに「チューナー全体の最終状態（値だけ）」を保存するキー（themeとは別）
+  // 目的: theme を Save/Load しなくても、最後に触った状態がページ遷移/再読込で必ず復元されるようにする
+  const LAST_STATE_KEY = "cscs_adjust_background_last_state";
+
   const clamp01 = (x) => { // 0..1 に丸める（dim/bright用）
     x = Number(x);
     if (!isFinite(x)) return 0;
@@ -566,6 +570,10 @@
       out.textContent = String(nv);
       set(nv);
       apply();
+
+      // ▼ 端末の「最終状態（値だけ）」を自動保存
+      // 目的: theme Save/Load を使わなくても、最後に触った状態を維持する
+      scheduleLastStateSave();
     });
 
     return el("div", { style: { marginBottom: "10px" } }, [
@@ -599,6 +607,10 @@
       render();
       if (onAfter) onAfter();
       else apply();
+
+      // ▼ 端末の「最終状態（値だけ）」を自動保存
+      // 目的: theme Save/Load を使わなくても、最後に触った状態を維持する
+      scheduleLastStateSave();
     });
 
     render();
@@ -747,6 +759,35 @@
         saveTheme(currentThemeName);
       } catch (_e) {}
     }, 450);
+  }
+
+  // ▼ 端末の「最終状態（値だけ）」を自動保存（デバウンス）
+  // 目的: theme を使わなくても「最後に触った状態」を常に維持する（uiVisibleは保存しない）
+  let lastStateSaveTimer = null;
+  function scheduleLastStateSave() {
+    if (lastStateSaveTimer) {
+      try { window.clearTimeout(lastStateSaveTimer); } catch (_e) {}
+    }
+    lastStateSaveTimer = window.setTimeout(() => {
+      try {
+        const data = exportValuesOnly();
+        localStorage.setItem(LAST_STATE_KEY, JSON.stringify(data));
+      } catch (_e) {}
+    }, 450);
+  }
+
+  // ▼ 端末の「最終状態（値だけ）」を復元
+  // 目的: theme が無くても、ページ遷移/再読込で最後の状態を復元できるようにする
+  function loadLastStateFromLS() {
+    try {
+      const raw = localStorage.getItem(LAST_STATE_KEY);
+      if (!raw) return false;
+      const v = JSON.parse(raw);
+      applyValuesOnly(v);
+      return true;
+    } catch (_e) {
+      return false;
+    }
   }
 
   function saveTheme(name) { // 現在の値を theme1〜3 のどれかに保存
@@ -1341,14 +1382,25 @@
     if (st.afterBoxAuto && st.afterBoxAuto.enabled) apply();
   });
 
-  // ★ 最後に使用していた theme を自動復元
-  // 目的: ページ遷移・再読込後も同じ背景を維持する
+  // ★ 端末の「最終状態（値だけ）」を自動復元（themeより優先）
+  // 目的: theme を使わなくても、最後に触った状態をページ跨ぎで維持する
+  let restoredFromLastState = false;
   try {
-    const lastTheme = localStorage.getItem(LAST_THEME_KEY);
-    if (lastTheme && THEMES.indexOf(lastTheme) !== -1) {
-      loadTheme(lastTheme);
-    }
-  } catch (_e) {}
+    restoredFromLastState = loadLastStateFromLS();
+  } catch (_e) {
+    restoredFromLastState = false;
+  }
+
+  // ★ 最後に使用していた theme を自動復元（最終状態が無い場合のみ）
+  // 目的: 従来の theme 運用も壊さない（ただし「最終状態」があればそちらを正とする）
+  if (!restoredFromLastState) {
+    try {
+      const lastTheme = localStorage.getItem(LAST_THEME_KEY);
+      if (lastTheme && THEMES.indexOf(lastTheme) !== -1) {
+        loadTheme(lastTheme);
+      }
+    } catch (_e) {}
+  }
 
   buildPanel();
   buildFloatingToggleBtn();
