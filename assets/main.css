@@ -670,7 +670,7 @@ body.mode-b #cc-check-wrapper {
 #cscs_sync_view_b {
   position: fixed;
   right: 0;                /* 右寄せ */
-  bottom: 60px;
+  top: 35px;
   opacity: 0.20;           /* 透明度 */
   background: transparent;
   color: #eee;
