@@ -35,7 +35,7 @@
         gap: 1px;
         font-size: 12px;
         margin-bottom: 13px;
-        margin-left: -4px;
+        margin-left: 0;
     }
 
     .cscs-star-main-compact {
