@@ -58,6 +58,7 @@ margin: 10px 20px 75px;
 
 .wrap {
     position: fixed !important;
+    top: 0 !important;
     bottom: 20px !important;
     margin: 0;
     line-height: 1;
