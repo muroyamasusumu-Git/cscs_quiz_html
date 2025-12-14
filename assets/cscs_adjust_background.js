@@ -612,7 +612,26 @@
     });
 
     saveBtn.addEventListener("click", () => {
-      saveTheme(themeSelect.value);
+      const beforeText = saveBtn.textContent;
+
+      // ▼ 保存に成功したときだけボタン文言を「保存完了」にする
+      // 目的: localStorage への保存成功がユーザーに即時伝わるようにする
+      try {
+        saveTheme(themeSelect.value);
+        saveBtn.textContent = "保存完了";
+
+        // ▼ 永続的に「保存完了」固定にならないよう一定時間で元に戻す
+        // 目的: 次の保存操作の意図が伝わりやすい状態へ戻す
+        window.setTimeout(() => {
+          try {
+            saveBtn.textContent = beforeText || "Save（保存）";
+          } catch (_e) {}
+        }, 900);
+      } catch (_e) {
+        // ▼ 失敗時は文言を変えない（フォールバックで成功扱いにしない）
+        // 目的: 「保存できてないのに保存完了に見える」事故を防ぐ
+        saveBtn.textContent = beforeText;
+      }
     });
 
     const loadBtn = el("button", {
