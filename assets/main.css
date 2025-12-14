@@ -58,7 +58,7 @@ html, body {
 
 .wrap {
     position: fixed !important;
-    top: 0 !important;
+    top: 10px !important;
     bottom: 50px !important;
     left: 20px !important;
     margin: 0;
