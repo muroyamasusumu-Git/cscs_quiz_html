@@ -614,7 +614,7 @@ body.mode-b #cc-check-wrapper {
 
 #cscs_sync_monitor_a {
   position: fixed;
-  right: 0;
+  right: 10px;
   top: 35px;
   background: transparent;
   color: #eee;
@@ -684,7 +684,7 @@ body.mode-b #cc-check-wrapper {
 
 #cscs_sync_view_b {
   position: fixed;
-  right: 0;                /* 右寄せ */
+  right: 10px;                /* 右寄せ */
   top: 35px;
   opacity: 0.20;           /* 透明度 */
   background: transparent;
