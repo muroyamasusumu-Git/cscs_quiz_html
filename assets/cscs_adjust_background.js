@@ -599,7 +599,23 @@
     });
 
     function render() {
-      btn.textContent = label + ": " + (get() ? "ON" : "OFF");
+      const on = !!get();
+
+      // ▼ 表示テキストを更新（ON/OFFが一目で分かる）
+      // 目的: 状態を文言でも明確にする
+      btn.textContent = label + ": " + (on ? "ON" : "OFF");
+
+      // ▼ ONの時だけ「少し濃く」して視認性を上げる
+      // 目的: 見た目だけでON/OFFが判別できるようにする
+      btn.style.background = on ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)";
+
+      // ▼ ONの時は枠も少し強める
+      // 目的: 背景だけでなく輪郭でも状態差を出す
+      btn.style.border = on ? "1px solid rgba(255,255,255,0.30)" : "1px solid rgba(255,255,255,0.18)";
+
+      // ▼ ONの時は軽い立体感（内側の締まり）を付ける
+      // 目的: 押し込み/有効状態のニュアンスを出す
+      btn.style.boxShadow = on ? "inset 0 0 0 1px rgba(0,0,0,0.25)" : "none";
     }
 
     btn.addEventListener("click", () => {
