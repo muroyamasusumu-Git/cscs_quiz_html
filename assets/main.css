@@ -312,7 +312,9 @@ margin-left: 10px;
   font-weight: 400 !important;
   opacity: 0.75;
   margin-top: 0;
-  color: #ffffff !important; 
+  color: #ffffff !important;
+  position: relative;
+  z-index: 20;
 }
 
 #cscs-consistency-panel {
