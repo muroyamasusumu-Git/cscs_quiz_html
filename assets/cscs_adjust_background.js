@@ -87,6 +87,12 @@
 
     spot: { x: 23, y: 30 }, // %
 
+    ellipse: {
+      // ▼ 楕円スポット（radial）のON/OFF
+      // 目的: Beam と同様に、楕円の光だけを即座に切り替えられるようにする
+      enabled: true
+    },
+
     core: { w: 400, h: 130 }, // px
     main: { w: 1980, h: 567 }, // px
 
@@ -247,23 +253,29 @@
     // 左下も暗く溜める（旧 ::before 相当）
     layers.push("linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 60%, rgba(0,0,0,0.70) 100%)");
 
-    // 小さいコア楕円（旧 ::after 相当）
-    layers.push(
-      "radial-gradient(ellipse " + st.core.w + "px " + st.core.h + "px at " + spx + " " + spy + "," +
-        "rgba(70,70,70," + st.alpha.core0 + ") 0%," +
-        "rgba(50,50,50," + st.alpha.core1 + ") " + st.stop.core1 + "%," +
-        "rgba(0,0,0,0) " + st.stop.core2 + "%" +
-      ")"
-    );
+    // Ellipse（任意）
+    if (st.ellipse && st.ellipse.enabled) {
+      // ▼ 楕円スポット（radial）をON/OFFできるようにする
+      // 目的: 楕円の光を消して「暗い背景だけ」「Beamだけ」などの確認をしやすくする
 
-    // 大きいメイン楕円（旧 ::after 相当）
-    layers.push(
-      "radial-gradient(ellipse " + st.main.w + "px " + st.main.h + "px at " + spx + " " + spy + "," +
-        "rgba(58,58,58," + st.alpha.main0 + ") 0%," +
-        "rgba(34,34,34," + st.alpha.main1 + ") " + st.stop.main1 + "%," +
-        "rgba(0,0,0,0) " + st.stop.main2 + "%" +
-      ")"
-    );
+      // 小さいコア楕円（旧 ::after 相当）
+      layers.push(
+        "radial-gradient(ellipse " + st.core.w + "px " + st.core.h + "px at " + spx + " " + spy + "," +
+          "rgba(70,70,70," + st.alpha.core0 + ") 0%," +
+          "rgba(50,50,50," + st.alpha.core1 + ") " + st.stop.core1 + "%," +
+          "rgba(0,0,0,0) " + st.stop.core2 + "%" +
+        ")"
+      );
+
+      // 大きいメイン楕円（旧 ::after 相当）
+      layers.push(
+        "radial-gradient(ellipse " + st.main.w + "px " + st.main.h + "px at " + spx + " " + spy + "," +
+          "rgba(58,58,58," + st.alpha.main0 + ") 0%," +
+          "rgba(34,34,34," + st.alpha.main1 + ") " + st.stop.main1 + "%," +
+          "rgba(0,0,0,0) " + st.stop.main2 + "%" +
+        ")"
+      );
+    }
 
     const bx = st.afterBox;
     const ox = st.origin;
@@ -459,6 +471,12 @@
     if (v.rotate !== undefined) st.rotate = Number(v.rotate);
 
     if (v.spot) st.spot = { x: Number(v.spot.x), y: Number(v.spot.y) };
+
+    if (v.ellipse) {
+      // ▼ 楕円スポットON/OFFを復元
+      // 目的: テーマ読込で楕円の表示状態も同じに戻せるようにする
+      st.ellipse = { enabled: !!v.ellipse.enabled };
+    }
 
     if (v.core) st.core = { w: Number(v.core.w), h: Number(v.core.h) };
     if (v.main) st.main = { w: Number(v.main.w), h: Number(v.main.h) };
@@ -728,6 +746,14 @@
     group.appendChild(el("div", { style: { height: "6px" } }));
 
     group.appendChild(toggle("Beam(::before)（斜めの光を追加して見え方確認）", () => st.beam.enabled, (v) => (st.beam.enabled = v)));
+    group.appendChild(el("div", { style: { height: "6px" } }));
+
+    group.appendChild(toggle("Ellipse(::after)（楕円の光をON/OFF）", () => (st.ellipse && st.ellipse.enabled), (v) => {
+      // ▼ 楕円スポットのON/OFF切替
+      // 目的: 楕円だけ消して背景/Beamの見え方を比較できるようにする
+      if (!st.ellipse) st.ellipse = { enabled: true };
+      st.ellipse.enabled = !!v;
+    }));
     group.appendChild(el("div", { style: { height: "6px" } }));
 
     group.appendChild(toggle("Hide other UI（他UIを見えなくして背景だけ確認）", () => st.hideOtherUI, (v) => (st.hideOtherUI = v), () => {
