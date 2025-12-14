@@ -24,6 +24,8 @@
         opacity: 0.55;
         width: 68.0%;
         font-weight: 300;
+        position: relative;
+        z-index: 20;
     }
 
     .cscs-star-summary-line-compact {
