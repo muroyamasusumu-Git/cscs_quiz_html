@@ -700,8 +700,8 @@
         "#nl-progress-header .nl-ph-row{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }" +
         "#nl-progress-header .nl-ph-title{ font-size:12px; letter-spacing:0.02em; opacity:0.85; }" +
         "#nl-progress-header .nl-ph-value{ font-size:12px; font-variant-numeric: tabular-nums; opacity:0.7; }" +
-        "#nl-progress-header .nl-ph-grid{ margin-top:6px; display:grid; gap:2px; }" +
-        "#nl-progress-header .nl-ph-cell{ width:6px; height:6px; border-radius:2px; background: rgba(255,255,255,0.10); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }" +
+        "#nl-progress-header .nl-ph-grid{ margin-top:6px; display:grid; gap:2px; width:100%; }" +
+        "#nl-progress-header .nl-ph-cell{ height:6px; border-radius:2px; background: rgba(255,255,255,0.10); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }" +
         "#nl-progress-header .nl-ph-cell.is-on{ background: rgba(255,255,255,0.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }" +
         "#nl-progress-header .nl-ph-cell.is-today{ background: rgba(255,255,255,0.92); box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 0 10px rgba(255,255,255,0.10); }" +
         "#nl-progress-header .nl-ph-spacer{ height:10px; }" +
@@ -717,7 +717,7 @@
       var grid = document.createElement("div");
       grid.className = "nl-ph-grid";
       try{
-        grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 6px)";
+        grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 1fr)";
       }catch(_){}
 
       var i;
