@@ -32,13 +32,13 @@
 
 /* オーバーレイ本体 */
 #nl-panel {
-  position: fixed;
-  inset: 0 16px 20px !important;
+  position: fixed !important;
+  inset: 10px 16px 20px !important;
   margin-left: 68%;
   font-size: 0.85rem;
   width: auto !important;
   height: auto !important;
-  overflow: auto;
+  overflow: hidden !important;
   background: none !important;
   border: 0 solid var(--nl-border) !important;
   border-radius: 0 !important;
