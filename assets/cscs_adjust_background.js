@@ -995,6 +995,9 @@
     group.appendChild(el("div", { style: { height: "6px" } }));
     group.appendChild(slider("Bright (0..1)（全体を明るく：白い薄膜）", 0, 1, 0.01, () => st.bright, (v) => (st.bright = clamp01(v))));
 
+    // ★ Dim override は Global の直下へ（Brightのすぐ下）
+    // 目的: 「全体の明暗」系の操作を1箇所に集約し、探さなくて済むようにする
+
     group.appendChild(el("div", { style: { height: "10px" } }));
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Ellipse (::after)（楕円スポット）" }));
     group.appendChild(el("div", { style: { height: "6px" } }));
