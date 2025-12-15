@@ -324,6 +324,17 @@
     inset 0 0 0 1px rgba(255,255,255,0.55);
 }
 
+/* 今日解いた問題の色分け（問題別マスのみ） */
+#nl-progress-header .nl-ph-cell-q.is-solved-correct{
+  background: rgba(255,255,255,0.16);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+}
+
+#nl-progress-header .nl-ph-cell-q.is-solved-wrong{
+  background: rgba(255,255,255,0.06);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+}
+
 
 /* ---- day / question : 個別調整用（必要ならここをいじる） ----
    ここは “数値を後から変える” 前提の調整ポイント。
@@ -400,70 +411,59 @@
     document.head.appendChild(style);
   }
 
-  function buildProgressGrid(total, filled, cols, todayIndex, kind){
+  function buildProgressGrid(total, filled, cols, todayIndex, kind, todaySolvedIndexMap){
     // =========================================================
     // 進捗マス（グリッド）を生成する共通関数
-    //
-    // この関数を「日別」と「問題別」で共通化しつつ、
-    // CSSだけで見た目を個別調整できるようにするために kind を導入している。
     //
     // - kind="day" : 日別進捗（全期間の「日」単位の進捗）
     // - kind="q"   : 問題別進捗（当日の「問題」単位の進捗）
     //
-    // kind に応じて以下のクラスが付く：
-    // - グリッド: .nl-ph-grid + .nl-ph-grid-day / .nl-ph-grid-q
-    // - セル    : .nl-ph-cell + .nl-ph-cell-day / .nl-ph-cell-q
-    //
-    // これにより、後から「日別は高さ6pxのまま」「問題別だけ高さ5pxにする」
-    // 「問題別だけ gap を詰める」などの見た目調整を、JS改造なしでCSS側だけで行える。
+    // 追加:
+    // - todaySolvedIndexMap（問題別のみ）
+    //   { 0: "correct", 1: "wrong", ... } のような
+    //   “0始まりindex → 当日計測結果” のマップを受け取り、
+    //   マスの色を correct/wrong で塗り分ける。
     // =========================================================
 
-    // kind が未指定/不正な場合は day 扱いにする（表示崩れを避けるため）
     var k = (typeof kind === "string" && kind) ? kind : "day";
 
     var grid = document.createElement("div");
     grid.className = "nl-ph-grid nl-ph-grid-" + k;
 
-    // =========================================================
-    // cols は「1行に並べる列数」。
-    // - 日別は「2段×15列」で表示したいなら cols=15
-    // - 問題別を「30個横一列」で固定したいなら cols=30
-    //
-    // ※ 後から「問題数が30→40」などに変える可能性があるなら、
-    //    呼び出し側で cols を total と同じにしておけば “常に横一列” を保てる。
-    //    例: buildProgressGrid(Q_TOTAL, qFilled, Q_TOTAL, null, "q")
-    // =========================================================
     try{
       grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 1fr)";
     }catch(_){}
 
-    // =========================================================
-    // total は「マスの総数」。
-    // filled は「ONにする数」。
-    // i < filled を ON とする仕様なので、
-    // “左から順に埋まっていく” 表現になる（進捗バー的）。
-    //
-    // ※ もし将来「特定の問題だけON」などの “点在型” にしたい場合は
-    //    filled 方式ではなく、ONにする index の集合を受け取る設計に変える必要がある。
-    // =========================================================
     var i;
     for (i = 0; i < total; i++){
       var cell = document.createElement("div");
       cell.className = "nl-ph-cell nl-ph-cell-" + k;
 
-      // 進捗が filled まで到達しているセルを ON 表示にする
       if (i < filled) cell.className += " is-on";
 
       // =========================================================
-      // todayIndex は「日別」だけに意味がある（当日の位置を強調表示）
-      // - 問題別は “今日” 概念が不要なので適用しない
-      //
-      // ※ 日別の並び（allDays）と todayIndex の整合が取れていないと
-      //    “別の日が今日扱い” になるので、todayIndex は allDays.indexOf(day) で求めている。
+      // 追加: 問題別（kind="q"）のみ
+      // todaySolvedIndexMap にこの index があれば、
+      // correct/wrong のどちらで計測済みかをクラスで付与する。
       // =========================================================
-      // 現在位置の強調表示
-      // - day : 今日の日付
-      // - q   : 現在開いている問題
+      if (k === "q" && todaySolvedIndexMap && typeof todaySolvedIndexMap === "object") {
+        if (Object.prototype.hasOwnProperty.call(todaySolvedIndexMap, String(i))) {
+          var v = String(todaySolvedIndexMap[String(i)] || "").toLowerCase();
+          if (v === "correct") {
+            cell.className += " is-solved-correct";
+          } else if (v === "wrong") {
+            cell.className += " is-solved-wrong";
+          }
+        } else if (Object.prototype.hasOwnProperty.call(todaySolvedIndexMap, i)) {
+          var v2 = String(todaySolvedIndexMap[i] || "").toLowerCase();
+          if (v2 === "correct") {
+            cell.className += " is-solved-correct";
+          } else if (v2 === "wrong") {
+            cell.className += " is-solved-wrong";
+          }
+        }
+      }
+
       if (typeof todayIndex === "number" && i === todayIndex) {
         cell.className += " is-today";
       }
@@ -979,13 +979,50 @@
     // 現在表示中の問題インデックス（0始まり）
     var currentQIndex = getQuestionIndexFromPath();
 
+    // 今日解いた問題（oncePerDayToday.results）を取得
+    // - results は { "YYYYMMDD-NNN": "correct"/"wrong" } を想定
+    // - 表示マスは 0始まりindex（0..29）なので、indexMap に変換して渡す
+    var todaySolvedMap = {};
+    try{
+      if (
+        syncRoot &&
+        syncRoot.oncePerDayToday &&
+        String(syncRoot.oncePerDayToday.day) === String(day) &&
+        syncRoot.oncePerDayToday.results &&
+        typeof syncRoot.oncePerDayToday.results === "object"
+      ){
+        todaySolvedMap = syncRoot.oncePerDayToday.results;
+      }
+    }catch(_){
+      todaySolvedMap = {};
+    }
+
+    // { index(0..29): "correct"/"wrong" } に変換
+    var todaySolvedIndexMap = {};
+    try{
+      if (todaySolvedMap && typeof todaySolvedMap === "object"){
+        Object.keys(todaySolvedMap).forEach(function(qid){
+          var m = String(qid || "").match(/-(\d{3})$/);
+          if (!m) return;
+          var n = Number(m[1]);
+          if (!Number.isFinite(n) || n <= 0) return;
+          var idx0 = n - 1;
+          if (idx0 < 0 || idx0 >= 30) return;
+          todaySolvedIndexMap[idx0] = todaySolvedMap[qid];
+        });
+      }
+    }catch(_){
+      todaySolvedIndexMap = {};
+    }
+
     progressHost.appendChild(
       buildProgressGrid(
         30,                 // total（問題数）
         qFilled,            // filled（★獲得済み数）
         30,                 // cols（横一列）
-        currentQIndex,      // ← 問題別でも現在位置を渡す
-        "q"
+        currentQIndex,      // 現在位置（点滅）
+        "q",
+        todaySolvedIndexMap // 今日の計測済み（正/誤）で色分け
       )
     );
 
