@@ -127,6 +127,100 @@
     return n.toFixed(1);
   }
 
+  // ▼ SYNC更新時に ⭐️/◎ 行だけを書き換えるための関数
+  async function refreshSummaryStatBlock(){
+    var block = document.getElementById("nl-summary-stat-block");
+    if (!block) return;
+
+    var syncJson = await loadSyncData();
+    var syncRoot = getSyncRoot(syncJson);
+
+    var allDays = buildDayArray("20250926", "20251224");
+    var TOTAL_QUESTIONS_PER_DAY = 30;
+
+    var totalQuestionsAll = allDays.length * TOTAL_QUESTIONS_PER_DAY;
+
+    var starQuestionCount = 0;
+    var starFullDayCount = 0;
+
+    allDays.forEach(function(dayStr){
+      var dayStarCount = 0;
+      var qIndex;
+      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS_PER_DAY; qIndex++){
+        var n3 = pad3(qIndex);
+        var qid = dayStr + "-" + n3;
+        var streakTotal = 0;
+        if (syncRoot.streak3 && Object.prototype.hasOwnProperty.call(syncRoot.streak3, qid)){
+          streakTotal = Number(syncRoot.streak3[qid] || 0);
+        }
+        if (streakTotal > 0){
+          starQuestionCount += 1;
+          dayStarCount += 1;
+        }
+      }
+      if (dayStarCount === TOTAL_QUESTIONS_PER_DAY){
+        starFullDayCount += 1;
+      }
+    });
+
+    var consistencyQuestionCount = 0;
+    var consistencyFullDayCount = 0;
+
+    allDays.forEach(function(dayStr){
+      var dayConsistentCount = 0;
+      var qIndex;
+      for (qIndex = 1; qIndex <= TOTAL_QUESTIONS_PER_DAY; qIndex++){
+        var n3 = pad3(qIndex);
+        var info = getConsistencyInfoFromSync(dayStr, n3, syncRoot);
+        if (info.statusMark === "◎"){
+          consistencyQuestionCount += 1;
+          dayConsistentCount += 1;
+        }
+      }
+      if (dayConsistentCount === TOTAL_QUESTIONS_PER_DAY){
+        consistencyFullDayCount += 1;
+      }
+    });
+
+    var starRate = totalQuestionsAll > 0 ? (starQuestionCount / totalQuestionsAll) * 100 : 0;
+    var consRate = totalQuestionsAll > 0 ? (consistencyQuestionCount / totalQuestionsAll) * 100 : 0;
+
+    block.innerHTML = "";
+
+    var lineStar = document.createElement("div");
+    lineStar.style.marginTop = "0px";
+    lineStar.textContent =
+      "⭐️｜獲得済｜" +
+      String(starQuestionCount).padStart(4, "0") +
+      "／" +
+      String(totalQuestionsAll) +
+      "｜" +
+      pad2(starFullDayCount) +
+      "／" +
+      pad2(allDays.length) +
+      "｜" +
+      formatPercent1(starRate) +
+      "% 達成";
+
+    var lineCons = document.createElement("div");
+    lineCons.style.marginBottom = "0px";
+    lineCons.textContent =
+      "◎｜整合性｜" +
+      String(consistencyQuestionCount).padStart(4, "0") +
+      "／" +
+      String(totalQuestionsAll) +
+      "｜" +
+      pad2(consistencyFullDayCount) +
+      "／" +
+      pad2(allDays.length) +
+      "｜" +
+      formatPercent1(consRate) +
+      "% 達成";
+
+    block.appendChild(lineStar);
+    block.appendChild(lineCons);
+  }
+
   function ensureHeaderStyles(){
     if (document.getElementById("nl-daily-summary-style")) return;
 
@@ -924,6 +1018,10 @@
       // 目的: スタイル管理の分散を防ぐ
     }catch(_){}
 
+    // ▼ ⭐️行・◎行をまとめて再描画できるように専用ラッパーを作る
+    var summaryStatBlock = document.createElement("div");
+    summaryStatBlock.id = "nl-summary-stat-block";
+
     var summaryLine2 = document.createElement("div");
     var summaryLine3 = document.createElement("div");
     var summaryLine4 = document.createElement("div");
@@ -975,8 +1073,11 @@
       openExamCalendar(summaryLine4, examButtonSpan);
     });
 
-    summaryHost.appendChild(summaryLine2);
-    summaryHost.appendChild(summaryLine3);
+    // ▼ ⭐️/◎ 行はラッパーにまとめてから summaryHost に入れる
+    summaryStatBlock.appendChild(summaryLine2);
+    summaryStatBlock.appendChild(summaryLine3);
+
+    summaryHost.appendChild(summaryStatBlock);
     summaryHost.appendChild(summaryLine4);
 
     // #nl-panel の外（= #nl-panel の直前）にヘッダーを出すためのホストを用意する
@@ -1018,7 +1119,7 @@
   window.addEventListener("cscs-sync-updated", function(){
     try{
       setTimeout(function(){
-        mountHeaders();
+        refreshSummaryStatBlock();
       }, 1000);
     }catch(_){}
   });
