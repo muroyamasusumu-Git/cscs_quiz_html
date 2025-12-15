@@ -471,27 +471,7 @@
     var panel = document.createElement("div");
     panel.id  = "nl-panel";
 
-    // パネルの見た目・位置（画面上部固定 / 半透明 / スクロール領域を中に持つ）
-    Object.assign(panel.style, {
-      position: "fixed",
-      left: "16px",
-      right: "16px",
-      top: "12px",
-      bottom: "66px",
-      overflow: "hidden",
-      background: "rgba(0, 0, 0, 0.6)",
-      border: "1px solid rgb(51, 51, 51)",
-      borderRadius: "12px",
-      padding: "14px 16px 0px",
-      zIndex: "99999",
-      display: "none",
-      backdropFilter: "blur(8px)",
-      WebkitBackdropFilter: "blur(8px)",
-      maxHeight: "calc(100vh - 24px)",
-      opacity: "0.5",
-      pointerEvents: "none",
-      transition: "opacity 0.5s ease-in-out"
-    });
+    // （削除）パネルの見た目・位置指定は外部JSに移譲済み
 
     // #root があればその中に、それ以外は body 直下に追加
     var root = document.getElementById("root");
@@ -1668,10 +1648,10 @@
     await loadSyncDataForNavList();
 
     // ▼ 一覧パネルを表示状態にしてからレイアウト計測＆スクロール
-    panel.style.display = "flex";
-    panel.style.flexDirection = "column";
-    panel.style.pointerEvents = "auto";
-    panel.style.opacity = "0.5";
+    panel.style.display = "";
+    panel.style.flexDirection = "";
+    panel.style.pointerEvents = "";
+    panel.style.opacity = "";
 
     // nav_manifest.json を読み込んで中身を描画
     await renderListInto(panel);

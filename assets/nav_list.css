@@ -33,9 +33,6 @@
 /* オーバーレイ本体 */
 #nl-panel {
   position: fixed !important;
-  top: 200px !important;
-  bottom: 10px !important;
-  right: 10px !important;
   inset: 200px 10px 10px auto !important;
   opacity: 0.5 !important;
   display: block !important;
@@ -55,7 +52,6 @@
   padding: 0 0 0 !important;
   /* フェード用オーバーレイ(#cscs-global-fade-overlay: z-index 9998)より下に置くため、少し低めに設定 */
   z-index: 8000 !important;
-  display: none;
   backdrop-filter: blur(2px);
   pointer-events: auto;
   color: var(--nl-text);
@@ -64,12 +60,6 @@
                "Noto Sans JP", "Meiryo", sans-serif;
   line-height: 1.6;
 }
-
-
-
-
-
-
 
 
 
