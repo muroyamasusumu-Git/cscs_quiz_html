@@ -460,13 +460,18 @@
   }
 
   function removeExistingHeaders(panel){
+    // 既存ヘッダーを確実に除去（過去に #nl-panel 内に入っていたものも含め、どこに居ても消す）
     try{
-      var a = panel.querySelector("#nl-progress-header");
+      var a = document.getElementById("nl-progress-header");
       if (a && a.parentNode) a.parentNode.removeChild(a);
     }catch(_){}
     try{
-      var b = panel.querySelector("#nl-summary-header");
+      var b = document.getElementById("nl-summary-header");
       if (b && b.parentNode) b.parentNode.removeChild(b);
+    }catch(_){}
+    try{
+      var h = document.getElementById("nl-daily-summary-host");
+      if (h && h.parentNode) h.parentNode.removeChild(h);
     }catch(_){}
   }
 
@@ -717,9 +722,32 @@
     summaryHost.appendChild(summaryLine3);
     summaryHost.appendChild(summaryLine4);
 
-    // panel 先頭へ挿入（bodyHost より上に来る）
-    panel.insertBefore(summaryHost, panel.firstChild);
-    panel.insertBefore(progressHost, panel.firstChild);
+    // #nl-panel の外（= #nl-panel の直前）にヘッダーを出すためのホストを用意する
+    // - panel 内に入れない（#nl-panel の外に出す）
+    // - 親要素は panel.parentNode（= nav_list 側のレイアウト順を維持）
+    var host = document.createElement("div");
+    host.id = "nl-daily-summary-host";
+
+    try{
+      Object.assign(host.style, {
+        display: "block"
+      });
+    }catch(_){}
+
+    // panel の直前に host を差し込む（= #nl-panel の外に出る）
+    try{
+      if (panel.parentNode) {
+        panel.parentNode.insertBefore(host, panel);
+      } else {
+        document.body.insertBefore(host, document.body.firstChild);
+      }
+    }catch(_){
+      document.body.insertBefore(host, document.body.firstChild);
+    }
+
+    // host の中にヘッダーを積む（panel の外に固定）
+    host.appendChild(progressHost);
+    host.appendChild(summaryHost);
   }
 
   window.CSCS_NL_DAILY_SUMMARY = {
