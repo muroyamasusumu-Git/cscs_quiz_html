@@ -335,6 +335,17 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
 }
 
+/* 過去日の “解いた痕跡” 用（薄め） */
+#nl-progress-header .nl-ph-cell-q.is-solved-correct-lite{
+  background: rgba(255,255,255,0.10);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.38);
+}
+
+#nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
+  background: rgba(255,255,255,0.035);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+}
+
 
 /* ---- day / question : 個別調整用（必要ならここをいじる） ----
    ここは “数値を後から変える” 前提の調整ポイント。
@@ -453,6 +464,10 @@
             cell.className += " is-solved-correct";
           } else if (v === "wrong") {
             cell.className += " is-solved-wrong";
+          } else if (v === "correct-lite") {
+            cell.className += " is-solved-correct-lite";
+          } else if (v === "wrong-lite") {
+            cell.className += " is-solved-wrong-lite";
           }
         } else if (Object.prototype.hasOwnProperty.call(todaySolvedIndexMap, i)) {
           var v2 = String(todaySolvedIndexMap[i] || "").toLowerCase();
@@ -460,6 +475,10 @@
             cell.className += " is-solved-correct";
           } else if (v2 === "wrong") {
             cell.className += " is-solved-wrong";
+          } else if (v2 === "correct-lite") {
+            cell.className += " is-solved-correct-lite";
+          } else if (v2 === "wrong-lite") {
+            cell.className += " is-solved-wrong-lite";
           }
         }
       }
@@ -1015,14 +1034,61 @@
       todaySolvedIndexMap = {};
     }
 
+    // 過去日でも “解いた痕跡” を薄く出す（SYNCに累計がある場合のみ）
+    // - todaySolvedIndexMap（強い色）がある場合は、そちらが優先される
+    var qSolvedIndexMapForUi = {};
+    try{
+      // 1) まず「薄い色（過去履歴）」を作る
+      //    ※ SYNCの構造が存在する時だけ使う（なければ空のまま）
+      if (syncRoot && typeof syncRoot === "object") {
+        var hasCorrectMap = (syncRoot.q_correct_total && typeof syncRoot.q_correct_total === "object");
+        var hasWrongMap = (syncRoot.q_wrong_total && typeof syncRoot.q_wrong_total === "object");
+
+        if (hasCorrectMap || hasWrongMap) {
+          var qi;
+          for (qi = 1; qi <= 30; qi++){
+            var n3lite = pad3(qi);
+            var qidLite = day + "-" + n3lite;
+
+            var cTot = 0;
+            var wTot = 0;
+
+            if (hasCorrectMap && Object.prototype.hasOwnProperty.call(syncRoot.q_correct_total, qidLite)) {
+              cTot = Number(syncRoot.q_correct_total[qidLite] || 0);
+            }
+            if (hasWrongMap && Object.prototype.hasOwnProperty.call(syncRoot.q_wrong_total, qidLite)) {
+              wTot = Number(syncRoot.q_wrong_total[qidLite] || 0);
+            }
+
+            if (cTot > 0 || wTot > 0) {
+              var idxLite0 = qi - 1;
+              // “正解経験あり” を優先（両方ある場合も correct-lite に寄せる）
+              qSolvedIndexMapForUi[idxLite0] = (cTot > 0) ? "correct-lite" : "wrong-lite";
+            }
+          }
+        }
+      }
+    }catch(_){
+      qSolvedIndexMapForUi = {};
+    }
+
+    // 2) 仕上げ：今日の結果（強い色）で上書き
+    try{
+      if (todaySolvedIndexMap && typeof todaySolvedIndexMap === "object") {
+        Object.keys(todaySolvedIndexMap).forEach(function(k){
+          qSolvedIndexMapForUi[k] = todaySolvedIndexMap[k];
+        });
+      }
+    }catch(_){}
+
     progressHost.appendChild(
       buildProgressGrid(
-        30,                 // total（問題数）
-        qFilled,            // filled（★獲得済み数）
-        30,                 // cols（横一列）
-        currentQIndex,      // 現在位置（点滅）
+        30,                    // total（問題数）
+        qFilled,               // filled（★獲得済み数）
+        30,                    // cols（横一列）
+        currentQIndex,         // 現在位置（点滅）
         "q",
-        todaySolvedIndexMap // 今日の計測済み（正/誤）で色分け
+        qSolvedIndexMapForUi    // 今日(強)＋過去(薄) の合成マップ
       )
     );
 
