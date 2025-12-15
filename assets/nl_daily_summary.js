@@ -354,10 +354,10 @@
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong{
-  background: rgba(170,95,95,0.42);
+  background: rgba(235,150,175,0.30);
   box-shadow:
-    inset 0 0 0 1px rgba(210,140,140,0.65),
-    0 0 2px rgba(170,95,95,0.28);
+    inset 0 0 0 1px rgba(255,195,210,0.55),
+    0 0 2px rgba(235,150,175,0.16);
 }
 
 /* 過去日の “解いた痕跡” 用（明確に弱い色） */
@@ -367,8 +367,8 @@
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
-  background: rgba(170,95,95,0.14);
-  box-shadow: inset 0 0 0 1px rgba(200,125,125,0.28);
+  background: rgba(235,150,175,0.10);
+  box-shadow: inset 0 0 0 1px rgba(255,195,210,0.22);
 }
 
 
