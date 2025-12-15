@@ -944,6 +944,37 @@
         console.log("[SYNC-A:oncePerDay] oncePerDayToday check skipped (error)", _eOnce);
       }
 
+      // ★ 追加: SYNC 側 oncePerDayToday を正として localStorage 側も同期する（欠けていた上書き）
+      //   - A の役割として「SYNC state を正」に localStorage を整流化する。
+      //   - フォールバックは増やさず、SYNC に無ければ removeItem で「無い」を正として反映する。
+      const oncePerDayToday = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+        ? s.oncePerDayToday
+        : null;
+
+      try{
+        // (1) day: number なら String(day) で保存。それ以外（欠損/非number）は removeItem
+        if (oncePerDayToday && typeof oncePerDayToday.day === "number") {
+          localStorage.setItem("cscs_once_per_day_today_day", String(oncePerDayToday.day));
+        } else {
+          localStorage.removeItem("cscs_once_per_day_today_day");
+        }
+
+        // (2) results: object なら JSON.stringify して保存。それ以外（欠損/非object）は removeItem
+        if (oncePerDayToday && oncePerDayToday.results && typeof oncePerDayToday.results === "object") {
+          localStorage.setItem(
+            "cscs_once_per_day_today_results",
+            JSON.stringify(oncePerDayToday.results)
+          );
+        } else {
+          localStorage.removeItem("cscs_once_per_day_today_results");
+        }
+
+        console.log("[SYNC-A] initialFetch synced oncePerDayToday from server to localStorage", {
+          day: oncePerDayToday && typeof oncePerDayToday.day === "number" ? oncePerDayToday.day : null,
+          hasResults: !!(oncePerDayToday && oncePerDayToday.results && typeof oncePerDayToday.results === "object")
+        });
+      }catch(_){}
+
       // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
       //   - state.streak3Today を唯一のソースとして、
       //     「今日の⭐️ユニーク数」関連の localStorage を上書きする。
