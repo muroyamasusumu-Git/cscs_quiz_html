@@ -471,6 +471,27 @@
     var panel = document.createElement("div");
     panel.id  = "nl-panel";
 
+    // ▼ スクロールバー非表示CSS（スクロールは可能なまま）
+    // - Firefox: scrollbar-width
+    // - IE/旧Edge: -ms-overflow-style
+    // - WebKit系（Chrome/Safari/iOS）: ::-webkit-scrollbar
+    try{
+      if (!document.getElementById("cscs-nl-scrollbar-hide-style")) {
+        var st = document.createElement("style");
+        st.id = "cscs-nl-scrollbar-hide-style";
+        st.textContent =
+          "#nl-body, #nl-left-col, #nl-right-col{" +
+            "-ms-overflow-style:none;" +
+            "scrollbar-width:none;" +
+          "}" +
+          "#nl-body::-webkit-scrollbar, #nl-left-col::-webkit-scrollbar, #nl-right-col::-webkit-scrollbar{" +
+            "width:0px;" +
+            "height:0px;" +
+          "}";
+        document.head.appendChild(st);
+      }
+    }catch(_){}
+
     // （削除）パネルの見た目・位置指定は外部JSに移譲済み
 
     // #root があればその中に、それ以外は body 直下に追加
