@@ -395,10 +395,28 @@
 
 #nl-progress-header .nl-ph-cell-day {
     border-radius: 0px;
-    background: rgba(255,255,255,0.02);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.015)
+    );
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.06);
     border-bottom-left-radius: 20px;
     height: 12px;
+    transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+#nl-progress-header .nl-ph-cell-day.is-on{
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.10),
+      rgba(255,255,255,0.05)
+    );
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.10);
 }
 
 #nl-progress-header .nl-ph-cell-q {
