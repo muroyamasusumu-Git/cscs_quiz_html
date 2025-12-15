@@ -1881,6 +1881,16 @@
 
   window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
     try {
+      // ★ verify-mode ガード: 自動検証モード中は「計測ガード」方針に揃えて streak3Today も送らない
+      //   - sendLastDayDeltaOnlyIfNeeded() と同じ判定形に揃える（CSCS_VERIFY_MODE === "on" なら return）
+      //   - ODOA on_nocount ガードは既にあるため、ここでは verify-mode のみ追加する
+      var verifyModeOn =
+        typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+      if (verifyModeOn) {
+        console.log("[SYNC-B:streak3Today] verify-mode ON → streak3TodayDelta 送信をブロック（計測ガード）");
+        return;
+      }
+
       // ★ 追加ガード: O.D.O.A が nocount のときは streak3Today を一切送らない
       var state = null;
       try {
@@ -2027,6 +2037,16 @@
   // ★ 不正解版: 今日の3連続不正解ユニーク（Streak3WrongToday）を SYNC 側に送信する
   window.CSCS_SYNC.recordStreak3WrongTodayUnique = async function () {
     try {
+      // ★ verify-mode ガード: 自動検証モード中は「計測ガード」方針に揃えて streak3WrongToday も送らない
+      //   - sendLastDayDeltaOnlyIfNeeded() と同じ判定形に揃える（CSCS_VERIFY_MODE === "on" なら return）
+      //   - ODOA on_nocount ガードは既にあるため、ここでは verify-mode のみ追加する
+      var verifyModeOn =
+        typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+      if (verifyModeOn) {
+        console.log("[SYNC-B:streak3WrongToday] verify-mode ON → streak3WrongTodayDelta 送信をブロック（計測ガード）");
+        return;
+      }
+
       // ★ 追加ガード: O.D.O.A が nocount のときは streak3WrongToday を一切送らない
       var state = null;
       try {
