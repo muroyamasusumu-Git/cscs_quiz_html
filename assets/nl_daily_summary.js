@@ -1015,11 +1015,24 @@
         "日";
     }
 
+    // ▼ 全体日数の中で「何日目か」を計算する
+    // - allDays は buildDayArray() で作られた全日付配列
+    // - indexOf(day) は 0始まりなので +1 する
+    var dayIndexInAll = null;
+    if (day && day !== "unknown") {
+      try {
+        var idx = allDays.indexOf(day);
+        if (idx >= 0) {
+          dayIndexInAll = idx + 1;
+        }
+      } catch (_){}
+    }
+
     mergedValue.textContent =
       (currentQNo !== null ? "Q" + String(currentQNo) + " / 30" : "Q? / 30") +
       (dayLabel ? " ｜ " + dayLabel : "") +
       " ｜ 日別 " +
-      String(dayFilled) +
+      (dayIndexInAll !== null ? String(dayIndexInAll) : "?") +
       " / " +
       String(dayTotal);
 
