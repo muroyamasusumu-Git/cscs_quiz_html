@@ -688,9 +688,13 @@
 
         const onceEl = box.querySelector(".sync-onceperday");
         if (onceEl) {
-          // oncePerDayToday の人間向けステータスに、ODOA と count対象情報を 1行で付加
+          // oncePerDayToday / ODOA / count対象 / 理由 をそれぞれ改行して表示する
           const base = onceLabel || "（データなし）";
-          onceEl.textContent = base + " / " + odoaLabel + " / " + countLabel + " / " + reasonLabel;
+          onceEl.innerHTML =
+            "oncePerDayToday: " + base + "<br>" +
+            odoaLabel + "<br>" +
+            countLabel + "<br>" +
+            reasonLabel;
         }
       }
     }catch(_){
