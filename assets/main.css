@@ -63,7 +63,7 @@ html, body {
 }
 
 #root {
-/* margin: 10px 20px 75px; */
+  display: block;
 }
 
 .wrap {
@@ -98,11 +98,6 @@ html, body {
     width: 0 !important;
     height: 0 !important;
 }
-
-
-
-
-
 
 
 
