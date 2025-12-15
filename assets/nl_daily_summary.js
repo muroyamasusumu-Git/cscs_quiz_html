@@ -373,14 +373,14 @@
     background: rgba(255,255,255,0.02);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
     border-bottom-left-radius: 20px;
-    height: 10px;
+    height: 12px;
 }
 
 #nl-progress-header .nl-ph-cell-q {
     border-radius: 0px;
     background: rgba(255,255,255,0.02);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
-    height: 10px;
+    height: 12px;
 }
 
 
