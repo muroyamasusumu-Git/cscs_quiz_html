@@ -90,28 +90,27 @@
       + "position: relative;"
       + "}"
 
-      // ▼ body直下の要素は常に背景より前面へ（強制）
-      // 目的: ambient layer が有効な状態でも、他のUIが背面に沈まないよう保証する
-      //       position/z-index を明示してスタッキングコンテキスト事故を防ぐ
+      // ▼ body直下の要素は常に背景より前面へ（個別z-index指定を不要にする）
+      // 目的: どんなUIが body直下に追加されても ambient より前に出ることを保証する
+      // 注意: ambient 自身（#cscs-ambient-layer）は除外する
       + "body > *:not(#" + LAYER_ID + "){"
-      + "position: relative !important;"
-      + "z-index: 1 !important;"
+      + "position: relative;"
+      + "z-index: 1;"
       + "}"
 
-      // ▼ .wrap は UI の代表レイヤーとして前面に固定
-      // 目的: transform 等で別スタッキングコンテキストが生まれても ambient に負けないようにする
+      // ▼ .wrap は z-index を持たせず、通常レイヤーとして扱う
+      // 目的: UI側の個別調整を減らし、ambient の役割（常に背面）を明確化する
       + ".wrap{"
-      + "position: relative !important;"
-      + "z-index: 1 !important;"
+      + "position: relative;"
       + "}"
 
       // ▼ 背景レイヤーの器（固定・最背面・クリック不干渉）
-      // 目的: どんな状況でも ambient layer が UI より前に出ないことを保証する
+      // 目的: adjust が常に同じ描画先にCSSを注入できるようにする
       + "#" + LAYER_ID + "{"
-      + "position: fixed !important;"
-      + "inset: 0 !important;"
-      + "pointer-events: none !important;"
-      + "z-index: 0 !important;"
+      + "position: fixed;"
+      + "inset: 0;"
+      + "pointer-events: none;"
+      + "z-index: 0;"
       + "}"
 
       // ▼ 下地（必ず存在）
