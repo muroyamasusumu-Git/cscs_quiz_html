@@ -355,18 +355,10 @@
 }
 
 #nl-progress-header .nl-ph-cell-q {
-    position: relative;
-    height: 10px;
+    border-radius: 0px;
     background: rgba(255,255,255,0.02);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
-
-    /* 斜めカット形状 */
-    clip-path: polygon(
-      4px 0%,
-      100% 0%,
-      calc(100% - 4px) 100%,
-      0% 100%
-    );
+    height: 10px;
 }
 
 
@@ -991,8 +983,8 @@
       buildProgressGrid(
         30,                 // total（問題数）
         qFilled,            // filled（★獲得済み数）
-        15,                 // cols（15列 × 2行）
-        currentQIndex,      // 現在表示中の問題位置
+        30,                 // cols（横一列）
+        currentQIndex,      // ← 問題別でも現在位置を渡す
         "q"
       )
     );
