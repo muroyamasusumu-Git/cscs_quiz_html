@@ -297,23 +297,26 @@
 }
 
 #nl-progress-header .nl-ph-cell.is-today{
-  background: rgba(255,255,255,0.26);
+  background: rgba(255,255,255,0.38);
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.65),
-    0 0 0 1px rgba(255,255,255,0.35);
-  animation: nl-ph-today-pulse 1.8s ease-in-out infinite;
+    inset 0 0 0 1px rgba(255,255,255,0.9),
+    0 0 6px rgba(255,255,255,0.55);
+  animation: nl-ph-today-pulse 1.1s ease-in-out infinite;
 }
 
-/* 現在地マス用：弱い呼吸点滅 */
+/* 現在地マス用：強めの呼吸＋発光点滅 */
 @keyframes nl-ph-today-pulse{
   0%{
-    opacity: 0.85;
+    opacity: 0.75;
+    transform: scaleY(0.9);
   }
   50%{
     opacity: 1;
+    transform: scaleY(1);
   }
   100%{
-    opacity: 0.85;
+    opacity: 0.75;
+    transform: scaleY(0.9);
   }
 }
 
@@ -326,24 +329,28 @@
 
 /* 今日解いた問題の色分け（問題別マスのみ） */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct{
-  background: rgba(255,255,255,0.16);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+  background: rgba(120,200,255,0.65);
+  box-shadow:
+    inset 0 0 0 1px rgba(180,230,255,0.95),
+    0 0 4px rgba(120,200,255,0.6);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong{
-  background: rgba(255,255,255,0.06);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+  background: rgba(255,120,120,0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,170,170,0.9),
+    0 0 3px rgba(255,120,120,0.5);
 }
 
-/* 過去日の “解いた痕跡” 用（薄め） */
+/* 過去日の “解いた痕跡” 用（明確に弱い色） */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct-lite{
-  background: rgba(255,255,255,0.10);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.38);
+  background: rgba(120,200,255,0.22);
+  box-shadow: inset 0 0 0 1px rgba(160,220,255,0.45);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
-  background: rgba(255,255,255,0.035);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+  background: rgba(255,120,120,0.18);
+  box-shadow: inset 0 0 0 1px rgba(255,150,150,0.35);
 }
 
 
