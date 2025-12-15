@@ -355,10 +355,29 @@
 }
 
 #nl-progress-header .nl-ph-cell-q {
+    position: relative;
+    overflow: hidden;
     border-radius: 0px;
     background: rgba(255,255,255,0.02);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
     height: 10px;
+}
+
+/* 斜めハイライト（ベース） */
+#nl-progress-header .nl-ph-cell-q::after {
+    content: "";
+    position: absolute;
+    top: -60%;
+    left: -60%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.08) 0%,
+        rgba(255,255,255,0.04) 40%,
+        rgba(255,255,255,0.0) 60%
+    );
+    pointer-events: none;
 }
 
 
