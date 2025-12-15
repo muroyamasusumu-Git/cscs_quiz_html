@@ -1041,8 +1041,8 @@
       // 1) まず「薄い色（過去履歴）」を作る
       //    ※ SYNCの構造が存在する時だけ使う（なければ空のまま）
       if (syncRoot && typeof syncRoot === "object") {
-        var hasCorrectMap = (syncRoot.q_correct_total && typeof syncRoot.q_correct_total === "object");
-        var hasWrongMap = (syncRoot.q_wrong_total && typeof syncRoot.q_wrong_total === "object");
+        var hasCorrectMap = (syncRoot.correct && typeof syncRoot.correct === "object");
+        var hasWrongMap = (syncRoot.incorrect && typeof syncRoot.incorrect === "object");
 
         if (hasCorrectMap || hasWrongMap) {
           var qi;
@@ -1053,11 +1053,11 @@
             var cTot = 0;
             var wTot = 0;
 
-            if (hasCorrectMap && Object.prototype.hasOwnProperty.call(syncRoot.q_correct_total, qidLite)) {
-              cTot = Number(syncRoot.q_correct_total[qidLite] || 0);
+            if (hasCorrectMap && Object.prototype.hasOwnProperty.call(syncRoot.correct, qidLite)) {
+              cTot = Number(syncRoot.correct[qidLite] || 0);
             }
-            if (hasWrongMap && Object.prototype.hasOwnProperty.call(syncRoot.q_wrong_total, qidLite)) {
-              wTot = Number(syncRoot.q_wrong_total[qidLite] || 0);
+            if (hasWrongMap && Object.prototype.hasOwnProperty.call(syncRoot.incorrect, qidLite)) {
+              wTot = Number(syncRoot.incorrect[qidLite] || 0);
             }
 
             if (cTot > 0 || wTot > 0) {
