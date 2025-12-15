@@ -163,7 +163,6 @@
 #nl-progress-header .nl-ph-grid{
   margin-top: 6px;
   display:grid;
-  gap: 2px;
   width:100%;
 }
 
