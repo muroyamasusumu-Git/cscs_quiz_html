@@ -1330,6 +1330,190 @@
     }
   }
 
+
+  // ★ 追加: suppressDiffSend（自動クリック正式トリガー）でも lastDay だけは送る
+  // 目的:
+  //   - lastSeen/lastCorrect/lastWrong が「★/💣は送れてるのに lastDay は送れてない」を解消する
+  //   - 送信は lastDayDelta のみ（加算系の diff 本体は絶対に送らない）
+  //   - 送信失敗時は次ページで同条件なら再送される（自然リトライ）
+  function sendLastDayDeltaOnlyIfNeeded(box, params) {
+    try {
+      params = params || {};
+      var qid = params.qid || (info && info.qid ? info.qid : "");
+      var syncState = params.syncState || null;
+
+      // ★ 自動検証モード中は「計測ガード」方針に揃えて lastDay も送らない
+      var verifyModeOn =
+        typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+      if (verifyModeOn) {
+        console.log("[SYNC-B:lastDay:auto] verify-mode ON → lastDayDelta 送信もブロック（計測ガード）", {
+          qid: qid
+        });
+        return;
+      }
+
+      // ★ オフラインなら送らない（次ページ以降に自然再送）
+      if (!navigator.onLine) {
+        console.log("[SYNC-B:lastDay:auto] offline → lastDayDelta 送信スキップ（次ページで再試行）", {
+          qid: qid
+        });
+        return;
+      }
+
+      if (!qid) {
+        console.log("[SYNC-B:lastDay:auto] qid が空のため送信しない");
+        return;
+      }
+
+      // ---- local（lastDay）を取得（不正値は null）----
+      var localLastSeenDay = readDayFromLocalStorage("cscs_q_last_seen_day:" + qid);
+      var localLastCorrectDay = readDayFromLocalStorage("cscs_q_last_correct_day:" + qid);
+      var localLastWrongDay = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qid);
+
+      // ---- server（lastDay）を取得（不正値は null）----
+      var serverLastSeenDay = null;
+      var serverLastCorrectDay = null;
+      var serverLastWrongDay = null;
+
+      if (syncState) {
+        if (
+          syncState.lastSeenDay &&
+          typeof syncState.lastSeenDay === "object" &&
+          syncState.lastSeenDay[qid] != null
+        ) {
+          var sSeen = syncState.lastSeenDay[qid];
+          if (typeof sSeen === "number" && Number.isFinite(sSeen) && sSeen > 0) {
+            serverLastSeenDay = sSeen;
+          }
+        }
+
+        if (
+          syncState.lastCorrectDay &&
+          typeof syncState.lastCorrectDay === "object" &&
+          syncState.lastCorrectDay[qid] != null
+        ) {
+          var sCor = syncState.lastCorrectDay[qid];
+          if (typeof sCor === "number" && Number.isFinite(sCor) && sCor > 0) {
+            serverLastCorrectDay = sCor;
+          }
+        }
+
+        if (
+          syncState.lastWrongDay &&
+          typeof syncState.lastWrongDay === "object" &&
+          syncState.lastWrongDay[qid] != null
+        ) {
+          var sWrong = syncState.lastWrongDay[qid];
+          if (typeof sWrong === "number" && Number.isFinite(sWrong) && sWrong > 0) {
+            serverLastWrongDay = sWrong;
+          }
+        }
+      }
+
+      // ---- 差分判定（local が null の場合は送らない）----
+      var hasLastSeenDayDiff = localLastSeenDay !== null && localLastSeenDay !== serverLastSeenDay;
+      var hasLastCorrectDayDiff = localLastCorrectDay !== null && localLastCorrectDay !== serverLastCorrectDay;
+      var hasLastWrongDayDiff = localLastWrongDay !== null && localLastWrongDay !== serverLastWrongDay;
+
+      if (!hasLastSeenDayDiff && !hasLastCorrectDayDiff && !hasLastWrongDayDiff) {
+        console.log("[SYNC-B:lastDay:auto] lastDay 差分なし → 送信不要", {
+          qid: qid,
+          localLastSeenDay: localLastSeenDay,
+          serverLastSeenDay: serverLastSeenDay,
+          localLastCorrectDay: localLastCorrectDay,
+          serverLastCorrectDay: serverLastCorrectDay,
+          localLastWrongDay: localLastWrongDay,
+          serverLastWrongDay: serverLastWrongDay
+        });
+        return;
+      }
+
+      // ---- lastDayDelta（上書き系）だけを構築 ----
+      var lastSeenDayDeltaObj = {};
+      var lastCorrectDayDeltaObj = {};
+      var lastWrongDayDeltaObj = {};
+
+      if (hasLastSeenDayDiff && localLastSeenDay !== null) {
+        lastSeenDayDeltaObj[qid] = localLastSeenDay;
+      }
+      if (hasLastCorrectDayDiff && localLastCorrectDay !== null) {
+        lastCorrectDayDeltaObj[qid] = localLastCorrectDay;
+      }
+      if (hasLastWrongDayDiff && localLastWrongDay !== null) {
+        lastWrongDayDeltaObj[qid] = localLastWrongDay;
+      }
+
+      // ★ 送信は lastDayDelta のみ（加算系や streak 系は絶対に含めない）
+      var payload = {
+        lastSeenDayDelta: lastSeenDayDeltaObj,
+        lastCorrectDayDelta: lastCorrectDayDeltaObj,
+        lastWrongDayDelta: lastWrongDayDeltaObj,
+        updatedAt: Date.now()
+      };
+
+      console.log("[SYNC-B:lastDay:auto] sending lastDayDelta ONLY:", {
+        qid: qid,
+        payload: payload,
+        server: {
+          lastSeenDay: serverLastSeenDay,
+          lastCorrectDay: serverLastCorrectDay,
+          lastWrongDay: serverLastWrongDay
+        },
+        local: {
+          lastSeenDay: localLastSeenDay,
+          lastCorrectDay: localLastCorrectDay,
+          lastWrongDay: localLastWrongDay
+        }
+      });
+
+      // ---- 送信（失敗したら次ページで自然再送）----
+      fetch(SYNC_MERGE_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        keepalive: true
+      })
+        .then(function (res) {
+          if (!res.ok) {
+            console.error("[SYNC-B:lastDay:auto] merge FAILED:", res.status);
+            return null;
+          }
+          return res.json().catch(function () {
+            return null;
+          });
+        })
+        .then(function (merged) {
+          console.log("[SYNC-B:lastDay:auto] merge OK (response):", merged);
+
+          // ★ 任意（フォールバックではなく“確認”）：state を再取得して HUD に反映させたい場合のみ更新
+          //   - ここは「埋め合わせ」ではなく「反映確認」なので、取得失敗しても何もしない
+          return fetchState()
+            .then(function (stateAfter) {
+              try {
+                window.__cscs_sync_state = stateAfter;
+              } catch (_e2) {}
+              console.log("[SYNC-B:lastDay:auto] state refreshed after lastDay merge:", {
+                qid: qid,
+                lastSeenDay: stateAfter && stateAfter.lastSeenDay ? stateAfter.lastSeenDay[qid] : undefined,
+                lastCorrectDay: stateAfter && stateAfter.lastCorrectDay ? stateAfter.lastCorrectDay[qid] : undefined,
+                lastWrongDay: stateAfter && stateAfter.lastWrongDay ? stateAfter.lastWrongDay[qid] : undefined
+              });
+            })
+            .catch(function (e) {
+              console.error("[SYNC-B:lastDay:auto] state refresh ERROR after merge:", e);
+            });
+        })
+        .catch(function (e) {
+          console.error("[SYNC-B:lastDay:auto] network ERROR (次ページで自然再送):", e);
+        });
+
+    } catch (e) {
+      console.error("[SYNC-B:lastDay:auto] fatal error:", e);
+    }
+  }
+  
   function refreshAndSend(box, options) {
     // ★ options.suppressDiffSend === true のときは、
     //    sendDiffToServer() を呼ばずに HUD の表示更新だけ行うモード
@@ -1493,21 +1677,30 @@
           odoaStatusText: odoaStatusTextForPanelInit
         });
 
-        // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
-        //    HUD 表示のみ更新した状態で終了する（手動 streak3Today テスト用）
+        // ★ suppressDiffSend===true の場合：
+        //    - 「diff 本体（correct/incorrect/streak 等）」は送らない（従来通り）
+        //    - ただし lastDay（lastSeen/lastCorrect/lastWrong）だけは、
+        //      ★/💣 と同じく「毎ページ確実に merge に乗る」ように、条件一致時のみ送信する
+        //
+        // 目的:
+        //   - 自動クリック（正式トリガー）で lastDay が server に反映されない問題を潰す
+        //   - 送信は lastDayDelta のみ（加算系は一切送らない）
+        //   - 失敗しても次ページで条件一致なら再送される（自然リトライ）
         if (suppressDiffSend) {
-          console.log("[SYNC-B] refreshAndSend: suppressDiffSend=true → diff POST を実行せず HUD 表示のみ更新", {
+          console.log("[SYNC-B] refreshAndSend: suppressDiffSend=true → diff POST は抑制 / lastDay のみ条件送信", {
             qid: info.qid,
-            serverCorrect: serverCorrect,
-            serverWrong: serverWrong,
-            localCorrect: localCorrect,
-            localWrong: localWrong,
-            diffCorrect: diffCorrect,
-            diffWrong: diffWrong,
-            diffStreak3: diffStreak3,
-            diffStreakLen: diffStreakLen,
             odoaModeText: odoaModeText
           });
+
+          // ★ lastDay のみ、local と server に差分があるときだけ merge に載せる
+          //   - オフラインなら送らない（次ページ以降に自然再送）
+          //   - verify-mode 中は送らない（計測ガード方針に合わせる）
+          sendLastDayDeltaOnlyIfNeeded(box, {
+            qid: info.qid,
+            syncState: state,
+            odoaModeText: odoaModeText
+          });
+
           return;
         }
 
