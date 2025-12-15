@@ -146,7 +146,7 @@
 #nl-daily-summary-host{
   display: block;
   position: fixed;
-  inset: 10px 10px 10px auto;
+  inset: 10px 20px 10px auto;
   margin-left: 69%;
 }
 
