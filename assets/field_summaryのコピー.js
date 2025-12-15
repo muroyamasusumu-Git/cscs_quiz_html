@@ -2641,141 +2641,26 @@
 
     // ▼▼▼ ここが遅延時間（ms）。500 → 1000 にすると「1秒後」に実行される ▼▼▼
     setTimeout(function () {
-      (async function () {
-        try {
-          // ▼ 1) 既存パネルは消さずに、上部の compact 行だけを探す
-          var panel = document.getElementById("cscs-field-star-summary");
-          if (!panel) {
-            console.warn("field_summary.js: delayed refresh skipped (panel not found).");
-            return;
-          }
+      // 既存のフィールドサマリーパネルを削除してから、再描画する
+      var panel = document.getElementById("cscs-field-star-summary");
+      if (panel && panel.parentNode) {
+        panel.parentNode.removeChild(panel);
+      }
 
-          var line = panel.querySelector(".cscs-star-summary-line-compact");
-          if (!line) {
-            console.warn("field_summary.js: delayed refresh skipped (compact line not found).");
-            return;
-          }
+      // SYNC由来の集計状態を一度リセットしてから、再度 /api/sync/state から読み直す
+      starFieldCounts = null;
+      starTotalSolvedQuestions = 0;
+      starRemainingDays = 0;
+      starTargetPerDay = 0;
+      starReachCountFromSync = 0;
+      if (typeof starPreReachCountFromSync !== "undefined") {
+        starPreReachCountFromSync = 0;
+      }
+      unsolvedCountFromSync = 0;
+      unansweredCountFromSync = 0;
 
-          // ▼ 2) 表示に使う SYNC 由来の集計値だけをリセットしてから読み直す（DOMは触らない）
-          // - パネル全体の再生成はしない
-          // - /api/sync/state を読み直して starTargetPerDay / reach / totalPercent などを最新化する
-          starFieldCounts = null;
-          starTotalSolvedQuestions = 0;
-          starRemainingDays = 0;
-          starTargetPerDay = 0;
-          starReachCountFromSync = 0;
-          if (typeof starPreReachCountFromSync !== "undefined") {
-            starPreReachCountFromSync = 0;
-          }
-          unsolvedCountFromSync = 0;
-          unansweredCountFromSync = 0;
-
-          // ▼ 3) SYNC を読み直して、compact 行に必要な値を更新する
-          await loadStarFieldCountsStrict();
-
-          // ▼ 4) streak3Today も SYNC から取り直して、今日の進捗%を再計算する
-          starTodayCount = await loadTodayStreak3CountFromSync();
-
-          // ▼ 5) compact 行（HTML）だけを再構築して差し替える
-          var targetNum = Number(starTargetPerDay);
-          if (!Number.isFinite(targetNum) || targetNum < 0) {
-            targetNum = 0;
-          }
-
-          var todayPercent = 0;
-          if (targetNum > 0) {
-            todayPercent = Math.floor((starTodayCount / targetNum) * 100);
-            if (!Number.isFinite(todayPercent) || todayPercent < 0) {
-              todayPercent = 0;
-            }
-            if (todayPercent > 100) {
-              todayPercent = 100;
-            }
-          }
-
-          var totalPercent = 0;
-          var totalQuestions = Number(totalQuestionsGlobal || 0);
-          if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
-            totalQuestions = 0;
-          }
-          if (totalQuestions > 0) {
-            totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
-            if (!Number.isFinite(totalPercent) || totalPercent < 0) {
-              totalPercent = 0;
-            }
-            if (totalPercent > 100) {
-              totalPercent = 100;
-            }
-            totalPercent = Number(totalPercent.toFixed(2));
-          }
-
-          // ▼ 6) mood/diff は「ダミー needPerDay」ではなく、SYNC計算の targetNum を基準に決める
-          // - これで表示ロジックが「SYNC計算と二重化」しない
-          var basePerDay = 30;
-          var diff = targetNum - basePerDay;
-
-          var mood = "";
-          if (targetNum <= basePerDay * 0.8) {
-            mood = "余裕";
-          } else if (targetNum <= basePerDay * 1.1) {
-            mood = "順調";
-          } else if (targetNum <= basePerDay * 1.4) {
-            mood = "巻き返し";
-          } else {
-            mood = "要注意";
-          }
-
-          var moodText = mood || "順調";
-
-          var reachCount = Number(starReachCountFromSync || 0);
-          if (!Number.isFinite(reachCount) || reachCount < 0) {
-            reachCount = 0;
-          }
-
-          var preReachCount = Number(starPreReachCountFromSync || 0);
-          if (!Number.isFinite(preReachCount) || preReachCount < 0) {
-            preReachCount = 0;
-          }
-
-          var html = "";
-          html += "<span class=\"cscs-star-main-compact\">";
-          html += "⭐️本日目標 " + String(targetNum) + "個";
-          html += "<span class=\"cscs-star-main\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個／</span>";
-          html += "</span>";
-
-          html += "<span class=\"cscs-star-section-compact\">";
-          html += "本日獲得 +" + String(starTodayCount) + "：";
-          html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
-          html += "<span class=\"cscs-star-meter\">";
-          html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
-          html += "</span>";
-          html += "</span>";
-
-          html += "<span class=\"cscs-star-section-compact\">";
-          html += "／総進捗：";
-          html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
-          html += "<span class=\"cscs-star-mood\">(状況:" + moodText + ")</span>";
-          html += "<span class=\"cscs-star-meter\">";
-          html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
-          html += "</span>";
-          html += "</span>";
-
-          line.innerHTML = html;
-
-          console.log("field_summary.js: B-page delayed compact-line refresh done.", {
-            targetNum: targetNum,
-            diff: diff,
-            moodText: moodText,
-            starTodayCount: starTodayCount,
-            todayPercent: todayPercent,
-            totalPercent: totalPercent,
-            reachCount: reachCount,
-            preReachCount: preReachCount
-          });
-        } catch (e) {
-          console.error("field_summary.js: B-page delayed compact-line refresh failed", e);
-        }
-      })();
+      console.log("field_summary.js: B-page delayed refresh executing now (reloading SYNC state).");
+      renderFieldStarSummary();
     }, 2000);  // ← ★ ここを 1000 に変更（1秒後に refresh）
   }
 
