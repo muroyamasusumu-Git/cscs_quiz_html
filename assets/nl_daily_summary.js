@@ -529,10 +529,6 @@
             cell.className += " is-solved-correct";
           } else if (v === "wrong") {
             cell.className += " is-solved-wrong";
-          } else if (v === "correct-lite") {
-            cell.className += " is-solved-correct-lite";
-          } else if (v === "wrong-lite") {
-            cell.className += " is-solved-wrong-lite";
           }
         } else if (Object.prototype.hasOwnProperty.call(todaySolvedIndexMap, i)) {
           var v2 = String(todaySolvedIndexMap[i] || "").toLowerCase();
@@ -1099,52 +1095,17 @@
       todaySolvedIndexMap = {};
     }
 
-    // 過去日でも “解いた痕跡” を薄く出す（SYNCに累計がある場合のみ）
-    // - todaySolvedIndexMap（強い色）がある場合は、そちらが優先される
+    // 今日解いた問題だけ色を付ける（過去日の痕跡は一切出さない）
     var qSolvedIndexMapForUi = {};
-    try{
-      // 1) まず「薄い色（過去履歴）」を作る
-      //    ※ SYNCの構造が存在する時だけ使う（なければ空のまま）
-      if (syncRoot && typeof syncRoot === "object") {
-        var hasCorrectMap = (syncRoot.correct && typeof syncRoot.correct === "object");
-        var hasWrongMap = (syncRoot.incorrect && typeof syncRoot.incorrect === "object");
-
-        if (hasCorrectMap || hasWrongMap) {
-          var qi;
-          for (qi = 1; qi <= 30; qi++){
-            var n3lite = pad3(qi);
-            var qidLite = day + "-" + n3lite;
-
-            var cTot = 0;
-            var wTot = 0;
-
-            if (hasCorrectMap && Object.prototype.hasOwnProperty.call(syncRoot.correct, qidLite)) {
-              cTot = Number(syncRoot.correct[qidLite] || 0);
-            }
-            if (hasWrongMap && Object.prototype.hasOwnProperty.call(syncRoot.incorrect, qidLite)) {
-              wTot = Number(syncRoot.incorrect[qidLite] || 0);
-            }
-
-            if (cTot > 0 || wTot > 0) {
-              var idxLite0 = qi - 1;
-              // “正解経験あり” を優先（両方ある場合も correct-lite に寄せる）
-              qSolvedIndexMapForUi[idxLite0] = (cTot > 0) ? "correct-lite" : "wrong-lite";
-            }
-          }
-        }
-      }
-    }catch(_){
-      qSolvedIndexMapForUi = {};
-    }
-
-    // 2) 仕上げ：今日の結果（強い色）で上書き
     try{
       if (todaySolvedIndexMap && typeof todaySolvedIndexMap === "object") {
         Object.keys(todaySolvedIndexMap).forEach(function(k){
           qSolvedIndexMapForUi[k] = todaySolvedIndexMap[k];
         });
       }
-    }catch(_){}
+    }catch(_){
+      qSolvedIndexMapForUi = {};
+    }
 
     progressHost.appendChild(
       buildProgressGrid(
