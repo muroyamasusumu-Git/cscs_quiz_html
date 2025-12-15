@@ -301,6 +301,20 @@
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.65),
     0 0 0 1px rgba(255,255,255,0.35);
+  animation: nl-ph-today-pulse 1.8s ease-in-out infinite;
+}
+
+/* 現在地マス用：弱い呼吸点滅 */
+@keyframes nl-ph-today-pulse{
+  0%{
+    opacity: 0.85;
+  }
+  50%{
+    opacity: 1;
+  }
+  100%{
+    opacity: 0.85;
+  }
 }
 
 /* 問題別 is-today は横幅が細いため、内側発光を強める */
