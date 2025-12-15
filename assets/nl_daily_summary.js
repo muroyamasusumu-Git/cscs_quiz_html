@@ -293,7 +293,7 @@
 
 #nl-progress-header .nl-ph-cell.is-on{
   background: rgba(255,255,255,0.18);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.30);
 }
 
 #nl-progress-header .nl-ph-cell.is-today{
