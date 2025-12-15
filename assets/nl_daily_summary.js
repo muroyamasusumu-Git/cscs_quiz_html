@@ -198,6 +198,7 @@
 */
 #nl-progress-header .nl-ph-grid-day {
     gap: 2px 4px;
+    margin-bottom: 5px;
 }
 
 #nl-progress-header .nl-ph-grid-q {
