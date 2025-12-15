@@ -350,30 +350,47 @@
   animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
 }
 
-/* 今日解いた問題の色分け（問題別マスのみ） */
+/* 今日解いた問題の色分け（問題別マスのみ）
+   - 外側発光(0 0 Npx ...) を廃止して「滲み（隣マスへの色被り）」を根絶
+   - 代わりに内側の縁取り(inset)だけで“おしゃれ感”を維持 */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct{
   background: rgba(95,205,225,0.52);
   box-shadow:
     inset 0 0 0 1px rgba(170,235,245,0.72),
-    0 0 3px rgba(95,205,225,0.30);
+    inset 0 1px 0 rgba(255,255,255,0.10);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong{
   background: rgba(235,150,175,0.30);
   box-shadow:
     inset 0 0 0 1px rgba(255,195,210,0.55),
-    0 0 2px rgba(235,150,175,0.16);
+    inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
-/* 過去日の “解いた痕跡” 用（明確に弱い色） */
+/* 過去日の “解いた痕跡” 用（明確に弱い色）
+   - ここも外側発光は付けず、薄い縁取りだけに統一 */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct-lite{
   background: rgba(95,205,225,0.15);
-  box-shadow: inset 0 0 0 1px rgba(150,220,235,0.30);
+  box-shadow:
+    inset 0 0 0 1px rgba(150,220,235,0.30);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
   background: rgba(235,150,175,0.10);
-  box-shadow: inset 0 0 0 1px rgba(255,195,210,0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,195,210,0.22);
+}
+
+/* 現在地の「色被り」最終防衛：
+   - セルをスタッキング可能にして
+   - is-today を常に最前面に固定（隣の影や描画誤差より上に出す） */
+#nl-progress-header .nl-ph-cell-q{
+  position: relative;
+  z-index: 1;
+}
+
+#nl-progress-header .nl-ph-cell-q.is-today{
+  z-index: 3 !important;
 }
 
 
