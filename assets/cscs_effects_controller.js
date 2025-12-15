@@ -72,12 +72,12 @@
     var css =
       "#" + BTN_ID + "{" +
       "position:fixed !important;" +
-      "bottom:15px !important;" +
-      "right:15px !important;" +
+      "bottom:10px !important;" +
+      "right:12px !important;" +
       "z-index:2147483647 !important;" +
       "font-size:11px;" +
       "padding:0px 8px;" +
-      "height:22px;" +
+      "height:35px;" +
       "line-height:22px;" +
       "border-radius:999px;" +
       "border:1px solid rgba(255,255,255,0.18);" +
