@@ -1121,9 +1121,147 @@
     }
   }
 
-  // 旧ダミー計算（現状ほぼ使っていないが変数だけ残っている）
-  var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
-  var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
+  // 旧ダミー計算（DUMMY_*）は使わない。
+  // ここでは SYNC から計算済みの状態（totalQuestionsGlobal / starTotalSolvedQuestions / starRemainingDays / starTargetPerDay）
+  // だけを使って、表示用の派生値を作る。
+  // - remainStar: 「全問題を★1回以上」の残り（総問題数 - ★獲得済み問題数）
+  // - needPerDay: 1日あたり必要★（基本は starTargetPerDay を採用）
+  var remainStar = 0;
+  var needPerDay = 0;
+  (function(){
+    var totalQ = Number(totalQuestionsGlobal || 0);
+    if (!Number.isFinite(totalQ) || totalQ < 0) {
+      totalQ = 0;
+    }
+
+    var solvedStar = Number(starTotalSolvedQuestions || 0);
+    if (!Number.isFinite(solvedStar) || solvedStar < 0) {
+      solvedStar = 0;
+    }
+
+    var r = totalQ - solvedStar;
+    if (!Number.isFinite(r) || r < 0) {
+      r = 0;
+    }
+    remainStar = r;
+
+    var t = Number(starTargetPerDay || 0);
+    if (!Number.isFinite(t) || t < 0) {
+      t = 0;
+    }
+    needPerDay = t;
+  })();
+
+
+  // 上部1行（.cscs-star-summary-line-compact）だけを再計算して更新する
+  // 目的:
+  //   - Bページ遅延後に「全パネル再描画」ではなく「上部1行のみ」差し替える
+  //   - DOMの再生成を最小化して、見た目のチラつきや重い処理を避ける
+  async function updateCompactStarSummaryLine(lineEl) {
+    if (!lineEl) {
+      return;
+    }
+
+    // SYNCから計算された「本日の目標（★何個/日）」を使用
+    var targetNum = Number(starTargetPerDay);
+    if (!Number.isFinite(targetNum) || targetNum < 0) {
+      targetNum = 0;
+    }
+
+    // 今日の 3連続正解ユニーク数を SYNC から読み込む
+    starTodayCount = await loadTodayStreak3CountFromSync();
+
+    // 今日の達成率（本日の獲得数 / 本日の目標数）
+    var todayPercent = 0;
+    if (targetNum > 0) {
+      todayPercent = Math.floor((starTodayCount / targetNum) * 100);
+      if (!Number.isFinite(todayPercent) || todayPercent < 0) {
+        todayPercent = 0;
+      }
+      if (todayPercent > 100) {
+        todayPercent = 100;
+      }
+    }
+
+    // 全体の達成率（★獲得済み問題数 / 全体問題数）
+    var totalPercent = 0;
+    var totalQuestions = Number(totalQuestionsGlobal || 0);
+    if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+      totalQuestions = 0;
+    }
+    if (totalQuestions > 0) {
+      totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
+      if (!Number.isFinite(totalPercent) || totalPercent < 0) {
+        totalPercent = 0;
+      }
+      if (totalPercent > 100) {
+        totalPercent = 100;
+      }
+      totalPercent = Number(totalPercent.toFixed(2));
+    }
+
+    // リーチ⚡️ / 連続✨
+    var reachCount = Number(starReachCountFromSync || 0);
+    if (!Number.isFinite(reachCount) || reachCount < 0) {
+      reachCount = 0;
+    }
+
+    var preReachCount = Number(starPreReachCountFromSync || 0);
+    if (!Number.isFinite(preReachCount) || preReachCount < 0) {
+      preReachCount = 0;
+    }
+
+    // 状況（mood）はこの関数内で完結して計算する（外側スコープには依存しない）
+    // - basePerDay(30) を基準に「余裕 / 順調 / 巻き返し / 要注意」を決める
+    var basePerDay = 30;
+    var moodText = "順調";
+    if (targetNum <= basePerDay * 0.8) {
+      moodText = "余裕";
+    } else if (targetNum <= basePerDay * 1.1) {
+      moodText = "順調";
+    } else if (targetNum <= basePerDay * 1.4) {
+      moodText = "巻き返し";
+    } else {
+      moodText = "要注意";
+    }
+
+    // HTML を組み立てて置き換え
+    var html = "";
+
+    html += "<span class=\"cscs-star-main-compact\">";
+    html += "⭐️本日目標 " + String(targetNum) + "個";
+    html += "<span class=\"cscs-star-main\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個／</span>";
+    html += "</span>";
+
+    html += "<span class=\"cscs-star-section-compact\">";
+    html += "本日獲得 +" + String(starTodayCount) + "：";
+    html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
+    html += "<span class=\"cscs-star-meter\">";
+    html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
+    html += "</span>";
+    html += "</span>";
+
+    html += "<span class=\"cscs-star-section-compact\">";
+    html += "／総進捗：";
+    html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
+    html += "<span class=\"cscs-star-mood\">(状況:" + moodText + ")</span>";
+    html += "<span class=\"cscs-star-meter\">";
+    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
+    html += "</span>";
+    html += "</span>";
+
+    lineEl.innerHTML = html;
+
+    console.log("field_summary.js: compact star summary line updated", {
+      targetNum: targetNum,
+      starTodayCount: starTodayCount,
+      todayPercent: todayPercent,
+      totalPercent: totalPercent,
+      moodText: moodText,
+      reachCount: reachCount,
+      preReachCount: preReachCount
+    });
+  }
 
   // =========================
   // 7. メイン：分野別★サマリーを画面に描画
@@ -1179,7 +1317,7 @@
         errorPanelSync.style.fontSize = "11px";
         errorPanelSync.style.opacity = "0.7";
         // 取得失敗パネルも「.wrap 内＆整合性パネル直後」に入れる
-        insertIntoWrapAfterConsistency(errorPanelSync);
+        insertIntoWrapEnd(errorPanelSync);
         return;
       }
     }
@@ -1194,10 +1332,21 @@
     panel.id = "cscs-field-star-summary";
 
     // 1日あたりのベース目標（30問ぐらいを基準にしている）
+    // - needPerDay は「SYNCから計算済みの starTargetPerDay」を使う（ダミー計算はしない）
     var basePerDay = 30;
+
+    // ▼ 追加：表示用の needPerDay は SYNC 計算済みの starTargetPerDay を採用する
+    var needPerDay = Number(starTargetPerDay || 0);
+    if (!Number.isFinite(needPerDay) || needPerDay < 0) {
+      needPerDay = 0;
+    }
+    // ▲ 追加
+
+    // diff はログ/デバッグ用（基準30に対してどれくらい重いか）
     var diff = needPerDay - basePerDay;
+
+    // diff に応じて「余裕 / 順調 / 巻き返し / 要注意」の4段階を決める
     var mood = "";
-    // diff に応じて「余裕 / 順調 / 巻き返し / 要注意」の4段階を決める（現状はテキストに未反映）
     if (needPerDay <= basePerDay * 0.8) {
       mood = "余裕";
     } else if (needPerDay <= basePerDay * 1.1) {
@@ -1209,90 +1358,14 @@
     }
 
     // 上部に表示する「⭐️本日の目標〜」行を構築
+    // - Bパート遅延リフレッシュ時に「この行だけ」を差し替えたいので、
+    //   生成ロジックを updateCompactStarSummaryLine() に集約する。
     var needLine = document.createElement("div");
-
-    // SYNCから計算された「本日の目標（★何個/日）」を使用
-    var targetNum = Number(starTargetPerDay);
-    if (!Number.isFinite(targetNum) || targetNum < 0) {
-      targetNum = 0;
-    }
-
-    // 今日の 3連続正解ユニーク数を SYNC から読み込む
-    starTodayCount = await loadTodayStreak3CountFromSync();
-
-    // 今日の達成率（本日の獲得数 / 本日の目標数）
-    var todayPercent = 0;
-    if (targetNum > 0) {
-      todayPercent = Math.floor((starTodayCount / targetNum) * 100);
-      if (!Number.isFinite(todayPercent) || todayPercent < 0) {
-        todayPercent = 0;
-      }
-      if (todayPercent > 100) {
-        todayPercent = 100;
-      }
-    }
-
-    // 全体の達成率（★獲得済み問題数 / 全体問題数）
-    var totalPercent = 0;
-    var totalQuestions = Number(totalQuestionsGlobal || 0);
-    if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
-      totalQuestions = 0;
-    }
-    if (totalQuestions > 0) {
-      totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
-      if (!Number.isFinite(totalPercent) || totalPercent < 0) {
-        totalPercent = 0;
-      }
-      if (totalPercent > 100) {
-        totalPercent = 100;
-      }
-      totalPercent = Number(totalPercent.toFixed(2));
-    }
-
-    // コンパクトな進捗行を構築（CSSミニバー付き）
     needLine.className = "cscs-star-summary-line-compact";
 
-    var moodText = mood || "順調";
-    var html = "";
-
-    // SYNC から計算された「リーチ⚡️（2連続正解）」の問題数
-    var reachCount = Number(starReachCountFromSync || 0);
-    if (!Number.isFinite(reachCount) || reachCount < 0) {
-      reachCount = 0;
-    }
-
-    // SYNC から計算された「あと1回でリーチ✨（1連続正解中）」の問題数
-    var preReachCount = Number(starPreReachCountFromSync || 0);
-    if (!Number.isFinite(preReachCount) || preReachCount < 0) {
-      preReachCount = 0;
-    }
-
-    // ⭐️本日の目標 21個（リーチ⚡️2個 ✨1個）
-    html += "<span class=\"cscs-star-main-compact\">";
-    html += "⭐️本日目標 " + String(targetNum) + "個";
-    html += "<span class=\"cscs-star-main\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個／</span>";
-    html += "</span>";
-
-    // 本日の獲得 +4：15%
-    html += "<span class=\"cscs-star-section-compact\">";
-    html += "本日獲得 +" + String(starTodayCount) + "：";
-    html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
-    html += "<span class=\"cscs-star-meter\">";
-    html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
-    html += "</span>";
-    html += "</span>";
-
-    // 総進捗：0.07%（状況:余裕）
-    html += "<span class=\"cscs-star-section-compact\">";
-    html += "／総進捗：";
-    html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
-    html += "<span class=\"cscs-star-mood\">(状況:" + moodText + ")</span>";
-    html += "<span class=\"cscs-star-meter\">";
-    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
-    html += "</span>";
-    html += "</span>";
-
-    needLine.innerHTML = html;
+    // ▼ 追加：上部1行（.cscs-star-summary-line-compact）だけを描画/更新する
+    // - ここでは「行要素を作るだけ」で、中身は関数側で作る（初回描画も同じ処理を通す）
+    await updateCompactStarSummaryLine(needLine);
 
     needLine.style.marginBottom = "10px";
     needLine.style.marginLeft = "0px";
@@ -1301,16 +1374,14 @@
     panel.appendChild(needLine);
 
     // コンソールに現在の目標値と進捗・リーチ数・✨数を出力して、値とレンダリング結果を確認できるようにする
+    // - ここでは「このスコープに存在する値」だけをログに出す（未定義参照で落とさない）
     console.log("field_summary.js: compact star summary rendered", {
-      targetNum: targetNum,
+      starTargetPerDay: starTargetPerDay,
       starTodayCount: starTodayCount,
-      todayPercent: todayPercent,
-      totalPercent: totalPercent,
-      moodText: moodText,
+      starTotalSolvedQuestions: starTotalSolvedQuestions,
+      totalQuestionsGlobal: totalQuestionsGlobal,
       starReachCountFromSync: starReachCountFromSync,
-      starPreReachCountFromSync: starPreReachCountFromSync,
-      reachCountUsedForView: reachCount,
-      preReachCountUsedForView: preReachCount
+      starPreReachCountFromSync: starPreReachCountFromSync
     });
 
     // 分野別の一覧を <ul> として作成
@@ -2628,7 +2699,7 @@
     insertIntoWrapEnd(panel);
   }
 
-  // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
+  // Bパートで表示されたときに、遅延して「上部1行（.cscs-star-summary-line-compact）」だけを再描画する
   function scheduleBPageFieldSummaryRefresh() {
     var path = location.pathname || "";
     var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
@@ -2637,31 +2708,37 @@
       return;
     }
 
-    console.log("field_summary.js: B-page detected, scheduling delayed refresh (500ms).");
+    console.log("field_summary.js: B-page detected, scheduling delayed compact-line refresh.");
 
-    // ▼▼▼ ここが遅延時間（ms）。500 → 1000 にすると「1秒後」に実行される ▼▼▼
     setTimeout(function () {
-      // 既存のフィールドサマリーパネルを削除してから、再描画する
-      var panel = document.getElementById("cscs-field-star-summary");
-      if (panel && panel.parentNode) {
-        panel.parentNode.removeChild(panel);
-      }
+      (async function () {
+        try {
+          // ▼ 追加：SYNC を読み直して、上部1行の表示に必要な値を更新する
+          // - loadStarFieldCountsStrict() は /api/sync/state を読み、starTargetPerDay / totalQuestionsGlobal / reach等を更新する
+          // - パネル全体のDOMは触らず、状態（数値）だけ最新化する
+          await loadStarFieldCountsStrict();
 
-      // SYNC由来の集計状態を一度リセットしてから、再度 /api/sync/state から読み直す
-      starFieldCounts = null;
-      starTotalSolvedQuestions = 0;
-      starRemainingDays = 0;
-      starTargetPerDay = 0;
-      starReachCountFromSync = 0;
-      if (typeof starPreReachCountFromSync !== "undefined") {
-        starPreReachCountFromSync = 0;
-      }
-      unsolvedCountFromSync = 0;
-      unansweredCountFromSync = 0;
+          // ▼ 追加：既存パネル内の「上部1行」要素を探して、その中身だけ更新する
+          var panel = document.getElementById("cscs-field-star-summary");
+          if (!panel) {
+            console.warn("field_summary.js: compact-line refresh skipped (panel not found).");
+            return;
+          }
 
-      console.log("field_summary.js: B-page delayed refresh executing now (reloading SYNC state).");
-      renderFieldStarSummary();
-    }, 2000);  // ← ★ ここを 1000 に変更（1秒後に refresh）
+          var line = panel.querySelector(".cscs-star-summary-line-compact");
+          if (!line) {
+            console.warn("field_summary.js: compact-line refresh skipped (line not found).");
+            return;
+          }
+
+          await updateCompactStarSummaryLine(line);
+
+          console.log("field_summary.js: B-page delayed compact-line refresh done.");
+        } catch (e) {
+          console.error("field_summary.js: B-page compact-line refresh failed", e);
+        }
+      })();
+    }, 2000);
   }
 
   // =========================
