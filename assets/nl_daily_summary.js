@@ -111,77 +111,30 @@
     style.id = "nl-daily-summary-style";
     style.type = "text/css";
 
-    // ▼ ここだけ触れば見た目を一括調整できるように、CSS変数＋改行ありでまとめる
-    // 目的: 「どこを変えれば何が変わるか」を明確化し、CSSだけを編集しやすくする
+    // ▼ 見た目はここ（CSS）に集約：変数は使わず、直接値を書く
+    // 目的: 「今は細かく調整したい」フェーズで、編集コストを最小化する
     style.textContent = `
 /* =========================
    NL Daily Summary Styles
-   - 調整ポイントは :root の変数だけ
+   - 見た目はここだけ編集
    ========================= */
 
-:root{
-  /* ---- host配置（右側固定） ---- */
-  --nl-host-position: fixed;
-  --nl-host-inset: 10px 10px 10px auto;
-  --nl-host-margin-left: 69%;
-  --nl-host-display: block;
-
-  /* ---- 共通フォント ---- */
-  --nl-font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
-
-  /* ---- progress header ---- */
-  --nl-progress-padding: 8px 10px 10px;
-  --nl-progress-opacity: 0.9;
-  --nl-progress-text-align: left;
-
-  /* ---- summary header ---- */
-  --nl-summary-padding: 0px 10px 5px;
-  --nl-summary-border-bottom: 1px solid rgb(42, 42, 42);
-  --nl-summary-font-size: 13px;
-  --nl-summary-font-weight: 300;
-  --nl-summary-line-height: 1.3;
-  --nl-summary-text-align: right;
-  --nl-summary-opacity: 0.5;
-
-  /* ---- progress grid ---- */
-  --nl-grid-gap: 2px;
-  --nl-grid-margin-top: 6px;
-  --nl-cell-height: 6px;
-  --nl-cell-radius: 2px;
-
-  --nl-cell-bg: rgba(255,255,255,0.02);
-  --nl-cell-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
-
-  --nl-cell-on-bg: rgba(255,255,255,0.18);
-  --nl-cell-on-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
-
-  --nl-cell-today-bg: rgba(255,255,255,0.26);
-  --nl-cell-today-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35);
-
-  /* ---- exam line ---- */
-  --nl-exam-days-font-size: 26px;
-  --nl-exam-days-font-weight: 600;
-  --nl-exam-days-padding: 0 2px;
-  --nl-exam-days-line-height: 0.9;
-  --nl-exam-line-margin-top: 5px;
-}
-
-/* ---- host ---- */
+/* ---- host（右側固定） ---- */
 #nl-daily-summary-host{
-  display: var(--nl-host-display);
-  position: var(--nl-host-position);
-  inset: var(--nl-host-inset);
-  margin-left: var(--nl-host-margin-left);
+  display: block;
+  position: fixed;
+  inset: 10px 10px 10px auto;
+  margin-left: 69%;
 }
 
 /* ---- progress header ---- */
 #nl-progress-header{
-  font-family: var(--nl-font-family);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
   background: none;
-  padding: var(--nl-progress-padding);
+  padding: 8px 10px 10px;
   border-bottom: 0;
-  text-align: var(--nl-progress-text-align);
-  opacity: var(--nl-progress-opacity);
+  text-align: left;
+  opacity: 0.9;
 }
 
 #nl-progress-header .nl-ph-row{
@@ -204,27 +157,27 @@
 }
 
 #nl-progress-header .nl-ph-grid{
-  margin-top: var(--nl-grid-margin-top);
+  margin-top: 6px;
   display:grid;
-  gap: var(--nl-grid-gap);
+  gap: 2px;
   width:100%;
 }
 
 #nl-progress-header .nl-ph-cell{
-  height: var(--nl-cell-height);
-  border-radius: var(--nl-cell-radius);
-  background: var(--nl-cell-bg);
-  box-shadow: var(--nl-cell-shadow);
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.02);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
 }
 
 #nl-progress-header .nl-ph-cell.is-on{
-  background: var(--nl-cell-on-bg);
-  box-shadow: var(--nl-cell-on-shadow);
+  background: rgba(255,255,255,0.18);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
 }
 
 #nl-progress-header .nl-ph-cell.is-today{
-  background: var(--nl-cell-today-bg);
-  box-shadow: var(--nl-cell-today-shadow);
+  background: rgba(255,255,255,0.26);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35);
 }
 
 #nl-progress-header .nl-ph-spacer{
@@ -234,26 +187,26 @@
 /* ---- summary header ---- */
 #nl-summary-header{
   background:none;
-  padding: var(--nl-summary-padding);
-  border-bottom: var(--nl-summary-border-bottom);
-  font-size: var(--nl-summary-font-size);
-  font-weight: var(--nl-summary-font-weight);
-  line-height: var(--nl-summary-line-height);
-  text-align: var(--nl-summary-text-align);
-  opacity: var(--nl-summary-opacity);
+  padding: 0px 10px 5px;
+  border-bottom: 1px solid rgb(42, 42, 42);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.3;
+  text-align: right;
+  opacity: 0.5;
 }
 
 /* ---- exam ---- */
 .nl-exam-days{
-  font-size: var(--nl-exam-days-font-size);
-  font-weight: var(--nl-exam-days-font-weight);
-  padding: var(--nl-exam-days-padding);
-  line-height: var(--nl-exam-days-line-height);
+  font-size: 26px;
+  font-weight: 600;
+  padding: 0 2px;
+  line-height: 0.9;
   display:inline-block;
 }
 
 .nl-exam-line{
-  margin-top: var(--nl-exam-line-margin-top);
+  margin-top: 5px;
 }
 `.trim();
 
