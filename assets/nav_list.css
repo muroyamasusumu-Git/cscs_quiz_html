@@ -33,7 +33,10 @@
 /* オーバーレイ本体 */
 #nl-panel {
   position: fixed !important;
-  inset: 10px 16px 10px !important;
+  top: 200px !important;
+  bottom: 10px !important;
+  right: 10px !important;
+  inset: auto !important;
   margin-left: 69%;
   font-size: 0.85rem;
   width: auto !important;
@@ -54,6 +57,7 @@
                "Noto Sans JP", "Meiryo", sans-serif;
   line-height: 1.6;
 }
+
 
 /* --------------------------------------
    nav_list パネル全体のレイアウト
