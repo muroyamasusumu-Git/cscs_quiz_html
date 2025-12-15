@@ -408,10 +408,7 @@
       var cell = document.createElement("div");
       cell.className = "nl-ph-cell nl-ph-cell-" + k;
 
-      // 日別（kind="day"）だけ is-on（進捗）を使う
-      // 目的:
-      // - 問題別（kind="q"）は「現在地 / 今日解いた / 今日解いてない」の3状態だけにするため
-      if (k !== "q" && i < filled) cell.className += " is-on";
+      if (i < filled) cell.className += " is-on";
 
       // =========================================================
       // 変更: 問題別（kind="q"）のみ
