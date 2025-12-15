@@ -131,7 +131,7 @@
 #nl-progress-header{
   font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
   background: none;
-  padding: 8px 10px 10px;
+  padding: 0px 0px 0px;
   border-bottom: 0;
   text-align: left;
   opacity: 0.9;
