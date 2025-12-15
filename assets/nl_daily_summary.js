@@ -324,24 +324,29 @@
   }
 }
 
-/* 問題別 is-today：現在地は絶対に “白の点滅強調” のみ（色クラスより常に優先 / iPad対策） */
+/* 問題別 is-today：現在地は絶対に “白の点滅強調” のみ（色・グラデ・フィルタを完全排除） */
 #nl-progress-header .nl-ph-cell-q.is-today{
-  background: rgba(255,255,255,0.30) !important;
+  background: rgba(255,255,255,0.28) !important;
+  background-image: none !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.78) !important,
-    0 0 5px rgba(255,255,255,0.30) !important;
+    inset 0 0 0 1px rgba(255,255,255,0.82) !important,
+    0 0 5px rgba(255,255,255,0.22) !important;
+  filter: none !important;
   animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
 }
 
-/* is-solved-* が同時に付いても、現在地だけは必ず白に戻す（点滅も強制） */
+/* is-solved-* / is-on が同時に付いても、現在地だけは必ず白に戻す（点滅も強制） */
+#nl-progress-header .nl-ph-cell-q.is-today.is-on,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct-lite,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong-lite{
-  background: rgba(255,255,255,0.30) !important;
+  background: rgba(255,255,255,0.28) !important;
+  background-image: none !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.78) !important,
-    0 0 5px rgba(255,255,255,0.30) !important;
+    inset 0 0 0 1px rgba(255,255,255,0.82) !important,
+    0 0 5px rgba(255,255,255,0.22) !important;
+  filter: none !important;
   animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
 }
 
