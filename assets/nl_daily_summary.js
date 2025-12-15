@@ -989,18 +989,35 @@
     progressRow.className = "nl-ph-row";
 
     // 左側ラベル（現状は「問題」を代表ラベルとしている）
-    // ※ ここを「進捗」などに変えれば、問題数が変わっても意味が通る
     var qTitle = document.createElement("div");
     qTitle.className = "nl-ph-title";
     qTitle.textContent = "問題";
 
-    // 右側：数値の統合表示
-    // ※ “30” は固定値なので、後で問題数が変わるなら TOTAL_QUESTIONS_PER_DAY を使うのが安全。
+    // 右側：現在位置＋日付＋進捗の統合表示
     var mergedValue = document.createElement("div");
     mergedValue.className = "nl-ph-value";
+
+    // 現在の問題番号（1始まり）
+    var currentQNo = null;
+    if (typeof currentQIndex === "number" && currentQIndex >= 0) {
+      currentQNo = currentQIndex + 1;
+    }
+
+    // 日付（YYYYMMDD → YYYY年M月D日）
+    var dayLabel = "";
+    if (day && day !== "unknown") {
+      dayLabel =
+        day.slice(0, 4) +
+        "年" +
+        String(Number(day.slice(4, 6))) +
+        "月" +
+        String(Number(day.slice(6, 8))) +
+        "日";
+    }
+
     mergedValue.textContent =
-      String(qFilled) +
-      " / 30" +
+      (currentQNo !== null ? "Q" + String(currentQNo) + " / 30" : "Q? / 30") +
+      (dayLabel ? " ｜ " + dayLabel : "") +
       " ｜ 日別 " +
       String(dayFilled) +
       " / " +
