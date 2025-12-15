@@ -121,7 +121,8 @@
       "#nl-progress-header .nl-ph-spacer{ height:10px; }" +
       "#nl-progress-header .nl-ph-bar{ margin-top:6px; height:8px; border-radius:999px; background: rgba(255,255,255,0.10); overflow:hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }" +
       "#nl-progress-header .nl-ph-bar > div{ height:100%; width:0%; background: rgba(255,255,255,0.80); border-radius:999px; }" +
-      ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; line-height: 0.9; display: inline-block; }";
+      ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; line-height: 0.9; display: inline-block; }" +
+      ".nl-exam-line { margin-top: 5px; }";
     document.head.appendChild(style);
   }
 
@@ -673,6 +674,9 @@
     var summaryLine2 = document.createElement("div");
     var summaryLine3 = document.createElement("div");
     var summaryLine4 = document.createElement("div");
+
+    // 試験日行：クラス付与（見た目調整はCSS側で扱う）
+    summaryLine4.className = "nl-exam-line";
 
     var examButtonSpan = document.createElement("span");
     examButtonSpan.textContent = "[試験日設定]";
