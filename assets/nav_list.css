@@ -37,7 +37,9 @@
   bottom: 10px !important;
   right: 10px !important;
   inset: 200px 10px 10px auto !important;
+  opacity: 0.5 !important;
   display: block !important;
+  flex-direction: column !important;
   margin-left: 69%;
   font-size: 0.85rem;
   width: auto !important;
@@ -58,6 +60,7 @@
                "Noto Sans JP", "Meiryo", sans-serif;
   line-height: 1.6;
 }
+
 
 
 /* --------------------------------------
