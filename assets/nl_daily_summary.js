@@ -603,9 +603,9 @@
     progressHost.id = "nl-progress-header";
     try{
       Object.assign(progressHost.style, {
-        position: "sticky",
-        top: "0px",
-        zIndex: "100001",
+        position: "static", // sticky を解除（通常フローに戻す）
+        top: "",            // sticky 用の指定を解除
+        zIndex: "",         // sticky 用の指定を解除
         background: "none",
         padding: "8px 10px 10px",
         borderBottomWidth: "0px",
@@ -655,9 +655,9 @@
     summaryHost.id = "nl-summary-header";
     try{
       Object.assign(summaryHost.style, {
-        position: "sticky",
-        top: "0px",
-        zIndex: "100000",
+        position: "static", // sticky を解除（通常フローに戻す）
+        top: "",            // sticky 用の指定を解除
+        zIndex: "",         // sticky 用の指定を解除
         background: "none",
         padding: "0px 10px 5px",
         borderBottomWidth: "1px",
