@@ -369,12 +369,10 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 
-/* 今日解いた問題：白マス（ただし眩しすぎないように少し落とす） */
+/* 今日解いた問題：白マス（.nl-ph-cell.is-on と同じトーンに揃える） */
 #nl-progress-header .nl-ph-cell-q.is-solved-today{
-  background: rgba(255,255,255,0.14);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.38),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.18);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.30);
 }
 
 /* 現在地の「色被り」最終防衛：
