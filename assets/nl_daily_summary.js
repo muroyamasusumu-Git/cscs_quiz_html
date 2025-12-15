@@ -991,8 +991,8 @@
       buildProgressGrid(
         30,                 // total（問題数）
         qFilled,            // filled（★獲得済み数）
-        30,                 // cols（横一列）
-        currentQIndex,      // ← 問題別でも現在位置を渡す
+        15,                 // cols（15列 × 2行）
+        currentQIndex,      // 現在表示中の問題位置
         "q"
       )
     );
