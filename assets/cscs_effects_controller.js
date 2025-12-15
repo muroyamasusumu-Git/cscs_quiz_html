@@ -71,7 +71,7 @@
     }
     var css =
       "#" + BTN_ID + "{" +
-      "position:fixed;" +
+      "position:fixed !important;" +
       "bottom:15px !important;" +
       "right:15px !important;" +
       "z-index:2147483647 !important;" +
@@ -81,12 +81,12 @@
       "line-height:22px;" +
       "border-radius:999px;" +
       "border:1px solid rgba(255,255,255,0.18);" +
-      "background:rgba(0,0,0,0.40);" +
+      "background:rgba(0,0,0,0.40) !important;" +
       "color:#fff;" +
       "font-weight:700;" +
       "letter-spacing:0.2px;" +
       "cursor:pointer;" +
-      "user-select:none !important;" +
+      "user-select:none;" +
       "-webkit-user-select:none;" +
       "box-shadow:none;" +
       "opacity:0.78;" +
