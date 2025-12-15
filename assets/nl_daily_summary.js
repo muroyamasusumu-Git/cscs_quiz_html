@@ -201,7 +201,8 @@
 }
 
 #nl-progress-header .nl-ph-grid-q {
-    grid: 1px 1px;
+    grid: 1px 1px !important;
+    margin-bottom: 5px;
 }
 
 #nl-progress-header .nl-ph-cell-day {
@@ -211,6 +212,7 @@
 #nl-progress-header .nl-ph-cell-q {
     height: 10px;
 }
+
 
 /* ---- day / question : 例（差を付けたい場合に使う） ---- */
 /*
