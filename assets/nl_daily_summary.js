@@ -185,11 +185,24 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35);
 }
 
-/* ---- day / question : 個別調整用（必要ならここをいじる） ---- */
+
+/* ---- day / question : 個別調整用（必要ならここをいじる） ----
+   ここは “数値を後から変える” 前提の調整ポイント。
+
+   例：
+   - 日別だけマスを少し大きくしたい → .nl-ph-cell-day の height を上げる
+   - 問題別だけマスを詰めたい       → .nl-ph-grid-q の gap を下げる
+   - 問題別だけ角丸を弱めたい       → .nl-ph-cell-q の border-radius を下げる
+
+   JS側は kind="day"/"q" を付けるだけにしてあり、
+   見た目のチューニングはここに集約する方針。
+*/
 #nl-progress-header .nl-ph-grid-day{ }
 #nl-progress-header .nl-ph-grid-q{ }
 
-#nl-progress-header .nl-ph-cell-day{ }
+#nl-progress-header .nl-ph-cell-day {
+    height: 10px;
+}
 #nl-progress-header .nl-ph-cell-q{ }
 
 /* ---- day / question : 例（差を付けたい場合に使う） ---- */
@@ -229,21 +242,68 @@
   }
 
   function buildProgressGrid(total, filled, cols, todayIndex, kind){
-    // kind: "day" | "q"（CSSで個別に触るための種別）
+    // =========================================================
+    // 進捗マス（グリッド）を生成する共通関数
+    //
+    // この関数を「日別」と「問題別」で共通化しつつ、
+    // CSSだけで見た目を個別調整できるようにするために kind を導入している。
+    //
+    // - kind="day" : 日別進捗（全期間の「日」単位の進捗）
+    // - kind="q"   : 問題別進捗（当日の「問題」単位の進捗）
+    //
+    // kind に応じて以下のクラスが付く：
+    // - グリッド: .nl-ph-grid + .nl-ph-grid-day / .nl-ph-grid-q
+    // - セル    : .nl-ph-cell + .nl-ph-cell-day / .nl-ph-cell-q
+    //
+    // これにより、後から「日別は高さ6pxのまま」「問題別だけ高さ5pxにする」
+    // 「問題別だけ gap を詰める」などの見た目調整を、JS改造なしでCSS側だけで行える。
+    // =========================================================
+
+    // kind が未指定/不正な場合は day 扱いにする（表示崩れを避けるため）
     var k = (typeof kind === "string" && kind) ? kind : "day";
 
     var grid = document.createElement("div");
     grid.className = "nl-ph-grid nl-ph-grid-" + k;
+
+    // =========================================================
+    // cols は「1行に並べる列数」。
+    // - 日別は「2段×15列」で表示したいなら cols=15
+    // - 問題別を「30個横一列」で固定したいなら cols=30
+    //
+    // ※ 後から「問題数が30→40」などに変える可能性があるなら、
+    //    呼び出し側で cols を total と同じにしておけば “常に横一列” を保てる。
+    //    例: buildProgressGrid(Q_TOTAL, qFilled, Q_TOTAL, null, "q")
+    // =========================================================
     try{
       grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 1fr)";
     }catch(_){}
 
+    // =========================================================
+    // total は「マスの総数」。
+    // filled は「ONにする数」。
+    // i < filled を ON とする仕様なので、
+    // “左から順に埋まっていく” 表現になる（進捗バー的）。
+    //
+    // ※ もし将来「特定の問題だけON」などの “点在型” にしたい場合は
+    //    filled 方式ではなく、ONにする index の集合を受け取る設計に変える必要がある。
+    // =========================================================
     var i;
     for (i = 0; i < total; i++){
       var cell = document.createElement("div");
       cell.className = "nl-ph-cell nl-ph-cell-" + k;
+
+      // 進捗が filled まで到達しているセルを ON 表示にする
       if (i < filled) cell.className += " is-on";
+
+      // =========================================================
+      // todayIndex は「日別」だけに意味がある（当日の位置を強調表示）
+      // - 問題別は “今日” 概念が不要なので適用しない
+      //
+      // ※ 日別の並び（allDays）と todayIndex の整合が取れていないと
+      //    “別の日が今日扱い” になるので、todayIndex は allDays.indexOf(day) で求めている。
+      // =========================================================
       if (k === "day" && typeof todayIndex === "number" && i === todayIndex) cell.className += " is-today";
+
       grid.appendChild(cell);
     }
     return grid;
@@ -711,22 +771,70 @@
       // 目的: スタイル管理の分散を防ぐ
     }catch(_){}
 
-    // 日別マス（CSSで個別に触れるよう kind="day" を付ける）
+    // =========================================================
+    // 進捗ヘッダー（マス目）構築
+    //
+    // ここで表示しているのは2種類：
+    // 1) 日別進捗マス：期間全体（allDays）の進捗
+    //    - 1マス = 1日
+    //    - “30/30 ★” 達成日だけが進捗として埋まる（dayFilled）
+    //
+    // 2) 問題別進捗マス：当日の進捗
+    //    - 1マス = 1問
+    //    - “★（streak3 > 0）” の問題数だけ進捗として埋まる（qFilled）
+    //
+    // ※ このファイルは「取れないものを別ソースで埋め合わせない」方針なので、
+    //    day が unknown の時は問題別進捗が 0 のままになる（＝取れない表示）。
+    // =========================================================
+
+    // =========================================================
+    // 日別マス（kind="day"）
+    //
+    // 第3引数 cols=15 は “見た目の列数”。
+    // - 今は 15 列にしているので、日数が多い場合は複数行に折り返される。
+    //
+    // ※ 後で見た目を変えたい場合：
+    // - 20列にしたい → cols を 20 に変える
+    // - 1行に収めたい → cols を dayTotal と同じにする（ただし横幅が足りないと潰れる）
+    //
+    // ※ todayIndex は “日別だけ” ハイライト表示に使う（当日位置の強調）。
+    // =========================================================
     progressHost.appendChild(buildProgressGrid(dayTotal, dayFilled, 15, todayIndex, "day"));
 
-    // 問題マス（30個を横一列 / kind="q"）
+    // =========================================================
+    // 問題別マス（kind="q"）
+    //
+    // 「30個横一列」を成立させるために cols=30 にしている。
+    //
+    // ※ 後で “1日の問題数” を変更する可能性があるなら、
+    //    ここは固定値30ではなく、TOTAL_QUESTIONS_PER_DAY を使うと保守しやすい。
+    //    例: buildProgressGrid(TOTAL_QUESTIONS_PER_DAY, qFilled, TOTAL_QUESTIONS_PER_DAY, null, "q")
+    //
+    // todayIndex は問題別には不要なので null を渡す。
+    // =========================================================
     progressHost.appendChild(buildProgressGrid(30, qFilled, 30, null, "q"));
 
-    // 日別・問題別の進捗テキストは「問題別マスの下」にまとめる
+    // =========================================================
+    // 進捗テキスト（数字の行）を “問題別マスの下” に統合表示する
+    //
+    // 目的：
+    // - 日別マスと問題別マスの間に「日別 〜/〜」の文字行が入ると視線が散る
+    // - 進捗数値は “最後に1行で見る” の方が読みやすい
+    //
+    // 表示形式は mergedValue.textContent の組み立てで決まる。
+    // 区切り文字（" ｜ " など）は後から簡単に変更できる。
+    // =========================================================
     var progressRow = document.createElement("div");
     progressRow.className = "nl-ph-row";
 
-    // 左側：問題の進捗
+    // 左側ラベル（現状は「問題」を代表ラベルとしている）
+    // ※ ここを「進捗」などに変えれば、問題数が変わっても意味が通る
     var qTitle = document.createElement("div");
     qTitle.className = "nl-ph-title";
     qTitle.textContent = "問題";
 
-    // 右側：問題 + 日別をまとめて表示（区切りは好みで変えられる）
+    // 右側：数値の統合表示
+    // ※ “30” は固定値なので、後で問題数が変わるなら TOTAL_QUESTIONS_PER_DAY を使うのが安全。
     var mergedValue = document.createElement("div");
     mergedValue.className = "nl-ph-value";
     mergedValue.textContent =
