@@ -329,10 +329,10 @@
 
 /* 今日解いた問題の色分け（問題別マスのみ） */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct{
-  background: rgba(110,235,255,0.62);
+  background: rgba(95,205,225,0.52);
   box-shadow:
-    inset 0 0 0 1px rgba(190,250,255,0.95),
-    0 0 4px rgba(110,235,255,0.55);
+    inset 0 0 0 1px rgba(170,235,245,0.72),
+    0 0 3px rgba(95,205,225,0.30);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong{
@@ -344,8 +344,8 @@
 
 /* 過去日の “解いた痕跡” 用（明確に弱い色） */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct-lite{
-  background: rgba(110,235,255,0.20);
-  box-shadow: inset 0 0 0 1px rgba(170,245,255,0.42);
+  background: rgba(95,205,225,0.15);
+  box-shadow: inset 0 0 0 1px rgba(150,220,235,0.30);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
