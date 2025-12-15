@@ -211,10 +211,9 @@
 
 /* 問題別 is-today は横幅が細いため、内側発光を強める */
 #nl-progress-header .nl-ph-cell-q.is-today{
-  background: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.22);
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.9),
-    inset 0 0 6px rgba(255,255,255,0.6);
+    inset 0 0 0 1px rgba(255,255,255,0.55);
 }
 
 
