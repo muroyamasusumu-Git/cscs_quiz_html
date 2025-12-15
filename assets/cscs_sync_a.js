@@ -586,11 +586,11 @@
               onceLabel = "計測済(unknown)";
             } else {
               // 今日の日付だがこの QID は未計測
-              onceLabel = "未計測(データなし)";
+              onceLabel = "未計測";
             }
           } else {
             // oncePerDayToday 自体が今日ではない or データなし
-            onceLabel = "未計測(データなし)";
+            onceLabel = "未計測";
           }
         }catch(_eOnce){
           // oncePerDayToday 表示に失敗してもステータス自体は出す
