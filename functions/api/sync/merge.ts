@@ -161,7 +161,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       fav: {},
       // グローバルメタ情報（総問題数など）を保持する領域
       global: {},
-      // O.D.O.A Mode の初期値（まだ一度も保存されていなければ "off" から開始）
+      // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
       odoa_mode: "off",
       // ここでは初期値として streak3Today / streak3WrongToday / oncePerDayToday を用意する（「無からの初回保存」を許可）
       streak3Today: { day: "", unique_count: 0, qids: [] },
@@ -169,10 +169,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       oncePerDayToday: { day: 0, results: {} },
       updatedAt: 0
     };
-
-  // ★ 変更があった時だけ KV.put するための dirty フラグ
-  //   - ここを true にした場合だけ updatedAt を更新し KV へ保存する
-  let dirty = false;
 
   // 読み出した server オブジェクトに必須フィールドが欠けていた場合は補完する
   if (!server.correct) server.correct = {};
@@ -380,7 +376,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     const prev = typeof server.lastSeenDay[qid] === "number" ? server.lastSeenDay[qid] : 0;
     if (v > prev) {
       server.lastSeenDay[qid] = v;
-      dirty = true;
     }
   }
 
@@ -392,7 +387,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     const prev = typeof server.lastCorrectDay[qid] === "number" ? server.lastCorrectDay[qid] : 0;
     if (v > prev) {
       server.lastCorrectDay[qid] = v;
-      dirty = true;
     }
   }
 
@@ -404,7 +398,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     const prev = typeof server.lastWrongDay[qid] === "number" ? server.lastWrongDay[qid] : 0;
     if (v > prev) {
       server.lastWrongDay[qid] = v;
-      dirty = true;
     }
   }
 
@@ -928,13 +921,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
   }
 
-  // (3) KV 保存＋ (4) 保存直後の dump
-  // - dirty === true のときだけ updatedAt を更新して KV に保存する
-  // - dirty === false の場合は「受理したが状態は変化なし」として KV.put をスキップする
-  if (dirty) {
-    server.updatedAt = Date.now();
-  }
+  // 今回の merge 処理がいつ行われたかのタイムスタンプを保存
+  server.updatedAt = Date.now();
 
+  // (3) KV 保存＋ (4) 保存直後の dump
   try {
 
     // ★ streak3TodayDelta が無い場合は server.streak3Today を一切変更しない
@@ -974,18 +964,12 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     const jsonStr = JSON.stringify(server);
 
-    // ★ 変更があった場合だけ KV に保存
-    if (dirty) {
-      await env.SYNC.put(key, jsonStr);
-      console.log("[SYNC/merge] (3) ★KV保存成功:", {
-        key,
-        streak3Today: (server as any).streak3Today
-      });
-    } else {
-      console.log("[SYNC/merge] (3) KV保存スキップ（dirty=false / 状態変化なし）:", {
-        key
-      });
-    }
+    // マージ済みの server オブジェクトを KV に保存
+    await env.SYNC.put(key, jsonStr);
+    console.log("[SYNC/merge] (3) ★KV保存成功:", {
+      key,
+      streak3Today: (server as any).streak3Today
+    });
 
     // streak3Today フィールドが「unique_count === qids.length」を満たしているかの自己整合性チェック
     // - 本日の3連続正解ユニーク数について、保存された配列長とカウント値が一致しているかを確認する
