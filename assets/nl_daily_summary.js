@@ -714,7 +714,8 @@
     sp.className = "nl-ph-spacer";
     progressHost.appendChild(sp);
 
-    progressHost.appendChild(buildProgressGrid(30, qFilled, 15, null));
+    // 問題マスは 30 個を横一列に並べる
+progressHost.appendChild(buildProgressGrid(30, qFilled, 30, null));
 
     var qRow = document.createElement("div");
     qRow.className = "nl-ph-row";
