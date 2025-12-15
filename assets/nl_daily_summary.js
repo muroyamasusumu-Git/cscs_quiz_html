@@ -142,6 +142,7 @@
   align-items:baseline;
   justify-content:space-between;
   gap:10px;
+  margin-top: 0px;
 }
 
 #nl-progress-header .nl-ph-title{
@@ -697,7 +698,6 @@
 
     var dayRow = document.createElement("div");
     dayRow.className = "nl-ph-row";
-    dayRow.style.marginTop = "6px";
     var dayTitle = document.createElement("div");
     dayTitle.className = "nl-ph-title";
     dayTitle.textContent = "日別";
@@ -716,7 +716,6 @@
 
     var qRow = document.createElement("div");
     qRow.className = "nl-ph-row";
-    qRow.style.marginTop = "6px";
     var qTitle = document.createElement("div");
     qTitle.className = "nl-ph-title";
     qTitle.textContent = "問題";
