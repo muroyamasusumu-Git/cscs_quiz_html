@@ -1000,64 +1000,6 @@
         }
       }catch(_){}
 
-      // ★ 追加: 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を
-      //   SYNC state を唯一の正として localStorage に同期（このQID分だけ）。
-      //   - state 側は string/number 混在があり得るため、保存は常に String(v) に統一する。
-      //   - 値が無い/空（null/undefined/""/空白のみ）の場合は removeItem して「ない」を正として反映する。
-      try{
-        const kSeen = "cscs_q_last_seen_day:" + QID;
-        const kCor  = "cscs_q_last_correct_day:" + QID;
-        const kWrg  = "cscs_q_last_wrong_day:" + QID;
-
-        let vSeen = "";
-        let vCor  = "";
-        let vWrg  = "";
-
-        if (s && s.lastSeenDay && typeof s.lastSeenDay === "object") {
-          const rawSeen = s.lastSeenDay[QID];
-          if (rawSeen !== null && rawSeen !== undefined) {
-            vSeen = String(rawSeen);
-          }
-        }
-        if (s && s.lastCorrectDay && typeof s.lastCorrectDay === "object") {
-          const rawCor = s.lastCorrectDay[QID];
-          if (rawCor !== null && rawCor !== undefined) {
-            vCor = String(rawCor);
-          }
-        }
-        if (s && s.lastWrongDay && typeof s.lastWrongDay === "object") {
-          const rawWrg = s.lastWrongDay[QID];
-          if (rawWrg !== null && rawWrg !== undefined) {
-            vWrg = String(rawWrg);
-          }
-        }
-
-        if (vSeen.trim() !== "") {
-          localStorage.setItem(kSeen, vSeen);
-        } else {
-          localStorage.removeItem(kSeen);
-        }
-
-        if (vCor.trim() !== "") {
-          localStorage.setItem(kCor, vCor);
-        } else {
-          localStorage.removeItem(kCor);
-        }
-
-        if (vWrg.trim() !== "") {
-          localStorage.setItem(kWrg, vWrg);
-        } else {
-          localStorage.removeItem(kWrg);
-        }
-
-        console.log("[SYNC-A] initialFetch synced last-day fields from server to localStorage", {
-          qid: QID,
-          lastSeenDay: vSeen.trim() !== "" ? vSeen : null,
-          lastCorrectDay: vCor.trim() !== "" ? vCor : null,
-          lastWrongDay: vWrg.trim() !== "" ? vWrg : null
-        });
-      }catch(_){}
-
       setServerTotalsForQid(c, i, s3, sl);
 
       try{
