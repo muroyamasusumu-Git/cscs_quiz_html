@@ -72,8 +72,8 @@
     var css =
       "#" + BTN_ID + "{" +
       "position:fixed;" +
-      "bottom:15px; !important" +
-      "right:15px;" +
+      "bottom:15px !important;" +
+      "right:15px !important;" +
       "z-index:2147483647 !important;" +
       "font-size:11px;" +
       "padding:0px 8px;" +
@@ -86,7 +86,7 @@
       "font-weight:700;" +
       "letter-spacing:0.2px;" +
       "cursor:pointer;" +
-      "user-select:none; !important" +
+      "user-select:none !important;" +
       "-webkit-user-select:none;" +
       "box-shadow:none;" +
       "opacity:0.78;" +
