@@ -2509,10 +2509,12 @@
       });
 
       // 横棒グラフの外枠（灰色）
+      // 目的:
+      //   - 固定 width を撤廃して親幅に追従させる
+      //   - ただし最大は 90% に制限して「伸びすぎ」を防ぐ
       var barOuter = document.createElement("div");
       barOuter.style.marginTop = "1px";
-      barOuter.style.width = "170px";
-      barOuter.style.maxWidth = "170px";
+      barOuter.style.maxWidth = "90%";
       barOuter.style.height = "3px";
       barOuter.style.background = "rgba(255, 255, 255, 0.30)";
       barOuter.style.borderRadius = "999px";
