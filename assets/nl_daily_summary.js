@@ -322,10 +322,10 @@
 
 /* 問題別 is-today：色は入れず “白の点滅強調” だけにする（他の色クラスより優先） */
 #nl-progress-header .nl-ph-cell-q.is-today{
-  background: rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.34);
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.95),
-    0 0 8px rgba(255,255,255,0.55);
+    inset 0 0 0 1px rgba(255,255,255,0.75),
+    0 0 5px rgba(255,255,255,0.35);
 }
 
 /* 今日解いた問題の色分け（問題別マスのみ） */
