@@ -329,28 +329,28 @@
 
 /* 今日解いた問題の色分け（問題別マスのみ） */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct{
-  background: rgba(120,200,255,0.65);
+  background: rgba(110,235,255,0.62);
   box-shadow:
-    inset 0 0 0 1px rgba(180,230,255,0.95),
-    0 0 4px rgba(120,200,255,0.6);
+    inset 0 0 0 1px rgba(190,250,255,0.95),
+    0 0 4px rgba(110,235,255,0.55);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong{
-  background: rgba(255,120,120,0.55);
+  background: rgba(170,95,95,0.42);
   box-shadow:
-    inset 0 0 0 1px rgba(255,170,170,0.9),
-    0 0 3px rgba(255,120,120,0.5);
+    inset 0 0 0 1px rgba(210,140,140,0.65),
+    0 0 2px rgba(170,95,95,0.28);
 }
 
 /* 過去日の “解いた痕跡” 用（明確に弱い色） */
 #nl-progress-header .nl-ph-cell-q.is-solved-correct-lite{
-  background: rgba(120,200,255,0.22);
-  box-shadow: inset 0 0 0 1px rgba(160,220,255,0.45);
+  background: rgba(110,235,255,0.20);
+  box-shadow: inset 0 0 0 1px rgba(170,245,255,0.42);
 }
 
 #nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
-  background: rgba(255,120,120,0.18);
-  box-shadow: inset 0 0 0 1px rgba(255,150,150,0.35);
+  background: rgba(170,95,95,0.14);
+  box-shadow: inset 0 0 0 1px rgba(200,125,125,0.28);
 }
 
 
