@@ -297,11 +297,15 @@
 }
 
 #nl-progress-header .nl-ph-cell.is-today{
-  background: rgba(255,255,255,0.38);
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.26),
+    rgba(255,255,255,0.18)
+  );
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.9),
-    0 0 6px rgba(255,255,255,0.55);
-  animation: nl-ph-today-pulse 3.2s ease-in-out infinite;
+    inset 0 0 0 1px rgba(255,255,255,0.65),
+    0 0 4px rgba(255,255,255,0.28);
+  animation: nl-ph-today-pulse 4.2s ease-in-out infinite;
 }
 
 /* 現在地マス用：強めの呼吸＋発光点滅 */
