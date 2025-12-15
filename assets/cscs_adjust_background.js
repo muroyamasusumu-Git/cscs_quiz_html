@@ -1314,7 +1314,7 @@
       type: "button",
       style: {
         position: "fixed",
-        right: "80px",
+        right: "82px",
         bottom: "10px",
         zIndex: 999999,
         width: "34px",

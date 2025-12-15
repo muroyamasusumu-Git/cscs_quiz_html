@@ -77,7 +77,7 @@
       "z-index:2147483647 !important;" +
       "font-size:11px;" +
       "padding:0px 0px;" +
-      "height:35px;" +
+      "height:34px;" +
       "width:66px;" +
       "line-height:22px;" +
       "border-radius:999px;" +
