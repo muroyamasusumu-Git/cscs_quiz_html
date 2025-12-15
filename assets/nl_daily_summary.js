@@ -202,7 +202,7 @@
 }
 
 #nl-progress-header .nl-ph-grid-q {
-    grid: 1px 1px !important;
+    gap: 1px 1px !important;
     margin-bottom: 5px;
 }
 
