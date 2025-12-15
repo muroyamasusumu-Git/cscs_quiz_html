@@ -161,7 +161,7 @@
 
 /* ---- grids (shared base) ---- */
 #nl-progress-header .nl-ph-grid{
-  margin-top: 6px;
+  margin-top: 0px;
   display:grid;
   width:100%;
 }
