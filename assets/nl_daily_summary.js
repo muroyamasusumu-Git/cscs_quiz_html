@@ -244,7 +244,7 @@
 }
 
 #nl-progress-header .nl-ph-cell-q {
-    height: 10px;
+    height: 15px;
     width: 8px;
 }
 
