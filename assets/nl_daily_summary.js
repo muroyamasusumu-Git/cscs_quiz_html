@@ -320,12 +320,25 @@
   }
 }
 
-/* 問題別 is-today：色は入れず “白の点滅強調” だけにする（他の色クラスより優先） */
+/* 問題別 is-today：現在地は絶対に “白の点滅強調” のみ（色クラスより常に優先 / iPad対策） */
 #nl-progress-header .nl-ph-cell-q.is-today{
-  background: rgba(255,255,255,0.34);
+  background: rgba(255,255,255,0.30) !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.75),
-    0 0 5px rgba(255,255,255,0.35);
+    inset 0 0 0 1px rgba(255,255,255,0.78) !important,
+    0 0 5px rgba(255,255,255,0.30) !important;
+  animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
+}
+
+/* is-solved-* が同時に付いても、現在地だけは必ず白に戻す（点滅も強制） */
+#nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct,
+#nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong,
+#nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct-lite,
+#nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong-lite{
+  background: rgba(255,255,255,0.30) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.78) !important,
+    0 0 5px rgba(255,255,255,0.30) !important;
+  animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
 }
 
 /* 今日解いた問題の色分け（問題別マスのみ） */
