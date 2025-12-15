@@ -2511,16 +2511,15 @@
       // 横棒グラフの外枠（灰色）
       // 目的:
       //   - 固定 width を撤廃して親幅に追従させる
-      //   - 最大幅は 90% に制限
-      //   - 枠部分の見た目を opacity 0.6 程度の薄さに統一する
+      //   - ただし最大は 90% に制限して「伸びすぎ」を防ぐ
       var barOuter = document.createElement("div");
       barOuter.style.marginTop = "1px";
       barOuter.style.maxWidth = "90%";
       barOuter.style.height = "3px";
-      barOuter.style.background = "rgba(255, 255, 255, 1)";
-      barOuter.style.opacity = "0.6";
+      barOuter.style.background = "rgba(255, 255, 255, 0.30)";
       barOuter.style.borderRadius = "999px";
       barOuter.style.overflow = "hidden";
+      barOuter.style.opacity = "0.6";      
 
       // 横棒グラフの中身（分野ゲージ用・黄色グラデーション、幅は rate%）
       var barInner = document.createElement("div");
