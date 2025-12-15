@@ -197,15 +197,16 @@
    JS側は kind="day"/"q" を付けるだけにしてあり、
    見た目のチューニングはここに集約する方針。
 */
-#nl-progress-header .nl-ph-grid-day{ }
-#nl-progress-header .nl-ph-grid-q{ }
+#nl-progress-header .nl-ph-grid-day {
+    gap: 2px 4px;
+}
+
+#nl-progress-header .nl-ph-grid-q {
+    grid: 1px 1px;
+}
 
 #nl-progress-header .nl-ph-cell-day {
     height: 10px;
-}
-
-#nl-progress-header .nl-ph-grid-day {
-    gap: 2px 4px;
 }
 
 #nl-progress-header .nl-ph-cell-q{ }
