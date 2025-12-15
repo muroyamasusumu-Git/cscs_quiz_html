@@ -608,9 +608,9 @@
         zIndex: "100001",
         background: "none",
         padding: "8px 10px 10px",
-        borderBottomWidth: "1px",
-        borderBottomStyle: "solid",
-        borderBottomColor: "rgb(42, 42, 42)",
+        borderBottomWidth: "0px",
+        borderBottomStyle: "none",
+        borderBottomColor: "transparent",
         textAlign: "left",
         opacity: "0.9"
       });
