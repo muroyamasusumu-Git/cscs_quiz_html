@@ -27,6 +27,17 @@
     return m ? m[1] : "unknown";
   }
 
+  // 現在表示中の問題番号（1始まり）を URL から取得
+  // 例: q013_a.html / q013_b.html → 13
+  function getQuestionIndexFromPath(){
+    var m = (window.location.pathname || "").match(/q(\d{3})_[ab]\.html/);
+    if (!m) return null;
+    var n = Number(m[1]);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    // buildProgressGrid は 0始まりで扱うため -1 する
+    return n - 1;
+  }
+
   function toJpDateQid(day, n3){
     var y = day.slice(0, 4);
     var m = String(Number(day.slice(4, 6)));
@@ -312,7 +323,12 @@
       // ※ 日別の並び（allDays）と todayIndex の整合が取れていないと
       //    “別の日が今日扱い” になるので、todayIndex は allDays.indexOf(day) で求めている。
       // =========================================================
-      if (k === "day" && typeof todayIndex === "number" && i === todayIndex) cell.className += " is-today";
+      // 現在位置の強調表示
+      // - day : 今日の日付
+      // - q   : 現在開いている問題
+      if (typeof todayIndex === "number" && i === todayIndex) {
+        cell.className += " is-today";
+      }
 
       grid.appendChild(cell);
     }
@@ -822,7 +838,18 @@
     //
     // todayIndex は問題別には不要なので null を渡す。
     // =========================================================
-    progressHost.appendChild(buildProgressGrid(30, qFilled, 30, null, "q"));
+    // 現在表示中の問題インデックス（0始まり）
+    var currentQIndex = getQuestionIndexFromPath();
+
+    progressHost.appendChild(
+      buildProgressGrid(
+        30,                 // total（問題数）
+        qFilled,            // filled（★獲得済み数）
+        30,                 // cols（横一列）
+        currentQIndex,      // ← 問題別でも現在位置を渡す
+        "q"
+      )
+    );
 
     // =========================================================
     // 進捗テキスト（数字の行）を “問題別マスの下” に統合表示する
