@@ -157,7 +157,7 @@
   padding: 0px 0px 0px;
   border-bottom: 0;
   text-align: left;
-  opacity: 0.9;
+  opacity: 0.7;
   margin: 0 0 5px 0;
 }
 
