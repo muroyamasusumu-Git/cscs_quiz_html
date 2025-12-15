@@ -72,8 +72,8 @@
     var css =
       "#" + BTN_ID + "{" +
       "position:fixed;" +
-      "top:8px;" +
-      "right:8px;" +
+      "bottom:15px;" +
+      "right:15px;" +
       "z-index:2147483647;" +
       "font-size:11px;" +
       "padding:0px 8px;" +
