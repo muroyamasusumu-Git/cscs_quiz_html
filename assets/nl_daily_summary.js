@@ -344,50 +344,37 @@
   animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important; /* “白の呼吸” */
 }
 
-/* 最終防衛：現在地に solved/on/lite が重なっても、必ず白を優先する */
+/* 最終防衛：現在地に solved/on が重なっても、必ず “明るい白の点滅” を優先する */
 #nl-progress-header .nl-ph-cell-q.is-today.is-on,
-#nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct,
-#nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong,
-#nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct-lite,
-#nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong-lite{
-  background: rgba(255,255,255,0.22) !important; /* 正解/不正解色を完全遮断して白へ戻す */
+#nl-progress-header .nl-ph-cell-q.is-today.is-solved-today{
+  background: rgba(255,255,255,0.30) !important; /* 現在地は明るい白 */
   background-image: none !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.82) !important,
-    0 0 5px rgba(255,255,255,0.22) !important;
+    inset 0 0 0 1px rgba(255,255,255,0.88) !important,
+    0 0 6px rgba(255,255,255,0.26) !important;
   filter: none !important;
-  animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
+  animation: nl-ph-today-pulse 3.0s ease-in-out infinite !important;
 }
 
-/* 今日解いた問題の色分け（問題別マスのみ）
-   - 外側発光(0 0 Npx ...) を廃止して「滲み（隣マスへの色被り）」を根絶
-   - 代わりに内側の縁取り(inset)だけで“おしゃれ感”を維持 */
-#nl-progress-header .nl-ph-cell-q.is-solved-correct{
-  background: rgba(95,205,225,0.52);
-  box-shadow:
-    inset 0 0 0 1px rgba(170,235,245,0.72),
-    inset 0 1px 0 rgba(255,255,255,0.10);
+/* =========================================================
+   問題別マス：三段階のみ
+   1) 現在地            : is-today（明るい白で点滅）※上で定義
+   2) 今日解いた問題     : is-solved-today（白マス）
+   3) 今日解いてない問題 : デフォルト（暗めのマス）
+   ========================================================= */
+
+/* 今日解いてない問題（デフォルト）を “黒に近い” 方へ寄せる */
+#nl-progress-header .nl-ph-cell-q{
+  background: rgba(0,0,0,0.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 
-#nl-progress-header .nl-ph-cell-q.is-solved-wrong{
-  background: rgba(235,150,175,0.30);
+/* 今日解いた問題：白マス（ただし眩しすぎないように少し落とす） */
+#nl-progress-header .nl-ph-cell-q.is-solved-today{
+  background: rgba(255,255,255,0.14);
   box-shadow:
-    inset 0 0 0 1px rgba(255,195,210,0.55),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-}
-
-/* 過去日の “解いた痕跡” 用（明確に弱い色）
-   - ここも外側発光は付けず、薄い縁取りだけに統一 */
-#nl-progress-header .nl-ph-cell-q.is-solved-correct-lite{
-  background: rgba(95,205,225,0.15);
-  box-shadow:
-    inset 0 0 0 1px rgba(150,220,235,0.30);
-}
-
-#nl-progress-header .nl-ph-cell-q.is-solved-wrong-lite{
-  background: rgba(235,150,175,0.10);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,195,210,0.22);
+    inset 0 0 0 1px rgba(255,255,255,0.38),
+    inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 /* 現在地の「色被り」最終防衛：
@@ -527,29 +514,20 @@
       if (i < filled) cell.className += " is-on";
 
       // =========================================================
-      // 追加: 問題別（kind="q"）のみ
-      // todaySolvedIndexMap にこの index があれば、
-      // correct/wrong のどちらで計測済みかをクラスで付与する。
+      // 変更: 問題別（kind="q"）のみ
+      // - 正解/不正解の色分けは廃止
+      // - 「今日解いたかどうか」だけを 1クラスで表現する
+      //
+      // 目的:
+      // - 三段階表示（現在地 / 今日解いた / 今日解いてない）に一本化する
+      // - todaySolvedIndexMap は "correct"/"wrong" を持っていても、
+      //   UIでは「今日解いた」扱いに統合する
       // =========================================================
       if (k === "q" && todaySolvedIndexMap && typeof todaySolvedIndexMap === "object") {
         if (Object.prototype.hasOwnProperty.call(todaySolvedIndexMap, String(i))) {
-          var v = String(todaySolvedIndexMap[String(i)] || "").toLowerCase();
-          if (v === "correct") {
-            cell.className += " is-solved-correct";
-          } else if (v === "wrong") {
-            cell.className += " is-solved-wrong";
-          }
+          cell.className += " is-solved-today";
         } else if (Object.prototype.hasOwnProperty.call(todaySolvedIndexMap, i)) {
-          var v2 = String(todaySolvedIndexMap[i] || "").toLowerCase();
-          if (v2 === "correct") {
-            cell.className += " is-solved-correct";
-          } else if (v2 === "wrong") {
-            cell.className += " is-solved-wrong";
-          } else if (v2 === "correct-lite") {
-            cell.className += " is-solved-correct-lite";
-          } else if (v2 === "wrong-lite") {
-            cell.className += " is-solved-wrong-lite";
-          }
+          cell.className += " is-solved-today";
         }
       }
 
