@@ -1592,15 +1592,10 @@
     bodyHost.appendChild(leftCol);
     bodyHost.appendChild(rightCol);
 
-    panel.appendChild(progressHost);
-    panel.appendChild(summaryHost);
     panel.appendChild(bodyHost);
 
     bodyHost.appendChild(leftCol);
     bodyHost.appendChild(rightCol);
-
-    panel.appendChild(summaryHost);
-    panel.appendChild(bodyHost);
 
     leftCol.appendChild(gridHost);
     renderDayList(rightCol, day);
