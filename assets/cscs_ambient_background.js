@@ -190,17 +190,10 @@
       layer.appendChild(base);
       layer.appendChild(tuned);
 
-      // body 直下に挿入（ただし #root より上に来ないように #root の直後へ）
-      // 目的: DOM順で #root より上に ambient layer が出てくるのを防ぐ（見通しの良さ/管理の一貫性）
-      var root = document.getElementById("root");
-      if (root && root.parentNode === document.body) {
-        if (root.nextSibling) document.body.insertBefore(layer, root.nextSibling);
-        else document.body.appendChild(layer);
-      } else {
-        // ▼ #root が無い（または body 直下でない）場合は末尾へ
-        // 目的: 先頭へ突っ込んで #root より上に来る事故を避ける
-        document.body.appendChild(layer);
-      }
+      // body の閉じタグ直前に挿入
+      // 目的: DOM順で常に UI（#root 等）より後ろに配置し、
+      //       z-index 管理とスタッキングコンテキストを単純化する
+      document.body.appendChild(layer);
     } else {
       // ▼ 既存DOMに tuned-rot が無い場合だけ追加
       // 目的: 既存ページ/キャッシュ状態でも “器” を最新構造に寄せる（勝手なフォールバック生成ではなく、器の正規構造の補完）
@@ -211,15 +204,12 @@
         tunedEl.appendChild(tunedRot2);
       }
 
-      // ▼ 既に layer が存在する場合でも、#root より上に居たら #root の直後へ移動
-      // 目的: 旧挿入位置（firstChild）の残骸があっても、DOM順を常に #root の下に正規化する
-      var root2 = document.getElementById("root");
-      if (root2 && root2.parentNode === document.body) {
-        var layerNow = document.getElementById(LAYER_ID);
-        if (layerNow && layerNow.parentNode === document.body) {
-          if (root2.nextSibling) document.body.insertBefore(layerNow, root2.nextSibling);
-          else document.body.appendChild(layerNow);
-        }
+      // ▼ 既に layer が存在する場合でも、必ず body の末尾へ移動
+      // 目的: 旧ロジック（firstChild / root直後）の残骸を完全に排除し、
+      //       DOM順を「UI → ambient」の一方向に固定する
+      var layerNow = document.getElementById(LAYER_ID);
+      if (layerNow && layerNow.parentNode === document.body) {
+        document.body.appendChild(layerNow);
       }
     }
 
