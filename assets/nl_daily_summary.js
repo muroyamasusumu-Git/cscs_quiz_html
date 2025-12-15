@@ -159,6 +159,7 @@
   opacity:0.7;
 }
 
+/* ---- grids (shared base) ---- */
 #nl-progress-header .nl-ph-grid{
   margin-top: 6px;
   display:grid;
@@ -166,6 +167,7 @@
   width:100%;
 }
 
+/* ---- cells (shared base) ---- */
 #nl-progress-header .nl-ph-cell{
   height: 6px;
   border-radius: 2px;
@@ -183,9 +185,19 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35);
 }
 
-#nl-progress-header .nl-ph-spacer{
-  height:0px;
-}
+/* ---- day / question : 個別調整用（必要ならここをいじる） ---- */
+#nl-progress-header .nl-ph-grid-day{ }
+#nl-progress-header .nl-ph-grid-q{ }
+
+#nl-progress-header .nl-ph-cell-day{ }
+#nl-progress-header .nl-ph-cell-q{ }
+
+/* ---- day / question : 例（差を付けたい場合に使う） ---- */
+/*
+#nl-progress-header .nl-ph-cell-day{ height: 6px; }
+#nl-progress-header .nl-ph-cell-q{ height: 5px; }
+#nl-progress-header .nl-ph-grid-q{ gap: 1px; }
+*/
 
 /* ---- summary header ---- */
 #nl-summary-header{
@@ -216,9 +228,12 @@
     document.head.appendChild(style);
   }
 
-  function buildProgressGrid(total, filled, cols, todayIndex){
+  function buildProgressGrid(total, filled, cols, todayIndex, kind){
+    // kind: "day" | "q"（CSSで個別に触るための種別）
+    var k = (typeof kind === "string" && kind) ? kind : "day";
+
     var grid = document.createElement("div");
-    grid.className = "nl-ph-grid";
+    grid.className = "nl-ph-grid nl-ph-grid-" + k;
     try{
       grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 1fr)";
     }catch(_){}
@@ -226,9 +241,9 @@
     var i;
     for (i = 0; i < total; i++){
       var cell = document.createElement("div");
-      cell.className = "nl-ph-cell";
+      cell.className = "nl-ph-cell nl-ph-cell-" + k;
       if (i < filled) cell.className += " is-on";
-      if (typeof todayIndex === "number" && i === todayIndex) cell.className += " is-today";
+      if (k === "day" && typeof todayIndex === "number" && i === todayIndex) cell.className += " is-today";
       grid.appendChild(cell);
     }
     return grid;
@@ -696,38 +711,35 @@
       // 目的: スタイル管理の分散を防ぐ
     }catch(_){}
 
-    progressHost.appendChild(buildProgressGrid(dayTotal, dayFilled, 15, todayIndex));
+    // 日別マス（CSSで個別に触れるよう kind="day" を付ける）
+    progressHost.appendChild(buildProgressGrid(dayTotal, dayFilled, 15, todayIndex, "day"));
 
-    var dayRow = document.createElement("div");
-    dayRow.className = "nl-ph-row";
-    var dayTitle = document.createElement("div");
-    dayTitle.className = "nl-ph-title";
-    dayTitle.textContent = "日別";
-    var dayValue = document.createElement("div");
-    dayValue.className = "nl-ph-value";
-    dayValue.textContent = String(dayFilled) + " / " + String(dayTotal);
-    dayRow.appendChild(dayTitle);
-    dayRow.appendChild(dayValue);
-    progressHost.appendChild(dayRow);
+    // 問題マス（30個を横一列 / kind="q"）
+    progressHost.appendChild(buildProgressGrid(30, qFilled, 30, null, "q"));
 
-    var sp = document.createElement("div");
-    sp.className = "nl-ph-spacer";
-    progressHost.appendChild(sp);
+    // 日別・問題別の進捗テキストは「問題別マスの下」にまとめる
+    var progressRow = document.createElement("div");
+    progressRow.className = "nl-ph-row";
 
-    // 問題マスは 30 個を横一列に並べる
-progressHost.appendChild(buildProgressGrid(30, qFilled, 30, null));
-
-    var qRow = document.createElement("div");
-    qRow.className = "nl-ph-row";
+    // 左側：問題の進捗
     var qTitle = document.createElement("div");
     qTitle.className = "nl-ph-title";
     qTitle.textContent = "問題";
-    var qValue = document.createElement("div");
-    qValue.className = "nl-ph-value";
-    qValue.textContent = String(qFilled) + " / 30";
-    qRow.appendChild(qTitle);
-    qRow.appendChild(qValue);
-    progressHost.appendChild(qRow);
+
+    // 右側：問題 + 日別をまとめて表示（区切りは好みで変えられる）
+    var mergedValue = document.createElement("div");
+    mergedValue.className = "nl-ph-value";
+    mergedValue.textContent =
+      String(qFilled) +
+      " / 30" +
+      " ｜ 日別 " +
+      String(dayFilled) +
+      " / " +
+      String(dayTotal);
+
+    progressRow.appendChild(qTitle);
+    progressRow.appendChild(mergedValue);
+    progressHost.appendChild(progressRow);
 
     // summary header
     var summaryHost = document.createElement("div");
