@@ -135,7 +135,9 @@
   border-bottom: 0;
   text-align: left;
   opacity: 0.9;
+  margin: 0 0 5px 0;
 }
+
 
 #nl-progress-header .nl-ph-row{
   display:flex;
