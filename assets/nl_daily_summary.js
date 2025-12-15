@@ -208,7 +208,9 @@
     height: 10px;
 }
 
-#nl-progress-header .nl-ph-cell-q{ }
+#nl-progress-header .nl-ph-cell-q {
+    height: 10px;
+}
 
 /* ---- day / question : 例（差を付けたい場合に使う） ---- */
 /*
