@@ -543,7 +543,12 @@
         const err  = lastSyncError ? (" err:" + lastSyncError) : "";
 
         // oncePerDayToday の計測状況を別行として表示するためのラベル文字列を作成
+        // ★ 追加: ODOA: ON/OFF / count対象 / 理由 を同じ行に付加して表示する
         let onceLabel = "";
+        let odoaLabel = "ODOA: unknown";
+        let countLabel = "count対象: unknown";
+        let reasonLabel = "理由: unknown";
+
         try{
           const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
             ? window.__cscs_sync_state
@@ -592,12 +597,100 @@
           onceLabel = "";
         }
 
+        // ★ 追加: ODOA の状態と count対象判定を「window.CSCS_ODOA」を唯一の参照元として取得
+        //   - ここでは localStorage や他DOMなどへフォールバックしない（取れなければ unknown で表示）
+        //   - CSCS_ODOA 側が提供しているAPI/形に合わせて、取れる情報だけ表示する
+        try{
+          const odoa = (window.CSCS_ODOA && typeof window.CSCS_ODOA === "object")
+            ? window.CSCS_ODOA
+            : null;
+
+          // (1) ODOA: ON/OFF の推定（CSCS_ODOA が明示している boolean を優先して読む）
+          let odoaOn = null;
+          if (odoa && typeof odoa.enabled === "boolean") {
+            odoaOn = odoa.enabled;
+          } else if (odoa && typeof odoa.isEnabled === "boolean") {
+            odoaOn = odoa.isEnabled;
+          } else if (odoa && typeof odoa.on === "boolean") {
+            odoaOn = odoa.on;
+          } else if (odoa && typeof odoa.isOn === "boolean") {
+            odoaOn = odoa.isOn;
+          }
+
+          if (odoaOn === true) {
+            odoaLabel = "ODOA: ON";
+          } else if (odoaOn === false) {
+            odoaLabel = "ODOA: OFF";
+          } else {
+            odoaLabel = "ODOA: unknown";
+          }
+
+          // (2) count対象 / 理由
+          //     - CSCS_ODOA が関数を持っている場合のみ、それを使って判定する
+          //     - 返り値が boolean の場合は YES/NO のみ
+          //     - 返り値が object の場合は { isTarget, reason } 形式を読める範囲で表示
+          let isTarget = null;
+          let reason = null;
+
+          if (odoa && typeof odoa.isCountTarget === "function") {
+            const r = odoa.isCountTarget(QID);
+            if (typeof r === "boolean") {
+              isTarget = r;
+            } else if (r && typeof r === "object") {
+              if (typeof r.isTarget === "boolean") {
+                isTarget = r.isTarget;
+              } else if (typeof r.target === "boolean") {
+                isTarget = r.target;
+              }
+              if (typeof r.reason === "string" && r.reason.trim() !== "") {
+                reason = r.reason.trim();
+              }
+            }
+          } else if (odoa && typeof odoa.getCountDecision === "function") {
+            const r2 = odoa.getCountDecision(QID);
+            if (typeof r2 === "boolean") {
+              isTarget = r2;
+            } else if (r2 && typeof r2 === "object") {
+              if (typeof r2.isTarget === "boolean") {
+                isTarget = r2.isTarget;
+              } else if (typeof r2.target === "boolean") {
+                isTarget = r2.target;
+              }
+              if (typeof r2.reason === "string" && r2.reason.trim() !== "") {
+                reason = r2.reason.trim();
+              }
+            }
+          }
+
+          if (isTarget === true) {
+            countLabel = "count対象: YES";
+          } else if (isTarget === false) {
+            countLabel = "count対象: NO";
+          } else {
+            countLabel = "count対象: unknown";
+          }
+
+          if (typeof reason === "string" && reason) {
+            // 期待される表示例: excluded / not-in-candidates / unknown（CSCS_ODOA が返したものを尊重）
+            reasonLabel = "理由: " + reason;
+          } else {
+            // 理由が取れない場合は unknown のまま
+            reasonLabel = "理由: unknown";
+          }
+        }catch(_eOdoa){
+          // ODOA 判定に失敗しても、oncePerDayToday 表示は維持する
+          odoaLabel = "ODOA: unknown";
+          countLabel = "count対象: unknown";
+          reasonLabel = "理由: unknown";
+        }
+
         if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
 
         const onceEl = box.querySelector(".sync-onceperday");
         if (onceEl) {
-          // oncePerDayToday の人間向けステータスを表示
-          onceEl.textContent = onceLabel || "（データなし）";
+          // oncePerDayToday の人間向けステータスに、ODOA と count対象情報を 1行で付加
+          const base = onceLabel || "（データなし）";
+          onceEl.textContent = base + " / " + odoaLabel + " / " + countLabel + " / " + reasonLabel;
         }
       }
     }catch(_){
