@@ -64,7 +64,8 @@ html, body {
 
 #root {
   display: block;
-  z-index: 2 !important;
+  z-index: 1 !important;
+  position: fixed !important;
 }
 
 .wrap {
