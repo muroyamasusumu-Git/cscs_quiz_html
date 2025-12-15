@@ -47,6 +47,9 @@
   overflow: hidden !important;
   background: none !important;
   border: 0 solid var(--nl-border) !important;
+  pointer-events: auto !important;
+  transition: opacity 0.5s ease-in-out !important;  
+  -webkit-backdrop-filter: blur(8px) !important;
   border-radius: 0 !important;
   padding: 0 0 0 !important;
   /* フェード用オーバーレイ(#cscs-global-fade-overlay: z-index 9998)より下に置くため、少し低めに設定 */
@@ -60,6 +63,13 @@
                "Noto Sans JP", "Meiryo", sans-serif;
   line-height: 1.6;
 }
+
+
+
+
+
+
+
 
 
 
