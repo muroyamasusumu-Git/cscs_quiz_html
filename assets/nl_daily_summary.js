@@ -182,7 +182,7 @@
 }
 
 #nl-progress-header .nl-ph-spacer{
-  height:10px;
+  height:0px;
 }
 
 /* ---- summary header ---- */
