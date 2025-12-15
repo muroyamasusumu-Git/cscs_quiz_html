@@ -259,7 +259,7 @@
 #nl-summary-header{
   background:none;
   padding: 0px 0px 10px;
-  border-bottom: 1px solid rgb(42, 42, 42);
+  border-bottom: 0px solid rgb(42, 42, 42);
   font-size: 13px;
   font-weight: 300;
   line-height: 1.3;
