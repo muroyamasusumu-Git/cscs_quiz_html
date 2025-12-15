@@ -2711,32 +2711,55 @@
     console.log("field_summary.js: B-page detected, scheduling delayed compact-line refresh.");
 
     setTimeout(function () {
-      (async function () {
-        try {
-          // ▼ 追加：SYNC を読み直して、上部1行の表示に必要な値を更新する
-          // - loadStarFieldCountsStrict() は /api/sync/state を読み、starTargetPerDay / totalQuestionsGlobal / reach等を更新する
-          // - パネル全体のDOMは触らず、状態（数値）だけ最新化する
-          await loadStarFieldCountsStrict();
+      (function () {
+        // ▼ 追加：panel がDOMに出る前に setTimeout が走ることがあるため、短時間だけ出現待ちする
+        // - renderFieldStarSummary() は async で fetch を待つので、2秒固定だと間に合わないことがある
+        // - 情報源のフォールバックではなく「DOM生成完了を待つだけ」
+        var tries = 0;
+        var maxTries = 20;     // 20回 * 250ms = 最大5秒待つ
+        var intervalMs = 250;
 
-          // ▼ 追加：既存パネル内の「上部1行」要素を探して、その中身だけ更新する
+        var timer = setInterval(function () {
+          tries += 1;
+
           var panel = document.getElementById("cscs-field-star-summary");
           if (!panel) {
-            console.warn("field_summary.js: compact-line refresh skipped (panel not found).");
+            if (tries >= maxTries) {
+              clearInterval(timer);
+              console.warn("field_summary.js: compact-line refresh skipped (panel not found after wait).");
+            }
             return;
           }
 
           var line = panel.querySelector(".cscs-star-summary-line-compact");
           if (!line) {
-            console.warn("field_summary.js: compact-line refresh skipped (line not found).");
+            if (tries >= maxTries) {
+              clearInterval(timer);
+              console.warn("field_summary.js: compact-line refresh skipped (line not found after wait).");
+            }
             return;
           }
 
-          await updateCompactStarSummaryLine(line);
+          // panel と line が見つかった時点で1回だけ更新して終了
+          clearInterval(timer);
 
-          console.log("field_summary.js: B-page delayed compact-line refresh done.");
-        } catch (e) {
-          console.error("field_summary.js: B-page compact-line refresh failed", e);
-        }
+          (async function () {
+            try {
+              // ▼ 追加：SYNC を読み直して、上部1行の表示に必要な値を更新する
+              // - loadStarFieldCountsStrict() は /api/sync/state を読み、starTargetPerDay / totalQuestionsGlobal / reach等を更新する
+              // - パネル全体のDOMは触らず、状態（数値）だけ最新化する
+              await loadStarFieldCountsStrict();
+
+              // ▼ 追加：上部1行だけ再計算して差し替える（DOMの再生成はしない）
+              await updateCompactStarSummaryLine(line);
+
+              console.log("field_summary.js: B-page delayed compact-line refresh done.");
+            } catch (e) {
+              console.error("field_summary.js: B-page compact-line refresh failed", e);
+            }
+          })();
+        }, intervalMs);
+        // ▲ ここまで追加
       })();
     }, 2000);
   }
