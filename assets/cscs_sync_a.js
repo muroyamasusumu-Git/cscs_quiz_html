@@ -1569,6 +1569,8 @@
           - local <span class="sync-last-wrong-local">（データなし）</span>
         </div>
 
+        <div class="sync-line sync-onceperday">oncePerDayToday: （データなし）</div>
+
         <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
       `;
       const wrap = document.querySelector("div.wrap");
