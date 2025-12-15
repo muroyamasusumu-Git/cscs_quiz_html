@@ -203,6 +203,11 @@
 #nl-progress-header .nl-ph-cell-day {
     height: 10px;
 }
+
+#nl-progress-header .nl-ph-grid-day {
+    gap: 2px 4px;
+}
+
 #nl-progress-header .nl-ph-cell-q{ }
 
 /* ---- day / question : 例（差を付けたい場合に使う） ---- */
