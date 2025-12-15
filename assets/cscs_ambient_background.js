@@ -88,14 +88,20 @@
       + "body{"
       + "background: transparent;"
       + "position: relative;"
+      + "}"
+
+      // ▼ body直下の要素は常に背景より前面へ（個別z-index指定を不要にする）
+      // 目的: どんなUIが body直下に追加されても ambient より前に出ることを保証する
+      // 注意: ambient 自身（#cscs-ambient-layer）は除外する
+      + "body > *:not(#" + LAYER_ID + "){"
+      + "position: relative;"
       + "z-index: 1;"
       + "}"
 
-      // ▼ quiz UI を背景レイヤーより必ず前面に固定
-      // 目的: 背景DOMが前面に来てクリックを奪う事故を防ぐ
+      // ▼ .wrap は z-index を持たせず、通常レイヤーとして扱う
+      // 目的: UI側の個別調整を減らし、ambient の役割（常に背面）を明確化する
       + ".wrap{"
       + "position: relative;"
-      + "z-index: 2;"
       + "}"
 
       // ▼ 背景レイヤーの器（固定・最背面・クリック不干渉）
