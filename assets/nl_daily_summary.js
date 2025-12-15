@@ -255,6 +255,7 @@
   margin: 0 0 5px 0;
 }
 
+
 #nl-progress-header .nl-ph-row{
   display:flex;
   align-items:baseline;
@@ -275,24 +276,14 @@
   opacity:0.7;
 }
 
-/* ---- grids ---- */
+/* ---- grids (shared base) ---- */
 #nl-progress-header .nl-ph-grid{
   margin-top: 0px;
   display:grid;
   width:100%;
 }
 
-#nl-progress-header .nl-ph-grid-day{
-  gap: 2px 4px;
-  margin-bottom: 5px;
-}
-
-#nl-progress-header .nl-ph-grid-q{
-  gap: 1px 2px;
-  margin-bottom: 5px;
-}
-
-/* ---- cells : day（ここは従来どおり is-on / is-today を使う） ---- */
+/* ---- cells (shared base) ---- */
 #nl-progress-header .nl-ph-cell{
   height: 6px;
   border-radius: 2px;
@@ -305,18 +296,23 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.30);
 }
 
-/* 日別の現在地（is-today）は軽く呼吸させる */
 #nl-progress-header .nl-ph-cell.is-today{
-  background: rgba(255,255,255,0.22);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.26),
+    rgba(255,255,255,0.18)
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.65),
+    0 0 4px rgba(255,255,255,0.28);
   animation: nl-ph-today-pulse 4.2s ease-in-out infinite;
 }
 
-/* 現在地マス用：呼吸（共通で使用） */
+/* 現在地マス用：強めの呼吸＋発光点滅 */
 @keyframes nl-ph-today-pulse{
   0%{
     opacity: 0.75;
-    transform: scaleY(0.92);
+    transform: scaleY(0.9);
   }
   50%{
     opacity: 1;
@@ -324,32 +320,137 @@
   }
   100%{
     opacity: 0.75;
-    transform: scaleY(0.92);
+    transform: scaleY(0.9);
   }
 }
 
-/* ---- cells : question（問題別は “3状態のみ”） ---- */
+/* =========================================================
+   問題別 is-today（現在地）だけは “常に白”
+   - 目的1: 現在地は常に白（正解/不正解の色を完全遮断）
+   - 目的2: 今日解いたが現在地ではない問題は is-solved-* の色が乗る（遮断しない）
+   実装:
+   - is-today（= currentQIndex の1マスだけ）を fail-safe で強制上書き
+   - solved/on/lite が付いても最終的に白へ戻す
+   ========================================================= */
 
-/* 今日解いてない問題（デフォルト：黒寄り） */
+/* 現在地の基本見た目：白だけ（グラデ・フィルタ・色味を排除） */
+#nl-progress-header .nl-ph-cell-q.is-today{
+  background: rgba(255,255,255,0.22) !important; /* 白の面（薄め） */
+  background-image: none !important;             /* 既存グラデを確実に無効化 */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.82) !important, /* 白い縁 */
+    0 0 5px rgba(255,255,255,0.22) !important;         /* 白い弱発光 */
+  filter: none !important;                       /* 色補正を遮断 */
+  animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important; /* “白の呼吸” */
+}
+
+/* 最終防衛：現在地に solved/on が重なっても、必ず “明るい白の点滅” を優先する */
+#nl-progress-header .nl-ph-cell-q.is-today.is-on,
+#nl-progress-header .nl-ph-cell-q.is-today.is-solved-today{
+  background: rgba(255,255,255,0.30) !important; /* 現在地は明るい白 */
+  background-image: none !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.88) !important,
+    0 0 6px rgba(255,255,255,0.26) !important;
+  filter: none !important;
+  animation: nl-ph-today-pulse 3.0s ease-in-out infinite !important;
+}
+
+/* =========================================================
+   問題別マス：三段階のみ
+   1) 現在地            : is-today（明るい白で点滅）※上で定義
+   2) 今日解いた問題     : is-solved-today（白マス）
+   3) 今日解いてない問題 : デフォルト（暗めのマス）
+   ========================================================= */
+
+/* 今日解いてない問題（デフォルト）を “黒に近い” 方へ寄せる */
 #nl-progress-header .nl-ph-cell-q{
-  height: 12px;
-  border-radius: 0px;
   background: rgba(0,0,0,0.22);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 
-/* 今日解いた問題（正解/不正解は統合して白） */
+/* 今日解いた問題：白マス（.nl-ph-cell.is-on と同じトーンに揃える） */
 #nl-progress-header .nl-ph-cell-q.is-solved-today{
   background: rgba(255,255,255,0.18);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.30);
 }
 
-/* 現在地（明るい白で点滅） */
-#nl-progress-header .nl-ph-cell-q.is-today{
-  background: rgba(255,255,255,0.30);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.88);
-  animation: nl-ph-today-pulse 3.0s ease-in-out infinite;
+/* 現在地の「色被り」最終防衛：
+   - セルをスタッキング可能にして
+   - is-today を常に最前面に固定（隣の影や描画誤差より上に出す） */
+#nl-progress-header .nl-ph-cell-q{
+  position: relative;
+  z-index: 1;
 }
+
+#nl-progress-header .nl-ph-cell-q.is-today{
+  z-index: 3 !important;
+}
+
+
+/* ---- day / question : 個別調整用（必要ならここをいじる） ----
+   ここは “数値を後から変える” 前提の調整ポイント。
+
+   例：
+   - 日別だけマスを少し大きくしたい → .nl-ph-cell-day の height を上げる
+   - 問題別だけマスを詰めたい       → .nl-ph-grid-q の gap を下げる
+   - 問題別だけ角丸を弱めたい       → .nl-ph-cell-q の border-radius を下げる
+
+   JS側は kind="day"/"q" を付けるだけにしてあり、
+   見た目のチューニングはここに集約する方針。
+*/
+#nl-progress-header .nl-ph-grid-day {
+    gap: 2px 4px;
+    margin-bottom: 5px;
+}
+
+#nl-progress-header .nl-ph-grid-q {
+    gap: 1px 2px !important;
+    margin-bottom: 5px;
+}
+
+#nl-progress-header .nl-ph-cell-day {
+    border-radius: 0px;
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.015)
+    );
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    border-bottom-left-radius: 20px;
+    height: 12px;
+    transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+#nl-progress-header .nl-ph-cell-day.is-on{
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.10),
+      rgba(255,255,255,0.05)
+    );
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+#nl-progress-header .nl-ph-cell-q {
+    border-radius: 0px;
+    background: rgba(255,255,255,0.02);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+    height: 12px;
+}
+
+
+
+
+/* ---- day / question : 例（差を付けたい場合に使う） ---- */
+/*
+#nl-progress-header .nl-ph-cell-day{ height: 6px; }
+#nl-progress-header .nl-ph-cell-q{ height: 5px; }
+#nl-progress-header .nl-ph-grid-q{ gap: 1px; }
+*/
 
 /* ---- summary header ---- */
 #nl-summary-header{
