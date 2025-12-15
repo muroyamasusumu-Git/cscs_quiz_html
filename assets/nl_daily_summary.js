@@ -734,7 +734,12 @@
 
     try{
       Object.assign(host.style, {
-        display: "block"
+        display: "block",
+
+        // ▼ 画面右側へ固定配置（nav_list のスクロールに影響されない位置に置く）
+        position: "fixed",
+        inset: "10px 10px 10px auto",
+        marginLeft: "69%"
       });
     }catch(_){}
 
