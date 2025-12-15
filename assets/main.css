@@ -62,9 +62,10 @@ html, body {
   min-height: 100%;
 }
 
-#root {
+#root{
+  position: fixed !important;
   display: block;
-  position: relative !important;
+  inset: 0 !important;          /* top/right/bottom/left:0 の省略形 */
   z-index: 1 !important;
 }
 
