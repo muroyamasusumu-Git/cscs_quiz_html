@@ -324,24 +324,33 @@
   }
 }
 
-/* 問題別 is-today：現在地は絶対に “白の点滅強調” のみ（色・グラデ・フィルタを完全排除） */
+/* =========================================================
+   問題別 is-today（現在地）だけは “常に白”
+   - 目的1: 現在地は常に白（正解/不正解の色を完全遮断）
+   - 目的2: 今日解いたが現在地ではない問題は is-solved-* の色が乗る（遮断しない）
+   実装:
+   - is-today（= currentQIndex の1マスだけ）を fail-safe で強制上書き
+   - solved/on/lite が付いても最終的に白へ戻す
+   ========================================================= */
+
+/* 現在地の基本見た目：白だけ（グラデ・フィルタ・色味を排除） */
 #nl-progress-header .nl-ph-cell-q.is-today{
-  background: rgba(255,255,255,0.28) !important;
-  background-image: none !important;
+  background: rgba(255,255,255,0.22) !important; /* 白の面（薄め） */
+  background-image: none !important;             /* 既存グラデを確実に無効化 */
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.82) !important,
-    0 0 5px rgba(255,255,255,0.22) !important;
-  filter: none !important;
-  animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important;
+    inset 0 0 0 1px rgba(255,255,255,0.82) !important, /* 白い縁 */
+    0 0 5px rgba(255,255,255,0.22) !important;         /* 白い弱発光 */
+  filter: none !important;                       /* 色補正を遮断 */
+  animation: nl-ph-today-pulse 3.2s ease-in-out infinite !important; /* “白の呼吸” */
 }
 
-/* is-solved-* / is-on が同時に付いても、現在地だけは必ず白に戻す（点滅も強制） */
+/* 最終防衛：現在地に solved/on/lite が重なっても、必ず白を優先する */
 #nl-progress-header .nl-ph-cell-q.is-today.is-on,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-correct-lite,
 #nl-progress-header .nl-ph-cell-q.is-today.is-solved-wrong-lite{
-  background: rgba(255,255,255,0.28) !important;
+  background: rgba(255,255,255,0.22) !important; /* 正解/不正解色を完全遮断して白へ戻す */
   background-image: none !important;
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.82) !important,
