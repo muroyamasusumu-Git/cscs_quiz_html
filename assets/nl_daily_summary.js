@@ -109,20 +109,154 @@
 
     var style = document.createElement("style");
     style.id = "nl-daily-summary-style";
-    style.textContent =
-      "#nl-progress-header{ font-family: ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; }" +
-      "#nl-progress-header .nl-ph-row{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }" +
-      "#nl-progress-header .nl-ph-title{ font-size:12px; letter-spacing:0.02em; opacity:0.85; }" +
-      "#nl-progress-header .nl-ph-value{ font-size:12px; font-variant-numeric: tabular-nums; opacity:0.7; }" +
-      "#nl-progress-header .nl-ph-grid{ margin-top:6px; display:grid; gap:2px; width:100%; }" +
-      "#nl-progress-header .nl-ph-cell{ height:6px; border-radius:2px; background: rgba(255,255,255,0.02); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); }" +
-      "#nl-progress-header .nl-ph-cell.is-on{ background: rgba(255,255,255,0.18); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45); }" +
-      "#nl-progress-header .nl-ph-cell.is-today{ background: rgba(255,255,255,0.26); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35); }" +
-      "#nl-progress-header .nl-ph-spacer{ height:10px; }" +
-      "#nl-progress-header .nl-ph-bar{ margin-top:6px; height:8px; border-radius:999px; background: rgba(255,255,255,0.10); overflow:hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }" +
-      "#nl-progress-header .nl-ph-bar > div{ height:100%; width:0%; background: rgba(255,255,255,0.80); border-radius:999px; }" +
-      ".nl-exam-days { font-size: 26px; font-weight: 600; padding: 0 2px; line-height: 0.9; display: inline-block; }" +
-      ".nl-exam-line { margin-top: 5px; }";
+    style.type = "text/css";
+
+    // ▼ ここだけ触れば見た目を一括調整できるように、CSS変数＋改行ありでまとめる
+    // 目的: 「どこを変えれば何が変わるか」を明確化し、CSSだけを編集しやすくする
+    style.textContent = `
+/* =========================
+   NL Daily Summary Styles
+   - 調整ポイントは :root の変数だけ
+   ========================= */
+
+:root{
+  /* ---- host配置（右側固定） ---- */
+  --nl-host-position: fixed;
+  --nl-host-inset: 10px 10px 10px auto;
+  --nl-host-margin-left: 69%;
+  --nl-host-display: block;
+
+  /* ---- 共通フォント ---- */
+  --nl-font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+
+  /* ---- progress header ---- */
+  --nl-progress-padding: 8px 10px 10px;
+  --nl-progress-opacity: 0.9;
+  --nl-progress-text-align: left;
+
+  /* ---- summary header ---- */
+  --nl-summary-padding: 0px 10px 5px;
+  --nl-summary-border-bottom: 1px solid rgb(42, 42, 42);
+  --nl-summary-font-size: 13px;
+  --nl-summary-font-weight: 300;
+  --nl-summary-line-height: 1.3;
+  --nl-summary-text-align: right;
+  --nl-summary-opacity: 0.5;
+
+  /* ---- progress grid ---- */
+  --nl-grid-gap: 2px;
+  --nl-grid-margin-top: 6px;
+  --nl-cell-height: 6px;
+  --nl-cell-radius: 2px;
+
+  --nl-cell-bg: rgba(255,255,255,0.02);
+  --nl-cell-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+
+  --nl-cell-on-bg: rgba(255,255,255,0.18);
+  --nl-cell-on-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+
+  --nl-cell-today-bg: rgba(255,255,255,0.26);
+  --nl-cell-today-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 0 1px rgba(255,255,255,0.35);
+
+  /* ---- exam line ---- */
+  --nl-exam-days-font-size: 26px;
+  --nl-exam-days-font-weight: 600;
+  --nl-exam-days-padding: 0 2px;
+  --nl-exam-days-line-height: 0.9;
+  --nl-exam-line-margin-top: 5px;
+}
+
+/* ---- host ---- */
+#nl-daily-summary-host{
+  display: var(--nl-host-display);
+  position: var(--nl-host-position);
+  inset: var(--nl-host-inset);
+  margin-left: var(--nl-host-margin-left);
+}
+
+/* ---- progress header ---- */
+#nl-progress-header{
+  font-family: var(--nl-font-family);
+  background: none;
+  padding: var(--nl-progress-padding);
+  border-bottom: 0;
+  text-align: var(--nl-progress-text-align);
+  opacity: var(--nl-progress-opacity);
+}
+
+#nl-progress-header .nl-ph-row{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+}
+
+#nl-progress-header .nl-ph-title{
+  font-size:12px;
+  letter-spacing:0.02em;
+  opacity:0.85;
+}
+
+#nl-progress-header .nl-ph-value{
+  font-size:12px;
+  font-variant-numeric: tabular-nums;
+  opacity:0.7;
+}
+
+#nl-progress-header .nl-ph-grid{
+  margin-top: var(--nl-grid-margin-top);
+  display:grid;
+  gap: var(--nl-grid-gap);
+  width:100%;
+}
+
+#nl-progress-header .nl-ph-cell{
+  height: var(--nl-cell-height);
+  border-radius: var(--nl-cell-radius);
+  background: var(--nl-cell-bg);
+  box-shadow: var(--nl-cell-shadow);
+}
+
+#nl-progress-header .nl-ph-cell.is-on{
+  background: var(--nl-cell-on-bg);
+  box-shadow: var(--nl-cell-on-shadow);
+}
+
+#nl-progress-header .nl-ph-cell.is-today{
+  background: var(--nl-cell-today-bg);
+  box-shadow: var(--nl-cell-today-shadow);
+}
+
+#nl-progress-header .nl-ph-spacer{
+  height:10px;
+}
+
+/* ---- summary header ---- */
+#nl-summary-header{
+  background:none;
+  padding: var(--nl-summary-padding);
+  border-bottom: var(--nl-summary-border-bottom);
+  font-size: var(--nl-summary-font-size);
+  font-weight: var(--nl-summary-font-weight);
+  line-height: var(--nl-summary-line-height);
+  text-align: var(--nl-summary-text-align);
+  opacity: var(--nl-summary-opacity);
+}
+
+/* ---- exam ---- */
+.nl-exam-days{
+  font-size: var(--nl-exam-days-font-size);
+  font-weight: var(--nl-exam-days-font-weight);
+  padding: var(--nl-exam-days-padding);
+  line-height: var(--nl-exam-days-line-height);
+  display:inline-block;
+}
+
+.nl-exam-line{
+  margin-top: var(--nl-exam-line-margin-top);
+}
+`.trim();
+
     document.head.appendChild(style);
   }
 
@@ -602,18 +736,8 @@
     var progressHost = document.createElement("div");
     progressHost.id = "nl-progress-header";
     try{
-      Object.assign(progressHost.style, {
-        position: "static", // sticky を解除（通常フローに戻す）
-        top: "",            // sticky 用の指定を解除
-        zIndex: "",         // sticky 用の指定を解除
-        background: "none",
-        padding: "8px 10px 10px",
-        borderBottomWidth: "0px",
-        borderBottomStyle: "none",
-        borderBottomColor: "transparent",
-        textAlign: "left",
-        opacity: "0.9"
-      });
+      // ▼ 見た目は ensureHeaderStyles() に集約（ここでは style を触らない）
+      // 目的: スタイル管理の分散を防ぐ
     }catch(_){}
 
     progressHost.appendChild(buildProgressGrid(dayTotal, dayFilled, 15, todayIndex));
@@ -654,21 +778,8 @@
     var summaryHost = document.createElement("div");
     summaryHost.id = "nl-summary-header";
     try{
-      Object.assign(summaryHost.style, {
-        position: "static", // sticky を解除（通常フローに戻す）
-        top: "",            // sticky 用の指定を解除
-        zIndex: "",         // sticky 用の指定を解除
-        background: "none",
-        padding: "0px 10px 5px",
-        borderBottomWidth: "1px",
-        borderBottomStyle: "solid",
-        borderBottomColor: "rgb(42, 42, 42)",
-        fontSize: "13px",
-        fontWeight: "300",
-        lineHeight: "1.3",
-        textAlign: "right",
-        opacity: "0.5"
-      });
+      // ▼ 見た目は ensureHeaderStyles() に集約（ここでは style を触らない）
+      // 目的: スタイル管理の分散を防ぐ
     }catch(_){}
 
     var summaryLine2 = document.createElement("div");
@@ -733,14 +844,8 @@
     host.id = "nl-daily-summary-host";
 
     try{
-      Object.assign(host.style, {
-        display: "block",
-
-        // ▼ 画面右側へ固定配置（nav_list のスクロールに影響されない位置に置く）
-        position: "fixed",
-        inset: "10px 10px 10px auto",
-        marginLeft: "69%"
-      });
+      // ▼ #nl-daily-summary-host の配置/見た目は ensureHeaderStyles() に集約
+      // 目的: 固定座標や余白の管理をCSS側に寄せる
     }catch(_){}
 
     // panel の直前に host を差し込む（= #nl-panel の外に出る）
