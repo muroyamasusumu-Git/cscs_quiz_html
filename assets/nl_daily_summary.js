@@ -28,12 +28,24 @@
   }
 
   // 現在表示中の問題番号（1始まり）を URL から取得
-  // 例: q013_a.html / q013_b.html → 13
+  // 例:
+  //   /slides/q013_a.html
+  //   /slides/q013_b
+  //   /slides/q013_b?choice=A   ※ query は pathname からは消えるが、拡張子なしに対応する
   function getQuestionIndexFromPath(){
-    var m = (window.location.pathname || "").match(/q(\d{3})_[ab]\.html/);
+    var path = String(window.location.pathname || "");
+
+    // 末尾の形式ゆれに対応：
+    // - q013_a.html
+    // - q013_a
+    // - q013_b.html
+    // - q013_b
+    var m = path.match(/\/?q(\d{3})_([ab])(?:\.html)?$/);
     if (!m) return null;
+
     var n = Number(m[1]);
     if (!Number.isFinite(n) || n <= 0) return null;
+
     // buildProgressGrid は 0始まりで扱うため -1 する
     return n - 1;
   }
