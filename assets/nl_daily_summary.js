@@ -301,7 +301,7 @@
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.9),
     0 0 6px rgba(255,255,255,0.55);
-  animation: nl-ph-today-pulse 1.1s ease-in-out infinite;
+  animation: nl-ph-today-pulse 3.2s ease-in-out infinite;
 }
 
 /* 現在地マス用：強めの呼吸＋発光点滅 */
