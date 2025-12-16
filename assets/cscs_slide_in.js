@@ -59,7 +59,9 @@
       }
     }
   } catch (_eFlag) {
-    __effectsDisabled = false;
+    // 追加した処理:
+    // - ここで false に戻すと、直前までの判定（個別OFF等）を打ち消す可能性があるため
+    //   例外時は「現状維持」にする
   }
   if (__effectsDisabled) {
     return;
