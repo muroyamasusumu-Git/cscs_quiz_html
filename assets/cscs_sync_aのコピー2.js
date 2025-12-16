@@ -1521,140 +1521,61 @@
   window.addEventListener("DOMContentLoaded", function(){
     if (!QID) return;
     try{
-      // SYNC(A) monitor の見た目（グリッド/カード）用CSSを一度だけ注入
-      try{
-        if (!document.getElementById("cscs-sync-a-monitor-style")) {
-          const st = document.createElement("style");
-          st.id = "cscs-sync-a-monitor-style";
-          st.textContent = `
-#cscs_sync_monitor_a{
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.35;
-}
-#cscs_sync_monitor_a .sync-header{
-  font-weight: 700;
-  margin: 0 0 6px 0;
-}
-#cscs_sync_monitor_a .sync-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-@media (max-width: 520px){
-  #cscs_sync_monitor_a .sync-grid{
-    grid-template-columns: 1fr;
-  }
-}
-#cscs_sync_monitor_a .sync-card{
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-#cscs_sync_monitor_a .sync-card .sync-title{
-  font-weight: 700;
-  font-size: 11px;
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-#cscs_sync_monitor_a .sync-card .sync-body{
-  word-break: break-word;
-}
-#cscs_sync_monitor_a .sync-card.sync-span-2{
-  grid-column: 1 / -1;
-}
-          `.trim();
-          (document.head || document.documentElement).appendChild(st);
-        }
-      }catch(_){}
-
       const box = document.createElement("div");
       box.id = "cscs_sync_monitor_a";
       box.innerHTML = `
         <div class="sync-header">SYNC(A): <span class="sync-qid"></span></div>
-
-        <div class="sync-grid">
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">Totals</div>
-            <div class="sync-body">
-              <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">server 0 / 0</div>
-              <div class="sync-local">local  0 / 0</div>
-              <div class="sync-queue">+Δ    0 / 0</div>
-            </div>
-          </div>
-
-          <div class="sync-card">
-            <div class="sync-title">3連続正解 回数</div>
-            <div class="sync-body sync-streak3">
-              SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
-            </div>
-          </div>
-
-          <div class="sync-card">
-            <div class="sync-title">3連続正解 進捗</div>
-            <div class="sync-body sync-streaklen">
-              SYNC <span class="sync-streaklen-server">0</span> (<span class="sync-streaklen-server-progress">0</span>/3) /
-              local <span class="sync-streaklen-val">0</span> (<span class="sync-streaklen-local-progress">0</span>/3)
-            </div>
-          </div>
-
-          <div class="sync-card">
-            <div class="sync-title">3連続不正解 回数</div>
-            <div class="sync-body sync-wrong-streak3">
-              SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
-            </div>
-          </div>
-
-          <div class="sync-card">
-            <div class="sync-title">3連続不正解 進捗</div>
-            <div class="sync-body sync-wrong-streaklen">
-              SYNC <span class="sync-wrong-streaklen-server">0</span> (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
-              local <span class="sync-wrong-streaklen-val">0</span> (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
-            </div>
-          </div>
-
-          <div class="sync-card">
-            <div class="sync-title">Streak3TodayUnique</div>
-            <div class="sync-body sync-streak3today">
-              day: <span class="sync-streak3today-day">-</span><br>
-              unique: sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span>
-            </div>
-          </div>
-
-          <div class="sync-card">
-            <div class="sync-title">Streak3WrongTodayUnique</div>
-            <div class="sync-body sync-streak3wrongtoday">
-              day: <span class="sync-streak3wrongtoday-day">-</span><br>
-              unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
-            </div>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">LastDay (SYNC / local)</div>
-            <div class="sync-body sync-lastday">
-              lastSeen :<br>
-              - sync <span class="sync-last-seen-sync">（データなし）</span><br>
-              - local <span class="sync-last-seen-local">（データなし）</span><br>
-              lastCorrect:<br>
-              - sync <span class="sync-last-correct-sync">（データなし）</span><br>
-              - local <span class="sync-last-correct-local">（データなし）</span><br>
-              lastWrong :<br>
-              - sync <span class="sync-last-wrong-sync">（データなし）</span><br>
-              - local <span class="sync-last-wrong-local">（データなし）</span>
-            </div>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">oncePerDayToday / ODOA</div>
-            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">Status</div>
-            <div class="sync-body sync-status-row">status: <span class="sync-status">idle (-)</span></div>
-          </div>
+        <div id="cscs_sync_totals" class="sync-line sync-totals" data-server-c="0" data-server-i="0">server 0 / 0</div>
+        <div class="sync-line sync-local">local  0 / 0</div>
+        <div class="sync-line sync-queue">+Δ    0 / 0</div>
+        <div class="sync-line sync-streak3">
+          3連続正解回数:<br>
+          SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
         </div>
+        <div class="sync-line sync-streaklen">
+          3連続正解回数 (進捗):<br>
+          SYNC <span class="sync-streaklen-server">0</span> (<span class="sync-streaklen-server-progress">0</span>/3) /
+          local <span class="sync-streaklen-val">0</span> (<span class="sync-streaklen-local-progress">0</span>/3)
+        </div>
+
+        <div class="sync-line sync-wrong-streak3">
+          3連続不正解回数:<br>
+          SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
+        </div>
+        <div class="sync-line sync-wrong-streaklen">
+          3連続不正解回数 (進捗):<br>
+          SYNC <span class="sync-wrong-streaklen-server">0</span> (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
+          local <span class="sync-wrong-streaklen-val">0</span> (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
+        </div>
+
+        <div class="sync-line sync-streak3today">
+          Streak3TodayUnique:<br>
+          day: <span class="sync-streak3today-day">-</span><br>
+          unique: sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span>
+        </div>
+
+        <div class="sync-line sync-streak3wrongtoday">
+          Streak3WrongTodayUnique:<br>
+          day: <span class="sync-streak3wrongtoday-day">-</span><br>
+          unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
+        </div>
+
+        <div class="sync-line sync-lastday">
+          LastDay (SYNC / local):<br>
+          lastSeen :<br>
+          - sync <span class="sync-last-seen-sync">（データなし）</span><br>
+          - local <span class="sync-last-seen-local">（データなし）</span><br>
+          lastCorrect:<br>
+          - sync <span class="sync-last-correct-sync">（データなし）</span><br>
+          - local <span class="sync-last-correct-local">（データなし）</span><br>
+          lastWrong :<br>
+          - sync <span class="sync-last-wrong-sync">（データなし）</span><br>
+          - local <span class="sync-last-wrong-local">（データなし）</span>
+        </div>
+
+        <div class="sync-line sync-onceperday">oncePerDayToday: （データなし）</div>
+
+        <div class="sync-line sync-status-row">status: <span class="sync-status">idle (-)</span></div>
       `;
       const wrap = document.querySelector("div.wrap");
       if (wrap) {
