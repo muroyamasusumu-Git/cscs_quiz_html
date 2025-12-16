@@ -151,7 +151,7 @@
     btn.textContent = "LAYOUT";
 
     btn.style.position = "fixed";
-    btn.style.right = "121px";
+    btn.style.right = "120px";
     btn.style.bottom = "10px";
     btn.style.zIndex = "999999";
     btn.style.fontSize = "11px";
