@@ -176,7 +176,6 @@
   const LS_MON_OPEN    = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN   = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN   = "cscs_sync_a_queue_detail_open";
-  const LS_LASTDAY_OPEN = "cscs_sync_a_lastday_open";
   const LS_ONCE_OPEN    = "cscs_sync_a_once_odoa_open";
 
   function readLsBool(key, defaultBool){
@@ -2018,28 +2017,26 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <details class="sync-fold" data-fold="lastday">
-              <summary>LastDay</summary>
-              <div class="sync-body sync-lastday">
-                <div class="lastday-grid">
-                  <div class="ld-head"></div>
-                  <div class="ld-head">SYNC</div>
-                  <div class="ld-head">local</div>
+            <div class="sync-title">LastDay</div>
+            <div class="sync-body sync-lastday">
+              <div class="lastday-grid">
+                <div class="ld-head"></div>
+                <div class="ld-head">SYNC</div>
+                <div class="ld-head">local</div>
 
-                  <div class="ld-label">lastSeen</div>
-                  <div><span class="sync-last-seen-sync">（データなし）</span></div>
-                  <div><span class="sync-last-seen-local">（データなし）</span></div>
+                <div class="ld-label">lastSeen</div>
+                <div><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div><span class="sync-last-seen-local">（データなし）</span></div>
 
-                  <div class="ld-label">lastCorrect</div>
-                  <div><span class="sync-last-correct-sync">（データなし）</span></div>
-                  <div><span class="sync-last-correct-local">（データなし）</span></div>
+                <div class="ld-label">lastCorrect</div>
+                <div><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div><span class="sync-last-correct-local">（データなし）</span></div>
 
-                  <div class="ld-label">lastWrong</div>
-                  <div><span class="sync-last-wrong-sync">（データなし）</span></div>
-                  <div><span class="sync-last-wrong-local">（データなし）</span></div>
-                </div>
+                <div class="ld-label">lastWrong</div>
+                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div><span class="sync-last-wrong-local">（データなし）</span></div>
               </div>
-            </details>
+            </div>
           </div>
 
           <div class="sync-card sync-span-2">
@@ -2102,7 +2099,6 @@
 
         const daysDetails    = box.querySelector('details.sync-fold[data-fold="days"]');
         const queueDetails   = box.querySelector('details.sync-fold[data-fold="queue"]');
-        const lastDayDetails = box.querySelector('details.sync-fold[data-fold="lastday"]');
         const onceDetails    = box.querySelector('details.sync-fold[data-fold="once"]');
 
         /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
@@ -2123,12 +2119,10 @@
 
         const daysOpen    = readLsBool(LS_DAYS_OPEN, false);   // デフォルト閉じ
         const queueOpen   = readLsBool(LS_QDEL_OPEN, false);   // デフォルト閉じ
-        const lastDayOpen = readLsBool(LS_LASTDAY_OPEN, false); // デフォルト閉じ
         const onceOpen    = readLsBool(LS_ONCE_OPEN, false);    // デフォルト閉じ
 
         if (daysDetails)    daysDetails.open    = !!daysOpen;
         if (queueDetails)   queueDetails.open   = !!queueOpen;
-        if (lastDayDetails) lastDayDetails.open = !!lastDayOpen;
         if (onceDetails)    onceDetails.open    = !!onceOpen;
 
         if (daysDetails) {
@@ -2139,11 +2133,6 @@
         if (queueDetails) {
           queueDetails.addEventListener("toggle", function(){
             writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
-          });
-        }
-        if (lastDayDetails) {
-          lastDayDetails.addEventListener("toggle", function(){
-            writeLsBool(LS_LASTDAY_OPEN, !!lastDayDetails.open);
           });
         }
         if (onceDetails) {
