@@ -673,8 +673,30 @@
         e.preventDefault();
         e.stopPropagation();
 
+        // (1) 位置をデフォルトへ戻す（localStorage削除＋表示中style復元）
         resetAllPositionsToDefault();
+
+        // (2) ドラッグハンドル表示を現在モードに同期
         updateHandlesVisibility();
+
+        // (3) スライダー値も「デフォルトに戻った現在位置」に同期させる
+        //     - LOCK中でも数値だけは更新しておく（次にEDITにした時にズレない）
+        var __id = getSelectedId();
+        var __el = getElById(__id);
+        if(__el){
+          syncSlidersFromEl(__el);
+        }else{
+          var __x = document.getElementById("cscs-layout-x-slider");
+          var __y = document.getElementById("cscs-layout-y-slider");
+          var __xv = document.getElementById("cscs-layout-x-value");
+          var __yv = document.getElementById("cscs-layout-y-value");
+          if(__x) __x.value = "0";
+          if(__y) __y.value = "0";
+          if(__xv) __xv.textContent = "0";
+          if(__yv) __yv.textContent = "0";
+        }
+
+        // (4) パネルUI全体も再同期（EDIT/LOCK表示、disabled状態など）
         refreshLayoutPanelUI();
 
         panel.style.display = "none";
