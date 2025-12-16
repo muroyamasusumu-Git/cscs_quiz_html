@@ -502,42 +502,58 @@
 
 /* =========================================================
    日別マス演出（機能と完全分離）
+   - 目的: “リッチに見える気配” を追加（強すぎない / 遅い / 呼吸）
    - is-today はJS側で除外（見た目を壊さない）
    ========================================================= */
 
-/* 流れる光（列スキャン） */
-#nl-progress-header .nl-ph-cell-day.is-fx-flow{
-    filter: brightness(1.25);
-    box-shadow:
-      inset 0 0 0 1px rgba(255,255,255,0.42),
-      inset 0 1px 0 rgba(255,255,255,0.18),
-      0 0 8px rgba(255,255,255,0.10);
+/* 基本：日別セルは演出込みでも “ほんのり” */
+#nl-progress-header .nl-ph-cell-day.is-fx-breath{
+    animation-name: nl-day-breath;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    filter: brightness(1.02);
 }
 
-/* スパーク（単発発光） */
-#nl-progress-header .nl-ph-cell-day.is-fx-spark{
-    animation: nl-day-spark 900ms ease-out 1;
-    box-shadow:
-      inset 0 0 0 1px rgba(255,255,255,0.80),
-      0 0 12px rgba(255,255,255,0.28);
-}
-
-/* スパークの中身：短く強く → すっと消える */
-@keyframes nl-day-spark{
+/* ほんのり呼吸（弱） */
+@keyframes nl-day-breath{
     0%{
-      filter: brightness(1.0);
-      transform: translateZ(0) scale(1.00);
-      opacity: 0.85;
+      opacity: 0.78;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.06);
     }
-    35%{
-      filter: brightness(1.7);
-      transform: translateZ(0) scale(1.02);
-      opacity: 1;
+    55%{
+      opacity: 0.94;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.22),
+        inset 0 1px 0 rgba(255,255,255,0.08);
     }
     100%{
-      filter: brightness(1.0);
-      transform: translateZ(0) scale(1.00);
-      opacity: 0.88;
+      opacity: 0.82;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.19),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+}
+
+/* ごく弱い “瞬き” （強いスパークは禁止、あくまで微細） */
+#nl-progress-header .nl-ph-cell-day.is-fx-twinkle{
+    animation: nl-day-twinkle 2600ms ease-in-out 1;
+}
+
+@keyframes nl-day-twinkle{
+    0%{
+      opacity: 0.82;
+      filter: brightness(1.00);
+    }
+    35%{
+      opacity: 0.98;
+      filter: brightness(1.06);
+    }
+    100%{
+      opacity: 0.84;
+      filter: brightness(1.00);
     }
 }
 
@@ -1199,9 +1215,16 @@
   function startDayGridFx(dayGrid, todayIndex){
     // =========================================================
     // 日別マスの演出（機能と完全分離）
-    // - 現在地（is-today）は演出対象から除外
-    // - 1) 流れる光（列スキャン）
-    // - 2) ランダムスパーク（単発の発光）
+    //
+    // 目的:
+    // - “呼吸してる”みたいな、弱い光のうねりを追加する
+    // - 動きは遅く、主張は弱く（視線を奪わない）
+    //
+    // 仕様:
+    // - 表現パターン（モード）を一定間隔でランダム切替:
+    //   左→右 / 右→左 / 上→下 / 下→上 / 斜め / 逆斜め / 波（ゆらぎ）
+    // - is-today は演出除外（現在地の見た目は壊さない）
+    // - 強いスパークは禁止 → “瞬き(twinkle)”のみ
     // =========================================================
     try{
       if (!dayGrid) return;
@@ -1215,52 +1238,130 @@
       var cells = dayGrid.querySelectorAll(".nl-ph-cell-day");
       if (!cells || cells.length <= 0) return;
 
-      // --- 流れる光（列スキャン） ---
-      var flowCol = 0;
-      if (dayGrid.__nlDayFlowTimer) {
-        clearInterval(dayGrid.__nlDayFlowTimer);
-        dayGrid.__nlDayFlowTimer = null;
-      }
-      dayGrid.__nlDayFlowTimer = setInterval(function(){
-        try{
-          flowCol = (flowCol + 1) % cols;
+      var total = cells.length;
+      var rows = Math.ceil(total / cols);
+      if (!Number.isFinite(rows) || rows <= 0) rows = 1;
 
+      // 既存タイマーがあれば終了
+      if (dayGrid.__nlDayModeTimer) {
+        clearInterval(dayGrid.__nlDayModeTimer);
+        dayGrid.__nlDayModeTimer = null;
+      }
+      if (dayGrid.__nlDayTwinkleTimer) {
+        clearInterval(dayGrid.__nlDayTwinkleTimer);
+        dayGrid.__nlDayTwinkleTimer = null;
+      }
+
+      function clearFx(){
+        try{
           var i;
           for (i = 0; i < cells.length; i++){
             var c = cells[i];
             if (!c) continue;
-
-            // 現在地は常に演出除外（is-today の見た目は壊さない）
-            if (c.classList.contains("is-today")) {
-              c.classList.remove("is-fx-flow");
-              continue;
-            }
-
-            // i は NodeList の順＝生成順なので、idx として使える
-            if ((i % cols) === flowCol) {
-              c.classList.add("is-fx-flow");
-            } else {
-              c.classList.remove("is-fx-flow");
-            }
+            c.classList.remove("is-fx-breath");
+            c.classList.remove("is-fx-twinkle");
+            try{
+              c.style.animationDelay = "";
+              c.style.animationDuration = "";
+            }catch(_eStyle){}
           }
-        }catch(_eFlow){}
-      }, 140);
-
-      // --- ランダムスパーク（単発発光） ---
-      if (dayGrid.__nlDaySparkTimer) {
-        clearInterval(dayGrid.__nlDaySparkTimer);
-        dayGrid.__nlDaySparkTimer = null;
+        }catch(_eClear){}
       }
-      dayGrid.__nlDaySparkTimer = setInterval(function(){
+
+      function applyMode(mode){
+        // mode:
+        // - "lr"    左→右
+        // - "rl"    右→左
+        // - "tb"    上→下
+        // - "bt"    下→上
+        // - "d1"    斜め（左上→右下）
+        // - "d2"    斜め（右上→左下）
+        // - "wave"  波（ゆらぎ）
+        clearFx();
+
+        // “呼吸”の周期はかなり遅くする（10〜18秒）
+        var dur = 10 + Math.random() * 8;
+
+        // delayStep も大きくして、動きが“ゆっくり流れる”ように
+        var delayStep = 0.22 + Math.random() * 0.18;
+
+        // wave用の係数
+        var waveA = 0.55 + Math.random() * 0.40;
+        var waveB = 0.35 + Math.random() * 0.35;
+
+        var i;
+        for (i = 0; i < cells.length; i++){
+          var c = cells[i];
+          if (!c) continue;
+
+          // 現在地は演出除外
+          if (c.classList.contains("is-today")) continue;
+
+          var x = i % cols;
+          var y = Math.floor(i / cols);
+
+          var t = 0;
+          if (mode === "lr") {
+            t = x;
+          } else if (mode === "rl") {
+            t = (cols - 1 - x);
+          } else if (mode === "tb") {
+            t = y;
+          } else if (mode === "bt") {
+            t = (rows - 1 - y);
+          } else if (mode === "d1") {
+            t = (x + y);
+          } else if (mode === "d2") {
+            t = ((cols - 1 - x) + y);
+          } else if (mode === "wave") {
+            // “波っぽい”ずれ（正弦 + 縦方向の比重）
+            var fx = cols > 1 ? (x / (cols - 1)) : 0;
+            var fy = rows > 1 ? (y / (rows - 1)) : 0;
+            var s = Math.sin(fx * Math.PI * 2);
+            t = (s * waveA) + (fy * (rows * waveB));
+          } else {
+            t = x;
+          }
+
+          c.classList.add("is-fx-breath");
+
+          // ここが “流れ方” の正体
+          // - delay をつけることで、同じ呼吸アニメでも位相がずれて波になる
+          try{
+            c.style.animationDuration = String(dur.toFixed(2)) + "s";
+            c.style.animationDelay = String((t * delayStep).toFixed(2)) + "s";
+          }catch(_eStyle2){}
+        }
+      }
+
+      // 初期モード
+      var modes = ["lr","rl","tb","bt","d1","d2","wave"];
+      var currentMode = modes[Math.floor(Math.random() * modes.length)];
+      applyMode(currentMode);
+
+      // 一定時間ごとに “空気の流れ” を変える（かなり遅め）
+      dayGrid.__nlDayModeTimer = setInterval(function(){
+        try{
+          var nextMode = modes[Math.floor(Math.random() * modes.length)];
+          if (nextMode === currentMode) {
+            nextMode = modes[Math.floor(Math.random() * modes.length)];
+          }
+          currentMode = nextMode;
+          applyMode(currentMode);
+        }catch(_eMode){}
+      }, 28000);
+
+      // 超弱い “瞬き” （視線を奪わない頻度）
+      dayGrid.__nlDayTwinkleTimer = setInterval(function(){
         try{
           if (!cells || cells.length <= 0) return;
 
-          // たまに発火しない「間」を作って、品のあるリズムにする
-          if (Math.random() < 0.35) return;
+          // ほとんど発火しない（“たまに”だけ）
+          if (Math.random() < 0.65) return;
 
           var tries = 0;
           var idx = -1;
-          while (tries < 8) {
+          while (tries < 10) {
             idx = Math.floor(Math.random() * cells.length);
             if (idx < 0 || idx >= cells.length) {
               tries += 1;
@@ -1283,16 +1384,16 @@
           if (!cell) return;
           if (cell.classList.contains("is-today")) return;
 
-          cell.classList.add("is-fx-spark");
+          cell.classList.add("is-fx-twinkle");
 
-          // 1回光って消える
           setTimeout(function(){
             try{
-              if (cell) cell.classList.remove("is-fx-spark");
+              if (cell) cell.classList.remove("is-fx-twinkle");
             }catch(_eOff){}
-          }, 900);
-        }catch(_eSpark){}
-      }, 420);
+          }, 2700);
+
+        }catch(_eTw){}
+      }, 5200);
 
     }catch(_eAll){}
   }    
