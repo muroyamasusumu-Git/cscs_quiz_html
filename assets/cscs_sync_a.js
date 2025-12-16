@@ -2017,10 +2017,9 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">LastDay</div>
             <div class="sync-body sync-lastday">
               <div class="lastday-grid">
-                <div class="ld-head">項目</div>
+                <div class="ld-head">LastDay</div>
                 <div class="ld-head">SYNC</div>
                 <div class="ld-head">local</div>
 
