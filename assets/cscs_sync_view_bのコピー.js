@@ -85,234 +85,6 @@
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
   var LAST_ODOA_STATUS = "";
 
-  /**
-   * 共通：SYNCステータスパネル（A/B共通）グリッドCSS＋レイアウトルール
-   * - #cscs_sync_monitor_a / #cscs_sync_monitor_b の両方に効く
-   * - B側は #cscs_sync_monitor_b を root にして class 構造を揃えるだけで同じ見た目になる
-   */
-  function injectCscsSyncMonitorCommonStyleOnce(){
-    try{
-      if (document.getElementById("cscs-sync-monitor-common-style")) return;
-
-      var st = document.createElement("style");
-      st.id = "cscs-sync-monitor-common-style";
-      st.textContent = `
-/* =========================
-   SYNC Monitor Common Style
-   対象: #cscs_sync_monitor_a / #cscs_sync_monitor_b
-   ========================= */
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b){
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.35;
-
-  position: fixed;
-  right: 15px;
-  top: 100px;
-  color: #eee;
-  padding: 8px;
-  font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  max-width: 46vw;
-  width: 308px;
-  opacity: 0.55;
-  z-index: 2147483647;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-header{
-  font-weight: 700;
-  margin: 0 3px 6px 0;
-  text-align: right;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-toggle-btn{
-  appearance: none;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(0,0,0,0.45);
-  color: #eee;
-  border-radius: 999px;
-  padding: 3px 8px;
-  font-size: 10.5px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.9;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-toggle-btn:active{
-  transform: translateY(1px);
-}
-
-/* ★ OPEN/CLOSE で「オプション項目（sync-optional）」だけを隠す */
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b).cscs-compact .sync-optional{
-  display: none !important;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
-  width: auto;
-}
-
-@media (max-width: 520px){
-  :is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-grid{
-    grid-template-columns: 1fr;
-  }
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) details.sync-fold{
-  margin: 0;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) details.sync-fold > summary{
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  font-weight: 700;
-  font-size: 11px;
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) details.sync-fold > summary::-webkit-details-marker{
-  display: none;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) details.sync-fold > summary::before{
-  content: "▶";
-  display: inline-block;
-  width: 14px;
-  opacity: 0.85;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) details.sync-fold[open] > summary::before{
-  content: "▼";
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-card{
-  border-radius: 10px;
-  padding: 8px 10px;
-
-  background: rgba(0,0,0,0.52);
-
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-
-  line-height: 1;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-card .sync-title{
-  font-weight: 700;
-  font-size: 11px;
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-card .sync-body{
-  word-break: break-word;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-card.sync-span-2{
-  grid-column: 1 / -1;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .status-grid{
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 11px;
-  line-height: 1.25;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .status-label{
-  font-weight: 600;
-  font-size: 10.5px;
-  letter-spacing: 0.02em;
-  opacity: 0.80;
-  white-space: nowrap;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .status-value{
-  font-weight: 500;
-  font-size: 11px;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .totals-row{
-  display: grid;
-  grid-template-columns: auto 1fr 1fr 1fr;
-  gap: 6px 10px;
-  align-items: center;
-  font-size: 11px;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-totals-label{
-  font-weight: 700;
-  opacity: 0.85;
-  white-space: nowrap;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-totals,
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-local,
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .sync-queue{
-  white-space: nowrap;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .lastday-grid{
-  display: grid;
-  grid-template-columns: 80px 1fr 1fr;
-  gap: 4px 10px;
-  align-items: center;
-  font-size: 11px;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .lastday-grid .ld-head{
-  font-weight: 700;
-  opacity: 0.8;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .lastday-grid .ld-label{
-  opacity: 0.75;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .days-grid{
-  display: grid;
-  grid-template-columns: 150px 1fr 1fr 60px;
-  gap: 4px 10px;
-  align-items: center;
-  font-size: 11px;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .days-head{
-  font-weight: 700;
-  opacity: 0.8;
-  white-space: nowrap;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .days-label{
-  opacity: 0.78;
-  white-space: nowrap;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .days-val{
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .delta-grid{
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 4px 10px;
-  align-items: center;
-  font-size: 11px;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .delta-label{
-  opacity: 0.78;
-  white-space: nowrap;
-}
-:is(#cscs_sync_monitor_a, #cscs_sync_monitor_b) .delta-val{
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-      `.trim();
-
-      (document.head || document.documentElement).appendChild(st);
-    }catch(_){}
-  }
-
   function detectInfo() {
     var path = window.location.pathname || "";
     var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
@@ -521,154 +293,18 @@
 
   function createPanel() {
     var box = document.createElement("div");
-    // ★ root id を共通CSS対象に合わせる（Bは #cscs_sync_monitor_b）
-    box.id = "cscs_sync_monitor_b";
-    // ★ 初期はコンパクト表示（sync-optional を隠す）
-    box.className = "cscs-compact";
+    box.id = "cscs_sync_view_b";
 
-    // ★ グリッドUIの骨格（class は A と同じルールに寄せる）
-    box.innerHTML = `
-      <div class="sync-header">
-        <span>SYNC(B): <span class="sync-qid"></span></span>
-        <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
-      </div>
+    var title = document.createElement("div");
+    title.id = "cscs_sync_view_b_title";
+    title.textContent = "SYNC(B): " + info.qid;
 
-      <div class="sync-grid">
-        <div class="sync-card sync-span-2">
-          <div class="sync-body totals-row">
-            <div class="sync-totals-label">Totals(c/w)</div>
-            <div class="sync-totals">
-              <span class="sync-server-text">server 0 / 0</span>
-            </div>
-            <div class="sync-local"><span class="sync-local-text">local  0 / 0</span></div>
-            <div class="sync-queue"><span class="sync-diff-text">+Δ    0 / 0</span></div>
-          </div>
-        </div>
-
-        <div class="sync-card">
-          <div class="sync-title">3連続正解 回数</div>
-          <div class="sync-body">
-            SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回（+<span class="sync-streak3-diff">0</span>）
-          </div>
-        </div>
-
-        <div class="sync-card">
-          <div class="sync-title">3連続正解 進捗</div>
-          <div class="sync-body">
-            SYNC <span class="sync-streaklen-server">0</span>（<span class="sync-streaklen-server-progress">0</span>/3） /
-            local <span class="sync-streaklen-val">0</span>（<span class="sync-streaklen-local-progress">0</span>/3）
-          </div>
-        </div>
-
-        <div class="sync-card">
-          <div class="sync-title">3連続不正解 回数</div>
-          <div class="sync-body">
-            SYNC <span class="sync-streak3w-server">0</span> 回 / local <span class="sync-streak3w-val">0</span> 回（+<span class="sync-streak3w-diff">0</span>）
-          </div>
-        </div>
-
-        <div class="sync-card">
-          <div class="sync-title">3連続不正解 進捗</div>
-          <div class="sync-body">
-            SYNC <span class="sync-streaklenw-server">0</span>（<span class="sync-streaklenw-server-progress">0</span>/3） /
-            local <span class="sync-streaklenw-val">0</span>（<span class="sync-streaklenw-local-progress">0</span>/3）
-          </div>
-        </div>
-
-        <div class="sync-card sync-span-2">
-          <div class="sync-body status-grid">
-            <div class="status-label">Status</div>
-            <div class="status-value"><span class="sync-status">idle (-)</span></div>
-          </div>
-        </div>
-
-        <div class="sync-card sync-span-2 sync-optional">
-          <details class="sync-fold">
-            <summary>Today Unique</summary>
-
-            <div class="sync-body">
-              <div class="delta-grid">
-                <div class="delta-label">Streak3Today</div>
-                <div class="delta-val">
-                  day <span class="sync-s3today-day">未計測</span> /
-                  unique sync <span class="sync-s3today-sync">0</span> / local <span class="sync-s3today-local">0</span>
-                </div>
-              </div>
-
-              <div class="delta-grid" style="margin-top:6px;">
-                <div class="delta-label">Streak3WrongToday</div>
-                <div class="delta-val">
-                  day <span class="sync-s3wtoday-day">未計測</span> /
-                  unique sync <span class="sync-s3wtoday-sync">0</span> / local <span class="sync-s3wtoday-local">0</span>
-                </div>
-              </div>
-            </div>
-          </details>
-        </div>
-
-        <div class="sync-card sync-span-2 sync-optional">
-          <details class="sync-fold">
-            <summary>LastDay (SYNC / local)</summary>
-
-            <div class="sync-body lastday-grid">
-              <div class="ld-head"></div>
-              <div class="ld-head">SYNC</div>
-              <div class="ld-head">local</div>
-
-              <div class="ld-label">lastSeen</div>
-              <div><span class="sync-lastseen-sync">未計測</span></div>
-              <div><span class="sync-lastseen-local">未計測</span></div>
-
-              <div class="ld-label">lastCorrect</div>
-              <div><span class="sync-lastcorrect-sync">未計測</span></div>
-              <div><span class="sync-lastcorrect-local">未計測</span></div>
-
-              <div class="ld-label">lastWrong</div>
-              <div><span class="sync-lastwrong-sync">未計測</span></div>
-              <div><span class="sync-lastwrong-local">未計測</span></div>
-            </div>
-          </details>
-        </div>
-
-        <div class="sync-card sync-span-2">
-          <div class="sync-body status-grid">
-            <div class="status-label">O.D.O.A</div>
-            <div class="status-value"><span class="sync-odoa">O.D.O.A Mode : OFF</span></div>
-          </div>
-        </div>
-      </div>
-    `.trim();
-
-    // ★ qid をヘッダに差し込み
-    var qidEl = box.querySelector(".sync-qid");
-    if (qidEl) {
-      qidEl.textContent = info.qid;
-    }
-
-    // ★ OPEN/CLOSE トグル（.cscs-compact で .sync-optional を隠す）
-    var toggleBtn = box.querySelector("button.sync-toggle-btn");
-    if (toggleBtn) {
-      toggleBtn.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-
-        var compact = box.classList.contains("cscs-compact");
-        if (compact) {
-          box.classList.remove("cscs-compact");
-          toggleBtn.textContent = "CLOSE";
-        } else {
-          box.classList.add("cscs-compact");
-          toggleBtn.textContent = "OPEN";
-        }
-      });
-    }
-
-    // ★ 共通CSS注入（1回だけ）
-    injectCscsSyncMonitorCommonStyleOnce();
+    var body = document.createElement("div");
+    body.id = "cscs_sync_view_b_body";
+    body.textContent = "読み込み中…";
 
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
-    statusDiv.setAttribute("style", "display:none;");
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
@@ -688,6 +324,8 @@
     //     あえてここで style 属性を直書きしている。
     btn.setAttribute("style", "display:none;");
 
+    box.appendChild(title);
+    box.appendChild(body);
     box.appendChild(statusDiv);
     // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
     box.appendChild(btn);
@@ -793,80 +431,28 @@
         console.error("[SYNC-B:view] wrong-streak status error:", eWrong);
       }
 
-      // ★ 表示用の「未計測」ラベル化（要求：「未計測（データなし）」→「未計測」）
-      function toNoDataLabel(v) {
-        if (v === "-" || v === null || v === undefined || v === "") return "未計測";
-        return String(v);
-      }
+      var text = "";
+      text += "server " + serverCorrect + " / " + serverWrong + "\n";
+      text += "local  " + localCorrect + " / " + localWrong + "\n";
+      text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
+      text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
+      text += "s3W    " + serverStreak3Wrong + " / " + localStreak3Wrong + " (+" + diffStreak3Wrong + ")\n";
+      text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
+      text += "sLenW  " + serverWrongStreakLen + " / " + localWrongStreakLen + " (+" + diffWrongStreakLen + ")\n";
+      text += "3連続正解回数 (進捗):\n";
+      text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)\n";
+      text += "3連続不正解回数 (進捗):\n";
+      text += "SYNC " + serverStreak3Wrong + " (" + serverWrongProgress + "/3) / local " + localStreak3Wrong + " (" + localWrongProgress + "/3)\n";
 
-      // ====== ここから：グリッドDOMへ値を差し込み ======
-      // ※ 既存の送信・判定ロジックには触れず、「見せ方」だけを置き換える
-      if (!box) return;
-
-      var elServerText = box.querySelector(".sync-server-text");
-      if (elServerText) elServerText.textContent = "server " + serverCorrect + " / " + serverWrong;
-
-      var elLocalText = box.querySelector(".sync-local-text");
-      if (elLocalText) elLocalText.textContent = "local  " + localCorrect + " / " + localWrong;
-
-      var elDiffText = box.querySelector(".sync-diff-text");
-      if (elDiffText) elDiffText.textContent = "+Δ    " + diffCorrect + " / " + diffWrong;
-
-      var elS3Server = box.querySelector(".sync-streak3-server");
-      if (elS3Server) elS3Server.textContent = String(serverStreak3);
-
-      var elS3Local = box.querySelector(".sync-streak3-val");
-      if (elS3Local) elS3Local.textContent = String(localStreak3);
-
-      var elS3Diff = box.querySelector(".sync-streak3-diff");
-      if (elS3Diff) elS3Diff.textContent = String(diffStreak3);
-
-      var elSLServer = box.querySelector(".sync-streaklen-server");
-      if (elSLServer) elSLServer.textContent = String(serverStreakLen);
-
-      var elSLLocal = box.querySelector(".sync-streaklen-val");
-      if (elSLLocal) elSLLocal.textContent = String(localStreakLen);
-
-      var elSLServerProg = box.querySelector(".sync-streaklen-server-progress");
-      if (elSLServerProg) elSLServerProg.textContent = String(serverProgress);
-
-      var elSLLocalProg = box.querySelector(".sync-streaklen-local-progress");
-      if (elSLLocalProg) elSLLocalProg.textContent = String(localProgress);
-
-      var elS3WServer = box.querySelector(".sync-streak3w-server");
-      if (elS3WServer) elS3WServer.textContent = String(serverStreak3Wrong);
-
-      var elS3WLocal = box.querySelector(".sync-streak3w-val");
-      if (elS3WLocal) elS3WLocal.textContent = String(localStreak3Wrong);
-
-      var elS3WDiff = box.querySelector(".sync-streak3w-diff");
-      if (elS3WDiff) elS3WDiff.textContent = String(diffStreak3Wrong);
-
-      var elSLWServer = box.querySelector(".sync-streaklenw-server");
-      if (elSLWServer) elSLWServer.textContent = String(serverWrongStreakLen);
-
-      var elSLWLocal = box.querySelector(".sync-streaklenw-val");
-      if (elSLWLocal) elSLWLocal.textContent = String(localWrongStreakLen);
-
-      var elSLWServerProg = box.querySelector(".sync-streaklenw-server-progress");
-      if (elSLWServerProg) elSLWServerProg.textContent = String(serverWrongProgress);
-
-      var elSLWLocalProg = box.querySelector(".sync-streaklenw-local-progress");
-      if (elSLWLocalProg) elSLWLocalProg.textContent = String(localWrongProgress);
-
-      // Status
-      var elStatus = box.querySelector(".sync-status");
-      if (elStatus) elStatus.textContent = String(statusText || "idle (-)");
-
-      // Today Unique（SYNC側）
-      var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day)
+      var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
         ? window.__cscs_sync_state.streak3Today.day : "-";
-      var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_count)
+      var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_count) 
         ? window.__cscs_sync_state.streak3Today.unique_count : 0;
 
-      // Today Unique（local側）
+      var localS3TodayDay = "";
       var localS3TodayCnt = 0;
       try {
+        localS3TodayDay = localStorage.getItem("cscs_streak3_today_day") || "-";
         var rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_count");
         var parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
         if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
@@ -874,13 +460,16 @@
         }
       } catch(_e) {}
 
-      var s3WrongTodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.day)
+      // ★ 3連続不正解（Streak3WrongToday）の SYNC / local 状態も取得
+      var s3WrongTodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.day) 
         ? window.__cscs_sync_state.streak3WrongToday.day : "-";
-      var s3WrongTodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.unique_count)
+      var s3WrongTodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.unique_count) 
         ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0;
 
+      var localS3WrongTodayDay = "";
       var localS3WrongTodayCnt = 0;
       try {
+        localS3WrongTodayDay = localStorage.getItem("cscs_streak3_wrong_today_day") || "-";
         var rawLocalWrongCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
         var parsedLocalWrongCnt = rawLocalWrongCnt == null ? NaN : parseInt(rawLocalWrongCnt, 10);
         if (Number.isFinite(parsedLocalWrongCnt) && parsedLocalWrongCnt >= 0) {
@@ -888,54 +477,64 @@
         }
       } catch(_e2) {}
 
-      var elS3TodayDay = box.querySelector(".sync-s3today-day");
-      if (elS3TodayDay) elS3TodayDay.textContent = toNoDataLabel(s3TodaySyncDay);
+      text += "\nStreak3TodayUnique:\n";
+      // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
+      var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "（データなし）" : String(s3TodaySyncDay));
+      text += "day: " + s3TodayDayLabel + "\n";
+      text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
 
-      var elS3TodaySync = box.querySelector(".sync-s3today-sync");
-      if (elS3TodaySync) elS3TodaySync.textContent = String(s3TodaySyncCnt || 0);
+      text += "\nStreak3WrongTodayUnique:\n";
+      var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "（データなし）" : String(s3WrongTodaySyncDay));
+      text += "day: " + s3WrongTodayDayLabel + "\n";
+      text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
 
-      var elS3TodayLocal = box.querySelector(".sync-s3today-local");
-      if (elS3TodayLocal) elS3TodayLocal.textContent = String(localS3TodayCnt || 0);
+      // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を HUD に追加（改行＋ハイフン付き）
+      var lastSeenSyncLabel = "（データなし）";
+      var lastCorrectSyncLabel = "（データなし）";
+      var lastWrongSyncLabel = "（データなし）";
 
-      var elS3WTodayDay = box.querySelector(".sync-s3wtoday-day");
-      if (elS3WTodayDay) elS3WTodayDay.textContent = toNoDataLabel(s3WrongTodaySyncDay);
-
-      var elS3WTodaySync = box.querySelector(".sync-s3wtoday-sync");
-      if (elS3WTodaySync) elS3WTodaySync.textContent = String(s3WrongTodaySyncCnt || 0);
-
-      var elS3WTodayLocal = box.querySelector(".sync-s3wtoday-local");
-      if (elS3WTodayLocal) elS3WTodayLocal.textContent = String(localS3WrongTodayCnt || 0);
-
-      // LastDay（SYNC / local）
-      var lastSeenSyncLabel = "未計測";
-      var lastCorrectSyncLabel = "未計測";
-      var lastWrongSyncLabel = "未計測";
-
-      var lastSeenLocalLabel = "未計測";
-      var lastCorrectLocalLabel = "未計測";
-      var lastWrongLocalLabel = "未計測";
+      var lastSeenLocalLabel = "（データなし）";
+      var lastCorrectLocalLabel = "（データなし）";
+      var lastWrongLocalLabel = "（データなし）";
 
       try {
         var qidForLastDay = info && info.qid ? info.qid : null;
 
+        // ---- SYNC 側の lastSeen / lastCorrect / lastWrong 読み取り ----
         var st = null;
-        try { st = window.__cscs_sync_state || null; } catch (_e3) { st = null; }
+        try { st = window.__cscs_sync_state || null; } catch (_e) { st = null; }
 
         if (qidForLastDay && st) {
-          if (st.lastSeenDay && typeof st.lastSeenDay === "object" && st.lastSeenDay[qidForLastDay] != null) {
+          // lastSeen
+          if (st.lastSeenDay &&
+              typeof st.lastSeenDay === "object" &&
+              st.lastSeenDay[qidForLastDay] != null) {
             var v1 = st.lastSeenDay[qidForLastDay];
-            if (typeof v1 === "number" && Number.isFinite(v1) && v1 > 0) lastSeenSyncLabel = String(v1);
+            if (typeof v1 === "number" && Number.isFinite(v1) && v1 > 0) {
+              lastSeenSyncLabel = String(v1);
+            }
           }
-          if (st.lastCorrectDay && typeof st.lastCorrectDay === "object" && st.lastCorrectDay[qidForLastDay] != null) {
+          // lastCorrect
+          if (st.lastCorrectDay &&
+              typeof st.lastCorrectDay === "object" &&
+              st.lastCorrectDay[qidForLastDay] != null) {
             var v2 = st.lastCorrectDay[qidForLastDay];
-            if (typeof v2 === "number" && Number.isFinite(v2) && v2 > 0) lastCorrectSyncLabel = String(v2);
+            if (typeof v2 === "number" && Number.isFinite(v2) && v2 > 0) {
+              lastCorrectSyncLabel = String(v2);
+            }
           }
-          if (st.lastWrongDay && typeof st.lastWrongDay === "object" && st.lastWrongDay[qidForLastDay] != null) {
+          // lastWrong
+          if (st.lastWrongDay &&
+              typeof st.lastWrongDay === "object" &&
+              st.lastWrongDay[qidForLastDay] != null) {
             var v3 = st.lastWrongDay[qidForLastDay];
-            if (typeof v3 === "number" && Number.isFinite(v3) && v3 > 0) lastWrongSyncLabel = String(v3);
+            if (typeof v3 === "number" && Number.isFinite(v3) && v3 > 0) {
+              lastWrongSyncLabel = String(v3);
+            }
           }
         }
 
+        // ---- localStorage 側の lastSeen / lastCorrect / lastWrong 読み取り ----
         if (qidForLastDay) {
           var loc1 = readDayFromLocalStorage("cscs_q_last_seen_day:" + qidForLastDay);
           var loc2 = readDayFromLocalStorage("cscs_q_last_correct_day:" + qidForLastDay);
@@ -945,29 +544,26 @@
           if (loc2 !== null) lastCorrectLocalLabel = String(loc2);
           if (loc3 !== null) lastWrongLocalLabel = String(loc3);
         }
+
       } catch (eLast) {
         console.error("[SYNC-B:view] lastDay HUD build error:", eLast);
       }
 
-      var elLSync = box.querySelector(".sync-lastseen-sync");
-      if (elLSync) elLSync.textContent = toNoDataLabel(lastSeenSyncLabel);
+      // ---- 最終日情報（リスト形式で見やすさ強化）----
+      text += "\nLastDay (SYNC / local):\n";
+      text += "lastSeen   :\n";
+      text += "- sync " + lastSeenSyncLabel + "\n";
+      text += "- local " + lastSeenLocalLabel + "\n";
 
-      var elLLocal = box.querySelector(".sync-lastseen-local");
-      if (elLLocal) elLLocal.textContent = toNoDataLabel(lastSeenLocalLabel);
+      text += "lastCorrect:\n";
+      text += "- sync " + lastCorrectSyncLabel + "\n";
+      text += "- local " + lastCorrectLocalLabel + "\n";
 
-      var elCSync = box.querySelector(".sync-lastcorrect-sync");
-      if (elCSync) elCSync.textContent = toNoDataLabel(lastCorrectSyncLabel);
+      text += "lastWrong  :\n";
+      text += "- sync " + lastWrongSyncLabel + "\n";
+      text += "- local " + lastWrongLocalLabel + "\n";
 
-      var elCLocal = box.querySelector(".sync-lastcorrect-local");
-      if (elCLocal) elCLocal.textContent = toNoDataLabel(lastCorrectLocalLabel);
-
-      var elWSync = box.querySelector(".sync-lastwrong-sync");
-      if (elWSync) elWSync.textContent = toNoDataLabel(lastWrongSyncLabel);
-
-      var elWLocal = box.querySelector(".sync-lastwrong-local");
-      if (elWLocal) elWLocal.textContent = toNoDataLabel(lastWrongLocalLabel);
-
-      // O.D.O.A 表示は既存ロジックで確定した文字列を .sync-odoa に入れる（後段で設定する）
+      updateSyncBody(text);
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
 
@@ -2382,7 +1978,7 @@
   };
 
   window.addEventListener("online", function () {
-    var box = document.getElementById("cscs_sync_monitor_b");
+    var box = document.getElementById("cscs_sync_view_b");
     if (!box) return;
     refreshAndSend(box);
   });
