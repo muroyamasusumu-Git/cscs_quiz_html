@@ -1730,7 +1730,7 @@
 
           <div class="sync-card sync-span-2">
             <div class="sync-title">Status</div>
-            <div class="sync-body sync-status-row">status: <span class="sync-status">idle (-)</span></div>
+            <div class="sync-body"><span class="sync-status">pulled (-)</span></div>
           </div>
         </div>
       `;
