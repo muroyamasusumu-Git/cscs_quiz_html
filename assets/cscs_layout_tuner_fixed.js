@@ -244,6 +244,13 @@
 
   function applyPos(el, pos){
     if(!pos) return;
+
+    // 追加した処理:
+    // - right/bottom が残っていると left/top と競合して「初回ジャンプ」の原因になるため、
+    //   left/top 運用へ入る瞬間に right/bottom を必ず解除する
+    el.style.right = "";
+    el.style.bottom = "";
+
     el.style.position = "fixed";
     el.style.left = pos.left + "px";
     el.style.top  = pos.top  + "px";
@@ -454,6 +461,12 @@
 
         var left = clampInt(parseInt(x.value, 10) || 0, 0, maxX);
         var top  = clampInt(parseInt(y.value, 10) || 0, 0, maxY);
+
+        // 追加した処理:
+        // - right/bottom が残っていると left/top と競合してレイアウトが跳ねることがあるため、
+        //   スライダーで left/top 運用に入るタイミングで right/bottom を解除する
+        el.style.right = "";
+        el.style.bottom = "";
 
         el.style.position = "fixed";
         el.style.left = left + "px";
@@ -962,6 +975,12 @@
 
       newLeft = clamp(newLeft, 0, vw - rect.width);
       newTop  = clamp(newTop,  0, vh - rect.height);
+
+      // 追加した処理:
+      // - right/bottom が残っていると left/top と競合してドラッグ開始時に位置が飛ぶことがあるため、
+      //   ドラッグで left/top 運用に入るタイミングで right/bottom を解除する
+      el.style.right = "";
+      el.style.bottom = "";
 
       el.style.position = "fixed";
       el.style.left = Math.round(newLeft) + "px";
