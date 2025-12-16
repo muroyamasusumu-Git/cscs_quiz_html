@@ -1229,14 +1229,14 @@
     // 日別マスの演出（機能と完全分離）
     //
     // 目的:
-    // - “呼吸してる”みたいな、弱い光のうねりを追加する
-    // - 動きは遅く、主張は弱く（視線を奪わない）
+    // - 「全体が一気に暗くなる/切り替わる」演出を廃止
+    // - 常に “位置による位相差” がある状態で、全体がグラデーションのまま呼吸する
     //
     // 仕様:
-    // - 表現パターン（モード）を一定間隔でランダム切替:
-    //   左→右 / 右→左 / 上→下 / 下→上 / 斜め / 逆斜め / 波（ゆらぎ）
+    // - モード切替/clearFx を行わない（位相をリセットしない）
+    // - 全セルに is-fx-breath を付与し、animationDelay を座標から固定計算
     // - is-today は演出除外（現在地の見た目は壊さない）
-    // - 強いスパークは禁止 → “瞬き(twinkle)”のみ
+    // - twinkle は “瞬き” として超弱く維持（全体変化にはならない）
     // =========================================================
     try{
       if (!dayGrid) return;
@@ -1254,7 +1254,7 @@
       var rows = Math.ceil(total / cols);
       if (!Number.isFinite(rows) || rows <= 0) rows = 1;
 
-      // 既存タイマーがあれば終了
+      // 既存タイマーがあれば終了（モード切替は廃止 / twinkleのみ残す）
       if (dayGrid.__nlDayModeTimer) {
         clearInterval(dayGrid.__nlDayModeTimer);
         dayGrid.__nlDayModeTimer = null;
@@ -1264,126 +1264,61 @@
         dayGrid.__nlDayTwinkleTimer = null;
       }
 
-      function clearFx(){
-        try{
-          var i;
-          for (i = 0; i < cells.length; i++){
-            var c = cells[i];
-            if (!c) continue;
-            c.classList.remove("is-fx-breath");
-            c.classList.remove("is-fx-twinkle");
-            try{
-              c.style.animationDelay = "";
-              c.style.animationDuration = "";
-            }catch(_eStyle){}
-          }
-        }catch(_eClear){}
-      }
+      // “呼吸”の周期は固定（途中で全体が急に変わらないようにする）
+      var dur = 16 + Math.random() * 6;
 
-      function applyMode(mode){
-        // mode:
-        // - "lr"    左→右
-        // - "rl"    右→左
-        // - "tb"    上→下
-        // - "bt"    下→上
-        // - "d1"    斜め（左上→右下）
-        // - "d2"    斜め（右上→左下）
-        // - "wave"  波（ゆらぎ）
-        clearFx();
+      // 位相差（delay）は “座標→ゆるい波” で固定
+      // - delayStep は小さめ（全体の同期感を抑え、常にグラデを維持）
+      var delayStep = 0.22;
 
-        // “呼吸”の基本周期（遅い）
-        var durBase = 12 + Math.random() * 6;
+      // 波の形（固定）
+      var waveA = 0.80;
+      var waveB = 0.55;
 
-        // たまに緩急を付ける（全体の空気を変える）
-        var speedRoll = Math.random();
-        var dur;
-        if (speedRoll < 0.15) {
-          // たまに早呼吸（ほんの一瞬だけ）
-          dur = durBase * 0.65;
-        } else if (speedRoll > 0.85) {
-          // たまに深呼吸（かなり遅い）
-          dur = durBase * 1.6;
-        } else {
-          // 通常
-          dur = durBase;
-        }
+      var i;
+      for (i = 0; i < cells.length; i++){
+        var c = cells[i];
+        if (!c) continue;
 
-        // delayStep も周期に連動させて緩急を自然に
-        var delayStep = (0.18 + Math.random() * 0.14) * (dur / durBase);
-
-        // wave用の係数
-        var waveA = 0.55 + Math.random() * 0.40;
-        var waveB = 0.35 + Math.random() * 0.35;
-
-        var i;
-        for (i = 0; i < cells.length; i++){
-          var c = cells[i];
-          if (!c) continue;
-
-          // 現在地は演出除外
-          if (c.classList.contains("is-today")) continue;
-
-          var x = i % cols;
-          var y = Math.floor(i / cols);
-
-          var t = 0;
-          if (mode === "lr") {
-            t = x;
-          } else if (mode === "rl") {
-            t = (cols - 1 - x);
-          } else if (mode === "tb") {
-            t = y;
-          } else if (mode === "bt") {
-            t = (rows - 1 - y);
-          } else if (mode === "d1") {
-            t = (x + y);
-          } else if (mode === "d2") {
-            t = ((cols - 1 - x) + y);
-          } else if (mode === "wave") {
-            // “波っぽい”ずれ（正弦 + 縦方向の比重）
-            var fx = cols > 1 ? (x / (cols - 1)) : 0;
-            var fy = rows > 1 ? (y / (rows - 1)) : 0;
-            var s = Math.sin(fx * Math.PI * 2);
-            t = (s * waveA) + (fy * (rows * waveB));
-          } else {
-            t = x;
-          }
-
-          c.classList.add("is-fx-breath");
-
-          // ここが “流れ方” の正体
-          // - delay をつけることで、同じ呼吸アニメでも位相がずれて波になる
+        // 現在地は演出除外
+        if (c.classList.contains("is-today")) {
+          c.classList.remove("is-fx-breath");
           try{
-            c.style.animationDuration = String(dur.toFixed(2)) + "s";
-            c.style.animationDelay = String((t * delayStep).toFixed(2)) + "s";
-          }catch(_eStyle2){}
+            c.style.animationDelay = "";
+            c.style.animationDuration = "";
+          }catch(_eTodayStyle){}
+          continue;
         }
+
+        var x = i % cols;
+        var y = Math.floor(i / cols);
+
+        // 0..1 正規化
+        var fx = cols > 1 ? (x / (cols - 1)) : 0;
+        var fy = rows > 1 ? (y / (rows - 1)) : 0;
+
+        // “常にグラデーション”の正体：
+        // - 横方向の正弦波 + 縦方向の緩い傾き を足し合わせて位相にする
+        var s = Math.sin(fx * Math.PI * 2);
+
+        // t は固定（モード切替で飛ばない）
+        var t = (s * waveA) + (fy * (rows * waveB));
+
+        c.classList.add("is-fx-breath");
+
+        try{
+          c.style.animationDuration = String(dur.toFixed(2)) + "s";
+          c.style.animationDelay = String((t * delayStep).toFixed(2)) + "s";
+        }catch(_eStyle2){}
       }
 
-      // 初期モード
-      var modes = ["lr","rl","tb","bt","d1","d2","wave"];
-      var currentMode = modes[Math.floor(Math.random() * modes.length)];
-      applyMode(currentMode);
-
-      // 一定時間ごとに “空気の流れ” を変える（かなり遅め）
-      dayGrid.__nlDayModeTimer = setInterval(function(){
-        try{
-          var nextMode = modes[Math.floor(Math.random() * modes.length)];
-          if (nextMode === currentMode) {
-            nextMode = modes[Math.floor(Math.random() * modes.length)];
-          }
-          currentMode = nextMode;
-          applyMode(currentMode);
-        }catch(_eMode){}
-      }, 28000);
-
-      // 超弱い “瞬き” （視線を奪わない頻度）
+      // 超弱い “瞬き” （視線を奪わない頻度 / 全体変化にはならない）
       dayGrid.__nlDayTwinkleTimer = setInterval(function(){
         try{
           if (!cells || cells.length <= 0) return;
 
           // ほとんど発火しない（“たまに”だけ）
-          if (Math.random() < 0.65) return;
+          if (Math.random() < 0.70) return;
 
           var tries = 0;
           var idx = -1;
@@ -1393,12 +1328,12 @@
               tries += 1;
               continue;
             }
-            var c = cells[idx];
-            if (!c) {
+            var cc = cells[idx];
+            if (!cc) {
               tries += 1;
               continue;
             }
-            if (c.classList.contains("is-today")) {
+            if (cc.classList.contains("is-today")) {
               tries += 1;
               continue;
             }
