@@ -45,6 +45,7 @@
     { id: "field_summary", label: "FieldSummary" },
     { id: "similar_list", label: "SimilarList" },
     { id: "nav_list", label: "NavList" },
+    { id: "nl_daily_summary", label: "NlDailySummary" },
     { id: "b_wrong_strike_mark", label: "WrongStrike" }
   ];
 
