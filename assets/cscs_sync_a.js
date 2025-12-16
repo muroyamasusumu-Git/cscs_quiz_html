@@ -1708,7 +1708,7 @@
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">Streak3WrongTodayUnique</div>
+            <div class="sync-title">Streak3WrongTodayUq</div>
             <div class="sync-body sync-streak3wrongtoday">
               day: <span class="sync-streak3wrongtoday-day">-</span><br>
               unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
