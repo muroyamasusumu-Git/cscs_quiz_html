@@ -315,7 +315,7 @@
   border-bottom: 0;
   text-align: left;
   opacity: 0.7;
-  margin: 0 0 5px 0;
+  margin: 0 0 5px 20px;
 }
 
 
