@@ -1549,22 +1549,19 @@
 
 #cscs_sync_monitor_a {
   position: fixed;
-  right: 10px;
-  top: 35px;
-  background: rgba(0,0,0,0.55);
+  right: 3px;
+  top: 78px;
+  /* background: rgba(0,0,0,0.55); */
   color: #eee;
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 12px;
+  /* border: 1px solid rgba(255,255,255,0.10); */
+  /* border-radius: 12px; */
   padding: 8px;
-  font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 9px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
-  width: 360px;
+  width: 300px;
   opacity: 0.88;
   z-index: 2147483647;
 }
-
-
-
 
 
 
@@ -1578,6 +1575,7 @@
   padding: 8px 10px;
   background: rgba(0,0,0,0.72);
   border: 1px solid rgba(255,255,255,0.12);
+  line-height: 1;
 }
 #cscs_sync_monitor_a .sync-card .sync-title{
   font-weight: 700;
