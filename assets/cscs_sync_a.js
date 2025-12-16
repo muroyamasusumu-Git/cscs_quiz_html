@@ -1560,7 +1560,7 @@
   font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
   width: 300px;
-  opacity: 0.88;
+  opacity: 0.55;
   z-index: 2147483647;
 }
 
