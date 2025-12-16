@@ -365,10 +365,7 @@
         })(EFFECTS[i]);
       }
 
-      var hint = document.createElement("div");
-      hint.className = "hint";
-      hint.textContent = "Tip: tap FX button to open/close this panel.";
-      panel.appendChild(hint);
+      // （削除）Tip 表示は不要になったため何も追加しない
 
       document.body.appendChild(panel);
       return panel;
