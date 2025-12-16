@@ -41,7 +41,83 @@
     }catch(_){
       return null;
     }
-  }　
+  }
+
+  // ===== 追加：デフォルト位置（元のインラインstyle）を記憶＆復元 =====
+  // 目的：
+  //   - ドラッグで変更した位置を localStorage から消すだけだと、今表示中の要素がそのまま残ることがある。
+  //   - 「デフォルトに戻す」は、初回に記憶した“元のstyle”へ確実に戻すのが一番安全。
+  var ORIG_ATTR = "data-cscs-layout-orig-style";
+
+  function rememberOrigStyleIfNeeded(el){
+    // 目的：初回だけ、元のインラインstyle状態を保存する（後でRESETで戻すため）
+    if(!el) return;
+    if(el.getAttribute(ORIG_ATTR)) return;
+
+    var orig = {
+      position: el.style.position || "",
+      left: el.style.left || "",
+      top: el.style.top || "",
+      right: el.style.right || "",
+      bottom: el.style.bottom || "",
+      zIndex: el.style.zIndex || ""
+    };
+
+    try{
+      el.setAttribute(ORIG_ATTR, JSON.stringify(orig));
+    }catch(_){}
+  }
+
+  function loadOrigStyle(el){
+    try{
+      var raw = el.getAttribute(ORIG_ATTR);
+      if(!raw) return null;
+      var obj = JSON.parse(raw);
+      if(!obj) return null;
+      return obj;
+    }catch(_){
+      return null;
+    }
+  }
+
+  function applyOrigStyle(el, orig){
+    // 目的：RESET時に、記憶しておいた“元のstyle”へ戻す
+    if(!el || !orig) return;
+    el.style.position = orig.position;
+    el.style.left = orig.left;
+    el.style.top = orig.top;
+    el.style.right = orig.right;
+    el.style.bottom = orig.bottom;
+    el.style.zIndex = orig.zIndex;
+  }
+
+  function clearSavedPos(layoutId){
+    // 目的：localStorage に保存した位置情報を削除する（現在のenvKeyだけ）
+    try{ localStorage.removeItem(storageKey(layoutId)); }catch(_){}
+  }
+
+  function resetAllPositionsToDefault(){
+    // 目的：
+    //   1) 全ターゲットの保存済み位置（localStorage）を削除
+    //   2) 全ターゲットの表示中styleを “元のstyle” に戻す
+    for(var i=0;i<TARGETS.length;i++){
+      var t = TARGETS[i];
+      clearSavedPos(t.id);
+
+      var el = document.querySelector(t.sel);
+      if(!el) continue;
+
+      var orig = loadOrigStyle(el);
+      if(orig){
+        applyOrigStyle(el, orig);
+      }else{
+        // 元styleが無い場合は、最小限だけ戻す（壊さない方針）
+        el.style.left = "";
+        el.style.top = "";
+        el.style.zIndex = "";
+      }
+    }
+  }
 
   function savePos(layoutId, pos){
     try{ localStorage.setItem(storageKey(layoutId), JSON.stringify(pos)); }catch(_){}
@@ -62,6 +138,9 @@
   }
 
   function ensureToggleButton(){
+    // 目的：
+    //   - トグルボタンを「80px左」へ（右端から 8px → 88px）
+    //   - RESETボタンを追加して、保存位置も表示位置も“デフォルト”へ戻す
     var id = "cscs-layout-edit-toggle";
     var btn = document.getElementById(id);
     if(btn) return btn;
@@ -71,7 +150,7 @@
     btn.textContent = getEditMode() ? "LAYOUT：EDIT" : "LAYOUT：LOCK";
 
     btn.style.position = "fixed";
-    btn.style.right = "8px";
+    btn.style.right = "88px";
     btn.style.bottom = "8px";
     btn.style.zIndex = "999999";
     btn.style.fontSize = "11px";
@@ -90,6 +169,36 @@
     });
 
     document.body.appendChild(btn);
+
+    // ===== 追加：RESETボタン（デフォルト位置へ戻す） =====
+    var rid = "cscs-layout-edit-reset";
+    var rbtn = document.getElementById(rid);
+    if(!rbtn){
+      rbtn = document.createElement("button");
+      rbtn.id = rid;
+      rbtn.textContent = "LAYOUT：RESET";
+
+      rbtn.style.position = "fixed";
+      rbtn.style.right = "88px";
+      rbtn.style.bottom = "44px";
+      rbtn.style.zIndex = "999999";
+      rbtn.style.fontSize = "11px";
+      rbtn.style.padding = "6px 8px";
+      rbtn.style.borderRadius = "999px";
+      rbtn.style.border = "1px solid rgba(255,255,255,0.2)";
+      rbtn.style.background = "rgba(0,0,0,0.35)";
+      rbtn.style.color = "#fff";
+      rbtn.style.webkitTapHighlightColor = "transparent";
+
+      rbtn.addEventListener("click", function(){
+        // 目的：保存済み位置(localStorage)を消して、表示中のstyleもデフォルトへ戻す
+        resetAllPositionsToDefault();
+        updateHandlesVisibility();
+      });
+
+      document.body.appendChild(rbtn);
+    }
+
     return btn;
   }
 
@@ -229,6 +338,10 @@
     // 二重初期化防止
     if(el.getAttribute("data-cscs-layout-initialized") === "1") return true;
     el.setAttribute("data-cscs-layout-initialized", "1");
+
+    // 追加：RESETのために“元のインラインstyle”を初回だけ記憶する
+    // 目的：localStorage削除だけではなく、見た目も確実にデフォルトへ戻せるようにする
+    rememberOrigStyleIfNeeded(el);
 
     // 既に fixed で運用してる前提。staticなら fixed化する（最小限）
     var p = getComputedStyle(el).position;
