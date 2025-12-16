@@ -39,6 +39,7 @@
     { id: "point_summary_board_dummy", label: "PointBoard" },
     { id: "field_summary", label: "FieldSummary" },
     { id: "similar_list", label: "SimilarList" },
+    { id: "nav_list", label: "NavList" },
     { id: "b_wrong_strike_mark", label: "WrongStrike" }
   ];
 
