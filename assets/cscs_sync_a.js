@@ -1589,6 +1589,24 @@
   word-break: break-word;
 }
 
+#cscs_sync_monitor_a .status-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .status-label{
+  font-weight: 700;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .status-value{
+  white-space: nowrap;
+}
+
 #cscs_sync_monitor_a .totals-row{
   display: grid;
   grid-template-columns: auto 1fr 1fr 1fr;
@@ -1729,8 +1747,10 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">Status</div>
-            <div class="sync-body"><span class="sync-status">pulled (-)</span></div>
+            <div class="sync-body status-grid">
+              <div class="status-label">Status</div>
+              <div class="status-value"><span class="sync-status">pulled (-)</span></div>
+            </div>
           </div>
         </div>
       `;
