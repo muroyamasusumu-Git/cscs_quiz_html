@@ -1714,7 +1714,7 @@
 
 #cscs_sync_monitor_a {
   position: fixed;
-  right: 0px;
+  right: 15px;
   top: 100px;
   /* background: rgba(0,0,0,0.55); */
   color: #eee;
