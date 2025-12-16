@@ -37,6 +37,7 @@
     { id: "cscs_slide_in",           label: "SlideIn" },
     { id: "cscs_text_shadow",        label: "TextShadow" },
     { id: "point_summary_board_dummy", label: "PointBoard" },
+    { id: "field_summary", label: "FieldSummary" },
     { id: "b_wrong_strike_mark", label: "WrongStrike" }
   ];
 
