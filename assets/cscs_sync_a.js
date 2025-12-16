@@ -1708,7 +1708,7 @@
 #cscs_sync_monitor_a .sync-grid{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
   width: auto;
 }
 
