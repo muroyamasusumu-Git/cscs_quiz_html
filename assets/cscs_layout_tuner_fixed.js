@@ -146,9 +146,28 @@
     if(btn) return btn;
 
     // ===== LAYOUT ボタン（常時表示） =====
+    // ===== LOCK / EDIT ボタン（状態表示つき・常時表示） =====
     btn = document.createElement("button");
     btn.id = id;
-    btn.textContent = "LAYOUT";
+
+    // 内部構造： [LOCK/EDIT] [：EDITモード中]
+    var labelMain = document.createElement("span");
+    labelMain.id = "cscs-layout-menu-label-main";
+
+    var labelState = document.createElement("span");
+    labelState.id = "cscs-layout-menu-label-state";
+    labelState.style.marginLeft = "4px";
+    labelState.style.opacity = "0.75";
+
+    btn.appendChild(labelMain);
+    btn.appendChild(labelState);
+
+    function updateLayoutButtonLabel(){
+      var on = getEditMode();
+      labelMain.textContent  = on ? "EDIT" : "LOCK";
+      labelState.textContent = on ? "：EDITモード中" : "：LOCKモード中";
+    }
+    updateLayoutButtonLabel();
 
     btn.style.position = "fixed";
     btn.style.right = "121px";
@@ -161,6 +180,8 @@
     btn.style.background = "rgba(0, 0, 0, 0.55)";
     btn.style.color = "rgb(255, 255, 255)";
     btn.style.height = "34px";
+    btn.style.display = "flex";
+    btn.style.alignItems = "center";
     btn.style.webkitTapHighlightColor = "transparent";
 
     document.body.appendChild(btn);
