@@ -151,15 +151,16 @@
     btn.textContent = "LAYOUT";
 
     btn.style.position = "fixed";
-    btn.style.right = "88px";
-    btn.style.bottom = "8px";
+    btn.style.right = "121px";
+    btn.style.bottom = "10px";
     btn.style.zIndex = "999999";
     btn.style.fontSize = "11px";
     btn.style.padding = "6px 10px";
     btn.style.borderRadius = "999px";
-    btn.style.border = "1px solid rgba(255,255,255,0.2)";
-    btn.style.background = "rgba(0,0,0,0.55)";
-    btn.style.color = "#fff";
+    btn.style.border = "1px solid rgba(255, 255, 255, 0.2)";
+    btn.style.background = "rgba(0, 0, 0, 0.55)";
+    btn.style.color = "rgb(255, 255, 255)";
+    btn.style.height = "34px";
     btn.style.webkitTapHighlightColor = "transparent";
 
     document.body.appendChild(btn);
