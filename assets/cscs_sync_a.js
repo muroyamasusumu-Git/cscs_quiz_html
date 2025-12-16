@@ -1551,15 +1551,16 @@
   position: fixed;
   right: 10px;
   top: 35px;
-  background: transparent;
+  background: rgba(0,0,0,0.55);
   color: #eee;
-  border: 0 solid #444;
-  border-radius: 0;
-  padding: 0;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  padding: 8px;
   font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
   width: 360px;
-  opacity: 0.20;
+  opacity: 0.28;
+  z-index: 2147483647;
 }
 
 
@@ -1575,8 +1576,8 @@
 #cscs_sync_monitor_a .sync-card{
   border-radius: 10px;
   padding: 8px 10px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.72);
+  border: 1px solid rgba(255,255,255,0.12);
 }
 #cscs_sync_monitor_a .sync-card .sync-title{
   font-weight: 700;
@@ -1701,10 +1702,9 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">LastDay (SYNC / local)</div>
             <div class="sync-body sync-lastday">
               <div class="lastday-grid">
-                <div class="ld-head"></div>
+                <div class="ld-head">LastDay</div>
                 <div class="ld-head">SYNC</div>
                 <div class="ld-head">local</div>
 
