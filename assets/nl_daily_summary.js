@@ -530,25 +530,30 @@
     animation-timing-function: linear;
     animation-iteration-count: infinite;
     animation-direction: normal;
-    will-change: background-position;
+    will-change: background-position, filter;
 }
 
 /* 斜めグラデの“移動”だけを行う（明暗の総量は変えない） */
 @keyframes nl-day-gradient-shift{
     0%{
       background-position: 0% 0%;
+      filter: brightness(0.78) contrast(1.35);
     }
     25%{
       background-position: 100% 0%;
+      filter: brightness(0.92) contrast(1.50);
     }
     50%{
       background-position: 100% 100%;
+      filter: brightness(1.12) contrast(1.70);
     }
     75%{
       background-position: 0% 100%;
+      filter: brightness(0.90) contrast(1.55);
     }
     100%{
       background-position: 0% 0%;
+      filter: brightness(0.78) contrast(1.35);
     }
 }
 
