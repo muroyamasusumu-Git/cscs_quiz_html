@@ -480,10 +480,10 @@
        - background-size を大きくして、position移動で表情が変わるようにする */
     background-image: linear-gradient(
       135deg,
-      rgba(255,255,255,0.080) 0%,
-      rgba(255,255,255,0.020) 35%,
-      rgba(0,0,0,0.120) 70%,
-      rgba(255,255,255,0.060) 100%
+      rgba(255,255,255,0.120) 0%,
+      rgba(255,255,255,0.018) 32%,
+      rgba(0,0,0,0.220) 68%,
+      rgba(255,255,255,0.090) 100%
     );
     background-size: 240% 240%;
     background-position: 0% 0%;
@@ -537,24 +537,24 @@
 @keyframes nl-day-gradient-shift{
     0%{
       background-position: 0% 0%;
-      filter: brightness(0.62) contrast(1.60);
+      filter: brightness(0.48) contrast(2.05);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.08),
-        inset 0 1px 0 rgba(255,255,255,0.03);
+        inset 0 0 0 1px rgba(255,255,255,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.015);
     }
     50%{
       background-position: 100% 100%;
-      filter: brightness(1.12) contrast(1.70);
+      filter: brightness(1.18) contrast(2.15);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.20),
-        inset 0 1px 0 rgba(255,255,255,0.07);
+        inset 0 0 0 1px rgba(255,255,255,0.24),
+        inset 0 1px 0 rgba(255,255,255,0.09);
     }
     100%{
       background-position: 0% 0%;
-      filter: brightness(0.62) contrast(1.60);
+      filter: brightness(0.48) contrast(2.05);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.08),
-        inset 0 1px 0 rgba(255,255,255,0.03);
+        inset 0 0 0 1px rgba(255,255,255,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.015);
     }
 }
 
@@ -1261,7 +1261,7 @@
       // “呼吸”の周期は固定（途中で全体が急に変わらないようにする）
       // 変更:
       // - 遅すぎて分かりづらいので周期を短縮（速くする）
-      var dur = 7 + Math.random() * 3;
+      var dur = 18 + Math.random() * 8;
 
       // 位相差（delay）は “座標→ゆるい波” で固定
       // - delayStep は小さめ（全体の同期感を抑え、常にグラデを維持）
