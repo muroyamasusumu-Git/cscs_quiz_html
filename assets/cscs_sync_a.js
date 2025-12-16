@@ -1550,7 +1550,7 @@
 
 #cscs_sync_monitor_a {
   position: fixed;
-  right: 3px;
+  right: 0px;
   top: 107px;
   /* background: rgba(0,0,0,0.55); */
   color: #eee;
