@@ -585,12 +585,14 @@ body.mode-a #cc-check-wrapper {
     top: 321px;
     right: 140px;
     opacity: 0.6 !important;
+    display: none;
 }
 
 body.mode-b #cc-check-wrapper {
     top: 315px;
     right: 140px;
     opacity: 0.6 !important;
+    display: none;
 }
 
 
