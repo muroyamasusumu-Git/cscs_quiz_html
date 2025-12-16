@@ -512,28 +512,40 @@
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
     animation-direction: alternate;
-    filter: brightness(1.02);
+    /* 演出中だけ：暗いフェーズを沈める（デフォルトは不変） */
+    filter: brightness(1.00);
 }
 
-/* ほんのり呼吸（弱） */
+/* 呼吸（暗→明→暗）
+   - 暗い瞬間は “かろうじて形が分かる” レベルまで落とす
+   - 明るい瞬間でも強くしすぎない */
 @keyframes nl-day-breath{
     0%{
-      opacity: 0.78;
+      /* ここを強烈に暗く：ほぼ見えないが輪郭だけ残る */
+      opacity: 0.28;
+      filter: brightness(0.62);
+      background: rgba(0,0,0,0.42);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.18),
-        inset 0 1px 0 rgba(255,255,255,0.06);
+        inset 0 0 0 1px rgba(255,255,255,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.02);
     }
     55%{
-      opacity: 0.94;
+      /* 中間：まだ暗い（波っぽい沈み） */
+      opacity: 0.58;
+      filter: brightness(0.78);
+      background: rgba(0,0,0,0.30);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    100%{
+      /* 明るい側：上げすぎない（“息を吸う”程度） */
+      opacity: 0.86;
+      filter: brightness(1.03);
+      background: rgba(255,255,255,0.05);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,0.22),
         inset 0 1px 0 rgba(255,255,255,0.08);
-    }
-    100%{
-      opacity: 0.82;
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.19),
-        inset 0 1px 0 rgba(255,255,255,0.06);
     }
 }
 
