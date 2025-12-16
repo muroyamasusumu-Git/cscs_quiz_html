@@ -186,14 +186,6 @@
       panel.style.boxShadow = "0 8px 24px rgba(0,0,0,0.35)";
       panel.style.minWidth = "150px";
 
-      // 行コンテナ
-      var row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.gap = "6px";
-      row.style.alignItems = "center";
-      row.style.justifyContent = "flex-end";
-      panel.appendChild(row);
-
       function makeMiniButton(text){
         var b = document.createElement("button");
         b.textContent = text;
@@ -207,7 +199,205 @@
         return b;
       }
 
-      // ===== LOCK / EDIT 切替 + 状態表示 =====
+      function makeMiniLabel(text){
+        var s = document.createElement("span");
+        s.textContent = text;
+        s.style.fontSize = "11px";
+        s.style.color = "rgba(255,255,255,0.80)";
+        return s;
+      }
+
+      function makeValueText(){
+        var s = document.createElement("span");
+        s.style.fontSize = "11px";
+        s.style.color = "rgba(255,255,255,0.70)";
+        s.style.minWidth = "44px";
+        s.style.textAlign = "right";
+        s.textContent = "0";
+        return s;
+      }
+
+      function makeRange(){
+        var r = document.createElement("input");
+        r.type = "range";
+        r.min = "0";
+        r.max = "0";
+        r.step = "1";
+        r.value = "0";
+        r.style.width = "140px";
+        r.style.height = "18px";
+        r.style.opacity = "0.95";
+        return r;
+      }
+
+      function getDefaultSelectedId(){
+        return TARGETS[0] ? TARGETS[0].id : "";
+      }
+
+      function getSelectedId(){
+        try{
+          var v = localStorage.getItem("cscs_layout_selected_target_id");
+          if(!v) return getDefaultSelectedId();
+          return v;
+        }catch(_){
+          return getDefaultSelectedId();
+        }
+      }
+
+      function setSelectedId(id){
+        try{ localStorage.setItem("cscs_layout_selected_target_id", id); }catch(_){}
+      }
+
+      function getTargetById(id){
+        for(var i=0;i<TARGETS.length;i++){
+          if(TARGETS[i].id === id) return TARGETS[i];
+        }
+        return null;
+      }
+
+      function getElById(id){
+        var t = getTargetById(id);
+        if(!t) return null;
+        return document.querySelector(t.sel);
+      }
+
+      function setRangeEnabled(enabled){
+        var sel = document.getElementById("cscs-layout-target-select");
+        var x = document.getElementById("cscs-layout-x-slider");
+        var y = document.getElementById("cscs-layout-y-slider");
+        if(sel) sel.disabled = !enabled;
+        if(x) x.disabled = !enabled;
+        if(y) y.disabled = !enabled;
+      }
+
+      function clampInt(n, min, max){
+        n = Math.round(n);
+        if(n < min) return min;
+        if(n > max) return max;
+        return n;
+      }
+
+      function updateRangesForEl(el){
+        var x = document.getElementById("cscs-layout-x-slider");
+        var y = document.getElementById("cscs-layout-y-slider");
+        if(!x || !y) return;
+
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        var rect = el.getBoundingClientRect();
+
+        var maxX = Math.max(0, Math.floor(vw - rect.width));
+        var maxY = Math.max(0, Math.floor(vh - rect.height));
+
+        x.min = "0";
+        x.max = String(maxX);
+        x.step = "1";
+
+        y.min = "0";
+        y.max = String(maxY);
+        y.step = "1";
+      }
+
+      function syncSlidersFromEl(el){
+        var x = document.getElementById("cscs-layout-x-slider");
+        var y = document.getElementById("cscs-layout-y-slider");
+        var xv = document.getElementById("cscs-layout-x-value");
+        var yv = document.getElementById("cscs-layout-y-value");
+        if(!x || !y || !xv || !yv) return;
+
+        var rect = el.getBoundingClientRect();
+
+        updateRangesForEl(el);
+
+        var maxX = parseInt(x.max, 10) || 0;
+        var maxY = parseInt(y.max, 10) || 0;
+
+        var left = clampInt(rect.left, 0, maxX);
+        var top  = clampInt(rect.top,  0, maxY);
+
+        x.value = String(left);
+        y.value = String(top);
+
+        xv.textContent = String(left);
+        yv.textContent = String(top);
+      }
+
+      function applyFromSliders(){
+        var id = getSelectedId();
+        var el = getElById(id);
+        if(!el) return;
+
+        var x = document.getElementById("cscs-layout-x-slider");
+        var y = document.getElementById("cscs-layout-y-slider");
+        var xv = document.getElementById("cscs-layout-x-value");
+        var yv = document.getElementById("cscs-layout-y-value");
+        if(!x || !y || !xv || !yv) return;
+
+        updateRangesForEl(el);
+
+        var maxX = parseInt(x.max, 10) || 0;
+        var maxY = parseInt(y.max, 10) || 0;
+
+        var left = clampInt(parseInt(x.value, 10) || 0, 0, maxX);
+        var top  = clampInt(parseInt(y.value, 10) || 0, 0, maxY);
+
+        el.style.position = "fixed";
+        el.style.left = left + "px";
+        el.style.top = top + "px";
+
+        xv.textContent = String(left);
+        yv.textContent = String(top);
+
+        savePos(id, {
+          left: left,
+          top: top,
+          z: el.style.zIndex ? parseInt(el.style.zIndex, 10) : null
+        });
+      }
+
+      function refreshLayoutPanelUI(){
+        var editBtn = document.getElementById("cscs-layout-menu-edit");
+        var stateLabel = document.getElementById("cscs-layout-menu-state");
+        if(editBtn){
+          editBtn.textContent = getEditMode() ? "LOCK" : "EDIT";
+        }
+        if(stateLabel){
+          stateLabel.textContent = getEditMode()
+            ? "：EDITモード中"
+            : "：LOCKモード中";
+        }
+
+        var sel = document.getElementById("cscs-layout-target-select");
+        if(sel){
+          sel.value = getSelectedId();
+        }
+
+        var el = getElById(getSelectedId());
+        if(el && getEditMode()){
+          setRangeEnabled(true);
+          syncSlidersFromEl(el);
+        }else{
+          setRangeEnabled(false);
+        }
+      }
+
+      panel.__refreshLayoutPanelUI = refreshLayoutPanelUI;
+
+      // ===== レイアウト小窓 UI（縦積み） =====
+      var col = document.createElement("div");
+      col.style.display = "flex";
+      col.style.flexDirection = "column";
+      col.style.gap = "8px";
+      panel.appendChild(col);
+
+      // (1) EDIT/LOCK + RESET 行
+      var rowTop = document.createElement("div");
+      rowTop.style.display = "flex";
+      rowTop.style.gap = "6px";
+      rowTop.style.alignItems = "center";
+      rowTop.style.justifyContent = "flex-end";
+      col.appendChild(rowTop);
+
       var editWrap = document.createElement("div");
       editWrap.style.display = "flex";
       editWrap.style.alignItems = "center";
@@ -237,12 +427,12 @@
           : "：LOCKモード中";
 
         updateHandlesVisibility();
+        refreshLayoutPanelUI();
       });
 
       editWrap.appendChild(editBtn);
       editWrap.appendChild(stateLabel);
 
-      // RESET ボタン
       var resetBtn = makeMiniButton("RESET");
       resetBtn.id = "cscs-layout-menu-reset";
 
@@ -252,12 +442,120 @@
 
         resetAllPositionsToDefault();
         updateHandlesVisibility();
+        refreshLayoutPanelUI();
 
         panel.style.display = "none";
       });
 
-      row.appendChild(editWrap);
-      row.appendChild(resetBtn);
+      rowTop.appendChild(editWrap);
+      rowTop.appendChild(resetBtn);
+
+      // (2) 対象選択
+      var rowSel = document.createElement("div");
+      rowSel.style.display = "flex";
+      rowSel.style.alignItems = "center";
+      rowSel.style.justifyContent = "space-between";
+      rowSel.style.gap = "8px";
+      col.appendChild(rowSel);
+
+      var selLabel = makeMiniLabel("対象");
+      rowSel.appendChild(selLabel);
+
+      var sel = document.createElement("select");
+      sel.id = "cscs-layout-target-select";
+      sel.style.fontSize = "11px";
+      sel.style.padding = "6px 8px";
+      sel.style.borderRadius = "10px";
+      sel.style.border = "1px solid rgba(255,255,255,0.18)";
+      sel.style.background = "rgba(255,255,255,0.06)";
+      sel.style.color = "#fff";
+      sel.style.minWidth = "190px";
+      sel.style.webkitTapHighlightColor = "transparent";
+
+      for(var i=0;i<TARGETS.length;i++){
+        var opt = document.createElement("option");
+        opt.value = TARGETS[i].id;
+        opt.textContent = TARGETS[i].id;
+        sel.appendChild(opt);
+      }
+
+      sel.value = getSelectedId();
+
+      sel.addEventListener("change", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        setSelectedId(sel.value);
+
+        var el = getElById(getSelectedId());
+        if(el && getEditMode()){
+          syncSlidersFromEl(el);
+        }
+      });
+
+      rowSel.appendChild(sel);
+
+      // (3) Xスライダー
+      var rowX = document.createElement("div");
+      rowX.style.display = "flex";
+      rowX.style.alignItems = "center";
+      rowX.style.gap = "8px";
+      rowX.style.justifyContent = "space-between";
+      col.appendChild(rowX);
+
+      var xLeft = document.createElement("div");
+      xLeft.style.display = "flex";
+      xLeft.style.alignItems = "center";
+      xLeft.style.gap = "8px";
+      rowX.appendChild(xLeft);
+
+      xLeft.appendChild(makeMiniLabel("X"));
+
+      var xSlider = makeRange();
+      xSlider.id = "cscs-layout-x-slider";
+      xLeft.appendChild(xSlider);
+
+      var xValue = makeValueText();
+      xValue.id = "cscs-layout-x-value";
+      rowX.appendChild(xValue);
+
+      xSlider.addEventListener("input", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        applyFromSliders();
+      });
+
+      // (4) Yスライダー
+      var rowY = document.createElement("div");
+      rowY.style.display = "flex";
+      rowY.style.alignItems = "center";
+      rowY.style.gap = "8px";
+      rowY.style.justifyContent = "space-between";
+      col.appendChild(rowY);
+
+      var yLeft = document.createElement("div");
+      yLeft.style.display = "flex";
+      yLeft.style.alignItems = "center";
+      yLeft.style.gap = "8px";
+      rowY.appendChild(yLeft);
+
+      yLeft.appendChild(makeMiniLabel("Y"));
+
+      var ySlider = makeRange();
+      ySlider.id = "cscs-layout-y-slider";
+      yLeft.appendChild(ySlider);
+
+      var yValue = makeValueText();
+      yValue.id = "cscs-layout-y-value";
+      rowY.appendChild(yValue);
+
+      ySlider.addEventListener("input", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        applyFromSliders();
+      });
+
+      setRangeEnabled(false);
 
       document.body.appendChild(panel);
     }
@@ -267,12 +565,13 @@
       e.preventDefault();
       e.stopPropagation();
 
-      var editBtn = document.getElementById("cscs-layout-menu-edit");
-      if(editBtn){
-        editBtn.textContent = getEditMode() ? "EDIT" : "LOCK";
-      }
-
       panel.style.display = (panel.style.display === "none") ? "block" : "none";
+
+      if(panel.style.display === "block"){
+        if(panel.__refreshLayoutPanelUI){
+          panel.__refreshLayoutPanelUI();
+        }
+      }
     });
 
     // ===== 小窓以外を押したら閉じる =====
