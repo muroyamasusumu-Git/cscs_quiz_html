@@ -1591,19 +1591,26 @@
 #cscs_sync_monitor_a .status-grid{
   display: grid;
   grid-template-columns: auto 1fr;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   font-size: 11px;
+  line-height: 1.25;
 }
 
 #cscs_sync_monitor_a .status-label{
-  font-weight: 700;
-  opacity: 0.85;
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.80;
   white-space: nowrap;
 }
 
 #cscs_sync_monitor_a .status-value{
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 #cscs_sync_monitor_a .totals-row{
