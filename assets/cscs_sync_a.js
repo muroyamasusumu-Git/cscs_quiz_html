@@ -1716,7 +1716,7 @@
   position: fixed;
   right: 0px;
   top: 100px;
-  /* background: rgba(0,0,0,0.55); */
+  background: rgba(0,0,0,0.28);
   color: #eee;
   /* border: 1px solid rgba(255,255,255,0.10); */
   /* border-radius: 12px; */
