@@ -1699,10 +1699,7 @@
   transform: translateY(1px);
 }
 
-/* ★ OPEN/CLOSE で「オプション項目（指定4つ）」だけを隠す
-   - パネル自体（ヘッダ/他カード）は常時表示
-   - .sync-optional を付けたカードだけ非表示にする */
-#cscs_sync_monitor_a.cscs-compact .sync-optional{
+#cscs_sync_monitor_a.cscs-collapsed .sync-grid{
   display: none !important;
 }
 
@@ -2066,35 +2063,29 @@
 
       // === ④ 折りたたみ状態の復元＆永続化（モニタ全体 / Days / Queue） ===
       try{
-        /* ★ OPEN/CLOSE は「パネル全体」ではなく「指定4項目（sync-optional）だけ」を出し入れする
-           - cscs-compact: オプション項目を隠す（デフォルト）
-           - compact 解除: オプション項目を表示（＝OPEN状態）
-           - 状態は LS_MON_OPEN に保存し、リロード後も維持 */
-        const monitorOpen = readLsBool(LS_MON_OPEN, false);  // デフォルトはCLOSE（オプション非表示）
+        const monitorOpen = readLsBool(LS_MON_OPEN, false);  // デフォルト閉じ
         if (monitorOpen) {
-          box.classList.remove("cscs-compact");
+          box.classList.remove("cscs-collapsed");
         } else {
-          box.classList.add("cscs-compact");
+          box.classList.add("cscs-collapsed");
         }
 
         const toggleBtn = box.querySelector('button[data-sync-toggle="1"]');
         function refreshToggleBtnLabel(){
           if (!toggleBtn) return;
-          const isOpen = !box.classList.contains("cscs-compact"); // compact解除＝OPEN
+          const isOpen = !box.classList.contains("cscs-collapsed");
           toggleBtn.textContent = isOpen ? "CLOSE" : "OPEN";
         }
         refreshToggleBtnLabel();
 
         if (toggleBtn) {
           toggleBtn.addEventListener("click", function(){
-            // ★ クリックで「オプション項目」だけをトグル（他の項目は常時表示）
-            const nextOpen = box.classList.contains("cscs-compact"); // 今CLOSE(=compact)ならOPENへ
+            const nextOpen = box.classList.contains("cscs-collapsed"); // 今閉じなら開く
             if (nextOpen) {
-              box.classList.remove("cscs-compact");
+              box.classList.remove("cscs-collapsed");
             } else {
-              box.classList.add("cscs-compact");
+              box.classList.add("cscs-collapsed");
             }
-            // ★ 永続化：OPEN状態（true/false）を保存
             writeLsBool(LS_MON_OPEN, nextOpen);
             refreshToggleBtnLabel();
           });
@@ -2104,22 +2095,6 @@
         const queueDetails   = box.querySelector('details.sync-fold[data-fold="queue"]');
         const lastDayDetails = box.querySelector('details.sync-fold[data-fold="lastday"]');
         const onceDetails    = box.querySelector('details.sync-fold[data-fold="once"]');
-
-        /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
-           - HTML文字列を直接いじらず、生成後DOMから「days/queue/once」のdetailsを特定
-           - それぞれの親 .sync-card に sync-optional を付ける（CLOSE時に消える対象） */
-        function markOptional(detailsEl){
-          try{
-            if (!detailsEl) return;
-            const card = detailsEl.closest(".sync-card");
-            if (card) {
-              card.classList.add("sync-optional");
-            }
-          }catch(_){}
-        }
-        markOptional(daysDetails);
-        markOptional(queueDetails);
-        markOptional(onceDetails);
 
         const daysOpen    = readLsBool(LS_DAYS_OPEN, false);   // デフォルト閉じ
         const queueOpen   = readLsBool(LS_QDEL_OPEN, false);   // デフォルト閉じ
