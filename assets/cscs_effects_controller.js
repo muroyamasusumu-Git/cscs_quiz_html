@@ -36,7 +36,8 @@
     { id: "cscs_fade_overlay",       label: "Fade" },
     { id: "cscs_slide_in",           label: "SlideIn" },
     { id: "cscs_text_shadow",        label: "TextShadow" },
-    { id: "point_summary_board_dummy", label: "PointBoard" }
+    { id: "point_summary_board_dummy", label: "PointBoard" },
+    { id: "b_wrong_strike_mark", label: "WrongStrike" }
   ];
 
   function safeGetLS(key) {
