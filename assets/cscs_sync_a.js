@@ -1672,15 +1672,23 @@
           <div class="sync-card sync-span-2">
             <div class="sync-title">LastDay (SYNC / local)</div>
             <div class="sync-body sync-lastday">
-              lastSeen :<br>
-              - sync <span class="sync-last-seen-sync">（データなし）</span><br>
-              - local <span class="sync-last-seen-local">（データなし）</span><br>
-              lastCorrect:<br>
-              - sync <span class="sync-last-correct-sync">（データなし）</span><br>
-              - local <span class="sync-last-correct-local">（データなし）</span><br>
-              lastWrong :<br>
-              - sync <span class="sync-last-wrong-sync">（データなし）</span><br>
-              - local <span class="sync-last-wrong-local">（データなし）</span>
+              <div class="lastday-grid">
+                <div class="ld-head"></div>
+                <div class="ld-head">SYNC</div>
+                <div class="ld-head">local</div>
+
+                <div class="ld-label">lastSeen</div>
+                <div><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div><span class="sync-last-seen-local">（データなし）</span></div>
+
+                <div class="ld-label">lastCorrect</div>
+                <div><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div><span class="sync-last-correct-local">（データなし）</span></div>
+
+                <div class="ld-label">lastWrong</div>
+                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div><span class="sync-last-wrong-local">（データなし）</span></div>
+              </div>
             </div>
           </div>
 
