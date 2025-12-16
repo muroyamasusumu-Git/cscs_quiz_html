@@ -537,11 +537,11 @@
 @keyframes nl-day-gradient-shift{
     0%{
       background-position: 0% 0%;
-      filter: brightness(0.78) contrast(1.35);
+      filter: brightness(0.62) contrast(1.60);
     }
     25%{
       background-position: 100% 0%;
-      filter: brightness(0.92) contrast(1.50);
+      filter: brightness(0.88) contrast(1.55);
     }
     50%{
       background-position: 100% 100%;
@@ -549,11 +549,11 @@
     }
     75%{
       background-position: 0% 100%;
-      filter: brightness(0.90) contrast(1.55);
+      filter: brightness(0.86) contrast(1.55);
     }
     100%{
       background-position: 0% 0%;
-      filter: brightness(0.78) contrast(1.35);
+      filter: brightness(0.62) contrast(1.60);
     }
 }
 
