@@ -538,22 +538,37 @@
     0%{
       background-position: 0% 0%;
       filter: brightness(0.62) contrast(1.60);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.03);
     }
     25%{
       background-position: 100% 0%;
       filter: brightness(0.88) contrast(1.55);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.14),
+        inset 0 1px 0 rgba(255,255,255,0.05);
     }
     50%{
       background-position: 100% 100%;
       filter: brightness(1.12) contrast(1.70);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.20),
+        inset 0 1px 0 rgba(255,255,255,0.07);
     }
     75%{
       background-position: 0% 100%;
       filter: brightness(0.86) contrast(1.55);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.13),
+        inset 0 1px 0 rgba(255,255,255,0.05);
     }
     100%{
       background-position: 0% 0%;
       filter: brightness(0.62) contrast(1.60);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.03);
     }
 }
 
