@@ -304,7 +304,7 @@
   display: block;
   position: fixed;
   inset: 10px 20px 10px 0;
-  margin-left: 69%;
+  margin-left: 72.5%;
 }
 
 /* ---- progress header ---- */
