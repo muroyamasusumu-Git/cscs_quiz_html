@@ -1,11 +1,10 @@
 (function(){
   "use strict";
 
-  // ===== 対象（今回ユーザーが指定した5つだけ） =====
+  // ===== 対象（レイアウト編集対象） =====
+  // 方針：similar-list と cscs-field-star-summary は編集対象から除外
   var TARGETS = [
     { sel: "#cscs_sync_monitor_a", id: "cscs_sync_monitor_a" },
-    { sel: "#similar-list", id: "similar-list" },
-    { sel: "#cscs-field-star-summary", id: "cscs-field-star-summary" },
     { sel: "#nl-daily-summary-host", id: "nl-daily-summary-host" },
     { sel: "#nl-panel", id: "nl-panel" }
   ];
@@ -139,65 +138,135 @@
 
   function ensureToggleButton(){
     // 目的：
-    //   - トグルボタンを「80px左」へ（右端から 8px → 88px）
-    //   - RESETボタンを追加して、保存位置も表示位置も“デフォルト”へ戻す
-    var id = "cscs-layout-edit-toggle";
+    //   - 最初は「LAYOUT」ボタンのみ表示
+    //   - 押すと小さいウィンドウ（EDIT/LOCK/RESET）を出す
+    //   - LAYOUTボタンは右下から80px左へ（right: 88px）
+    var id = "cscs-layout-menu-toggle";
     var btn = document.getElementById(id);
     if(btn) return btn;
 
+    // ===== LAYOUT ボタン（常時表示） =====
     btn = document.createElement("button");
     btn.id = id;
-    btn.textContent = getEditMode() ? "LAYOUT：EDIT" : "LAYOUT：LOCK";
+    btn.textContent = "LAYOUT";
 
     btn.style.position = "fixed";
     btn.style.right = "88px";
     btn.style.bottom = "8px";
     btn.style.zIndex = "999999";
     btn.style.fontSize = "11px";
-    btn.style.padding = "6px 8px";
+    btn.style.padding = "6px 10px";
     btn.style.borderRadius = "999px";
     btn.style.border = "1px solid rgba(255,255,255,0.2)";
     btn.style.background = "rgba(0,0,0,0.55)";
     btn.style.color = "#fff";
     btn.style.webkitTapHighlightColor = "transparent";
 
-    btn.addEventListener("click", function(){
-      var on = !getEditMode();
-      setEditMode(on);
-      btn.textContent = on ? "LAYOUT：EDIT" : "LAYOUT：LOCK";
-      updateHandlesVisibility();
-    });
-
     document.body.appendChild(btn);
 
-    // ===== 追加：RESETボタン（デフォルト位置へ戻す） =====
-    var rid = "cscs-layout-edit-reset";
-    var rbtn = document.getElementById(rid);
-    if(!rbtn){
-      rbtn = document.createElement("button");
-      rbtn.id = rid;
-      rbtn.textContent = "LAYOUT：RESET";
+    // ===== 小窓（EDIT/LOCK/RESET） =====
+    var pid = "cscs-layout-menu-panel";
+    var panel = document.getElementById(pid);
+    if(!panel){
+      panel = document.createElement("div");
+      panel.id = pid;
 
-      rbtn.style.position = "fixed";
-      rbtn.style.right = "88px";
-      rbtn.style.bottom = "44px";
-      rbtn.style.zIndex = "999999";
-      rbtn.style.fontSize = "11px";
-      rbtn.style.padding = "6px 8px";
-      rbtn.style.borderRadius = "999px";
-      rbtn.style.border = "1px solid rgba(255,255,255,0.2)";
-      rbtn.style.background = "rgba(0,0,0,0.35)";
-      rbtn.style.color = "#fff";
-      rbtn.style.webkitTapHighlightColor = "transparent";
+      panel.style.position = "fixed";
+      panel.style.right = "88px";
+      panel.style.bottom = "44px";
+      panel.style.zIndex = "999999";
+      panel.style.display = "none";
+      panel.style.padding = "8px";
+      panel.style.borderRadius = "12px";
+      panel.style.border = "1px solid rgba(255,255,255,0.18)";
+      panel.style.background = "rgba(0,0,0,0.65)";
+      panel.style.backdropFilter = "blur(6px)";
+      panel.style.webkitBackdropFilter = "blur(6px)";
+      panel.style.boxShadow = "0 8px 24px rgba(0,0,0,0.35)";
+      panel.style.minWidth = "150px";
 
-      rbtn.addEventListener("click", function(){
-        // 目的：保存済み位置(localStorage)を消して、表示中のstyleもデフォルトへ戻す
-        resetAllPositionsToDefault();
+      // 行コンテナ
+      var row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.gap = "6px";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "flex-end";
+      panel.appendChild(row);
+
+      function makeMiniButton(text){
+        var b = document.createElement("button");
+        b.textContent = text;
+        b.style.fontSize = "11px";
+        b.style.padding = "6px 8px";
+        b.style.borderRadius = "999px";
+        b.style.border = "1px solid rgba(255,255,255,0.20)";
+        b.style.background = "rgba(255,255,255,0.06)";
+        b.style.color = "#fff";
+        b.style.webkitTapHighlightColor = "transparent";
+        return b;
+      }
+
+      // EDIT/LOCK ボタン
+      var editBtn = makeMiniButton(getEditMode() ? "EDIT" : "LOCK");
+      editBtn.id = "cscs-layout-menu-edit";
+
+      editBtn.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        var on = !getEditMode();
+        setEditMode(on);
+        editBtn.textContent = on ? "EDIT" : "LOCK";
         updateHandlesVisibility();
       });
 
-      document.body.appendChild(rbtn);
+      // RESET ボタン
+      var resetBtn = makeMiniButton("RESET");
+      resetBtn.id = "cscs-layout-menu-reset";
+
+      resetBtn.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        resetAllPositionsToDefault();
+        updateHandlesVisibility();
+
+        panel.style.display = "none";
+      });
+
+      row.appendChild(editBtn);
+      row.appendChild(resetBtn);
+
+      document.body.appendChild(panel);
     }
+
+    // ===== LAYOUTボタン押下で小窓の表示/非表示 =====
+    btn.addEventListener("click", function(e){
+      e.preventDefault();
+      e.stopPropagation();
+
+      var editBtn = document.getElementById("cscs-layout-menu-edit");
+      if(editBtn){
+        editBtn.textContent = getEditMode() ? "EDIT" : "LOCK";
+      }
+
+      panel.style.display = (panel.style.display === "none") ? "block" : "none";
+    });
+
+    // ===== 小窓以外を押したら閉じる =====
+    window.addEventListener("pointerdown", function(e){
+      var panelNow = document.getElementById("cscs-layout-menu-panel");
+      var btnNow = document.getElementById("cscs-layout-menu-toggle");
+      if(!panelNow || !btnNow) return;
+
+      if(panelNow.style.display === "none") return;
+
+      var t = e.target;
+      if(panelNow.contains(t)) return;
+      if(btnNow.contains(t)) return;
+
+      panelNow.style.display = "none";
+    }, { passive: true });
 
     return btn;
   }
