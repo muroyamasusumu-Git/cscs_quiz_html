@@ -1716,7 +1716,7 @@
   position: fixed;
   right: 0px;
   top: 100px;
-  background: rgba(0,0,0,0.28);
+  /* background: rgba(0,0,0,0.55); */
   color: #eee;
   /* border: 1px solid rgba(255,255,255,0.10); */
   /* border-radius: 12px; */
@@ -1761,8 +1761,18 @@
 #cscs_sync_monitor_a .sync-card{
   border-radius: 10px;
   padding: 8px 10px;
-  background: rgba(0,0,0,0.72);
-  border: 1px solid rgba(255,255,255,0.12);
+
+  /* ガラス感：少し透けた黒 */
+  background: rgba(0,0,0,0.52);
+
+  /* ガラス感：背面ぼかし（対応ブラウザのみ効く） */
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+
+  /* エッジの光：薄い白枠 + ほんの少し内側のハイライト */
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+
   line-height: 1;
 }
 #cscs_sync_monitor_a .sync-card .sync-title{
