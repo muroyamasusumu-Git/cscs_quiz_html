@@ -169,6 +169,34 @@
     return s;
   }
 
+  // === ③ モニタUIの折りたたみ（永続化） ===
+  // 方針:
+  //   - デフォルトは閉じ（collapsed）
+  //   - ユーザーが開いた状態/閉じた状態を localStorage に保存し、リロード/遷移後も維持
+  const LS_MON_OPEN  = "cscs_sync_a_monitor_open";
+  const LS_DAYS_OPEN = "cscs_sync_a_days_open";
+  const LS_QDEL_OPEN = "cscs_sync_a_queue_detail_open";
+
+  function readLsBool(key, defaultBool){
+    try{
+      const v = localStorage.getItem(key);
+      if (v === null || v === undefined) return !!defaultBool;
+      if (v === "1") return true;
+      if (v === "0") return false;
+      if (v === "true") return true;
+      if (v === "false") return false;
+      return !!defaultBool;
+    }catch(_){
+      return !!defaultBool;
+    }
+  }
+
+  function writeLsBool(key, boolVal){
+    try{
+      localStorage.setItem(key, boolVal ? "1" : "0");
+    }catch(_){}
+  }
+
   function readLocalTotalsForQid(qid){
     try{
       const kC = "cscs_q_correct_total:" + qid;
@@ -1647,7 +1675,32 @@
   font-weight: 700;
   margin: 0 3px 6px 0;
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
+
+#cscs_sync_monitor_a .sync-toggle-btn{
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.45);
+  color: #eee;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.9;
+}
+#cscs_sync_monitor_a .sync-toggle-btn:active{
+  transform: translateY(1px);
+}
+
+#cscs_sync_monitor_a.cscs-collapsed .sync-grid{
+  display: none !important;
+}
+
 #cscs_sync_monitor_a .sync-grid{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1671,7 +1724,30 @@
   z-index: 2147483647;
 }
 
-
+#cscs_sync_monitor_a details.sync-fold{
+  margin: 0;
+}
+#cscs_sync_monitor_a details.sync-fold > summary{
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+#cscs_sync_monitor_a details.sync-fold > summary::-webkit-details-marker{
+  display: none;
+}
+#cscs_sync_monitor_a details.sync-fold > summary::before{
+  content: "▶";
+  display: inline-block;
+  width: 14px;
+  opacity: 0.85;
+}
+#cscs_sync_monitor_a details.sync-fold[open] > summary::before{
+  content: "▼";
+}
 
 @media (max-width: 520px){
   #cscs_sync_monitor_a .sync-grid{
@@ -1809,7 +1885,10 @@
       const box = document.createElement("div");
       box.id = "cscs_sync_monitor_a";
       box.innerHTML = `
-        <div class="sync-header">SYNC(A): <span class="sync-qid"></span></div>
+        <div class="sync-header">
+          <span>SYNC(A): <span class="sync-qid"></span></span>
+          <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
+        </div>
 
         <div class="sync-grid">
           <div class="sync-card sync-span-2">
@@ -1872,61 +1951,65 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">Days（SYNC / local / 今日？）</div>
-            <div class="sync-body">
-              <div class="days-grid">
-                <div class="days-head"></div>
-                <div class="days-head">SYNC</div>
-                <div class="days-head">local</div>
-                <div class="days-head">今日？</div>
+            <details class="sync-fold" data-fold="days">
+              <summary>Days（SYNC / local / 今日？）</summary>
+              <div class="sync-body">
+                <div class="days-grid">
+                  <div class="days-head"></div>
+                  <div class="days-head">SYNC</div>
+                  <div class="days-head">local</div>
+                  <div class="days-head">今日？</div>
 
-                <div class="days-label">streak3_today_day</div>
-                <div class="days-val"><span class="sync-streak3today-day-sync">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3today-day-local">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3today-day-istoday">unknown</span></div>
+                  <div class="days-label">streak3_today_day</div>
+                  <div class="days-val"><span class="sync-streak3today-day-sync">（データなし）</span></div>
+                  <div class="days-val"><span class="sync-streak3today-day-local">（データなし）</span></div>
+                  <div class="days-val"><span class="sync-streak3today-day-istoday">unknown</span></div>
 
-                <div class="days-label">streak3_wrong_today_day</div>
-                <div class="days-val"><span class="sync-streak3wrongtoday-day-sync">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3wrongtoday-day-local">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3wrongtoday-day-istoday">unknown</span></div>
+                  <div class="days-label">streak3_wrong_today_day</div>
+                  <div class="days-val"><span class="sync-streak3wrongtoday-day-sync">（データなし）</span></div>
+                  <div class="days-val"><span class="sync-streak3wrongtoday-day-local">（データなし）</span></div>
+                  <div class="days-val"><span class="sync-streak3wrongtoday-day-istoday">unknown</span></div>
 
-                <div class="days-label">oncePerDayToday.day</div>
-                <div class="days-val"><span class="sync-onceperday-day-sync">（データなし）</span></div>
-                <div class="days-val"><span class="sync-onceperday-day-local">（データなし）</span></div>
-                <div class="days-val"><span class="sync-onceperday-day-istoday">unknown</span></div>
+                  <div class="days-label">oncePerDayToday.day</div>
+                  <div class="days-val"><span class="sync-onceperday-day-sync">（データなし）</span></div>
+                  <div class="days-val"><span class="sync-onceperday-day-local">（データなし）</span></div>
+                  <div class="days-val"><span class="sync-onceperday-day-istoday">unknown</span></div>
+                </div>
               </div>
-            </div>
+            </details>
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">Queue Δ detail（送信待ち）</div>
-            <div class="sync-body">
-              <div class="delta-grid">
-                <div class="delta-label">Totals(c/w)</div>
-                <div class="delta-val"><span class="sync-queue-cw">0 / 0</span></div>
+            <details class="sync-fold" data-fold="queue">
+              <summary>Queue Δ detail（送信待ち）</summary>
+              <div class="sync-body">
+                <div class="delta-grid">
+                  <div class="delta-label">Totals(c/w)</div>
+                  <div class="delta-val"><span class="sync-queue-cw">0 / 0</span></div>
 
-                <div class="delta-label">streak3Delta</div>
-                <div class="delta-val"><span class="sync-queue-s3">0</span></div>
+                  <div class="delta-label">streak3Delta</div>
+                  <div class="delta-val"><span class="sync-queue-s3">0</span></div>
 
-                <div class="delta-label">streakLenDelta</div>
-                <div class="delta-val"><span class="sync-queue-sl">（なし）</span></div>
+                  <div class="delta-label">streakLenDelta</div>
+                  <div class="delta-val"><span class="sync-queue-sl">（なし）</span></div>
 
-                <div class="delta-label">streak3WrongDelta</div>
-                <div class="delta-val"><span class="sync-queue-s3w">0</span></div>
+                  <div class="delta-label">streak3WrongDelta</div>
+                  <div class="delta-val"><span class="sync-queue-s3w">0</span></div>
 
-                <div class="delta-label">streakWrongLenDelta</div>
-                <div class="delta-val"><span class="sync-queue-slw">（なし）</span></div>
+                  <div class="delta-label">streakWrongLenDelta</div>
+                  <div class="delta-val"><span class="sync-queue-slw">（なし）</span></div>
 
-                <div class="delta-label">lastSeenDayDelta</div>
-                <div class="delta-val"><span class="sync-queue-lastseen">（なし）</span></div>
+                  <div class="delta-label">lastSeenDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastseen">（なし）</span></div>
 
-                <div class="delta-label">lastCorrectDayDelta</div>
-                <div class="delta-val"><span class="sync-queue-lastcorrect">（なし）</span></div>
+                  <div class="delta-label">lastCorrectDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastcorrect">（なし）</span></div>
 
-                <div class="delta-label">lastWrongDayDelta</div>
-                <div class="delta-val"><span class="sync-queue-lastwrong">（なし）</span></div>
+                  <div class="delta-label">lastWrongDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastwrong">（なし）</span></div>
+                </div>
               </div>
-            </div>
+            </details>
           </div>
 
           <div class="sync-card sync-span-2">
@@ -1970,6 +2053,57 @@
       } else {
         document.body.appendChild(box);
       }
+
+      // === ④ 折りたたみ状態の復元＆永続化（モニタ全体 / Days / Queue） ===
+      try{
+        const monitorOpen = readLsBool(LS_MON_OPEN, false);  // デフォルト閉じ
+        if (monitorOpen) {
+          box.classList.remove("cscs-collapsed");
+        } else {
+          box.classList.add("cscs-collapsed");
+        }
+
+        const toggleBtn = box.querySelector('button[data-sync-toggle="1"]');
+        function refreshToggleBtnLabel(){
+          if (!toggleBtn) return;
+          const isOpen = !box.classList.contains("cscs-collapsed");
+          toggleBtn.textContent = isOpen ? "CLOSE" : "OPEN";
+        }
+        refreshToggleBtnLabel();
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", function(){
+            const nextOpen = box.classList.contains("cscs-collapsed"); // 今閉じなら開く
+            if (nextOpen) {
+              box.classList.remove("cscs-collapsed");
+            } else {
+              box.classList.add("cscs-collapsed");
+            }
+            writeLsBool(LS_MON_OPEN, nextOpen);
+            refreshToggleBtnLabel();
+          });
+        }
+
+        const daysDetails  = box.querySelector('details.sync-fold[data-fold="days"]');
+        const queueDetails = box.querySelector('details.sync-fold[data-fold="queue"]');
+
+        const daysOpen  = readLsBool(LS_DAYS_OPEN, false);  // デフォルト閉じ
+        const queueOpen = readLsBool(LS_QDEL_OPEN, false);  // デフォルト閉じ
+
+        if (daysDetails)  daysDetails.open  = !!daysOpen;
+        if (queueDetails) queueDetails.open = !!queueOpen;
+
+        if (daysDetails) {
+          daysDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_DAYS_OPEN, !!daysDetails.open);
+          });
+        }
+        if (queueDetails) {
+          queueDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
+          });
+        }
+      }catch(_){}
 
       const btnOk   = document.getElementById("cscs_sync_test_ok");
       const btnNg   = document.getElementById("cscs_sync_test_ng");
