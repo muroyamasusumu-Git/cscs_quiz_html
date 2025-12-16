@@ -484,7 +484,9 @@
       inset 0 1px 0 rgba(255,255,255,0.06);
     border-bottom-left-radius: 20px;
     height: 12px;
-    transition: background 180ms ease, box-shadow 180ms ease;
+    transition: background 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+    position: relative;
+    overflow: hidden;
 }
 
 #nl-progress-header .nl-ph-cell-day.is-on{
@@ -496,6 +498,47 @@
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,0.28),
       inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+/* =========================================================
+   日別マス演出（機能と完全分離）
+   - is-today はJS側で除外（見た目を壊さない）
+   ========================================================= */
+
+/* 流れる光（列スキャン） */
+#nl-progress-header .nl-ph-cell-day.is-fx-flow{
+    filter: brightness(1.25);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.42),
+      inset 0 1px 0 rgba(255,255,255,0.18),
+      0 0 8px rgba(255,255,255,0.10);
+}
+
+/* スパーク（単発発光） */
+#nl-progress-header .nl-ph-cell-day.is-fx-spark{
+    animation: nl-day-spark 900ms ease-out 1;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.80),
+      0 0 12px rgba(255,255,255,0.28);
+}
+
+/* スパークの中身：短く強く → すっと消える */
+@keyframes nl-day-spark{
+    0%{
+      filter: brightness(1.0);
+      transform: translateZ(0) scale(1.00);
+      opacity: 0.85;
+    }
+    35%{
+      filter: brightness(1.7);
+      transform: translateZ(0) scale(1.02);
+      opacity: 1;
+    }
+    100%{
+      filter: brightness(1.0);
+      transform: translateZ(0) scale(1.00);
+      opacity: 0.88;
+    }
 }
 
 
@@ -553,6 +596,13 @@
 
     var grid = document.createElement("div");
     grid.className = "nl-ph-grid nl-ph-grid-" + k;
+
+    // 追加した処理:
+    // - 演出側が「day/q」と列数を参照できるように data 属性で渡す
+    try{
+      grid.setAttribute("data-kind", String(k));
+      grid.setAttribute("data-cols", String(cols));
+    }catch(_eAttr){}
 
     try{
       grid.style.gridTemplateColumns = "repeat(" + String(cols) + ", 1fr)";
@@ -1086,7 +1136,9 @@
     //
     // ※ todayIndex は “日別だけ” ハイライト表示に使う（当日位置の強調）。
     // =========================================================
-    progressHost.appendChild(buildProgressGrid(dayTotal, dayFilled, 15, todayIndex, "day"));
+    var dayGrid = buildProgressGrid(dayTotal, dayFilled, 15, todayIndex, "day");
+    progressHost.appendChild(dayGrid);
+    startDayGridFx(dayGrid, todayIndex);
 
     // =========================================================
     // 問題別マス（kind="q"）
@@ -1143,6 +1195,107 @@
     }catch(_){
       qSolvedIndexMapForUi = {};
     }
+    
+  function startDayGridFx(dayGrid, todayIndex){
+    // =========================================================
+    // 日別マスの演出（機能と完全分離）
+    // - 現在地（is-today）は演出対象から除外
+    // - 1) 流れる光（列スキャン）
+    // - 2) ランダムスパーク（単発の発光）
+    // =========================================================
+    try{
+      if (!dayGrid) return;
+
+      var kind = String(dayGrid.getAttribute("data-kind") || "");
+      if (kind !== "day") return;
+
+      var cols = Number(dayGrid.getAttribute("data-cols") || 0);
+      if (!Number.isFinite(cols) || cols <= 0) cols = 15;
+
+      var cells = dayGrid.querySelectorAll(".nl-ph-cell-day");
+      if (!cells || cells.length <= 0) return;
+
+      // --- 流れる光（列スキャン） ---
+      var flowCol = 0;
+      if (dayGrid.__nlDayFlowTimer) {
+        clearInterval(dayGrid.__nlDayFlowTimer);
+        dayGrid.__nlDayFlowTimer = null;
+      }
+      dayGrid.__nlDayFlowTimer = setInterval(function(){
+        try{
+          flowCol = (flowCol + 1) % cols;
+
+          var i;
+          for (i = 0; i < cells.length; i++){
+            var c = cells[i];
+            if (!c) continue;
+
+            // 現在地は常に演出除外（is-today の見た目は壊さない）
+            if (c.classList.contains("is-today")) {
+              c.classList.remove("is-fx-flow");
+              continue;
+            }
+
+            // i は NodeList の順＝生成順なので、idx として使える
+            if ((i % cols) === flowCol) {
+              c.classList.add("is-fx-flow");
+            } else {
+              c.classList.remove("is-fx-flow");
+            }
+          }
+        }catch(_eFlow){}
+      }, 140);
+
+      // --- ランダムスパーク（単発発光） ---
+      if (dayGrid.__nlDaySparkTimer) {
+        clearInterval(dayGrid.__nlDaySparkTimer);
+        dayGrid.__nlDaySparkTimer = null;
+      }
+      dayGrid.__nlDaySparkTimer = setInterval(function(){
+        try{
+          if (!cells || cells.length <= 0) return;
+
+          // たまに発火しない「間」を作って、品のあるリズムにする
+          if (Math.random() < 0.35) return;
+
+          var tries = 0;
+          var idx = -1;
+          while (tries < 8) {
+            idx = Math.floor(Math.random() * cells.length);
+            if (idx < 0 || idx >= cells.length) {
+              tries += 1;
+              continue;
+            }
+            var c = cells[idx];
+            if (!c) {
+              tries += 1;
+              continue;
+            }
+            if (c.classList.contains("is-today")) {
+              tries += 1;
+              continue;
+            }
+            break;
+          }
+          if (idx < 0) return;
+
+          var cell = cells[idx];
+          if (!cell) return;
+          if (cell.classList.contains("is-today")) return;
+
+          cell.classList.add("is-fx-spark");
+
+          // 1回光って消える
+          setTimeout(function(){
+            try{
+              if (cell) cell.classList.remove("is-fx-spark");
+            }catch(_eOff){}
+          }, 900);
+        }catch(_eSpark){}
+      }, 420);
+
+    }catch(_eAll){}
+  }    
 
     progressHost.appendChild(
       buildProgressGrid(
