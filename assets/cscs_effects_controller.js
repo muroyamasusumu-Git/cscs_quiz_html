@@ -162,7 +162,7 @@
       "#" + PANEL_ID + "{" +
       "position:fixed;" +
       "right:12px;" +
-      "bottom:52px;" +
+      "bottom:calc(10px + 34px + 8px);" +
       "z-index:2147483647;" +
       "width:170px;" +
       "padding:10px 10px;" +
