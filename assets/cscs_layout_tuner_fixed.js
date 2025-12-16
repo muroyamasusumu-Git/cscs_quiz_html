@@ -355,6 +355,125 @@
         });
       }
 
+      function nudgeAxis(axis, delta){
+        if(!getEditMode()) return;
+
+        var id = getSelectedId();
+        var el = getElById(id);
+        if(!el) return;
+
+        var x = document.getElementById("cscs-layout-x-slider");
+        var y = document.getElementById("cscs-layout-y-slider");
+        if(!x || !y) return;
+
+        updateRangesForEl(el);
+
+        if(axis === "x"){
+          var maxX = parseInt(x.max, 10) || 0;
+          var curX = parseInt(x.value, 10) || 0;
+          var nextX = clampInt(curX + delta, 0, maxX);
+          x.value = String(nextX);
+          applyFromSliders();
+          return;
+        }
+
+        if(axis === "y"){
+          var maxY = parseInt(y.max, 10) || 0;
+          var curY = parseInt(y.value, 10) || 0;
+          var nextY = clampInt(curY + delta, 0, maxY);
+          y.value = String(nextY);
+          applyFromSliders();
+          return;
+        }
+      }
+
+      function installHoldRepeat(btn, axis, delta){
+        if(!btn) return;
+        if(btn.getAttribute("data-cscs-hold-repeat") === "1") return;
+        btn.setAttribute("data-cscs-hold-repeat", "1");
+
+        var holdTimer = 0;
+        var repeatTimer = 0;
+        var holding = false;
+
+        function clearTimers(){
+          if(holdTimer){
+            clearTimeout(holdTimer);
+            holdTimer = 0;
+          }
+          if(repeatTimer){
+            clearInterval(repeatTimer);
+            repeatTimer = 0;
+          }
+        }
+
+        function stopHold(){
+          holding = false;
+          clearTimers();
+          try{ btn.releasePointerCapture && btn.releasePointerCapture(btn.__cscsHoldPid); }catch(_){}
+          btn.__cscsHoldPid = null;
+        }
+
+        function startHold(e){
+          if(!getEditMode()) return;
+
+          holding = true;
+          btn.__cscsHoldPid = e.pointerId;
+
+          try{ btn.setPointerCapture && btn.setPointerCapture(e.pointerId); }catch(_){}
+
+          // まず1回は即時反映（タップでも効く）
+          nudgeAxis(axis, delta);
+
+          // 長押し判定後に連打開始
+          holdTimer = setTimeout(function(){
+            if(!holding) return;
+            repeatTimer = setInterval(function(){
+              if(!holding) return;
+              nudgeAxis(axis, delta);
+            }, 40);
+          }, 250);
+
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        function onPointerDown(e){
+          startHold(e);
+        }
+
+        function onPointerUp(e){
+          stopHold();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        function onPointerCancel(e){
+          stopHold();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        function onPointerLeave(e){
+          // 押したまま指が外に出たら止める（意図せぬ暴走防止）
+          stopHold();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        btn.addEventListener("pointerdown", onPointerDown, { passive: false });
+        btn.addEventListener("pointerup", onPointerUp, { passive: false });
+        btn.addEventListener("pointercancel", onPointerCancel, { passive: false });
+        btn.addEventListener("pointerleave", onPointerLeave, { passive: false });
+
+        // iOS対策：コンテキストメニュー等で暴走しないよう保険
+        window.addEventListener("blur", stopHold, { passive: true });
+        window.addEventListener("pagehide", stopHold, { passive: true });
+
+        // 追加保険：ボタン外で指を離した場合でも必ず停止させる
+        window.addEventListener("pointerup", stopHold, { passive: true });
+      }
+
       function refreshLayoutPanelUI(){
         var editBtn = document.getElementById("cscs-layout-menu-edit");
         var stateLabel = document.getElementById("cscs-layout-menu-state");
@@ -511,9 +630,21 @@
 
       xLeft.appendChild(makeMiniLabel("X"));
 
+      var xMinus = makeMiniButton("-1");
+      xMinus.id = "cscs-layout-x-minus";
+      xMinus.style.padding = "6px 10px";
+      installHoldRepeat(xMinus, "x", -1);
+      xLeft.appendChild(xMinus);
+
       var xSlider = makeRange();
       xSlider.id = "cscs-layout-x-slider";
       xLeft.appendChild(xSlider);
+
+      var xPlus = makeMiniButton("+1");
+      xPlus.id = "cscs-layout-x-plus";
+      xPlus.style.padding = "6px 10px";
+      installHoldRepeat(xPlus, "x", +1);
+      xLeft.appendChild(xPlus);
 
       var xValue = makeValueText();
       xValue.id = "cscs-layout-x-value";
@@ -541,9 +672,21 @@
 
       yLeft.appendChild(makeMiniLabel("Y"));
 
+      var yMinus = makeMiniButton("-1");
+      yMinus.id = "cscs-layout-y-minus";
+      yMinus.style.padding = "6px 10px";
+      installHoldRepeat(yMinus, "y", -1);
+      yLeft.appendChild(yMinus);
+
       var ySlider = makeRange();
       ySlider.id = "cscs-layout-y-slider";
       yLeft.appendChild(ySlider);
+
+      var yPlus = makeMiniButton("+1");
+      yPlus.id = "cscs-layout-y-plus";
+      yPlus.style.padding = "6px 10px";
+      installHoldRepeat(yPlus, "y", +1);
+      yLeft.appendChild(yPlus);
 
       var yValue = makeValueText();
       yValue.id = "cscs-layout-y-value";
@@ -648,7 +791,7 @@
       if(!getEditMode()) return;
 
       dragging = true;
-      handle.setPointerCapture(e.pointerId);
+      try{ handle.setPointerCapture(e.pointerId); }catch(_){}
 
       var rect = el.getBoundingClientRect();
       startX = e.clientX;
