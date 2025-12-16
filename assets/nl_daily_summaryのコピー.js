@@ -14,12 +14,9 @@
 (function(){
   "use strict";
 
-  // このヘッダーを出す対象ページ判定（#root があるページ）
-  // 目的:
-  // - nav_list.js / #nl-panel に依存しない
-  // - どのページでも #root があれば描画できるようにする
-  function hasRoot(){
-    return !!document.getElementById("root");
+  // このヘッダーを出す対象ページ判定（#nl-panel があるページ）
+  function hasNavPanel(){
+    return !!document.getElementById("nl-panel");
   }
 
   function pad2(n){ return String(n).padStart(2, "0"); }
@@ -438,6 +435,15 @@
       inset 0 1px 0 rgba(255,255,255,0.10);
 }
 
+#nl-progress-header .nl-ph-cell-q {
+    border-radius: 0px;
+    background: rgba(255,255,255,0.02);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+    height: 12px;
+}
+
+
+
 
 /* ---- day / question : 例（差を付けたい場合に使う） ---- */
 /*
@@ -848,10 +854,8 @@
     }catch(_){}
   }
 
-  function removeExistingHeaders(){
-    // 既存ヘッダーを確実に除去（過去にどこへ挿入されていても消す）
-    // 目的:
-    // - #nl-panel 前提を廃止しても、重複生成だけは確実に防ぐ
+  function removeExistingHeaders(panel){
+    // 既存ヘッダーを確実に除去（過去に #nl-panel 内に入っていたものも含め、どこに居ても消す）
     try{
       var a = document.getElementById("nl-progress-header");
       if (a && a.parentNode) a.parentNode.removeChild(a);
@@ -867,20 +871,14 @@
   }
 
   async function mountHeaders(){
-    // 追加:
-    // - nav_list.js / #nl-panel 依存を断つため、#root が無いページでは何もしない
-    if (!hasRoot()) return;
+    if (!hasNavPanel()) return;
 
     ensureHeaderStyles();
 
-    // 追加:
-    // - ヘッダーの挿入先を #root に固定する（#nl-panel を一切参照しない）
-    var root = document.getElementById("root");
-    if (!root) return;
+    var panel = document.getElementById("nl-panel");
+    if (!panel) return;
 
-    // 変更:
-    // - removeExistingHeaders の panel 引数依存を廃止した前提で呼ぶ
-    removeExistingHeaders();
+    removeExistingHeaders(panel);
 
     var day = getDayFromPath();
     var syncJson = await loadSyncData();
@@ -1012,7 +1010,7 @@
     //
     // 2) 問題別進捗マス：当日の進捗
     //    - 1マス = 1問
-    //    - “★（streak3 > 0）” の問題数だけが進捗として埋まる（qFilled）
+    //    - “★（streak3 > 0）” の問題数だけ進捗として埋まる（qFilled）
     //
     // ※ このファイルは「取れないものを別ソースで埋め合わせない」方針なので、
     //    day が unknown の時は問題別進捗が 0 のままになる（＝取れない表示）。
@@ -1024,6 +1022,10 @@
     // 第3引数 cols=15 は “見た目の列数”。
     // - 今は 15 列にしているので、日数が多い場合は複数行に折り返される。
     //
+    // ※ 後で見た目を変えたい場合：
+    // - 20列にしたい → cols を 20 に変える
+    // - 1行に収めたい → cols を dayTotal と同じにする（ただし横幅が足りないと潰れる）
+    //
     // ※ todayIndex は “日別だけ” ハイライト表示に使う（当日位置の強調）。
     // =========================================================
     progressHost.appendChild(buildProgressGrid(dayTotal, dayFilled, 15, todayIndex, "day"));
@@ -1032,6 +1034,12 @@
     // 問題別マス（kind="q"）
     //
     // 「30個横一列」を成立させるために cols=30 にしている。
+    //
+    // ※ 後で “1日の問題数” を変更する可能性があるなら、
+    //    ここは固定値30ではなく、TOTAL_QUESTIONS_PER_DAY を使うと保守しやすい。
+    //    例: buildProgressGrid(TOTAL_QUESTIONS_PER_DAY, qFilled, TOTAL_QUESTIONS_PER_DAY, null, "q")
+    //
+    // todayIndex は問題別には不要なので null を渡す。
     // =========================================================
     // 現在表示中の問題インデックス（0始まり）
     var currentQIndex = getQuestionIndexFromPath();
@@ -1097,6 +1105,13 @@
 
     // =========================================================
     // 進捗テキスト（数字の行）を “問題別マスの下” に統合表示する
+    //
+    // 目的：
+    // - 日別マスと問題別マスの間に「日別 〜/〜」の文字行が入ると視線が散る
+    // - 進捗数値は “最後に1行で見る” の方が読みやすい
+    //
+    // 表示形式は mergedValue.textContent の組み立てで決まる。
+    // 区切り文字（" ｜ " など）は後から簡単に変更できる。
     // =========================================================
     var progressRow = document.createElement("div");
     progressRow.className = "nl-ph-row";
@@ -1223,8 +1238,9 @@
     summaryHost.appendChild(summaryStatBlock);
     summaryHost.appendChild(summaryLine4);
 
-    // 変更:
-    // - #root 内に host を作ってそこにヘッダーを積む（#nl-panel を一切参照しない）
+    // #nl-panel の外（= #nl-panel の直前）にヘッダーを出すためのホストを用意する
+    // - panel 内に入れない（#nl-panel の外に出す）
+    // - 親要素は panel.parentNode（= nav_list 側のレイアウト順を維持）
     var host = document.createElement("div");
     host.id = "nl-daily-summary-host";
 
@@ -1233,19 +1249,18 @@
       // 目的: 固定座標や余白の管理をCSS側に寄せる
     }catch(_){}
 
-    // 追加:
-    // - #root の先頭へ挿入する（#root 内に入れる）
+    // panel の直前に host を差し込む（= #nl-panel の外に出る）
     try{
-      if (root.firstChild) {
-        root.insertBefore(host, root.firstChild);
+      if (panel.parentNode) {
+        panel.parentNode.insertBefore(host, panel);
       } else {
-        root.appendChild(host);
+        document.body.insertBefore(host, document.body.firstChild);
       }
     }catch(_){
-      return;
+      document.body.insertBefore(host, document.body.firstChild);
     }
 
-    // host の中にヘッダーを積む（#root 内で完結）
+    // host の中にヘッダーを積む（panel の外に固定）
     host.appendChild(progressHost);
     host.appendChild(summaryHost);
   }
@@ -1255,7 +1270,7 @@
   };
 
   window.addEventListener("DOMContentLoaded", function(){
-    if (!hasRoot()) return;
+    if (!hasNavPanel()) return;
     mountHeaders();
   });
 
