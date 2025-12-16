@@ -506,67 +506,36 @@
    - is-today はJS側で除外（見た目を壊さない）
    ========================================================= */
 
-/* 基本：日別セルは演出込みでも “ほんのり” */
+/* 基本：日別セルは “背景/影は固定” のまま、opacity と brightness だけを微調整する */
 #nl-progress-header .nl-ph-cell-day.is-fx-breath{
     animation-name: nl-day-breath;
-    animation-timing-function: ease-in-out;
+    animation-timing-function: cubic-bezier(0.40, 0.00, 0.20, 1.00);
     animation-iteration-count: infinite;
     animation-direction: alternate;
-    /* 演出中だけ：暗いフェーズを沈める（デフォルトは不変） */
-    filter: brightness(1.00);
+    will-change: opacity, filter;
 }
 
-/* 呼吸（暗→明→暗）
-   - 暗い瞬間は “かろうじて形が分かる” レベルまで落とす
-   - 明るい瞬間でも強くしすぎない */
+/* 呼吸（落差なし）
+   - 背景(background)と影(box-shadow)は触らない（穴っぽい明暗差が出るため）
+   - opacity/brightness を “狭いレンジ” だけで動かす */
 @keyframes nl-day-breath{
     0%{
-      /* 暗いが“存在は一瞬で認識できる”レベル（最暗部だけ少し戻す） */
-      opacity: 0.44;
-      filter: brightness(0.78);
-      background: rgba(0,0,0,0.28);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.11),
-        inset 0 1px 0 rgba(255,255,255,0.05);
+      opacity: 0.74;
+      filter: brightness(0.98);
     }
-    55%{
-      /* 中間：波の底から戻り始める */
-      opacity: 0.64;
-      filter: brightness(0.86);
-      background: rgba(0,0,0,0.22);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.14),
-        inset 0 1px 0 rgba(255,255,255,0.06);
+    50%{
+      opacity: 0.80;
+      filter: brightness(1.00);
     }
     100%{
-      /* 明るい側：そのまま（変更なし） */
       opacity: 0.86;
-      filter: brightness(1.03);
-      background: rgba(255,255,255,0.05);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.22),
-        inset 0 1px 0 rgba(255,255,255,0.08);
+      filter: brightness(1.02);
     }
 }
 
-/* ごく弱い “瞬き” （強いスパークは禁止、あくまで微細） */
+/* 局所的な明滅（穴が空いた印象の原因）を避けるため、twinkle は無効化 */
 #nl-progress-header .nl-ph-cell-day.is-fx-twinkle{
-    animation: nl-day-twinkle 2600ms ease-in-out 1;
-}
-
-@keyframes nl-day-twinkle{
-    0%{
-      opacity: 0.82;
-      filter: brightness(1.00);
-    }
-    35%{
-      opacity: 0.98;
-      filter: brightness(1.06);
-    }
-    100%{
-      opacity: 0.84;
-      filter: brightness(1.00);
-    }
+    animation: none;
 }
 
 
@@ -1302,7 +1271,11 @@
         var s = Math.sin(fx * Math.PI * 2);
 
         // t は固定（モード切替で飛ばない）
-        var t = (s * waveA) + (fy * (rows * waveB));
+        // 重要:
+        // - sin は -1..+1 を取り得るため、そのまま使うと delay が負になり、
+        //   セルごとの開始位相がバラバラに見えて “穴” のような落差が出やすい。
+        // - そこでオフセットして常に 0.. の範囲に寄せる（なめらかな面として見せる）
+        var t = ((s + 1) * 0.5 * waveA) + (fy * (rows * waveB));
 
         c.classList.add("is-fx-breath");
 
@@ -1312,49 +1285,9 @@
         }catch(_eStyle2){}
       }
 
-      // 超弱い “瞬き” （視線を奪わない頻度 / 全体変化にはならない）
-      dayGrid.__nlDayTwinkleTimer = setInterval(function(){
-        try{
-          if (!cells || cells.length <= 0) return;
-
-          // ほとんど発火しない（“たまに”だけ）
-          if (Math.random() < 0.70) return;
-
-          var tries = 0;
-          var idx = -1;
-          while (tries < 10) {
-            idx = Math.floor(Math.random() * cells.length);
-            if (idx < 0 || idx >= cells.length) {
-              tries += 1;
-              continue;
-            }
-            var cc = cells[idx];
-            if (!cc) {
-              tries += 1;
-              continue;
-            }
-            if (cc.classList.contains("is-today")) {
-              tries += 1;
-              continue;
-            }
-            break;
-          }
-          if (idx < 0) return;
-
-          var cell = cells[idx];
-          if (!cell) return;
-          if (cell.classList.contains("is-today")) return;
-
-          cell.classList.add("is-fx-twinkle");
-
-          setTimeout(function(){
-            try{
-              if (cell) cell.classList.remove("is-fx-twinkle");
-            }catch(_eOff){}
-          }, 2700);
-
-        }catch(_eTw){}
-      }, 5200);
+      // 局所スパーク（twinkle）は “穴が空いた” 印象の原因になるため停止する
+      // - 呼吸（面のグラデーション）だけに限定して、ぼんやり沈む/浮くを維持する
+      dayGrid.__nlDayTwinkleTimer = null;
 
     }catch(_eAll){}
   }    
