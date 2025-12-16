@@ -41,7 +41,7 @@
     }catch(_){
       return null;
     }
-  }
+  }　
 
   function savePos(layoutId, pos){
     try{ localStorage.setItem(storageKey(layoutId), JSON.stringify(pos)); }catch(_){}
