@@ -520,16 +520,16 @@
    - opacity/brightness を “狭いレンジ” だけで動かす */
 @keyframes nl-day-breath{
     0%{
-      opacity: 0.74;
-      filter: brightness(0.98);
+      opacity: 0.66;
+      filter: brightness(0.92);
     }
     50%{
-      opacity: 0.80;
+      opacity: 0.78;
       filter: brightness(1.00);
     }
     100%{
-      opacity: 0.86;
-      filter: brightness(1.02);
+      opacity: 0.90;
+      filter: brightness(1.08);
     }
 }
 
