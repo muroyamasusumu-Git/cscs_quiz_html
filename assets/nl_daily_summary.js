@@ -1301,6 +1301,31 @@
         // 0..1 に正規化してから、波形係数でレンジを作る
         var t = (diag * 0.5 * waveA) + (diag * 0.5 * waveB);
 
+        // =========================================================
+        // 追加:
+        // - 「全体が明るくなる」問題を防ぐため、演出に参加するセル数を制限する
+        // - 明るさ（filterの最大値）は変えず、「明るくなるマスの数」だけ減らす
+        //
+        // 仕様:
+        // - (x + y) の対角インデックスで間引く（斜めの流れを保ったまま密度を落とす）
+        // - fxDensityMod を大きくするほど、明るくなるセルが減る
+        //   例: 5 → 1/5、6 → 1/6、8 → 1/8
+        // =========================================================
+        var fxDensityMod = 5;
+        var fxDensityHit = 0;
+        var diagIndex = x + y;
+        var participate = ((diagIndex % fxDensityMod) === fxDensityHit);
+
+        if (!participate) {
+          // 参加しないセルは「沈んだまま固定」
+          c.classList.remove("is-fx-breath");
+          try{
+            c.style.animationDelay = "";
+            c.style.animationDuration = "";
+          }catch(_eNoFxStyle){}
+          continue;
+        }
+
         c.classList.add("is-fx-breath");
 
         try{
