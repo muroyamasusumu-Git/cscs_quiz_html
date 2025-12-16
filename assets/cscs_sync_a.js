@@ -1559,7 +1559,7 @@
   font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
   width: 360px;
-  opacity: 0.28;
+  opacity: 0.88;
   z-index: 2147483647;
 }
 
@@ -1658,18 +1658,15 @@
 
         <div class="sync-grid">
           <div class="sync-card sync-span-2">
-            <div class="sync-title">Totals</div>
-            <div class="sync-body">
-              <div class="totals-row">
-                <div class="sync-totals-label">Totals(c/w)</div>
+            <div class="sync-body totals-row">
+              <div class="sync-totals-label">Totals(c/w)</div>
 
-                <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">
-                  <span class="sync-server-text">server 0 / 0</span>
-                </div>
-
-                <div class="sync-local">local  0 / 0</div>
-                <div class="sync-queue">+Δ    0 / 0</div>
+              <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">
+                <span class="sync-server-text">server 0 / 0</span>
               </div>
+
+              <div class="sync-local">local  0 / 0</div>
+              <div class="sync-queue">+Δ    0 / 0</div>
             </div>
           </div>
 
