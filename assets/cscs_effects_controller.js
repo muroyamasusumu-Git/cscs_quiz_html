@@ -160,7 +160,7 @@
 
       // 追加した処理: 個別ON/OFF用パネル
       "#" + PANEL_ID + "{" +
-      "position:fixed;" +
+      "position:fixed !important;" +
       "right:12px;" +
       "bottom:calc(10px + 34px + 8px);" +
       "z-index:2147483647;" +
