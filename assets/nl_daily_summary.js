@@ -542,26 +542,12 @@
         inset 0 0 0 1px rgba(255,255,255,0.08),
         inset 0 1px 0 rgba(255,255,255,0.03);
     }
-    25%{
-      background-position: 100% 0%;
-      filter: brightness(0.88) contrast(1.55);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.14),
-        inset 0 1px 0 rgba(255,255,255,0.05);
-    }
     50%{
       background-position: 100% 100%;
       filter: brightness(1.12) contrast(1.70);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,0.20),
         inset 0 1px 0 rgba(255,255,255,0.07);
-    }
-    75%{
-      background-position: 0% 100%;
-      filter: brightness(0.86) contrast(1.55);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.13),
-        inset 0 1px 0 rgba(255,255,255,0.05);
     }
     100%{
       background-position: 0% 0%;
@@ -1307,16 +1293,13 @@
         var fx = cols > 1 ? (x / (cols - 1)) : 0;
         var fy = rows > 1 ? (y / (rows - 1)) : 0;
 
-        // “常にグラデーション”の正体：
-        // - 横方向の正弦波 + 縦方向の緩い傾き を足し合わせて位相にする
-        var s = Math.sin(fx * Math.PI * 2);
+        // “左上 → 右下へ流れる” 位相:
+        // - fx(左→右) と fy(上→下) を足して対角方向の位相にする
+        // - sin は使わず、面が“まっすぐ斜め”に流れるのを優先
+        var diag = fx + fy; // 0..2（だいたい）
 
-        // t は固定（モード切替で飛ばない）
-        // 重要:
-        // - sin は -1..+1 を取り得るため、そのまま使うと delay が負になり、
-        //   セルごとの開始位相がバラバラに見えて “穴” のような落差が出やすい。
-        // - そこでオフセットして常に 0.. の範囲に寄せる（なめらかな面として見せる）
-        var t = ((s + 1) * 0.5 * waveA) + (fy * (rows * waveB));
+        // 0..1 に正規化してから、波形係数でレンジを作る
+        var t = (diag * 0.5 * waveA) + (diag * 0.5 * waveB);
 
         c.classList.add("is-fx-breath");
 
