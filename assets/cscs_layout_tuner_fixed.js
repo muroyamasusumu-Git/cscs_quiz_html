@@ -146,28 +146,9 @@
     if(btn) return btn;
 
     // ===== LAYOUT ボタン（常時表示） =====
-    // ===== LOCK / EDIT ボタン（状態表示つき・常時表示） =====
     btn = document.createElement("button");
     btn.id = id;
-
-    // 内部構造： [LOCK/EDIT] [：EDITモード中]
-    var labelMain = document.createElement("span");
-    labelMain.id = "cscs-layout-menu-label-main";
-
-    var labelState = document.createElement("span");
-    labelState.id = "cscs-layout-menu-label-state";
-    labelState.style.marginLeft = "4px";
-    labelState.style.opacity = "0.75";
-
-    btn.appendChild(labelMain);
-    btn.appendChild(labelState);
-
-    function updateLayoutButtonLabel(){
-      var on = getEditMode();
-      labelMain.textContent  = on ? "EDIT" : "LOCK";
-      labelState.textContent = on ? "：EDITモード中" : "：LOCKモード中";
-    }
-    updateLayoutButtonLabel();
+    btn.textContent = "LAYOUT";
 
     btn.style.position = "fixed";
     btn.style.right = "121px";
@@ -180,8 +161,6 @@
     btn.style.background = "rgba(0, 0, 0, 0.55)";
     btn.style.color = "rgb(255, 255, 255)";
     btn.style.height = "34px";
-    btn.style.display = "flex";
-    btn.style.alignItems = "center";
     btn.style.webkitTapHighlightColor = "transparent";
 
     document.body.appendChild(btn);
@@ -228,9 +207,22 @@
         return b;
       }
 
-      // EDIT/LOCK ボタン
-      var editBtn = makeMiniButton(getEditMode() ? "EDIT" : "LOCK");
+      // ===== LOCK / EDIT 切替 + 状態表示 =====
+      var editWrap = document.createElement("div");
+      editWrap.style.display = "flex";
+      editWrap.style.alignItems = "center";
+      editWrap.style.gap = "6px";
+
+      var editBtn = makeMiniButton(getEditMode() ? "LOCK" : "EDIT");
       editBtn.id = "cscs-layout-menu-edit";
+
+      var stateLabel = document.createElement("span");
+      stateLabel.id = "cscs-layout-menu-state";
+      stateLabel.style.fontSize = "11px";
+      stateLabel.style.color = "rgba(255,255,255,0.75)";
+      stateLabel.textContent = getEditMode()
+        ? "：EDITモード中"
+        : "：LOCKモード中";
 
       editBtn.addEventListener("click", function(e){
         e.preventDefault();
@@ -238,9 +230,17 @@
 
         var on = !getEditMode();
         setEditMode(on);
-        editBtn.textContent = on ? "EDIT" : "LOCK";
+
+        editBtn.textContent = on ? "LOCK" : "EDIT";
+        stateLabel.textContent = on
+          ? "：EDITモード中"
+          : "：LOCKモード中";
+
         updateHandlesVisibility();
       });
+
+      editWrap.appendChild(editBtn);
+      editWrap.appendChild(stateLabel);
 
       // RESET ボタン
       var resetBtn = makeMiniButton("RESET");
@@ -256,7 +256,7 @@
         panel.style.display = "none";
       });
 
-      row.appendChild(editBtn);
+      row.appendChild(editWrap);
       row.appendChild(resetBtn);
 
       document.body.appendChild(panel);
