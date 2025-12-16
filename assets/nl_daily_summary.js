@@ -544,10 +544,10 @@
     }
     50%{
       background-position: 100% 100%;
-      filter: brightness(1.18) contrast(2.15);
+      filter: brightness(1.06) contrast(2.10);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.24),
-        inset 0 1px 0 rgba(255,255,255,0.09);
+        inset 0 0 0 1px rgba(255,255,255,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.06);
     }
     100%{
       background-position: 0% 0%;
@@ -1300,31 +1300,6 @@
 
         // 0..1 に正規化してから、波形係数でレンジを作る
         var t = (diag * 0.5 * waveA) + (diag * 0.5 * waveB);
-
-        // =========================================================
-        // 追加:
-        // - 「全体が明るくなる」問題を防ぐため、演出に参加するセル数を制限する
-        // - 明るさ（filterの最大値）は変えず、「明るくなるマスの数」だけ減らす
-        //
-        // 仕様:
-        // - (x + y) の対角インデックスで間引く（斜めの流れを保ったまま密度を落とす）
-        // - fxDensityMod を大きくするほど、明るくなるセルが減る
-        //   例: 5 → 1/5、6 → 1/6、8 → 1/8
-        // =========================================================
-        var fxDensityMod = 5;
-        var fxDensityHit = 0;
-        var diagIndex = x + y;
-        var participate = ((diagIndex % fxDensityMod) === fxDensityHit);
-
-        if (!participate) {
-          // 参加しないセルは「沈んだまま固定」
-          c.classList.remove("is-fx-breath");
-          try{
-            c.style.animationDelay = "";
-            c.style.animationDuration = "";
-          }catch(_eNoFxStyle){}
-          continue;
-        }
 
         c.classList.add("is-fx-breath");
 
