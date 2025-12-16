@@ -1539,8 +1539,30 @@
 #cscs_sync_monitor_a .sync-grid{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 1px;
+  width: auto;
 }
+
+#cscs_sync_monitor_a {
+  position: fixed;
+  right: 10px;
+  top: 35px;
+  background: transparent;
+  color: #eee;
+  border: 0 solid #444;
+  border-radius: 0;
+  padding: 0;
+  font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  max-width: 46vw;
+  width: 360px;
+  opacity: 0.20;
+}
+
+
+
+
+
+
 @media (max-width: 520px){
   #cscs_sync_monitor_a .sync-grid{
     grid-template-columns: 1fr;
@@ -1563,6 +1585,23 @@
 }
 #cscs_sync_monitor_a .sync-card.sync-span-2{
   grid-column: 1 / -1;
+}
+
+#cscs_sync_monitor_a .lastday-grid{
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .lastday-grid .ld-head{
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+#cscs_sync_monitor_a .lastday-grid .ld-label{
+  opacity: 0.75;
 }
           `.trim();
           (document.head || document.documentElement).appendChild(st);
