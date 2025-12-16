@@ -23,6 +23,11 @@
   // 個別OFF用（モジュール別の辞書）: {"fade":true,"scale":false,...} のようなJSONを保存する
   var LS_KEY_MAP = "cscs_effects_disabled_map";
 
+  // 追加した処理:
+  // - 個別ON/OFFパネル（Effects panel）の開閉状態を永続化するキー
+  //   "1" = open / それ以外 or null = closed
+  var LS_KEY_PANEL_OPEN = "cscs_effects_panel_open";
+
   var BTN_ID = "cscs-effects-toggle";
   var STYLE_ID = "cscs-effects-toggle-style";
 
@@ -373,8 +378,10 @@
       var p = ensurePanel();
       if (open === true) {
         p.classList.add("open");
+        safeSetLS(LS_KEY_PANEL_OPEN, "1");
       } else {
         p.classList.remove("open");
+        safeRemoveLS(LS_KEY_PANEL_OPEN);
       }
     }
 
@@ -443,6 +450,16 @@
 
     refreshLabel();
     document.body.appendChild(btn);
+
+    // 追加した処理:
+    // - ページ遷移/リロード後もパネルが閉じないように、
+    //   localStorage の状態を見て open を復元する
+    (function(){
+      var v = safeGetLS(LS_KEY_PANEL_OPEN);
+      if (String(v || "") === "1") {
+        togglePanel(true);
+      }
+    })();
 
     // 起動直後にwindowへmapを確実に置く（演出JS側の冒頭ガードが参照するため）
     applyFlag(isDisabledNow());
