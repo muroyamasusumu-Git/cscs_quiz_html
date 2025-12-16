@@ -521,13 +521,13 @@
    - 明るい瞬間でも強くしすぎない */
 @keyframes nl-day-breath{
     0%{
-      /* 暗いが“存在は一瞬で認識できる”レベル */
-      opacity: 0.38;
-      filter: brightness(0.72);
-      background: rgba(0,0,0,0.34);
+      /* 暗いが“存在は一瞬で認識できる”レベル（最暗部だけ少し戻す） */
+      opacity: 0.44;
+      filter: brightness(0.78);
+      background: rgba(0,0,0,0.28);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.09),
-        inset 0 1px 0 rgba(255,255,255,0.04);
+        inset 0 0 0 1px rgba(255,255,255,0.11),
+        inset 0 1px 0 rgba(255,255,255,0.05);
     }
     55%{
       /* 中間：波の底から戻り始める */
