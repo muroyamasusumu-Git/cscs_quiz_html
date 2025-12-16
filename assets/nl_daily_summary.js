@@ -520,16 +520,16 @@
    - opacity/brightness を “狭いレンジ” だけで動かす */
 @keyframes nl-day-breath{
     0%{
-      opacity: 0.66;
-      filter: brightness(0.92);
+      opacity: 0.50;
+      filter: brightness(0.84);
     }
     50%{
-      opacity: 0.78;
+      opacity: 0.72;
       filter: brightness(1.00);
     }
     100%{
-      opacity: 0.90;
-      filter: brightness(1.08);
+      opacity: 0.95;
+      filter: brightness(1.16);
     }
 }
 
@@ -1281,7 +1281,12 @@
 
         try{
           c.style.animationDuration = String(dur.toFixed(2)) + "s";
-          c.style.animationDelay = String((t * delayStep).toFixed(2)) + "s";
+
+          // 開始直後の「ストンと落ちる」を消すため、
+          // delay を必ずマイナスにして「既に呼吸中」から開始させる
+          var baseDelay = (t * delayStep);
+          var startInPast = baseDelay - (dur * 0.85);
+          c.style.animationDelay = String(startInPast.toFixed(2)) + "s";
         }catch(_eStyle2){}
       }
 
