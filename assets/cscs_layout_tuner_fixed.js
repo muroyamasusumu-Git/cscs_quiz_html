@@ -699,7 +699,8 @@
         // (4) パネルUI全体も再同期（EDIT/LOCK表示、disabled状態など）
         refreshLayoutPanelUI();
 
-        panel.style.display = "none";
+        // 重要：RESETしてもウィンドウは閉じない（作業継続のため）
+        // panel.style.display = "none";
       });
 
       rowTop.appendChild(editWrap);
