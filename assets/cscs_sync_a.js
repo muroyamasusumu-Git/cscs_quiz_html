@@ -1538,7 +1538,7 @@
 }
 #cscs_sync_monitor_a .sync-header{
   font-weight: 700;
-  margin: 0 0 6px 0;
+  margin: 0 3px 6px 0;
   text-align: right;
 }
 #cscs_sync_monitor_a .sync-grid{
