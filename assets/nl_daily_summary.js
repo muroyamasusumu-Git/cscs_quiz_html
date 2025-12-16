@@ -521,25 +521,25 @@
    - 明るい瞬間でも強くしすぎない */
 @keyframes nl-day-breath{
     0%{
-      /* ここを強烈に暗く：ほぼ見えないが輪郭だけ残る */
-      opacity: 0.28;
-      filter: brightness(0.62);
-      background: rgba(0,0,0,0.42);
+      /* 暗いが“存在は一瞬で認識できる”レベル */
+      opacity: 0.38;
+      filter: brightness(0.72);
+      background: rgba(0,0,0,0.34);
       box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.06),
-        inset 0 1px 0 rgba(255,255,255,0.02);
-    }
-    55%{
-      /* 中間：まだ暗い（波っぽい沈み） */
-      opacity: 0.58;
-      filter: brightness(0.78);
-      background: rgba(0,0,0,0.30);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.10),
+        inset 0 0 0 1px rgba(255,255,255,0.09),
         inset 0 1px 0 rgba(255,255,255,0.04);
     }
+    55%{
+      /* 中間：波の底から戻り始める */
+      opacity: 0.64;
+      filter: brightness(0.86);
+      background: rgba(0,0,0,0.22);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.14),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
     100%{
-      /* 明るい側：上げすぎない（“息を吸う”程度） */
+      /* 明るい側：そのまま（変更なし） */
       opacity: 0.86;
       filter: brightness(1.03);
       background: rgba(255,255,255,0.05);
@@ -1291,11 +1291,25 @@
         // - "wave"  波（ゆらぎ）
         clearFx();
 
-        // “呼吸”の周期はかなり遅くする（10〜18秒）
-        var dur = 10 + Math.random() * 8;
+        // “呼吸”の基本周期（遅い）
+        var durBase = 12 + Math.random() * 6;
 
-        // delayStep も大きくして、動きが“ゆっくり流れる”ように
-        var delayStep = 0.22 + Math.random() * 0.18;
+        // たまに緩急を付ける（全体の空気を変える）
+        var speedRoll = Math.random();
+        var dur;
+        if (speedRoll < 0.15) {
+          // たまに早呼吸（ほんの一瞬だけ）
+          dur = durBase * 0.65;
+        } else if (speedRoll > 0.85) {
+          // たまに深呼吸（かなり遅い）
+          dur = durBase * 1.6;
+        } else {
+          // 通常
+          dur = durBase;
+        }
+
+        // delayStep も周期に連動させて緩急を自然に
+        var delayStep = (0.18 + Math.random() * 0.14) * (dur / durBase);
 
         // wave用の係数
         var waveA = 0.55 + Math.random() * 0.40;
