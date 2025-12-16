@@ -1557,7 +1557,7 @@
   /* border: 1px solid rgba(255,255,255,0.10); */
   /* border-radius: 12px; */
   padding: 8px;
-  font: 9px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
   width: 300px;
   opacity: 0.88;

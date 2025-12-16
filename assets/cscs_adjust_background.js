@@ -150,6 +150,12 @@
 
     ambientLayerEnabled: true, // 背景そのもの（ambient layer DOM）をON/OFFする
 
+    // ★ 下地（ambient-base）の黒の濃さ（= opacity）
+    // 目的: 「元々の背景の黒さ」を tuned の描画とは独立して調整できるようにする
+    //  - 1.00: 変更なし（デフォルト見た目を維持）
+    //  - 0.00: 下地を完全に薄くする（tuned の描画だけが相対的に目立つ）
+    baseOpacity: 1.00,
+
     // ▼ デフォルトは「はみ出し無し」を基準にする
     // 目的: 初期状態で afterBox 調整が不要な状態にし、見た目の基準点を明確にする
     afterBox: { top: 0, right: 0, bottom: 0, left: 0 },  // %
@@ -573,7 +579,12 @@
     if (!st.enabled) {
       // ▼ 上書きをOFFにしたとき、前回の描画（background/transform）がDOMに残らないようにクリアする
       // 目的: Override OFF で「背景が残る」事故を防ぎ、OFF=無効を確実にする
+      // 追加した処理:
+      // - baseOpacity を 1.00 へ戻して「下地だけ残る」事故も防ぐ
       el.textContent =
+        "#" + AMBIENT_BASE_ID + "{" +
+          "opacity:1;" +
+        "}" +
         "#" + AMBIENT_TUNED_ROT_ID + "{" +
           "background:transparent;" +
           "transform:none;" +
@@ -588,7 +599,14 @@
 
     // ▼ tuned レイヤーにのみ CSS を注入（擬似要素は禁止）
     // 目的: 描画責務を adjust に一本化し、描画先DOMを不変にする
-    el.textContent = buildTunedCss();
+    // 追加した処理:
+    // - ambient-base の opacity を同じ style に注入して「元々の黒さ」を調整可能にする
+    const baseO = clamp01(st.baseOpacity);
+    el.textContent =
+      "#" + AMBIENT_BASE_ID + "{" +
+        "opacity:" + String(baseO) + ";" +
+      "}" +
+      buildTunedCss();
   }
 
   // removeAll は廃止：
@@ -731,6 +749,10 @@
 
     if (v.enabled !== undefined) st.enabled = !!v.enabled;
     if (v.hideOtherUI !== undefined) st.hideOtherUI = !!v.hideOtherUI;
+
+    // ★ 下地（ambient-base）の黒の濃さ（opacity）も復元
+    // 目的: ページ跨ぎでも「元々の黒さ」が同じになるようにする
+    if (v.baseOpacity !== undefined) st.baseOpacity = clamp01(v.baseOpacity);
 
     if (v.afterBox) st.afterBox = {
       top: Number(v.afterBox.top),
@@ -1154,6 +1176,11 @@
     group.appendChild(el("div", { style: { fontSize: "11px", fontWeight: "700", opacity: "0.9" }, text: "Global（全体の明るさ/暗さ）" }));
     group.appendChild(el("div", { style: { height: "6px" } }));
     group.appendChild(slider("Bright (0..1)（全体を明るく：白い薄膜）", 0, 1, 0.01, () => st.bright, (v) => (st.bright = clamp01(v))));
+
+    // ★ ここが追加：下地黒（ambient-base）の濃さ
+    // 目的: 「元々の背景の黒さ」を base layer の opacity で調整する
+    group.appendChild(el("div", { style: { height: "8px" } }));
+    group.appendChild(slider("Base black (0..1)（下地の黒さ：1=濃い/0=薄い）", 0, 1, 0.01, () => st.baseOpacity, (v) => (st.baseOpacity = clamp01(v))));
 
     // ▼ Global の直下に Dim override を配置
     // 目的: 「全体の明るさ/暗さ」を同じブロックで連続調整できるようにする
