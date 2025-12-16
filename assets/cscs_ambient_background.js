@@ -64,6 +64,20 @@
   // - true: このファイルは一切のCSS注入/イベント登録/Observer登録を行わない
   // - false/未定義: 通常どおり動作
   var __effectsDisabled = false;
+
+  // 追加した処理:
+  // - 個別OFF指定（CSCS_EFFECTS_DISABLED_MAP）を確認
+  // - effectId は各JSごとに固定文字列で指定する
+  var __effectId = "cscs_ambient_background"; // ← このJS固有のIDにする
+  try {
+    if (
+      window.CSCS_EFFECTS_DISABLED_MAP &&
+      window.CSCS_EFFECTS_DISABLED_MAP[__effectId] === true
+    ) {
+      __effectsDisabled = true;
+    }
+  } catch (_eMap) {
+  }
   try {
     if (window.CSCS_EFFECTS_DISABLED === true) {
       __effectsDisabled = true;
