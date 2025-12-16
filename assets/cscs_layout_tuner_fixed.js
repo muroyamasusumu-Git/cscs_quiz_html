@@ -1,5 +1,119 @@
-(function(){
+/**
+ * CSCS Layout Editor (Fixed Targets) — 画面内パネルの位置をGUIで調整・保存するためのユーティリティ
+ *
+ * 【目的】
+ *   - 指定した「固定表示パネル」(TARGETS) の位置を、ユーザー操作で微調整できるようにする。
+ *   - 調整した位置は localStorage に保存され、次回以降も同じ画面サイズ(envKey)で復元される。
+ *   - いつでも「RESET」で “元のインラインstyle” に戻せる（localStorage削除＋表示中style復元）。
+ *
+ * 【対象要素（編集できるもの）】
+ *   - TARGETS 配列に列挙した 3つだけ：
+ *       #cscs_sync_monitor_a
+ *       #nl-daily-summary-host
+ *       #nl-panel
+ *   - similar-list / cscs-field-star-summary は “意図的に除外” 済み。
+ *
+ * 【UI概要】
+ *   - 右下に常時「LAYOUT」ボタン（#cscs-layout-menu-toggle）を表示。
+ *   - 押すと小窓（#cscs-layout-menu-panel）が開き、
+ *       1) LOCK / EDIT 切替（状態ラベル付き）
+ *       2) RESET（全ターゲットをデフォルトへ）
+ *       3) 対象選択（select）
+ *       4) X/Y スライダーで移動（現在値表示）
+ *       5) ±1 微調整ボタン（長押しで連続移動：pointerdown中だけ連打）
+ *     を操作できる。
+ *
+ * 【操作モード】
+ *   - EDITモード(localStorage: cscs_layout_edit_on=1) のときだけ編集を許可：
+ *       - ドラッグ用ハンドル（.cscs-layout-handle）の表示
+ *       - スライダー移動
+ *       - ±1（長押し連打含む）
+ *   - LOCKモードでは表示位置の変更は行わない（見るだけ）。
+ *
+ * 【保存仕様】
+ *   - 保存キー:  cscs_layout_v1_fixed_targets:{envKey}:{layoutId}
+ *   - envKey は "幅x高さ"（例: "430x932"）で、端末回転や分割表示ごとに別保存。
+ *   - 保存値: { left:number, top:number, z:number|null }
+ *
+ * 【RESET仕様（重要）】
+ *   - 初回初期化時に、各要素の “元のインラインstyle” を data 属性に記録：
+ *       data-cscs-layout-orig-style = {"position","left","top","right","bottom","zIndex"}
+ *   - RESET は
+ *       (1) 現在envKeyの localStorage 保存位置を削除
+ *       (2) 表示中要素の style を元の値へ戻す
+ *     を行う。
+ *
+ * 【ドラッグ仕様】
+ *   - 各ターゲット要素の右上に「≡」ハンドルを追加し、EDIT時のみ表示。
+ *   - pointerdown→move→up で位置を fixed の left/top に反映し、最後に保存する。
+ *
+ * 【±1 長押し連打の安全柵】
+ *   - ボタン外で指を離した場合も止まるように、
+ *       window.pointerup / blur / pagehide
+ *     で stopHold() を呼んで暴走を防止。
+ */
+(function () {
   "use strict";
+
+  // ============================================================
+  // 【演出ON/OFF 共通仕様（演出系JSは全てこの方式で制御）】
+  // ------------------------------------------------------------
+  // 目的:
+  //   演出系JS（fade/scale/ambient/text shadow/slide in 等）を
+  //   「テンプレ上では読み込んだまま」でも、実行時に確実に無効化できるようにする。
+  //
+  // 使い方（最上流フラグ）:
+  //   1) window.CSCS_EFFECTS_DISABLED === true
+  //      → このファイルは一切動かない（CSS注入/イベント登録/Observer登録/DOM加工を行わない）
+  //   2) localStorage "cscs_effects_disabled" === "1"
+  //      → 同上（ページ跨ぎで維持するための永続フラグ）
+  //
+  // 注意:
+  //   ・「後から殺す」方式では既に登録されたイベント等を完全に巻き戻せないため、
+  //     演出OFFは “冒頭でreturnして最初から走らせない” を正とする。
+  //   ・このブロックは演出系JSの冒頭に統一して配置し、挙動の共通化を保つ。
+  // ============================================================
+
+  // 演出OFFモード（最上流フラグ）
+  // - true: このファイルは一切のCSS注入/イベント登録/Observer登録を行わない
+  // - false/未定義: 通常どおり動作
+  var __effectsDisabled = false;
+
+  // 追加した処理:
+  // - 個別OFF指定（CSCS_EFFECTS_DISABLED_MAP）を確認
+  // - effectId は各JSごとに固定文字列で指定する
+  var __effectId = "cscs_layout_tuner_fixed"; // ← このJS固有のIDにする
+  try {
+    if (
+      window.CSCS_EFFECTS_DISABLED_MAP &&
+      window.CSCS_EFFECTS_DISABLED_MAP[__effectId] === true
+    ) {
+      __effectsDisabled = true;
+    }
+  } catch (_eMap) {
+  }
+  try {
+    if (window.CSCS_EFFECTS_DISABLED === true) {
+      __effectsDisabled = true;
+    } else {
+      var v = "";
+      try {
+        v = String(localStorage.getItem("cscs_effects_disabled") || "");
+      } catch (_eLS) {
+        v = "";
+      }
+      if (v === "1") {
+        __effectsDisabled = true;
+      }
+    }
+  } catch (_eFlag) {
+    // 追加した処理:
+    // - ここで false に戻すと、直前までの判定（個別OFF等）を打ち消す可能性があるため
+    //   例外時は「現状維持」にする
+  }
+  if (__effectsDisabled) {
+    return;
+  }
 
   // ===== 対象（レイアウト編集対象） =====
   // 方針：similar-list と cscs-field-star-summary は編集対象から除外
