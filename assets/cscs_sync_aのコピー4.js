@@ -440,29 +440,6 @@
         const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
         const s3tLocalEl = box.querySelector(".sync-streak3today-local");
 
-        // ★ 追加: 日付の「SYNC day / local day / 今日一致」を見える化する要素（A）
-        const s3tDaySyncEl      = box.querySelector(".sync-streak3today-day-sync");
-        const s3tDayLocalEl     = box.querySelector(".sync-streak3today-day-local");
-        const s3tDayIsTodayEl   = box.querySelector(".sync-streak3today-day-istoday");
-
-        const s3wtDaySyncEl     = box.querySelector(".sync-streak3wrongtoday-day-sync");
-        const s3wtDayLocalEl    = box.querySelector(".sync-streak3wrongtoday-day-local");
-        const s3wtDayIsTodayEl  = box.querySelector(".sync-streak3wrongtoday-day-istoday");
-
-        const onceDaySyncEl     = box.querySelector(".sync-onceperday-day-sync");
-        const onceDayLocalEl    = box.querySelector(".sync-onceperday-day-local");
-        const onceDayIsTodayEl  = box.querySelector(".sync-onceperday-day-istoday");
-
-        // ★ 追加: キュー（+Δ）詳細（B）
-        const qdCwEl     = box.querySelector(".sync-queue-cw");
-        const qdS3El     = box.querySelector(".sync-queue-s3");
-        const qdSLel     = box.querySelector(".sync-queue-sl");
-        const qdS3wEl    = box.querySelector(".sync-queue-s3w");
-        const qdSLwEl    = box.querySelector(".sync-queue-slw");
-        const qdSeenEl   = box.querySelector(".sync-queue-lastseen");
-        const qdCorEl    = box.querySelector(".sync-queue-lastcorrect");
-        const qdWrgEl    = box.querySelector(".sync-queue-lastwrong");
-
         // ★ 問題別 最終日情報表示用要素
         const lastSeenSyncEl     = box.querySelector(".sync-last-seen-sync");
         const lastCorrectSyncEl  = box.querySelector(".sync-last-correct-sync");
@@ -470,7 +447,6 @@
         const lastSeenLocalEl    = box.querySelector(".sync-last-seen-local");
         const lastCorrectLocalEl = box.querySelector(".sync-last-correct-local");
         const lastWrongLocalEl   = box.querySelector(".sync-last-wrong-local");
-
         if (s3tDayEl) {
           s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
         }
@@ -509,66 +485,6 @@
             "（データなし）"
           );
         }
-
-        // ★ 追加: localStorage 側の「day」も読み取って表示に出す（A）
-        let localStreakDayRaw = "";
-        let localWrongStreakDayRaw = "";
-        try{
-          localStreakDayRaw = localStorage.getItem("cscs_streak3_today_day") || "";
-          localWrongStreakDayRaw = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
-        }catch(_){}
-
-        // ★ 追加: oncePerDayToday の day（SYNC/local）も見える化（A）
-        let syncOnceDayRaw = "";
-        let localOnceDayRaw = "";
-        try{
-          const stateForOnceDay = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
-            ? window.__cscs_sync_state
-            : null;
-          const onceObj = stateForOnceDay && stateForOnceDay.oncePerDayToday && typeof stateForOnceDay.oncePerDayToday === "object"
-            ? stateForOnceDay.oncePerDayToday
-            : null;
-          if (onceObj && typeof onceObj.day === "number" && Number.isFinite(onceObj.day) && onceObj.day > 0) {
-            syncOnceDayRaw = String(onceObj.day);
-          } else if (onceObj && typeof onceObj.day === "string" && onceObj.day.trim() !== "") {
-            syncOnceDayRaw = onceObj.day.trim();
-          } else {
-            syncOnceDayRaw = "";
-          }
-        }catch(_){}
-
-        try{
-          localOnceDayRaw = localStorage.getItem("cscs_once_per_day_today_day") || "";
-        }catch(_){}
-
-        // ★ 追加: “そのdayが今日なのか” を明示（A）
-        //   - ここでは「YYYYMMDD（数値化できる場合）」で今日比較する
-        function isTodayYmdString(ymdStr){
-          try{
-            const s = String(ymdStr || "").trim();
-            if (!/^\d{8}$/.test(s)) return "unknown";
-            const now = new Date();
-            const yy = now.getFullYear();
-            const mm = now.getMonth() + 1;
-            const dd = now.getDate();
-            const today = String(yy * 10000 + mm * 100 + dd);
-            return s === today ? "YES" : "NO";
-          }catch(_){
-            return "unknown";
-          }
-        }
-
-        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3Today.day, "（データなし）");
-        if (s3tDayLocalEl)   s3tDayLocalEl.textContent = toDisplayText(localStreakDayRaw, "（データなし）");
-        if (s3tDayIsTodayEl) s3tDayIsTodayEl.textContent = isTodayYmdString(streak3Today.day);
-
-        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
-        if (s3wtDayLocalEl)  s3wtDayLocalEl.textContent = toDisplayText(localWrongStreakDayRaw, "（データなし）");
-        if (s3wtDayIsTodayEl) s3wtDayIsTodayEl.textContent = isTodayYmdString(streak3WrongToday.day);
-
-        if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "（データなし）");
-        if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "（データなし）");
-        if (onceDayIsTodayEl) onceDayIsTodayEl.textContent = isTodayYmdString(syncOnceDayRaw);
 
         // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映
         if (lastSeenSyncEl) {
@@ -626,29 +542,6 @@
         if (slwsEl) slwsEl.textContent = String(slWrong);
         if (slwsProgEl) slwsProgEl.textContent = String(serverWrongProgress);
         if (sllwProgEl) sllwProgEl.textContent  = String(localWrongProgress);
-
-        // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（B）
-        //   - streakLenDelta / streakWrongLenDelta は「増分」ではなく「最新値」なので、そのまま表示する
-        //   - last*DayDelta も「最新値」なので、そのまま表示する
-        const qdS3  = queue.streak3Delta[QID] || 0;
-        const qdSL  = Object.prototype.hasOwnProperty.call(queue.streakLenDelta, QID) ? queue.streakLenDelta[QID] : null;
-
-        const qdS3W = queue.streak3WrongDelta[QID] || 0;
-        const qdSLW = Object.prototype.hasOwnProperty.call(queue.streakWrongLenDelta, QID) ? queue.streakWrongLenDelta[QID] : null;
-
-        const qdSeen = Object.prototype.hasOwnProperty.call(queue.lastSeenDayDelta, QID) ? queue.lastSeenDayDelta[QID] : "";
-        const qdCor  = Object.prototype.hasOwnProperty.call(queue.lastCorrectDayDelta, QID) ? queue.lastCorrectDayDelta[QID] : "";
-        const qdWrg  = Object.prototype.hasOwnProperty.call(queue.lastWrongDayDelta, QID) ? queue.lastWrongDayDelta[QID] : "";
-
-        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "0") + " / " + toDisplayText(dI, "0");
-        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "0");
-        if (qdSLel)   qdSLel.textContent   = toDisplayText(qdSL !== null && qdSL !== undefined ? qdSL : "", "（なし）");
-        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "0");
-        if (qdSLwEl)  qdSLwEl.textContent  = toDisplayText(qdSLW !== null && qdSLW !== undefined ? qdSLW : "", "（なし）");
-
-        if (qdSeenEl) qdSeenEl.textContent = toDisplayText(qdSeen, "（なし）");
-        if (qdCorEl)  qdCorEl.textContent  = toDisplayText(qdCor, "（なし）");
-        if (qdWrgEl)  qdWrgEl.textContent  = toDisplayText(qdWrg, "（なし）");
 
         const time = lastSyncTime ? lastSyncTime : "-";
         const err  = lastSyncError ? (" err:" + lastSyncError) : "";
@@ -1759,48 +1652,6 @@
 #cscs_sync_monitor_a .lastday-grid .ld-label{
   opacity: 0.75;
 }
-
-#cscs_sync_monitor_a .days-grid{
-  display: grid;
-  grid-template-columns: 150px 1fr 1fr 60px;
-  gap: 4px 10px;
-  align-items: center;
-  font-size: 11px;
-}
-
-#cscs_sync_monitor_a .days-head{
-  font-weight: 700;
-  opacity: 0.8;
-  white-space: nowrap;
-}
-
-#cscs_sync_monitor_a .days-label{
-  opacity: 0.78;
-  white-space: nowrap;
-}
-
-#cscs_sync_monitor_a .days-val{
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-#cscs_sync_monitor_a .delta-grid{
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 4px 10px;
-  align-items: center;
-  font-size: 11px;
-}
-
-#cscs_sync_monitor_a .delta-label{
-  opacity: 0.78;
-  white-space: nowrap;
-}
-
-#cscs_sync_monitor_a .delta-val{
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
           `.trim();
           (document.head || document.documentElement).appendChild(st);
         }
@@ -1868,64 +1719,6 @@
             <div class="sync-body sync-streak3wrongtoday">
               day: <span class="sync-streak3wrongtoday-day">-</span><br>
               unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
-            </div>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">Days（SYNC / local / 今日？）</div>
-            <div class="sync-body">
-              <div class="days-grid">
-                <div class="days-head"></div>
-                <div class="days-head">SYNC</div>
-                <div class="days-head">local</div>
-                <div class="days-head">今日？</div>
-
-                <div class="days-label">streak3_today_day</div>
-                <div class="days-val"><span class="sync-streak3today-day-sync">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3today-day-local">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3today-day-istoday">unknown</span></div>
-
-                <div class="days-label">streak3_wrong_today_day</div>
-                <div class="days-val"><span class="sync-streak3wrongtoday-day-sync">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3wrongtoday-day-local">（データなし）</span></div>
-                <div class="days-val"><span class="sync-streak3wrongtoday-day-istoday">unknown</span></div>
-
-                <div class="days-label">oncePerDayToday.day</div>
-                <div class="days-val"><span class="sync-onceperday-day-sync">（データなし）</span></div>
-                <div class="days-val"><span class="sync-onceperday-day-local">（データなし）</span></div>
-                <div class="days-val"><span class="sync-onceperday-day-istoday">unknown</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">Queue Δ detail（送信待ち）</div>
-            <div class="sync-body">
-              <div class="delta-grid">
-                <div class="delta-label">Totals(c/w)</div>
-                <div class="delta-val"><span class="sync-queue-cw">0 / 0</span></div>
-
-                <div class="delta-label">streak3Delta</div>
-                <div class="delta-val"><span class="sync-queue-s3">0</span></div>
-
-                <div class="delta-label">streakLenDelta</div>
-                <div class="delta-val"><span class="sync-queue-sl">（なし）</span></div>
-
-                <div class="delta-label">streak3WrongDelta</div>
-                <div class="delta-val"><span class="sync-queue-s3w">0</span></div>
-
-                <div class="delta-label">streakWrongLenDelta</div>
-                <div class="delta-val"><span class="sync-queue-slw">（なし）</span></div>
-
-                <div class="delta-label">lastSeenDayDelta</div>
-                <div class="delta-val"><span class="sync-queue-lastseen">（なし）</span></div>
-
-                <div class="delta-label">lastCorrectDayDelta</div>
-                <div class="delta-val"><span class="sync-queue-lastcorrect">（なし）</span></div>
-
-                <div class="delta-label">lastWrongDayDelta</div>
-                <div class="delta-val"><span class="sync-queue-lastwrong">（なし）</span></div>
-              </div>
             </div>
           </div>
 
