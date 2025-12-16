@@ -369,6 +369,7 @@
     inset 0 0 0 1px rgba(255,255,255,0.65),
     0 0 4px rgba(255,255,255,0.28);
   animation: nl-ph-today-pulse 4.2s ease-in-out infinite;
+  border-bottom-left-radius: 4px;
 }
 
 /* 現在地マス用：強めの呼吸＋発光点滅 */
