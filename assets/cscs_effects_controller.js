@@ -191,6 +191,32 @@
       "#" + PANEL_ID + " input[type=checkbox]{" +
       "transform:scale(1.05);" +
       "}" +
+      "#" + PANEL_ID + " .btn{" +
+      "font-size:11px;" +
+      "padding:2px 8px;" +
+      "height:24px;" +
+      "line-height:20px;" +
+      "border-radius:999px;" +
+      "border:1px solid rgba(255,255,255,0.18);" +
+      "background:rgba(0,0,0,0.35);" +
+      "color:#fff;" +
+      "font-weight:700;" +
+      "cursor:pointer;" +
+      "user-select:none;" +
+      "-webkit-user-select:none;" +
+      "box-shadow:none;" +
+      "}" +
+      "#" + PANEL_ID + " .btn:active{" +
+      "transform:translateY(1px);" +
+      "}" +
+      "#" + PANEL_ID + " .btn.is-off{" +
+      "background:rgba(0,0,0,0.55);" +
+      "opacity:0.65;" +
+      "}" +
+      "#" + PANEL_ID + " .btn.is-on{" +
+      "background:rgba(0,0,0,0.35);" +
+      "opacity:0.90;" +
+      "}" +
       "#" + PANEL_ID + " .hint{" +
       "font-size:11px;" +
       "opacity:0.72;" +
@@ -223,8 +249,66 @@
 
       var ttl = document.createElement("div");
       ttl.className = "ttl";
-      ttl.textContent = "Effects (per module)";
+      ttl.textContent = "Effects (panel)";
       panel.appendChild(ttl);
+
+      // 追加した処理:
+      // - パネル内に「ALL（全体ON/OFF）」ボタンを置く
+      // - ここで LS_KEY（cscs_effects_disabled）を操作し、確実に反映するためリロードする
+      (function () {
+        var rowAll = document.createElement("div");
+        rowAll.className = "row";
+
+        var labelAll = document.createElement("span");
+        labelAll.textContent = "ALL";
+
+        var btnAll = document.createElement("button");
+        btnAll.type = "button";
+        btnAll.className = "btn";
+
+        function refreshAllButton() {
+          var disabled = isDisabledNow();
+          if (disabled) {
+            btnAll.textContent = "OFF";
+            btnAll.classList.remove("is-on");
+            btnAll.classList.add("is-off");
+          } else {
+            btnAll.textContent = "ON";
+            btnAll.classList.remove("is-off");
+            btnAll.classList.add("is-on");
+          }
+        }
+
+        btnAll.addEventListener("click", function () {
+          var disabled = isDisabledNow();
+          var nextDisabled = !disabled;
+
+          applyFlag(nextDisabled);
+
+          if (nextDisabled) {
+            safeSetLS(LS_KEY, "1");
+          } else {
+            safeRemoveLS(LS_KEY);
+          }
+
+          refreshAllButton();
+
+          try {
+            location.reload();
+          } catch (_eReloadAll) {
+            try {
+              location.href = location.href;
+            } catch (_eHrefAll) {
+            }
+          }
+        });
+
+        refreshAllButton();
+
+        rowAll.appendChild(labelAll);
+        rowAll.appendChild(btnAll);
+        panel.appendChild(rowAll);
+      })();
 
       var map = safeGetMap();
 
@@ -274,7 +358,7 @@
 
       var hint = document.createElement("div");
       hint.className = "hint";
-      hint.textContent = "Tip: click = master. right-click = panel.";
+      hint.textContent = "Tip: tap FX button to open/close this panel.";
       panel.appendChild(hint);
 
       document.body.appendChild(panel);
@@ -328,42 +412,10 @@
       }
     }
 
-    // 左クリック: マスターON/OFF（従来通り）
+    // 追加した処理:
+    // - FXボタンは「パネルを開閉するだけ」にする（1クリック導線）
+    // - 全体ON/OFF（ALL）と個別ON/OFFはパネル内で行う
     btn.addEventListener("click", function () {
-      var disabled = isDisabledNow();
-      var nextDisabled = !disabled;
-
-      applyFlag(nextDisabled);
-
-      if (nextDisabled) {
-        safeSetLS(LS_KEY, "1");
-      } else {
-        safeRemoveLS(LS_KEY);
-      }
-
-      refreshLabel();
-
-      try {
-        location.reload();
-      } catch (_eReload) {
-        // reload が効かない環境向けの最後の手段
-        try {
-          location.href = location.href;
-        } catch (_eHref) {
-        }
-      }
-    });
-
-    // 右クリック: 個別パネル開閉
-    btn.addEventListener("contextmenu", function (ev) {
-      try { ev.preventDefault(); } catch (_ePrev) {}
-      var p = ensurePanel();
-      var isOpen = p.classList.contains("open");
-      togglePanel(!isOpen);
-    });
-
-    // 追加した処理: ダブルクリックでも個別パネル開閉（iOS等で右クリックが使えない場合の導線）
-    btn.addEventListener("dblclick", function () {
       var p = ensurePanel();
       var isOpen = p.classList.contains("open");
       togglePanel(!isOpen);
