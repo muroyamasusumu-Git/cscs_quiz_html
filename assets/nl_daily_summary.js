@@ -474,17 +474,32 @@
 
 #nl-progress-header .nl-ph-cell-day {
     border-radius: 0px;
-    background: linear-gradient(
-      to bottom,
-      rgba(255,255,255,0.03),
-      rgba(255,255,255,0.015)
+
+    /* 変更:
+       - “斜め方向の差” を強くするため 135deg の多段グラデにする
+       - background-size を大きくして、position移動で表情が変わるようにする */
+    background-image: linear-gradient(
+      135deg,
+      rgba(255,255,255,0.080) 0%,
+      rgba(255,255,255,0.020) 35%,
+      rgba(0,0,0,0.120) 70%,
+      rgba(255,255,255,0.060) 100%
     );
+    background-size: 240% 240%;
+    background-position: 0% 0%;
+    background-repeat: no-repeat;
+
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,0.18),
       inset 0 1px 0 rgba(255,255,255,0.06);
+
     border-bottom-left-radius: 20px;
     height: 12px;
-    transition: background 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+
+    /* 変更:
+       - filter を使わないので transition から除外（“全体明暗”の原因を断つ） */
+    transition: background-position 180ms ease, box-shadow 180ms ease;
+
     position: relative;
     overflow: hidden;
 }
@@ -506,30 +521,34 @@
    - is-today はJS側で除外（見た目を壊さない）
    ========================================================= */
 
-/* 基本：日別セルは “背景/影は固定” のまま、opacity と brightness だけを微調整する */
+/* 変更:
+   - 全体が明るく/暗くなる（opacity/brightnessの揺れ）は廃止
+   - 代わりに「斜めのグラデーションが流れる」＝background-position だけを動かす
+   - 各セルの animationDelay（JSで付与）によって、左右上下斜めの“面”が常に変化して見える */
 #nl-progress-header .nl-ph-cell-day.is-fx-breath{
-    animation-name: nl-day-breath;
-    animation-timing-function: cubic-bezier(0.40, 0.00, 0.20, 1.00);
+    animation-name: nl-day-gradient-shift;
+    animation-timing-function: linear;
     animation-iteration-count: infinite;
-    animation-direction: alternate;
-    will-change: opacity, filter;
+    animation-direction: normal;
+    will-change: background-position;
 }
 
-/* 呼吸（落差なし）
-   - 背景(background)と影(box-shadow)は触らない（穴っぽい明暗差が出るため）
-   - opacity/brightness を “狭いレンジ” だけで動かす */
-@keyframes nl-day-breath{
+/* 斜めグラデの“移動”だけを行う（明暗の総量は変えない） */
+@keyframes nl-day-gradient-shift{
     0%{
-      opacity: 0.50;
-      filter: brightness(0.84);
+      background-position: 0% 0%;
+    }
+    25%{
+      background-position: 100% 0%;
     }
     50%{
-      opacity: 0.72;
-      filter: brightness(1.00);
+      background-position: 100% 100%;
+    }
+    75%{
+      background-position: 0% 100%;
     }
     100%{
-      opacity: 0.95;
-      filter: brightness(1.16);
+      background-position: 0% 0%;
     }
 }
 
