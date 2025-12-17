@@ -85,6 +85,163 @@
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
   var LAST_ODOA_STATUS = "";
 
+  // ★ A/B共通：SYNCモニタの見た目を揃えるCSSを「1回だけ」注入する
+  //   - init()->append() から毎回呼んでも、二重注入しない
+  //   - #cscs_sync_monitor_b のDOMが後で生成されても、CSSは先に入っていてOK
+  function injectCscsSyncMonitorCommonStyleOnce() {
+    try {
+      if (document.getElementById("cscs-sync-monitor-common-style")) return;
+
+      var st = document.createElement("style");
+      st.id = "cscs-sync-monitor-common-style";
+      st.type = "text/css";
+
+      st.textContent = [
+        "/* ===== CSCS SYNC Monitor Common Style (A/B shared) ===== */",
+        "",
+        "/* root */",
+        "#cscs_sync_monitor_b{",
+        "  position: fixed;",
+        "  right: 10px;",
+        "  top: 10px;",
+        "  z-index: 999999;",
+        "  width: 320px;",
+        "  max-width: calc(100vw - 20px);",
+        "  border-radius: 12px;",
+        "  background: rgba(20,20,20,0.72);",
+        "  color: #fff;",
+        "  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, \"Apple Color Emoji\", \"Segoe UI Emoji\";",
+        "  backdrop-filter: blur(10px);",
+        "  -webkit-backdrop-filter: blur(10px);",
+        "  box-shadow: 0 10px 30px rgba(0,0,0,0.35);",
+        "  overflow: hidden;",
+        "}",
+        "",
+        "/* compact mode */",
+        "#cscs_sync_monitor_b.cscs-compact .sync-grid{",
+        "  display: none;",
+        "}",
+        "",
+        "/* header */",
+        "#cscs_sync_monitor_b .sync-header{",
+        "  display: flex;",
+        "  align-items: center;",
+        "  justify-content: space-between;",
+        "  gap: 10px;",
+        "  padding: 10px 10px;",
+        "  border-bottom: 1px solid rgba(255,255,255,0.12);",
+        "  font-size: 12px;",
+        "  line-height: 1.2;",
+        "}",
+        "#cscs_sync_monitor_b .sync-header .sync-qid{",
+        "  font-weight: 700;",
+        "}",
+        "",
+        "/* toggle button */",
+        "#cscs_sync_monitor_b .sync-toggle-btn{",
+        "  border: 0;",
+        "  border-radius: 10px;",
+        "  padding: 6px 10px;",
+        "  font-size: 11px;",
+        "  font-weight: 700;",
+        "  background: rgba(255,255,255,0.10);",
+        "  color: #fff;",
+        "  cursor: pointer;",
+        "}",
+        "#cscs_sync_monitor_b .sync-toggle-btn:active{",
+        "  transform: translateY(1px);",
+        "}",
+        "",
+        "/* grid */",
+        "#cscs_sync_monitor_b .sync-grid{",
+        "  display: grid;",
+        "  grid-template-columns: 1fr 1fr;",
+        "  gap: 10px;",
+        "  padding: 10px;",
+        "}",
+        "",
+        "/* cards */",
+        "#cscs_sync_monitor_b .sync-card{",
+        "  background: rgba(255,255,255,0.08);",
+        "  border: 1px solid rgba(255,255,255,0.10);",
+        "  border-radius: 12px;",
+        "  padding: 10px;",
+        "  min-height: 0;",
+        "}",
+        "#cscs_sync_monitor_b .sync-span-2{",
+        "  grid-column: 1 / span 2;",
+        "}",
+        "",
+        "/* status grid (Status / value) */",
+        "#cscs_sync_monitor_b .status-grid{",
+        "  display: grid;",
+        "  grid-template-columns: 70px 1fr;",
+        "  gap: 8px;",
+        "  align-items: center;",
+        "}",
+        "#cscs_sync_monitor_b .status-label{",
+        "  opacity: 0.75;",
+        "  font-size: 11px;",
+        "  font-weight: 700;",
+        "}",
+        "#cscs_sync_monitor_b .status-value{",
+        "  font-size: 12px;",
+        "  font-weight: 700;",
+        "}",
+        "",
+        "/* 2-column body (updateSyncBody) */",
+        "#cscs_sync_monitor_b .cscs-sync-grid{",
+        "  display: grid;",
+        "  grid-template-columns: 140px 1fr;",
+        "  gap: 6px 10px;",
+        "  font-size: 12px;",
+        "  line-height: 1.25;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-k{",
+        "  opacity: 0.85;",
+        "  word-break: break-word;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-v{",
+        "  font-weight: 700;",
+        "  word-break: break-word;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-head-k{",
+        "  opacity: 0.8;",
+        "  font-size: 11px;",
+        "  font-weight: 700;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-head-v{",
+        "  opacity: 0.8;",
+        "  font-size: 11px;",
+        "  font-weight: 700;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-head-divider{",
+        "  height: 1px;",
+        "  background: rgba(255,255,255,0.10);",
+        "  margin: 2px 0 6px 0;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-divider{",
+        "  height: 1px;",
+        "  background: rgba(255,255,255,0.10);",
+        "  margin: 6px 0;",
+        "}",
+        "#cscs_sync_monitor_b .cscs-sync-section{",
+        "  margin-top: 6px;",
+        "  padding-top: 6px;",
+        "  border-top: 1px solid rgba(255,255,255,0.10);",
+        "  font-size: 11px;",
+        "  font-weight: 800;",
+        "  opacity: 0.9;",
+        "}",
+        ""
+      ].join("\\n");
+
+      (document.head || document.documentElement).appendChild(st);
+    } catch (e) {
+      console.error("[SYNC-B:view] injectCscsSyncMonitorCommonStyleOnce error:", e);
+    }
+  }
+
   function detectInfo() {
     var path = window.location.pathname || "";
     var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
@@ -394,86 +551,66 @@
 
   function createPanel() {
     var box = document.createElement("div");
-    box.id = "cscs_sync_view_b";
 
-    // ★ グリッド表示用CSS（1回だけ注入）
-    (function ensureSyncBGridStyle(){
-      try {
-        if (document.getElementById("cscs_sync_view_b_grid_style")) return;
-        var st = document.createElement("style");
-        st.id = "cscs_sync_view_b_grid_style";
-        st.textContent = ""
-          + "#cscs_sync_view_b_body.cscs-sync-grid{"
-          + "display:grid;"
-          // ★ 左列固定幅（A寄せの最重要ポイント）
-          + "grid-template-columns: 124px 1fr;"
-          + "column-gap:10px;"
-          + "row-gap:4px;"
-          + "align-items:start;"
-          + "font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace;"
-          + "font-size:11px;"
-          + "line-height:1.25;"
-          + "white-space:pre-wrap;"
-          + "word-break:break-word;"
-          + "}"
+    // ★ 共通CSS対象の root id に寄せる（A/B共通の見た目ルールを適用）
+    box.id = "cscs_sync_monitor_b";
 
-          // ★ 見出し行（A寄せ）
-          + "#cscs_sync_view_b_body .cscs-sync-head-k,"
-          + "#cscs_sync_view_b_body .cscs-sync-head-v{"
-          + "font-weight:800;"
-          + "opacity:0.9;"
-          + "padding:2px 0px;"
-          + "}"
-          + "#cscs_sync_view_b_body .cscs-sync-head-k{"
-          + "opacity:0.75;"
-          + "}"
-          + "#cscs_sync_view_b_body .cscs-sync-head-divider{"
-          + "height:0px;"
-          + "border-top:1px solid rgba(255,255,255,0.14);"
-          + "margin:2px 0px 6px 0px;"
-          + "}"
+    // ★ 初期はコンパクト（OPEN/CLOSE の挙動は共通CSSの .cscs-compact で統一）
+    box.className = "cscs-compact";
 
-          // ★ 通常行（A寄せ：左列は少し薄め、右列は読みやすく）
-          + "#cscs_sync_view_b_body .cscs-sync-k{"
-          + "opacity:0.72;"
-          + "}"
-          + "#cscs_sync_view_b_body .cscs-sync-v{"
-          + "opacity:0.96;"
-          + "}"
+    // ---- header（共通CSS: .sync-header / .sync-toggle-btn）----
+    var header = document.createElement("div");
+    header.className = "sync-header";
 
-          // ★ セクション見出し（A寄せ：グルーピング感を出す）
-          + "#cscs_sync_view_b_body .cscs-sync-section{"
-          + "margin-top:8px;"
-          + "padding:6px 8px;"
-          + "border-top:1px solid rgba(255,255,255,0.12);"
-          + "background: rgba(255,255,255,0.04);"
-          + "border-radius:8px;"
-          + "opacity:0.92;"
-          + "font-weight:800;"
-          + "letter-spacing:0.2px;"
-          + "}"
+    var headText = document.createElement("span");
+    headText.innerHTML = 'SYNC(B): <span class="sync-qid"></span>';
 
-          // ★ 空行由来の区切り（A寄せ：グループ内の段落感）
-          + "#cscs_sync_view_b_body .cscs-sync-divider{"
-          + "height:0px;"
-          + "border-top:1px solid rgba(255,255,255,0.08);"
-          + "margin:4px 0px;"
-          + "}";
-        document.head.appendChild(st);
-      } catch (_e) {}
-    })();
+    var toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.className = "sync-toggle-btn";
+    toggleBtn.setAttribute("data-sync-toggle", "1");
+    toggleBtn.textContent = "OPEN";
 
-    var title = document.createElement("div");
-    title.id = "cscs_sync_view_b_title";
-    title.textContent = "SYNC(B): " + info.qid;
+    header.appendChild(headText);
+    header.appendChild(toggleBtn);
+
+    // ---- grid（共通CSS: .sync-grid / .sync-card / .sync-span-2）----
+    var grid = document.createElement("div");
+    grid.className = "sync-grid";
+
+    // ★ メイン表示（従来の updateSyncBody の 2カラム整形をそのまま入れる器）
+    var cardMain = document.createElement("div");
+    cardMain.className = "sync-card sync-span-2";
 
     var body = document.createElement("div");
     body.id = "cscs_sync_view_b_body";
     body.className = "cscs-sync-grid";
     body.textContent = "読み込み中…";
 
-    var statusDiv = document.createElement("div");
-    statusDiv.id = "cscs_sync_view_b_status";
+    cardMain.appendChild(body);
+
+    // ★ O.D.O.A 表示（共通CSS: status-grid）
+    var cardStatus = document.createElement("div");
+    cardStatus.className = "sync-card sync-span-2";
+
+    var statusGrid = document.createElement("div");
+    statusGrid.className = "sync-body status-grid";
+
+    var statusLabel = document.createElement("div");
+    statusLabel.className = "status-label";
+    statusLabel.textContent = "Status";
+
+    var statusValue = document.createElement("div");
+    statusValue.className = "status-value";
+
+    var statusSpan = document.createElement("span");
+    statusSpan.id = "cscs_sync_view_b_status";
+    statusSpan.textContent = "O.D.O.A Mode : OFF";
+
+    statusValue.appendChild(statusSpan);
+    statusGrid.appendChild(statusLabel);
+    statusGrid.appendChild(statusValue);
+    cardStatus.appendChild(statusGrid);
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
@@ -488,16 +625,36 @@
     btn.id = "cscs_sync_view_b_send_btn";
     btn.type = "button";
     btn.textContent = "SYNC送信";
-    // ★ ボタンは UI としては完全に非表示にするが、DOM 上には残すために inline style で display:none を指定する。
-    //   - CSS ファイル側で非表示にすると、スタイル整理時に誤って削除されるリスクがあるため、
-    //     あえてここで style 属性を直書きしている。
     btn.setAttribute("style", "display:none;");
 
-    box.appendChild(title);
-    box.appendChild(body);
-    box.appendChild(statusDiv);
+    grid.appendChild(cardMain);
+    grid.appendChild(cardStatus);
+
+    box.appendChild(header);
+    box.appendChild(grid);
+
     // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
     box.appendChild(btn);
+
+    // ★ OPEN/CLOSE トグル（共通CSSの .cscs-compact を切替）
+    toggleBtn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      if (box.classList.contains("cscs-compact")) {
+        box.classList.remove("cscs-compact");
+        toggleBtn.textContent = "CLOSE";
+      } else {
+        box.classList.add("cscs-compact");
+        toggleBtn.textContent = "OPEN";
+      }
+    });
+
+    // ★ ヘッダーの qid 表示を確実に反映
+    try {
+      var q = box.querySelector(".sync-qid");
+      if (q) q.textContent = info.qid;
+    } catch (_e) {}
 
     return box;
   }
@@ -1761,6 +1918,8 @@
     var box = createPanel();
 
     function append() {
+      injectCscsSyncMonitorCommonStyleOnce(); // ★ A/B共通SYNCモニタCSSをBでも注入（1回だけ）
+
       var wrap = document.querySelector("div.wrap");
       if (wrap) {
         if (!wrap.contains(box)) {
@@ -2147,7 +2306,7 @@
   };
 
   window.addEventListener("online", function () {
-    var box = document.getElementById("cscs_sync_view_b");
+    var box = document.getElementById("cscs_sync_monitor_b");
     if (!box) return;
     refreshAndSend(box);
   });
