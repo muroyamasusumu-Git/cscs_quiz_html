@@ -176,7 +176,6 @@
   const LS_MON_OPEN    = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN   = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN   = "cscs_sync_a_queue_detail_open";
-  const LS_ONCE_OPEN    = "cscs_sync_a_once_odoa_open";
 
   function readLsBool(key, defaultBool){
     try{
@@ -2124,6 +2123,11 @@
           </div>
 
           <div class="sync-card sync-span-2">
+            <div class="sync-title">OncePerDayToday / O.D.O.A Mode</div>
+            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
+          </div>
+
+          <div class="sync-card sync-span-2">
             <details class="sync-fold" data-fold="queue">
               <summary>Queue Δ detail（送信待ち）</summary>
               <div class="sync-body">
@@ -2153,13 +2157,6 @@
                   <div class="delta-val"><span class="sync-queue-lastwrong">（なし）</span></div>
                 </div>
               </div>
-            </details>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <details class="sync-fold" data-fold="once">
-              <summary>oncePerDayToday / ODOA</summary>
-              <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
             </details>
           </div>
 
@@ -2216,10 +2213,9 @@
 
         const daysDetails    = box.querySelector('details.sync-fold[data-fold="days"]');
         const queueDetails   = box.querySelector('details.sync-fold[data-fold="queue"]');
-        const onceDetails    = box.querySelector('details.sync-fold[data-fold="once"]');
 
         /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
-           - HTML文字列を直接いじらず、生成後DOMから「days/queue/once」のdetailsを特定
+           - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
            - それぞれの親 .sync-card に sync-optional を付ける（CLOSE時に消える対象） */
         function markOptional(detailsEl){
           try{
@@ -2232,15 +2228,12 @@
         }
         markOptional(daysDetails);
         markOptional(queueDetails);
-        markOptional(onceDetails);
 
         const daysOpen    = readLsBool(LS_DAYS_OPEN, false);   // デフォルト閉じ
         const queueOpen   = readLsBool(LS_QDEL_OPEN, false);   // デフォルト閉じ
-        const onceOpen    = readLsBool(LS_ONCE_OPEN, false);    // デフォルト閉じ
 
         if (daysDetails)    daysDetails.open    = !!daysOpen;
         if (queueDetails)   queueDetails.open   = !!queueOpen;
-        if (onceDetails)    onceDetails.open    = !!onceOpen;
 
         if (daysDetails) {
           daysDetails.addEventListener("toggle", function(){
@@ -2250,11 +2243,6 @@
         if (queueDetails) {
           queueDetails.addEventListener("toggle", function(){
             writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
-          });
-        }
-        if (onceDetails) {
-          onceDetails.addEventListener("toggle", function(){
-            writeLsBool(LS_ONCE_OPEN, !!onceDetails.open);
           });
         }
       }catch(_){}
