@@ -323,7 +323,7 @@
   display:flex;
   align-items:baseline;
   justify-content:space-between;
-  gap:10px;
+  gap:5px;
   margin-top: 0px;
 }
 
