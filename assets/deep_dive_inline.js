@@ -629,7 +629,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
       return row;
     };
 
-    wrap.appendChild(mkRow("cause", "理論深掘り｜（原因・原理）"));
+    wrap.appendChild(mkRow("cause", "より詳細な解説"));
     // wrap.appendChild(mkRow("apply", "この問題への当てはめ"));
 
     // .explain が pre-wrap の場合、末尾の改行テキストが空行になるので除去
