@@ -343,7 +343,8 @@
 #nl-progress-header .nl-ph-grid{
   margin-top: 0px;
   display:grid;
-  width:100%;
+    /* width: 100%; */
+    margin-left: 20px;
 }
 
 /* ---- cells (shared base) ---- */
