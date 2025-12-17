@@ -21,6 +21,12 @@
   ];
   // ==============================================
 
+  // 設定：h1（ページ内に1つ想定）をON/OFF対象に含めるか
+  const ENABLE_HIDE_H1 = true;
+
+  // h1用：hidden_map に保存するキー（IDと衝突しない名前空間）
+  const H1_MAP_KEY = "tag:h1";
+
   const LS_KEY_PREFIX = "cscs_temp_hide_v1:";
   const LS_KEY_PANEL_OPEN = LS_KEY_PREFIX + "panel_open";
   const LS_KEY_HIDDEN_MAP = LS_KEY_PREFIX + "hidden_map";
@@ -60,19 +66,41 @@
     return document.getElementById(idHash);
   }
 
+  function getH1Elements(){
+    // h1（タグ）を直接取得する。存在しなければ空配列。
+    // ※フォールバックで別セレクタを探す等はしない（安全・単純）。
+    const els = document.getElementsByTagName("h1");
+    return Array.from(els || []);
+  }
+
   function applyHiddenStateToElement(el, isHidden){
     if (!el) return;
     if (isHidden) el.classList.add(HIDDEN_CLASS);
     else el.classList.remove(HIDDEN_CLASS);
   }
 
+  function applyHiddenStateToElements(els, isHidden){
+    // 複数要素（h1など）に同じ非表示クラスを付与/解除するだけ
+    if (!els || !els.length) return;
+    for (const el of els){
+      applyHiddenStateToElement(el, isHidden);
+    }
+  }
+
   function applyAllHiddenStates(){
     const map = loadHiddenMap();
+
     for (const idSel of TARGET_IDS){
       const idHash = normIdHash(idSel);
       const el = getElByHash(idHash);
       const isHidden = !!map[idHash];
       applyHiddenStateToElement(el, isHidden);
+    }
+
+    // h1（タグ）にも同じ非表示クラスを適用する（設定ONのときだけ）
+    if (ENABLE_HIDE_H1){
+      const isHiddenH1 = !!map[H1_MAP_KEY];
+      applyHiddenStateToElements(getH1Elements(), isHiddenH1);
     }
   }
 
@@ -269,7 +297,7 @@
 
     const title = document.createElement("div");
     title.className = "th-title";
-    title.textContent = "TEMP HIDE";
+    title.textContent = "HIDE";
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "th-close";
@@ -309,6 +337,13 @@
         map[idHash] = false;
         applyHiddenStateToElement(getElByHash(idHash), false);
       }
+
+      // h1（タグ）も一括で表示ONに戻す（設定ONのときだけ）
+      if (ENABLE_HIDE_H1){
+        map[H1_MAP_KEY] = false;
+        applyHiddenStateToElements(getH1Elements(), false);
+      }
+
       saveHiddenMap(map);
       refreshRows();
     });
@@ -324,6 +359,13 @@
         map[idHash] = true;
         applyHiddenStateToElement(getElByHash(idHash), true);
       }
+
+      // h1（タグ）も一括で表示OFFにする（設定ONのときだけ）
+      if (ENABLE_HIDE_H1){
+        map[H1_MAP_KEY] = true;
+        applyHiddenStateToElements(getH1Elements(), true);
+      }
+
       saveHiddenMap(map);
       refreshRows();
     });
@@ -379,6 +421,43 @@
           m[idHash] = !!toggle.checked;
           saveHiddenMap(m);
           applyHiddenStateToElement(getElByHash(idHash), !!toggle.checked);
+        });
+
+        row.appendChild(left);
+        row.appendChild(toggle);
+        list.appendChild(row);
+      }
+
+      // h1（タグ）をリストに追加して個別にON/OFFできるようにする（設定ONのときだけ）
+      if (ENABLE_HIDE_H1){
+        const row = document.createElement("div");
+        row.className = "th-row";
+
+        const left = document.createElement("div");
+        left.className = "th-left";
+
+        const idLine = document.createElement("div");
+        idLine.className = "th-id";
+        idLine.textContent = "h1";
+
+        const stLine = document.createElement("div");
+        stLine.className = "th-status";
+        stLine.textContent = getH1Elements().length ? "<h1>" : "要素が見つかりません（h1なし）";
+
+        left.appendChild(idLine);
+        left.appendChild(stLine);
+
+        const toggle = document.createElement("input");
+        toggle.className = "th-toggle";
+        toggle.type = "checkbox";
+        // checked=true を「非表示」にする
+        toggle.checked = !!map[H1_MAP_KEY];
+
+        toggle.addEventListener("change", function(){
+          const m = loadHiddenMap();
+          m[H1_MAP_KEY] = !!toggle.checked;
+          saveHiddenMap(m);
+          applyHiddenStateToElements(getH1Elements(), !!toggle.checked);
         });
 
         row.appendChild(left);
