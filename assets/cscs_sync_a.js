@@ -2027,6 +2027,26 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+#cscs_sync_monitor_a .once-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .once-label{
+  font-weight: 600;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-val{
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
           `.trim();
           (document.head || document.documentElement).appendChild(st);
         }
