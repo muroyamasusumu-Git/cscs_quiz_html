@@ -970,10 +970,32 @@
           }
 
           onceEl.innerHTML =
-            line1 + "<br>" +
-            line2 + "<br>" +
-            line3 + "<br>" +
-            line4;
+            '<div class="once-grid">' +
+
+              '<div class="once-label">oncePerDayToday</div>' +
+              '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
+
+              '<div class="once-label">' +
+                (isTodayOnce ? 'Today' : 'lastRecordedDay') +
+              '</div>' +
+              '<div class="once-val">' +
+                (isTodayOnce
+                  ? line2.replace(/^Today:\s*/, "")
+                  : line2.replace(/^lastRecordedDay:\s*/, "")
+                ) +
+              '</div>' +
+
+              '<div class="once-label">count対象</div>' +
+              '<div class="once-val">' +
+                line3.replace(/^count対象:\s*/, "") +
+              '</div>' +
+
+              '<div class="once-label">ODOA</div>' +
+              '<div class="once-val">' +
+                line4.replace(/^ODOA:\s*/, "") +
+              '</div>' +
+
+            '</div>';
         }
       }
     }catch(_){
