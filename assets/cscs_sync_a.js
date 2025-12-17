@@ -2128,23 +2128,41 @@
   white-space: nowrap;
 }
 
-/* ★ lastday summary を 1行グリッド化（LastWrong｜SYNC｜local） */
+/* ★ lastday summary を 1行グリッド化（▶ + LastWrong｜SYNC｜local） */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary{
   display: grid;
-  grid-template-columns: auto auto auto auto auto;
+  grid-template-columns: 14px auto auto auto auto auto; /* 1列目=▶/▼（summary::before） */
   gap: 6px;
   align-items: baseline;
   white-space: nowrap;
 }
-#cscs_sync_monitor_a .sync-lastday-summary-type{
+
+/* ▼/▶ は擬似要素なので “1つのグリッド要素” として扱われる → 1列目へ固定 */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary::before{
+  grid-column: 1;
+}
+
+/* 以降のspan達を 2〜6列へ固定（折り返し・ズレ防止） */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-type{
+  grid-column: 2;
   font-weight: 700;
   opacity: 0.90;
 }
-#cscs_sync_monitor_a .sync-lastday-summary-sep{
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep:nth-of-type(1){
+  grid-column: 3;
   opacity: 0.55;
 }
-#cscs_sync_monitor_a .sync-lastday-summary-sync,
-#cscs_sync_monitor_a .sync-lastday-summary-local{
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sync{
+  grid-column: 4;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+}
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep:nth-of-type(2){
+  grid-column: 5;
+  opacity: 0.55;
+}
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-local{
+  grid-column: 6;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
 }
