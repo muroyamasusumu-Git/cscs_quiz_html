@@ -1716,10 +1716,7 @@
   position: fixed;
   right: 15px;
   top: 100px;
-  /* background: rgba(0,0,0,0.55); */
   color: #eee;
-  /* border: 1px solid rgba(255,255,255,0.10); */
-  /* border-radius: 12px; */
   padding: 8px;
   font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;

@@ -85,173 +85,6 @@
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
   var LAST_ODOA_STATUS = "";
 
-  // ★ A/B共通：SYNCモニタの見た目を揃えるCSSを「1回だけ」注入する
-  //   - init()->append() から毎回呼んでも、二重注入しない
-  //   - #cscs_sync_monitor_b のDOMが後で生成されても、CSSは先に入っていてOK
-  function injectCscsSyncMonitorCommonStyleOnce() {
-    try {
-      var cssText = [
-        "/* ===== CSCS SYNC Monitor Common Style (A/B shared) ===== */",
-        "",
-        "/* root */",
-        "#cscs_sync_monitor_b{",
-        "  position: fixed;",
-        "  right: 10px;",
-        "  top: 10px;",
-        "  z-index: 999999;",
-        "  width: 320px;",
-        "  max-width: calc(100vw - 20px);",
-        "  border-radius: 12px;",
-        "  background: rgba(20,20,20,0.72);",
-        "  color: #fff;",
-        "  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, \"Apple Color Emoji\", \"Segoe UI Emoji\";",
-        "  backdrop-filter: blur(10px);",
-        "  -webkit-backdrop-filter: blur(10px);",
-        "  box-shadow: 0 10px 30px rgba(0,0,0,0.35);",
-        "  overflow: hidden;",
-        "}",
-        "",
-        "/* compact mode */",
-        "#cscs_sync_monitor_b.cscs-compact .sync-grid{",
-        "  display: none;",
-        "}",
-        "",
-        "/* header */",
-        "#cscs_sync_monitor_b .sync-header{",
-        "  display: flex;",
-        "  align-items: center;",
-        "  justify-content: space-between;",
-        "  gap: 10px;",
-        "  padding: 10px 10px;",
-        "  border-bottom: 1px solid rgba(255,255,255,0.12);",
-        "  font-size: 12px;",
-        "  line-height: 1.2;",
-        "}",
-        "#cscs_sync_monitor_b .sync-header .sync-qid{",
-        "  font-weight: 700;",
-        "}",
-        "",
-        "/* toggle button */",
-        "#cscs_sync_monitor_b .sync-toggle-btn{",
-        "  border: 0;",
-        "  border-radius: 10px;",
-        "  padding: 6px 10px;",
-        "  font-size: 11px;",
-        "  font-weight: 700;",
-        "  background: rgba(255,255,255,0.10);",
-        "  color: #fff;",
-        "  cursor: pointer;",
-        "}",
-        "#cscs_sync_monitor_b .sync-toggle-btn:active{",
-        "  transform: translateY(1px);",
-        "}",
-        "",
-        "/* grid */",
-        "#cscs_sync_monitor_b .sync-grid{",
-        "  display: grid;",
-        "  grid-template-columns: 1fr 1fr;",
-        "  gap: 10px;",
-        "  padding: 10px;",
-        "}",
-        "",
-        "/* cards */",
-        "#cscs_sync_monitor_b .sync-card{",
-        "  background: rgba(255,255,255,0.08);",
-        "  border: 1px solid rgba(255,255,255,0.10);",
-        "  border-radius: 12px;",
-        "  padding: 10px;",
-        "  min-height: 0;",
-        "}",
-        "#cscs_sync_monitor_b .sync-span-2{",
-        "  grid-column: 1 / span 2;",
-        "}",
-        "",
-        "/* status grid (Status / value) */",
-        "#cscs_sync_monitor_b .status-grid{",
-        "  display: grid;",
-        "  grid-template-columns: 70px 1fr;",
-        "  gap: 8px;",
-        "  align-items: center;",
-        "}",
-        "#cscs_sync_monitor_b .status-label{",
-        "  opacity: 0.75;",
-        "  font-size: 11px;",
-        "  font-weight: 700;",
-        "}",
-        "#cscs_sync_monitor_b .status-value{",
-        "  font-size: 12px;",
-        "  font-weight: 700;",
-        "}",
-        "",
-        "/* 2-column body (updateSyncBody) */",
-        "#cscs_sync_monitor_b .cscs-sync-grid{",
-        "  display: grid;",
-        "  grid-template-columns: 140px 1fr;",
-        "  gap: 6px 10px;",
-        "  font-size: 12px;",
-        "  line-height: 1.25;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-k{",
-        "  opacity: 0.85;",
-        "  word-break: break-word;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-v{",
-        "  font-weight: 700;",
-        "  word-break: break-word;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-head-k{",
-        "  opacity: 0.8;",
-        "  font-size: 11px;",
-        "  font-weight: 700;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-head-v{",
-        "  opacity: 0.8;",
-        "  font-size: 11px;",
-        "  font-weight: 700;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-head-divider{",
-        "  height: 1px;",
-        "  background: rgba(255,255,255,0.10);",
-        "  margin: 2px 0 6px 0;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-divider{",
-        "  height: 1px;",
-        "  background: rgba(255,255,255,0.10);",
-        "  margin: 6px 0;",
-        "}",
-        "#cscs_sync_monitor_b .cscs-sync-section{",
-        "  margin-top: 6px;",
-        "  padding-top: 6px;",
-        "  border-top: 1px solid rgba(255,255,255,0.10);",
-        "  font-size: 11px;",
-        "  font-weight: 800;",
-        "  opacity: 0.9;",
-        "}",
-        ""
-      ].join("\\n");
-
-      var existing = document.getElementById("cscs-sync-monitor-common-style");
-      if (existing) {
-        var hasMarker = String(existing.textContent || "").indexOf("CSCS SYNC Monitor Common Style") !== -1;
-        if (!hasMarker || !String(existing.textContent || "").trim()) {
-          existing.textContent = cssText;
-          console.log("[SYNC-B:view] common style existed but empty/invalid → re-injected");
-        }
-        return;
-      }
-
-      var st = document.createElement("style");
-      st.id = "cscs-sync-monitor-common-style";
-      st.type = "text/css";
-      st.textContent = cssText;
-
-      (document.head || document.documentElement).appendChild(st);
-      console.log("[SYNC-B:view] common style injected");
-    } catch (e) {
-      console.error("[SYNC-B:view] injectCscsSyncMonitorCommonStyleOnce error:", e);
-    }
-  }
-
   function detectInfo() {
     var path = window.location.pathname || "";
     var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
@@ -433,120 +266,19 @@
       return;
     }
 
-    // 2カラムグリッドとして扱う
-    if (!body.classList.contains("cscs-sync-grid")) {
-      body.classList.add("cscs-sync-grid");
-    }
-
     while (body.firstChild) {
       body.removeChild(body.firstChild);
     }
 
-    // ★ 見出し行（A寄せ）
-    //   - 内容(text)は一切変えず、表示だけ「列見出し」を付ける
-    function appendHeaderRow() {
-      var hk = document.createElement("div");
-      hk.className = "cscs-sync-head-k";
-      hk.textContent = "項目";
-
-      var hv = document.createElement("div");
-      hv.className = "cscs-sync-head-v";
-      hv.textContent = "値";
-
-      body.appendChild(hk);
-      body.appendChild(hv);
-
-      var hr = document.createElement("div");
-      hr.className = "cscs-sync-head-divider";
-      hr.setAttribute("style", "grid-column: 1 / span 2;");
-      body.appendChild(hr);
-    }
-
-    function appendDivider() {
-      var hr = document.createElement("div");
-      hr.className = "cscs-sync-divider";
-      hr.setAttribute("style", "grid-column: 1 / span 2;");
-      body.appendChild(hr);
-    }
-
-    function appendSection(title) {
-      var sec = document.createElement("div");
-      sec.className = "cscs-sync-section";
-      sec.setAttribute("style", "grid-column: 1 / span 2;");
-      sec.textContent = title;
-      body.appendChild(sec);
-    }
-
-    function appendRow(label, value) {
-      var k = document.createElement("div");
-      k.className = "cscs-sync-k";
-      k.textContent = label;
-
-      var v = document.createElement("div");
-      v.className = "cscs-sync-v";
-      v.textContent = value;
-
-      body.appendChild(k);
-      body.appendChild(v);
-    }
-
-    // ★ 先頭に見出し行を追加（A寄せの骨格）
-    appendHeaderRow();
-
     var lines = String(text).split(/\n/);
     for (var i = 0; i < lines.length; i++) {
-      var raw = lines[i];
-      var line = String(raw == null ? "" : raw);
-
-      // 空行は「区切り」にする（縦積みの“余白”ではなくセパレータ扱い）
+      var line = lines[i];
       if (!line.trim()) {
-        appendDivider();
         continue;
       }
-
-      // "xxxx:" だけの行はセクション見出しとして2列結合
-      var trimmed = line.trim();
-      if (/:\s*$/.test(trimmed) && trimmed.replace(/:\s*$/, "").trim() !== "") {
-        // ただし "day: 20251201" みたいに値があるケースもあるので、":"で分割して値が空の時だけ見出し化
-        var idxColon = trimmed.indexOf(":");
-        var left = trimmed.slice(0, idxColon).trim();
-        var right = trimmed.slice(idxColon + 1).trim();
-        if (!right) {
-          appendSection(left);
-          continue;
-        }
-        appendRow(left, right);
-        continue;
-      }
-
-      // "- sync 20251201" みたいな行は、"-" を落として label/value にする
-      if (/^\s*-\s+/.test(line)) {
-        var t = line.replace(/^\s*-\s+/, "");
-        var partsDash = t.split(/\s+/);
-        var dashLabel = partsDash.length ? partsDash[0] : "";
-        var dashValue = partsDash.slice(1).join(" ");
-        appendRow(dashLabel, dashValue);
-        continue;
-      }
-
-      // "key: value" 形式は label/value
-      if (trimmed.indexOf(":") !== -1) {
-        var idx = trimmed.indexOf(":");
-        var k1 = trimmed.slice(0, idx).trim();
-        var v1 = trimmed.slice(idx + 1).trim();
-        if (v1) {
-          appendRow(k1, v1);
-        } else {
-          appendSection(k1);
-        }
-        continue;
-      }
-
-      // それ以外は「先頭トークン=ラベル、残り=値」
-      var parts = trimmed.split(/\s+/);
-      var label = parts.length ? parts[0] : "";
-      var value = parts.slice(1).join(" ");
-      appendRow(label, value);
+      var lineDiv = document.createElement("div");
+      lineDiv.textContent = line;
+      body.appendChild(lineDiv);
     }
   }
 
@@ -561,66 +293,18 @@
 
   function createPanel() {
     var box = document.createElement("div");
+    box.id = "cscs_sync_view_b";
 
-    // ★ 共通CSS対象の root id に寄せる（A/B共通の見た目ルールを適用）
-    box.id = "cscs_sync_monitor_b";
-
-    // ★ 初期はコンパクト（OPEN/CLOSE の挙動は共通CSSの .cscs-compact で統一）
-    box.className = "cscs-compact";
-
-    // ---- header（共通CSS: .sync-header / .sync-toggle-btn）----
-    var header = document.createElement("div");
-    header.className = "sync-header";
-
-    var headText = document.createElement("span");
-    headText.innerHTML = 'SYNC(B): <span class="sync-qid"></span>';
-
-    var toggleBtn = document.createElement("button");
-    toggleBtn.type = "button";
-    toggleBtn.className = "sync-toggle-btn";
-    toggleBtn.setAttribute("data-sync-toggle", "1");
-    toggleBtn.textContent = "OPEN";
-
-    header.appendChild(headText);
-    header.appendChild(toggleBtn);
-
-    // ---- grid（共通CSS: .sync-grid / .sync-card / .sync-span-2）----
-    var grid = document.createElement("div");
-    grid.className = "sync-grid";
-
-    // ★ メイン表示（従来の updateSyncBody の 2カラム整形をそのまま入れる器）
-    var cardMain = document.createElement("div");
-    cardMain.className = "sync-card sync-span-2";
+    var title = document.createElement("div");
+    title.id = "cscs_sync_view_b_title";
+    title.textContent = "SYNC(B): " + info.qid;
 
     var body = document.createElement("div");
     body.id = "cscs_sync_view_b_body";
-    body.className = "cscs-sync-grid";
     body.textContent = "読み込み中…";
 
-    cardMain.appendChild(body);
-
-    // ★ O.D.O.A 表示（共通CSS: status-grid）
-    var cardStatus = document.createElement("div");
-    cardStatus.className = "sync-card sync-span-2";
-
-    var statusGrid = document.createElement("div");
-    statusGrid.className = "sync-body status-grid";
-
-    var statusLabel = document.createElement("div");
-    statusLabel.className = "status-label";
-    statusLabel.textContent = "Status";
-
-    var statusValue = document.createElement("div");
-    statusValue.className = "status-value";
-
-    var statusSpan = document.createElement("span");
-    statusSpan.id = "cscs_sync_view_b_status";
-    statusSpan.textContent = "O.D.O.A Mode : OFF";
-
-    statusValue.appendChild(statusSpan);
-    statusGrid.appendChild(statusLabel);
-    statusGrid.appendChild(statusValue);
-    cardStatus.appendChild(statusGrid);
+    var statusDiv = document.createElement("div");
+    statusDiv.id = "cscs_sync_view_b_status";
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
@@ -635,36 +319,16 @@
     btn.id = "cscs_sync_view_b_send_btn";
     btn.type = "button";
     btn.textContent = "SYNC送信";
+    // ★ ボタンは UI としては完全に非表示にするが、DOM 上には残すために inline style で display:none を指定する。
+    //   - CSS ファイル側で非表示にすると、スタイル整理時に誤って削除されるリスクがあるため、
+    //     あえてここで style 属性を直書きしている。
     btn.setAttribute("style", "display:none;");
 
-    grid.appendChild(cardMain);
-    grid.appendChild(cardStatus);
-
-    box.appendChild(header);
-    box.appendChild(grid);
-
+    box.appendChild(title);
+    box.appendChild(body);
+    box.appendChild(statusDiv);
     // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
     box.appendChild(btn);
-
-    // ★ OPEN/CLOSE トグル（共通CSSの .cscs-compact を切替）
-    toggleBtn.addEventListener("click", function (ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      if (box.classList.contains("cscs-compact")) {
-        box.classList.remove("cscs-compact");
-        toggleBtn.textContent = "CLOSE";
-      } else {
-        box.classList.add("cscs-compact");
-        toggleBtn.textContent = "OPEN";
-      }
-    });
-
-    // ★ ヘッダーの qid 表示を確実に反映
-    try {
-      var q = box.querySelector(".sync-qid");
-      if (q) q.textContent = info.qid;
-    } catch (_e) {}
 
     return box;
   }
@@ -1928,8 +1592,6 @@
     var box = createPanel();
 
     function append() {
-      injectCscsSyncMonitorCommonStyleOnce(); // ★ A/B共通SYNCモニタCSSをBでも注入（1回だけ）
-
       var wrap = document.querySelector("div.wrap");
       if (wrap) {
         if (!wrap.contains(box)) {
@@ -2316,7 +1978,7 @@
   };
 
   window.addEventListener("online", function () {
-    var box = document.getElementById("cscs_sync_monitor_b");
+    var box = document.getElementById("cscs_sync_view_b");
     if (!box) return;
     refreshAndSend(box);
   });
