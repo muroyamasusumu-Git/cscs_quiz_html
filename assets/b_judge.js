@@ -376,16 +376,37 @@
           host.setAttribute('style', 'min-height:1em;display:block;');
 
           // ▼ 自動検証モードかどうかを判定（"on"/"off" 以外は "off" 扱い）
+          //   - この分岐は「選択肢が取得できない」ケースの説明文を出し分けるために使う
           var verifyMode =
             typeof window.CSCS_VERIFY_MODE === 'string' && window.CSCS_VERIFY_MODE === 'on'
               ? 'on'
               : 'off';
 
+          // ▼ TRYALモードかどうかを判定（"on"/"off" 以外は "off" 扱い）
+          //   - TRYALは a_auto_next.js 側で window.CSCS_TRIAL_MODE を初期化している
+          //   - 読めない順序・未読込ケースに備え、同じ正規キー localStorage("cscs_auto_trial_mode") も参照して最終決定する
+          var trialMode = 'off';
+          try {
+            if (typeof window.CSCS_TRIAL_MODE === 'string' && window.CSCS_TRIAL_MODE === 'on') {
+              trialMode = 'on';
+            } else {
+              var rawTrial = localStorage.getItem('cscs_auto_trial_mode');
+              trialMode = (rawTrial === 'on') ? 'on' : 'off';
+            }
+          } catch (_eTrial) {
+            trialMode = (typeof window.CSCS_TRIAL_MODE === 'string' && window.CSCS_TRIAL_MODE === 'on') ? 'on' : 'off';
+          }
+
           // ▼ モードに応じて表示メッセージを切り替え
-          //   - 検証モードON  : 「自動検証 Mode : ON ～」
-          //   - 検証モードOFF : 従来通り「O.D.O.A Mode : ON ～」
+          //   優先順位:
+          //     1) TRYAL : ON  … 自動遷移で選択が無い＝計測しない（TRYAL理由を表示）
+          //     2) 自動検証 : ON … 検証AUTOで計測しない（検証理由を表示）
+          //     3) それ以外 … 従来どおり ODOA 理由を表示
           var messageHtml = '';
-          if (verifyMode === 'on') {
+          if (trialMode === 'on') {
+            messageHtml =
+              '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※TRYAL Mode : ON のため、この問題の正誤計測はされていません。</span>';
+          } else if (verifyMode === 'on') {
             messageHtml =
               '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※自動検証 Mode : ON のため、この問題の正誤計測はされていません。</span>';
           } else {
