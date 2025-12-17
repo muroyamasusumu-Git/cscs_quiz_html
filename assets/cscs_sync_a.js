@@ -666,7 +666,8 @@
         const latestLocalVal = (latestType === "lastWrong") ? lastWrongLocal : lastCorrectLocal;
 
         if (lastdaySummaryTypeEl) {
-          lastdaySummaryTypeEl.textContent = latestType;
+          // ★ summary の種別表示は 1行で読みやすい “LastWrong / LastCorrect” に統一
+          lastdaySummaryTypeEl.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
         }
         if (lastdaySummarySyncEl) {
           lastdaySummarySyncEl.textContent = toDisplayText(latestSyncVal, "（データなし）");
@@ -2126,6 +2127,27 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* ★ lastday summary を 1行グリッド化（LastWrong｜SYNC｜local） */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary{
+  display: grid;
+  grid-template-columns: auto auto auto auto auto;
+  gap: 6px;
+  align-items: baseline;
+  white-space: nowrap;
+}
+#cscs_sync_monitor_a .sync-lastday-summary-type{
+  font-weight: 700;
+  opacity: 0.90;
+}
+#cscs_sync_monitor_a .sync-lastday-summary-sep{
+  opacity: 0.55;
+}
+#cscs_sync_monitor_a .sync-lastday-summary-sync,
+#cscs_sync_monitor_a .sync-lastday-summary-local{
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+}
           `.trim();
           (document.head || document.documentElement).appendChild(st);
         }
@@ -2207,8 +2229,10 @@
           <div class="sync-card sync-span-2">
             <details class="sync-fold" data-fold="lastday">
               <summary>
-                <span class="sync-lastday-summary-type">lastCorrect</span>
+                <span class="sync-lastday-summary-type">LastCorrect</span>
+                <span class="sync-lastday-summary-sep">｜</span>
                 <span class="sync-lastday-summary-sync">（データなし）</span>
+                <span class="sync-lastday-summary-sep">｜</span>
                 <span class="sync-lastday-summary-local">（データなし）</span>
               </summary>
               <div class="sync-body sync-lastday">
