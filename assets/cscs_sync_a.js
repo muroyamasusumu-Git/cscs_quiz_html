@@ -2128,43 +2128,67 @@
   white-space: nowrap;
 }
 
-/* ★ lastday summary を 1行グリッド化（▶ + LastWrong｜SYNC｜local） */
+/* ★ lastday summary を「必ず1行」に固定する（grid + 折返し禁止 + 省略） */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary{
+  /* 追加: 1行固定のため grid を使いつつ「縮められる列」を用意する */
   display: grid;
-  grid-template-columns: 14px auto auto auto auto auto; /* 1列目=▶/▼（summary::before） */
-  gap: 6px;
+
+  /* 追加: SYNC/local を minmax(0,1fr) にして「幅が狭い時に縮む」ようにする */
+  grid-template-columns: 14px max-content max-content minmax(0,1fr) max-content minmax(0,1fr);
+
+  column-gap: 8px;
   align-items: baseline;
+
+  /* 追加: 折り返し禁止（<br>は使わない前提） */
   white-space: nowrap;
+
+  /* 追加: “改行”ではなく“省略”に倒すため、summary 自体を隠す */
+  overflow: hidden;
 }
 
-/* ▼/▶ は擬似要素なので “1つのグリッド要素” として扱われる → 1列目へ固定 */
+/* ★ ▼/▶ は summary::before のまま。grid 1列目へ固定する */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary::before{
   grid-column: 1;
 }
 
-/* 以降のspan達を 2〜6列へ固定（折り返し・ズレ防止） */
+/* ★ type は固定幅（max-content）として扱い、見出しが崩れないようにする */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-type{
   grid-column: 2;
   font-weight: 700;
   opacity: 0.90;
 }
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep:nth-of-type(1){
-  grid-column: 3;
+
+/* ★ 区切り（｜）は class で列を確定し、nth-of-type 依存をやめる */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep{
   opacity: 0.55;
 }
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep.sep-1{
+  grid-column: 3;
+}
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep.sep-2{
+  grid-column: 5;
+}
+
+/* ★ SYNC/local は「縮む列」に入れ、入り切らない時は … で省略する */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sync{
   grid-column: 4;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
-}
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep:nth-of-type(2){
-  grid-column: 5;
-  opacity: 0.55;
+
+  /* 追加: 省略表示（改行しない） */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-local{
   grid-column: 6;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
+
+  /* 追加: 省略表示（改行しない） */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
           `.trim();
           (document.head || document.documentElement).appendChild(st);
@@ -2248,9 +2272,9 @@
             <details class="sync-fold" data-fold="lastday">
               <summary>
                 <span class="sync-lastday-summary-type">LastCorrect</span>
-                <span class="sync-lastday-summary-sep">｜</span>
+                <span class="sync-lastday-summary-sep sep-1">｜</span>
                 <span class="sync-lastday-summary-sync">（データなし）</span>
-                <span class="sync-lastday-summary-sep">｜</span>
+                <span class="sync-lastday-summary-sep sep-2">｜</span>
                 <span class="sync-lastday-summary-local">（データなし）</span>
               </summary>
               <div class="sync-body sync-lastday">
