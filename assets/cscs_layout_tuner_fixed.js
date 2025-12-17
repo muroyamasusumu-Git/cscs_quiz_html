@@ -135,6 +135,34 @@
     return NS + ":" + envKey() + ":" + layoutId;
   }
 
+  // ===== 追加：個別セーブ（プリセット） =====
+  // 目的：
+  //   - 「RESETで全部戻る」のではなく、選択中だけ戻す／自分の基準位置に戻す を可能にする
+  //   - プリセットは envKey ごと（画面サイズごと）に保持する
+  var PRESET_NS = "cscs_layout_v1_fixed_targets_preset";
+
+  function presetKey(layoutId){
+    return PRESET_NS + ":" + envKey() + ":" + layoutId;
+  }
+
+  function savePreset(layoutId, pos){
+    try{ localStorage.setItem(presetKey(layoutId), JSON.stringify(pos)); }catch(_){}
+  }
+
+  function loadPreset(layoutId){
+    try{
+      var raw = localStorage.getItem(presetKey(layoutId));
+      if(!raw) return null;
+      var obj = JSON.parse(raw);
+      if(!obj) return null;
+      if(typeof obj.left !== "number") return null;
+      if(typeof obj.top !== "number") return null;
+      return obj;
+    }catch(_){
+      return null;
+    }
+  }
+
   function getEditMode(){
     try { return localStorage.getItem(EDIT_KEY) === "1"; } catch(_) { return false; }
   }
@@ -209,26 +237,46 @@
     try{ localStorage.removeItem(storageKey(layoutId)); }catch(_){}
   }
 
+  function resetOnePositionToDefault(layoutId){
+    // 目的：
+    //   - 「選択中だけRESET」を実現する
+    //   - まずは保存済み位置（通常の作業位置）だけ削除する
+    //   - 戻し先は「プリセットがあればプリセット」「なければ元のインラインstyle」
+    clearSavedPos(layoutId);
+
+    var el = null;
+    for(var i=0;i<TARGETS.length;i++){
+      if(TARGETS[i].id === layoutId){
+        el = document.querySelector(TARGETS[i].sel);
+        break;
+      }
+    }
+    if(!el) return;
+
+    var preset = loadPreset(layoutId);
+    if(preset){
+      applyPos(el, preset);
+      return;
+    }
+
+    var orig = loadOrigStyle(el);
+    if(orig){
+      applyOrigStyle(el, orig);
+      return;
+    }
+
+    // 元styleが無い場合は、最小限だけ戻す（壊さない方針）
+    el.style.left = "";
+    el.style.top = "";
+    el.style.zIndex = "";
+  }
+
   function resetAllPositionsToDefault(){
     // 目的：
-    //   1) 全ターゲットの保存済み位置（localStorage）を削除
-    //   2) 全ターゲットの表示中styleを “元のstyle” に戻す
+    //   - 従来どおり「全ターゲットRESET」も残す
+    //   - ただし各ターゲットは「プリセットがあればプリセット」に戻す（個別セーブを活かす）
     for(var i=0;i<TARGETS.length;i++){
-      var t = TARGETS[i];
-      clearSavedPos(t.id);
-
-      var el = document.querySelector(t.sel);
-      if(!el) continue;
-
-      var orig = loadOrigStyle(el);
-      if(orig){
-        applyOrigStyle(el, orig);
-      }else{
-        // 元styleが無い場合は、最小限だけ戻す（壊さない方針）
-        el.style.left = "";
-        el.style.top = "";
-        el.style.zIndex = "";
-      }
+      resetOnePositionToDefault(TARGETS[i].id);
     }
   }
 
@@ -679,6 +727,37 @@
       editWrap.appendChild(editBtn);
       editWrap.appendChild(stateLabel);
 
+      // ===== 追加：SAVE（選択中）=====
+      // 目的：
+      //   - 「この位置を基準にしたい」を個別に保存できるようにする
+      //   - 以後、RESET（選択中）はこのプリセットへ戻る
+      var saveBtn = makeMiniButton("SAVE");
+      saveBtn.id = "cscs-layout-menu-save";
+
+      saveBtn.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        var __id = getSelectedId();
+        var __el = getElById(__id);
+        if(!__el) return;
+
+        var __rect = __el.getBoundingClientRect();
+        savePreset(__id, {
+          left: Math.round(__rect.left),
+          top: Math.round(__rect.top),
+          z: __el.style.zIndex ? parseInt(__el.style.zIndex, 10) : null
+        });
+
+        // 追加した処理:
+        // - 保存後、スライダー表示も現在値に同期しておく
+        syncSlidersFromEl(__el);
+      });
+
+      // ===== 変更：RESET（選択中）=====
+      // 目的：
+      //   - 全体ではなく「選択中ターゲットだけ」を戻す
+      //   - 戻し先は「プリセット優先」→無ければ「元のインラインstyle」
       var resetBtn = makeMiniButton("RESET");
       resetBtn.id = "cscs-layout-menu-reset";
 
@@ -686,15 +765,15 @@
         e.preventDefault();
         e.stopPropagation();
 
-        // (1) 位置をデフォルトへ戻す（localStorage削除＋表示中style復元）
-        resetAllPositionsToDefault();
+        var __id = getSelectedId();
+
+        // (1) 選択中だけデフォルトへ戻す（作業位置削除＋プリセット/元style復元）
+        resetOnePositionToDefault(__id);
 
         // (2) ドラッグハンドル表示を現在モードに同期
         updateHandlesVisibility();
 
-        // (3) スライダー値も「デフォルトに戻った現在位置」に同期させる
-        //     - LOCK中でも数値だけは更新しておく（次にEDITにした時にズレない）
-        var __id = getSelectedId();
+        // (3) スライダー値も「戻した現在位置」に同期
         var __el = getElById(__id);
         if(__el){
           syncSlidersFromEl(__el);
@@ -716,8 +795,40 @@
         // panel.style.display = "none";
       });
 
+      // ===== 追加：RESET ALL =====
+      // 目的：
+      //   - 従来どおり「全部戻す」も残す（ただし各ターゲットはプリセット優先で復元）
+      var resetAllBtn = makeMiniButton("RESET ALL");
+      resetAllBtn.id = "cscs-layout-menu-reset-all";
+
+      resetAllBtn.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        // (1) 全ターゲットを戻す（プリセット優先）
+        resetAllPositionsToDefault();
+
+        // (2) ドラッグハンドル表示を現在モードに同期
+        updateHandlesVisibility();
+
+        // (3) 選択中ターゲットのスライダー値を同期
+        var __id = getSelectedId();
+        var __el = getElById(__id);
+        if(__el){
+          syncSlidersFromEl(__el);
+        }
+
+        // (4) パネルUI全体も再同期
+        refreshLayoutPanelUI();
+
+        // 重要：RESETしてもウィンドウは閉じない（作業継続のため）
+        // panel.style.display = "none";
+      });
+
       rowTop.appendChild(editWrap);
+      rowTop.appendChild(saveBtn);
       rowTop.appendChild(resetBtn);
+      rowTop.appendChild(resetAllBtn);
 
       // (2) 対象選択
       var rowSel = document.createElement("div");
