@@ -27,6 +27,12 @@
   // h1用：hidden_map に保存するキー（IDと衝突しない名前空間）
   const H1_MAP_KEY = "tag:h1";
 
+  // 設定：<ol class="opts">（ページ内に1つ想定）をON/OFF対象に含めるか
+  const ENABLE_HIDE_OL_OPTS = true;
+
+  // <ol class="opts">用：hidden_map に保存するキー（IDと衝突しない名前空間）
+  const OL_OPTS_MAP_KEY = "sel:ol.opts";
+
   const LS_KEY_PREFIX = "cscs_temp_hide_v1:";
   const LS_KEY_PANEL_OPEN = LS_KEY_PREFIX + "panel_open";
   const LS_KEY_HIDDEN_MAP = LS_KEY_PREFIX + "hidden_map";
@@ -73,6 +79,13 @@
     return Array.from(els || []);
   }
 
+  function getOlOptsElements(){
+    // <ol class="opts"> を直接取得する。存在しなければ空配列。
+    // ※フォールバックで別セレクタを探す等はしない（安全・単純）。
+    const els = document.querySelectorAll("ol.opts");
+    return Array.from(els || []);
+  }
+
   function applyHiddenStateToElement(el, isHidden){
     if (!el) return;
     if (isHidden) el.classList.add(HIDDEN_CLASS);
@@ -101,6 +114,12 @@
     if (ENABLE_HIDE_H1){
       const isHiddenH1 = !!map[H1_MAP_KEY];
       applyHiddenStateToElements(getH1Elements(), isHiddenH1);
+    }
+
+    // <ol class="opts"> にも同じ非表示クラスを適用する（設定ONのときだけ）
+    if (ENABLE_HIDE_OL_OPTS){
+      const isHiddenOl = !!map[OL_OPTS_MAP_KEY];
+      applyHiddenStateToElements(getOlOptsElements(), isHiddenOl);
     }
   }
 
@@ -344,6 +363,12 @@
         applyHiddenStateToElements(getH1Elements(), false);
       }
 
+      // <ol class="opts"> も一括で表示ONに戻す（設定ONのときだけ）
+      if (ENABLE_HIDE_OL_OPTS){
+        map[OL_OPTS_MAP_KEY] = false;
+        applyHiddenStateToElements(getOlOptsElements(), false);
+      }
+
       saveHiddenMap(map);
       refreshRows();
     });
@@ -364,6 +389,12 @@
       if (ENABLE_HIDE_H1){
         map[H1_MAP_KEY] = true;
         applyHiddenStateToElements(getH1Elements(), true);
+      }
+
+      // <ol class="opts"> も一括で表示OFFにする（設定ONのときだけ）
+      if (ENABLE_HIDE_OL_OPTS){
+        map[OL_OPTS_MAP_KEY] = true;
+        applyHiddenStateToElements(getOlOptsElements(), true);
       }
 
       saveHiddenMap(map);
@@ -458,6 +489,43 @@
           m[H1_MAP_KEY] = !!toggle.checked;
           saveHiddenMap(m);
           applyHiddenStateToElements(getH1Elements(), !!toggle.checked);
+        });
+
+        row.appendChild(left);
+        row.appendChild(toggle);
+        list.appendChild(row);
+      }
+
+      // <ol class="opts"> をリストに追加して個別にON/OFFできるようにする（設定ONのときだけ）
+      if (ENABLE_HIDE_OL_OPTS){
+        const row = document.createElement("div");
+        row.className = "th-row";
+
+        const left = document.createElement("div");
+        left.className = "th-left";
+
+        const idLine = document.createElement("div");
+        idLine.className = "th-id";
+        idLine.textContent = "ol.opts";
+
+        const stLine = document.createElement("div");
+        stLine.className = "th-status";
+        stLine.textContent = getOlOptsElements().length ? "<ol.opts>" : "要素が見つかりません（ol.optsなし）";
+
+        left.appendChild(idLine);
+        left.appendChild(stLine);
+
+        const toggle = document.createElement("input");
+        toggle.className = "th-toggle";
+        toggle.type = "checkbox";
+        // checked=true を「非表示」にする
+        toggle.checked = !!map[OL_OPTS_MAP_KEY];
+
+        toggle.addEventListener("change", function(){
+          const m = loadHiddenMap();
+          m[OL_OPTS_MAP_KEY] = !!toggle.checked;
+          saveHiddenMap(m);
+          applyHiddenStateToElements(getOlOptsElements(), !!toggle.checked);
         });
 
         row.appendChild(left);
