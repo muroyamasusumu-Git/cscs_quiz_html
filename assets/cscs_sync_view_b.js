@@ -5,6 +5,44 @@
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
 
+  // ★ HUDスタイル（更新はここだけ触ればOK）
+  //   - #cscs_sync_monitor_b に適用（要望）
+  //   - このJSが生成する #cscs_sync_view_b にも同一スタイルを適用（見た目の統一）
+  var SYNC_B_HUD_CSS = [
+    "#cscs_sync_monitor_b,",
+    "#cscs_sync_view_b {",
+    "  position: fixed;",
+    "  right: 15px;",
+    "  top: 100px;",
+    "  color: #eee;",
+    "  padding: 8px;",
+    "  font: 10px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  max-width: 46vw;",
+    "  width: 308px;",
+    "  opacity: 0.55;",
+    "  z-index: 2147483647;",
+    "}",
+    ""
+  ].join("\n");
+
+  function ensureSyncBHudStyle() {
+    try {
+      var styleId = "cscs_sync_view_b_style";
+      var el = document.getElementById(styleId);
+      if (!el) {
+        el = document.createElement("style");
+        el.id = styleId;
+        el.type = "text/css";
+        (document.head || document.documentElement).appendChild(el);
+      }
+      if (el.textContent !== SYNC_B_HUD_CSS) {
+        el.textContent = SYNC_B_HUD_CSS;
+      }
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to inject HUD style:", e);
+    }
+  }
+
   /**
    * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
    * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
