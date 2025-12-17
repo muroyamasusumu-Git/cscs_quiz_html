@@ -2161,19 +2161,14 @@
 
 /* ★ lastday summary を「必ず1行」に固定する（grid + 折返し禁止 + 省略） */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary{
-  /* 追加: 1行固定のため grid を使いつつ「縮められる列」を用意する */
   display: grid;
 
-  /* 追加: SYNC/local を minmax(0,1fr) にして「幅が狭い時に縮む」ようにする */
-  grid-template-columns: 14px max-content max-content minmax(0,1fr) max-content minmax(0,1fr);
+  /* ★ 区切り線列を廃止： type / SYNC / local の3ブロックだけ */
+  grid-template-columns: 14px max-content minmax(0,1fr) minmax(0,1fr);
 
-  column-gap: 8px;
+  column-gap: 10px;
   align-items: baseline;
-
-  /* 追加: 折り返し禁止（<br>は使わない前提） */
   white-space: nowrap;
-
-  /* 追加: “改行”ではなく“省略”に倒すため、summary 自体を隠す */
   overflow: hidden;
 }
 
@@ -2182,43 +2177,30 @@
   grid-column: 1;
 }
 
-/* ★ type は固定幅（max-content）として扱い、見出しが崩れないようにする */
+/* ★ type */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-type{
   grid-column: 2;
   font-weight: 700;
   opacity: 0.90;
 }
 
-/* ★ 区切り（｜）は class で列を確定し、nth-of-type 依存をやめる */
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep{
-  opacity: 0.55;
-}
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep.sep-1{
-  grid-column: 3;
-}
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sep.sep-2{
-  grid-column: 5;
-}
-
 /* ★ SYNC/local は「縮む列」に入れ、入り切らない時は … で省略する */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sync{
-  grid-column: 4;
+  grid-column: 3;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
   font-size: 10px;
 
-  /* 追加: 省略表示（改行しない） */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-local{
-  grid-column: 6;
+  grid-column: 4;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
   font-size: 10px;
 
-  /* 追加: 省略表示（改行しない） */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2305,10 +2287,8 @@
             <details class="sync-fold" data-fold="lastday">
               <summary>
                 <span class="sync-lastday-summary-type">LastCorrect</span>
-                <span class="sync-lastday-summary-sep sep-1">｜</span>
-                <span class="sync-lastday-summary-sync">（データなし）</span>
-                <span class="sync-lastday-summary-sep sep-2">｜</span>
-                <span class="sync-lastday-summary-local">（データなし）</span>
+                <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
+                <span class="sync-lastday-summary-local">local （データなし）</span>
               </summary>
               <div class="sync-body sync-lastday">
                 <div class="lastday-grid">
