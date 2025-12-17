@@ -90,13 +90,7 @@
   //   - #cscs_sync_monitor_b のDOMが後で生成されても、CSSは先に入っていてOK
   function injectCscsSyncMonitorCommonStyleOnce() {
     try {
-      if (document.getElementById("cscs-sync-monitor-common-style")) return;
-
-      var st = document.createElement("style");
-      st.id = "cscs-sync-monitor-common-style";
-      st.type = "text/css";
-
-      st.textContent = [
+      var cssText = [
         "/* ===== CSCS SYNC Monitor Common Style (A/B shared) ===== */",
         "",
         "/* root */",
@@ -236,7 +230,23 @@
         ""
       ].join("\\n");
 
+      var existing = document.getElementById("cscs-sync-monitor-common-style");
+      if (existing) {
+        var hasMarker = String(existing.textContent || "").indexOf("CSCS SYNC Monitor Common Style") !== -1;
+        if (!hasMarker || !String(existing.textContent || "").trim()) {
+          existing.textContent = cssText;
+          console.log("[SYNC-B:view] common style existed but empty/invalid → re-injected");
+        }
+        return;
+      }
+
+      var st = document.createElement("style");
+      st.id = "cscs-sync-monitor-common-style";
+      st.type = "text/css";
+      st.textContent = cssText;
+
       (document.head || document.documentElement).appendChild(st);
+      console.log("[SYNC-B:view] common style injected");
     } catch (e) {
       console.error("[SYNC-B:view] injectCscsSyncMonitorCommonStyleOnce error:", e);
     }
