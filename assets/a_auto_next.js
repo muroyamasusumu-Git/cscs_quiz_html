@@ -411,6 +411,36 @@
     return String(qid || "").replace(/[^a-zA-Z0-9_-]/g, "_");
   }
 
+  // localStorage の累計キーから、履歴表示用の「回答結果マーク」を返す
+  // - cscs_q_correct_total:{qid} > 0 なら "○"
+  // - それ以外で cscs_q_wrong_total:{qid} > 0 なら "×"
+  // - どちらも無い/0 なら ""（未表示）
+  function getAnswerMarkFromLocalStorage(qid) {
+    try {
+      if (!qid || typeof qid !== "string") {
+        return "";
+      }
+
+      var correctKey = "cscs_q_correct_total:" + qid;
+      var wrongKey = "cscs_q_wrong_total:" + qid;
+
+      var cRaw = localStorage.getItem(correctKey);
+      var wRaw = localStorage.getItem(wrongKey);
+
+      var c = parseInt(String(cRaw || "0"), 10);
+      var w = parseInt(String(wRaw || "0"), 10);
+
+      if (isNaN(c)) c = 0;
+      if (isNaN(w)) w = 0;
+
+      if (c > 0) return "○";
+      if (w > 0) return "×";
+      return "";
+    } catch (_e) {
+      return "";
+    }
+  }
+
   // 取得した HTML から、問題文の冒頭（<h1> の text）を取り出す
   function extractQuestionHeadFromHtml(htmlText) {
     try {
