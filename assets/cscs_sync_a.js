@@ -1,3 +1,5 @@
+ステータス全体的に、ブロックの見出しに対して中の値のフォントを少し弱めて欲しい
+
 // assets/cscs_sync_a.js
 /**
  * CSCS SYNC(A) — Aパート用 SYNC モニタ＆送信キュー
@@ -629,13 +631,8 @@
         //   - 表示は「ラベル + SYNC値 + local値」の1行にする
         //   - フォールバックで別ソースから推測しない（取れている値だけで判定）
         function ymdToNum8(v){
-          const raw = String(v || "").trim();
-
-          // "2025-12-10" のような表記が混じっても判定できるように、数字だけに正規化する
-          const s = raw.replace(/[^\d]/g, "");
-
+          const s = String(v || "").trim();
           if (!/^\d{8}$/.test(s)) return null;
-
           const n = parseInt(s, 10);
           if (!Number.isFinite(n) || n <= 0) return null;
           return n;
@@ -683,9 +680,8 @@
           lastdaySummaryLocalEl.textContent = toDisplayText(latestLocalVal, "（データなし）");
         }
 
-        // ★ 追加: lastday を「開いた時」でも、展開部の先頭見出し行は
-        //   「LastDay｜SYNC｜local」という“列見出し”として固定する。
-        //   - 値（20251210 等）は下の各行（lastSeen/lastCorrect/lastWrong）にだけ出す。
+        // ★ 追加: lastday を「開いた時だけ」展開部の先頭見出し行（LastDay / SYNC / local）を
+        //   サマリー値（LastWrong/LastCorrect｜SYNC値｜local値）に差し替える。
         //   - 閉じたら元の見出しへ復元する（フォールバック無し）。
         try{
           const lastdayDetailsEl = box.querySelector('details.sync-fold[data-fold="lastday"]');
@@ -699,10 +695,10 @@
           if (head3 && !head3.dataset.origText) head3.dataset.origText = head3.textContent;
 
           if (lastdayDetailsEl && lastdayDetailsEl.open) {
-            // ★ 開いている間：列見出しは固定（LastDay｜SYNC｜local）
-            if (head1) head1.textContent = head1.dataset.origText || "LastDay";
-            if (head2) head2.textContent = head2.dataset.origText || "SYNC";
-            if (head3) head3.textContent = head3.dataset.origText || "local";
+            // ★ 開いている間だけ “値” を見出し行に表示
+            if (head1) head1.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
+            if (head2) head2.textContent = toDisplayText(latestSyncVal, "（データなし）");
+            if (head3) head3.textContent = toDisplayText(latestLocalVal, "（データなし）");
           } else {
             // ★ 閉じたら “元の見出し” に戻す
             if (head1) head1.textContent = head1.dataset.origText || "LastDay";
@@ -2034,8 +2030,8 @@
 }
 #cscs_sync_monitor_a .sync-card .sync-body{
   word-break: break-word;
-  font-weight: 450;
-  opacity: 0.72;
+  font-weight: 500;
+  opacity: 0.80;
 }
 
 /* ★ 値（バリュー）側を全体的に少し弱める：見出し/ラベルとの差を出す */
@@ -2046,14 +2042,14 @@
 #cscs_sync_monitor_a .sync-totals,
 #cscs_sync_monitor_a .sync-local,
 #cscs_sync_monitor_a .sync-queue{
-  font-weight: 450;
-  opacity: 0.72;
+  font-weight: 500;
+  opacity: 0.80;
 }
 
 /* ★ lastday の中身（SYNC/local の値）も同じトーンに揃える */
 #cscs_sync_monitor_a .lastday-grid span{
-  font-weight: 450;
-  opacity: 0.72;
+  font-weight: 500;
+  opacity: 0.80;
 }
 
 #cscs_sync_monitor_a .status-grid{
@@ -2244,22 +2240,6 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* ★ 開いたとき：summary は「クリック領域」として残す（折りたたみ維持）
-   - ただし “中身の文字” は薄く（ほぼ見えない）して、展開側が主役になるようにする */
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary{
-  display: grid;        /* 消さない */
-  opacity: 0.25;        /* 全体を弱める */
-  margin-bottom: 6px;
-}
-
-/* 文字だけさらに弱める（矢印▼/▶は残して操作感を維持） */
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-type,
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-sync,
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-local,
-#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-sep{
-  opacity: 0.15;
 }
           `.trim();
           (document.head || document.documentElement).appendChild(st);
@@ -2494,9 +2474,6 @@
         if (lastdayDetails) {
           lastdayDetails.addEventListener("toggle", function(){
             writeLsBool(LS_LASTDAY_OPEN, !!lastdayDetails.open);
-
-            // ★ details開閉直後に “見出し差し替え（LastWrong/LastCorrect）” を即反映
-            updateMonitor();
           });
         }
       }catch(_){}
