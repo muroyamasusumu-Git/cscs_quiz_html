@@ -103,6 +103,43 @@
     "  opacity: 0.55;",
     "  z-index: 2147483647;",
     "}",
+    "",
+    "/* --- grid layout for status body --- */",
+    "#cscs_sync_view_b_body {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr auto;",
+    "  column-gap: 10px;",
+    "  row-gap: 2px;",
+    "  margin-top: 6px;",
+    "  padding-top: 6px;",
+    "  border-top: 1px solid rgba(255,255,255,0.10);",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-section {",
+    "  grid-column: 1 / -1;",
+    "  margin-top: 6px;",
+    "  padding-top: 6px;",
+    "  border-top: 1px solid rgba(255,255,255,0.10);",
+    "  font-weight: 700;",
+    "  opacity: 0.85;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-k {",
+    "  opacity: 0.85;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-v {",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-muted {",
+    "  opacity: 0.70;",
+    "}",
     ""
   ].join("\n");
 
@@ -309,26 +346,100 @@
     }
   }
 
-  function updateSyncBody(text) {
+  function clearSyncBody() {
     var body = document.getElementById("cscs_sync_view_b_body");
-    if (!body) {
-      return;
-    }
+    if (!body) return null;
 
     while (body.firstChild) {
       body.removeChild(body.firstChild);
     }
+    return body;
+  }
 
-    var lines = String(text).split(/\n/);
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      if (!line.trim()) {
-        continue;
-      }
-      var lineDiv = document.createElement("div");
-      lineDiv.textContent = line;
-      body.appendChild(lineDiv);
+  function updateSyncBodyText(text) {
+    var body = clearSyncBody();
+    if (!body) return;
+
+    // エラー時などはテキスト1本表示（グリッドCSSが効いても崩れにくいように2カラムを跨がせる）
+    var one = document.createElement("div");
+    one.className = "cscs-svb-section";
+    one.textContent = String(text);
+    body.appendChild(one);
+  }
+
+  function appendGridRow(body, key, value, keyClass, valClass) {
+    var k = document.createElement("div");
+    k.className = "cscs-svb-k" + (keyClass ? " " + keyClass : "");
+    k.textContent = key;
+
+    var v = document.createElement("div");
+    v.className = "cscs-svb-v" + (valClass ? " " + valClass : "");
+    v.textContent = value;
+
+    body.appendChild(k);
+    body.appendChild(v);
+  }
+
+  function appendGridSection(body, title) {
+    var s = document.createElement("div");
+    s.className = "cscs-svb-section";
+    s.textContent = title;
+    body.appendChild(s);
+  }
+
+  function updateSyncBodyGrid(model) {
+    var body = clearSyncBody();
+    if (!body) return;
+
+    if (!model || typeof model !== "object") {
+      updateSyncBodyText("HUD model error");
+      return;
     }
+
+    // --- Counts ---
+    appendGridSection(body, "Counts");
+    appendGridRow(body, "server (correct / wrong)", String(model.serverCorrect) + " / " + String(model.serverWrong));
+    appendGridRow(body, "local  (correct / wrong)", String(model.localCorrect) + " / " + String(model.localWrong));
+    appendGridRow(body, "diff   (correct / wrong)", String(model.diffCorrect) + " / " + String(model.diffWrong), "cscs-svb-muted", "");
+
+    // --- Streak (Correct) ---
+    appendGridSection(body, "Streak (Correct)");
+    appendGridRow(body, "s3 (sync / local / +diff)",
+      String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+    );
+    appendGridRow(body, "sLen (sync / local / +diff)",
+      String(model.serverStreakLen) + " / " + String(model.localStreakLen) + " (+" + String(model.diffStreakLen) + ")"
+    );
+    appendGridRow(body, "progress (sync / local)",
+      String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
+    );
+
+    // --- Streak (Wrong) ---
+    appendGridSection(body, "Streak (Wrong)");
+    appendGridRow(body, "s3W (sync / local / +diff)",
+      String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+    );
+    appendGridRow(body, "sLenW (sync / local / +diff)",
+      String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen) + " (+" + String(model.diffWrongStreakLen) + ")"
+    );
+    appendGridRow(body, "progress (sync / local)",
+      String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
+    );
+
+    // --- Today Unique ---
+    appendGridSection(body, "Streak3TodayUnique");
+    appendGridRow(body, "day", String(model.s3TodayDayLabel));
+    appendGridRow(body, "unique (sync / local)", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
+
+    appendGridSection(body, "Streak3WrongTodayUnique");
+    appendGridRow(body, "day", String(model.s3WrongTodayDayLabel));
+    appendGridRow(body, "unique (sync / local)", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
+
+    // --- LastDay ---
+    appendGridSection(body, "LastDay (SYNC / local)");
+    appendGridRow(body, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
+    appendGridRow(body, "lastCorrect", "sync " + String(model.lastCorrectSyncLabel) + " / local " + String(model.lastCorrectLocalLabel));
+    appendGridRow(body, "lastWrong", "sync " + String(model.lastWrongSyncLabel) + " / local " + String(model.lastWrongLocalLabel));
   }
 
   function fetchState() {
@@ -480,19 +591,6 @@
         console.error("[SYNC-B:view] wrong-streak status error:", eWrong);
       }
 
-      var text = "";
-      text += "server " + serverCorrect + " / " + serverWrong + "\n";
-      text += "local  " + localCorrect + " / " + localWrong + "\n";
-      text += "diff   " + diffCorrect + " / " + diffWrong + "\n";
-      text += "s3     " + serverStreak3 + " / " + localStreak3 + " (+" + diffStreak3 + ")\n";
-      text += "s3W    " + serverStreak3Wrong + " / " + localStreak3Wrong + " (+" + diffStreak3Wrong + ")\n";
-      text += "sLen   " + serverStreakLen + " / " + localStreakLen + " (+" + diffStreakLen + ")\n";
-      text += "sLenW  " + serverWrongStreakLen + " / " + localWrongStreakLen + " (+" + diffWrongStreakLen + ")\n";
-      text += "3連続正解回数 (進捗):\n";
-      text += "SYNC " + serverStreak3 + " (" + serverProgress + "/3) / local " + localStreak3 + " (" + localProgress + "/3)\n";
-      text += "3連続不正解回数 (進捗):\n";
-      text += "SYNC " + serverStreak3Wrong + " (" + serverWrongProgress + "/3) / local " + localStreak3Wrong + " (" + localWrongProgress + "/3)\n";
-
       var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
         ? window.__cscs_sync_state.streak3Today.day : "-";
       var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_count) 
@@ -526,18 +624,11 @@
         }
       } catch(_e2) {}
 
-      text += "\nStreak3TodayUnique:\n";
       // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
       var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "（データなし）" : String(s3TodaySyncDay));
-      text += "day: " + s3TodayDayLabel + "\n";
-      text += "unique: sync " + s3TodaySyncCnt + " / local " + localS3TodayCnt + "\n";
-
-      text += "\nStreak3WrongTodayUnique:\n";
       var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "（データなし）" : String(s3WrongTodaySyncDay));
-      text += "day: " + s3WrongTodayDayLabel + "\n";
-      text += "unique: sync " + s3WrongTodaySyncCnt + " / local " + localS3WrongTodayCnt + "\n";
 
-      // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を HUD に追加（改行＋ハイフン付き）
+      // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を HUD に追加
       var lastSeenSyncLabel = "（データなし）";
       var lastCorrectSyncLabel = "（データなし）";
       var lastWrongSyncLabel = "（データなし）";
@@ -598,21 +689,53 @@
         console.error("[SYNC-B:view] lastDay HUD build error:", eLast);
       }
 
-      // ---- 最終日情報（リスト形式で見やすさ強化）----
-      text += "\nLastDay (SYNC / local):\n";
-      text += "lastSeen   :\n";
-      text += "- sync " + lastSeenSyncLabel + "\n";
-      text += "- local " + lastSeenLocalLabel + "\n";
+      // ★ グリッド描画用モデル（2列：label / value）
+      updateSyncBodyGrid({
+        serverCorrect: serverCorrect,
+        serverWrong: serverWrong,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
 
-      text += "lastCorrect:\n";
-      text += "- sync " + lastCorrectSyncLabel + "\n";
-      text += "- local " + lastCorrectLocalLabel + "\n";
+        serverStreak3: serverStreak3,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3,
 
-      text += "lastWrong  :\n";
-      text += "- sync " + lastWrongSyncLabel + "\n";
-      text += "- local " + lastWrongLocalLabel + "\n";
+        serverStreakLen: serverStreakLen,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen,
 
-      updateSyncBody(text);
+        serverProgress: serverProgress,
+        localProgress: localProgress,
+
+        serverStreak3Wrong: serverStreak3Wrong,
+        localStreak3Wrong: localStreak3Wrong,
+        diffStreak3Wrong: diffStreak3Wrong,
+
+        serverWrongStreakLen: serverWrongStreakLen,
+        localWrongStreakLen: localWrongStreakLen,
+        diffWrongStreakLen: diffWrongStreakLen,
+
+        serverWrongProgress: serverWrongProgress,
+        localWrongProgress: localWrongProgress,
+
+        s3TodayDayLabel: s3TodayDayLabel,
+        s3TodaySyncCnt: s3TodaySyncCnt,
+        localS3TodayCnt: localS3TodayCnt,
+
+        s3WrongTodayDayLabel: s3WrongTodayDayLabel,
+        s3WrongTodaySyncCnt: s3WrongTodaySyncCnt,
+        localS3WrongTodayCnt: localS3WrongTodayCnt,
+
+        lastSeenSyncLabel: lastSeenSyncLabel,
+        lastCorrectSyncLabel: lastCorrectSyncLabel,
+        lastWrongSyncLabel: lastWrongSyncLabel,
+
+        lastSeenLocalLabel: lastSeenLocalLabel,
+        lastCorrectLocalLabel: lastCorrectLocalLabel,
+        lastWrongLocalLabel: lastWrongLocalLabel
+      });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
 
@@ -685,7 +808,7 @@
       }
     } catch (e) {
       var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
-      updateSyncBody(errorText);
+      updateSyncBodyText(errorText);
 
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
