@@ -229,10 +229,10 @@
 }
 
 #${BTN_ID}{
-  position: fixed;
+  position: fixed !important;
   right: 190px;
   bottom: 10px;
-  z-index: 999999;
+  z-index: 999999 !important;
   font-size: 11px;
   padding: 6px 10px;
   border-radius: 999px;
