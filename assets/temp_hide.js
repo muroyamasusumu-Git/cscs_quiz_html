@@ -406,7 +406,7 @@
     const btn = document.createElement("button");
     btn.id = BTN_ID;
     btn.type = "button";
-    btn.textContent = "TEMP HIDE";
+    btn.textContent = "HIDE";
     btn.addEventListener("click", function(){
       const open = isPanelOpen();
       setPanelOpen(!open);
