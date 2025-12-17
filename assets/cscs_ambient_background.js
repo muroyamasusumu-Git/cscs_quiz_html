@@ -400,9 +400,28 @@
           return true;
         }
 
-        function spawnOneStar(){
+        function pickLeftPctWithMinSep(usedLeftPcts, minSepPct){
+          var tries = 40;
+          while (tries > 0) {
+            var candidate = rand(0, 100);
+            var ok = true;
+            for (var i = 0; i < usedLeftPcts.length; i++) {
+              var d = Math.abs(candidate - usedLeftPcts[i]);
+              if (d < minSepPct) {
+                ok = false;
+                break;
+              }
+            }
+            if (ok) return candidate;
+            tries--;
+          }
+          // どうしても見つからない時はランダム採用（演出として“止めない”）
+          return rand(0, 100);
+        }
+
+        function spawnOneStar(usedLeftPcts, minSepPct){
           var sparkleHost2 = document.getElementById("cscs-ambient-sparkle-layer");
-          if (!sparkleHost2) return;
+          if (!sparkleHost2) return null;
 
           // 星を1個生成
           var star = document.createElement("div");
@@ -411,8 +430,8 @@
           // 上の方だけ：上部に寄せる（2〜18vh）
           var topVh = rand(2, 18);
 
-          // 横は全面：0〜100vw 相当（%でOK）
-          var leftPct = rand(0, 100);
+          // 横：既出との距離を確保（%でOK）
+          var leftPct = pickLeftPctWithMinSep(usedLeftPcts, minSepPct);
 
           // ほんのり白（テーマには依存させず、最小限の粒子として固定）
           star.style.left = String(leftPct) + "%";
@@ -434,29 +453,51 @@
             } catch (_eRm) {
             }
           }, Math.ceil(dur * 1000) + 50);
+
+          return leftPct;
+        }
+
+        // ▼ 1回の発火で最大7個まで（時間差で順に出す）
+        // - 2個目以降は横方向の最小距離を確保して“別地点感”を出す
+        var MAX_STARS_PER_BURST = 7;
+        var MIN_SEP_PCT = 18; // 横方向の最小間隔（%）
+
+        var usedLeftPcts = [];
+
+        function emitOne(){
+          if (!canSparkleNow()) return;
+          var left = spawnOneStar(usedLeftPcts, MIN_SEP_PCT);
+          if (left !== null && typeof left === "number") {
+            usedLeftPcts.push(left);
+          }
         }
 
         // 1個目（即時）
-        if (canSparkleNow()) {
-          spawnOneStar();
+        emitOne();
+
+        // 2〜7個目（時間差）
+        // だいたい「120〜520ms」ぐらいの間隔で増えていく（累積）
+        var iStar = 2;
+        var tAccum = 0;
+
+        function scheduleNextInBurst(){
+          if (iStar > MAX_STARS_PER_BURST) {
+            scheduleNext();
+            return;
+          }
+
+          // 次の星までの間隔（ランダム）
+          var gap = Math.floor(rand(120, 520));
+          tAccum += gap;
+
+          window.setTimeout(function(){
+            emitOne();
+            iStar++;
+            scheduleNextInBurst();
+          }, tAccum);
         }
 
-        // 2個目（時間差＋別場所）: 120〜520ms 遅らせる
-        var delay2 = Math.floor(rand(120, 520));
-        window.setTimeout(function(){
-          if (canSparkleNow()) {
-            spawnOneStar();
-          }
-        }, delay2);
-
-        // 3個目（さらに時間差＋別場所）: 260〜980ms 遅らせる（2個目より後に来やすい）
-        var delay3 = Math.floor(rand(260, 980));
-        window.setTimeout(function(){
-          if (canSparkleNow()) {
-            spawnOneStar();
-          }
-          scheduleNext();
-        }, delay3);
+        scheduleNextInBurst();
       }
 
       // 起動（多重起動防止）
