@@ -828,13 +828,153 @@
 
         const onceEl = box.querySelector(".sync-onceperday");
         if (onceEl) {
-          // oncePerDayToday / ODOA / count対象 / 理由 をそれぞれ改行して表示する
-          const base = onceLabel || "（データなし）";
+          // ★ 表示方針:
+          //   - oncePerDayToday と ODOA を「同じ枠で一気に読める」4行構成にする
+          //   - 未開始（今日の状態が未生成/未到達）でも「count対象: 判定可能」と出す（判定不可にしない）
+          //   - フォールバックで別ソースから埋め合わせない（取れなければ取れない表示）
+
+          function ymdNumToIso(ymdNum){
+            try{
+              const s = String(ymdNum);
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function ymdStrToIso(ymdStr){
+            try{
+              const s = String(ymdStr || "").trim();
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function getTodayYmdNum(){
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              return yy * 10000 + mm * 100 + dd;
+            }catch(_){
+              return null;
+            }
+          }
+
+          // ---- 参照元を固定（フォールバックしない） ----
+          const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+
+          const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+            ? state.oncePerDayToday
+            : null;
+
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          const odoaText = (odoaMode === "on") ? "ON" : (odoaMode === "off") ? "OFF" : "unknown";
+
+          const todayYmd = getTodayYmdNum();
+
+          // ---- oncePerDayToday の状態判定 ----
+          let isTodayOnce = false;
+          let onceDayIso = "";
+          let lastRecordedDayIso = "";
+          let measuredResult = null; // "correct" | "wrong" | null
+
+          try{
+            // day は number or string(8桁) の両方が来うる想定だが、今日判定は「8桁化」して行う
+            let onceDayNum = null;
+
+            if (once && typeof once.day === "number" && Number.isFinite(once.day) && once.day > 0) {
+              onceDayNum = once.day;
+              const iso = ymdNumToIso(onceDayNum);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+            } else if (once && typeof once.day === "string") {
+              const iso = ymdStrToIso(once.day);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+              if (/^\d{8}$/.test(String(once.day || "").trim())) {
+                onceDayNum = parseInt(String(once.day).trim(), 10);
+              }
+            }
+
+            if (todayYmd !== null && onceDayNum !== null && onceDayNum === todayYmd) {
+              isTodayOnce = true;
+              onceDayIso = ymdNumToIso(todayYmd);
+
+              if (once && once.results && typeof once.results === "object") {
+                const r = once.results[QID];
+                if (r === "correct" || r === "wrong") {
+                  measuredResult = r;
+                } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+                  // 値があるが想定外 → 計測済として扱う（表示は unknown）
+                  measuredResult = "unknown";
+                } else {
+                  measuredResult = null;
+                }
+              } else {
+                measuredResult = null;
+              }
+            }
+          }catch(_){
+            isTodayOnce = false;
+            measuredResult = null;
+          }
+
+          // ---- 表示文の組み立て（指定フォーマット） ----
+          let line1 = "";
+          let line2 = "";
+          let line3 = "";
+          let line4 = "";
+
+          if (!isTodayOnce) {
+            // oncePerDayToday: 未開始
+            line1 = "oncePerDayToday: 未開始";
+            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "（データなし）");
+            line3 = "count対象: 判定可能";
+
+            // 未開始状態では累計加算は「Yes」と表示（この行は ODOA 側に寄せる）
+            line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
+          } else {
+            // oncePerDayToday: 計測中
+            line1 = "oncePerDayToday: 計測中";
+            line2 = "Today: " + (onceDayIso ? onceDayIso : "（データなし）");
+
+            if (measuredResult === "correct" || measuredResult === "wrong") {
+              line3 = "count対象: No 計測済(" + measuredResult + ")";
+            } else if (measuredResult === "unknown") {
+              line3 = "count対象: No 計測済(unknown)";
+            } else {
+              line3 = "count対象: Yes 未計測";
+            }
+
+            // ODOA 側の「累計加算: Yes/No」
+            //   - ODOA: OFF は常に Yes
+            //   - ODOA: ON は count対象が No（計測済）なら No、それ以外は Yes
+            let addYesNo = "Yes";
+            if (odoaMode === "off") {
+              addYesNo = "Yes";
+            } else if (odoaMode === "on") {
+              const counted = (measuredResult === "correct" || measuredResult === "wrong" || measuredResult === "unknown");
+              addYesNo = counted ? "No" : "Yes";
+            } else {
+              addYesNo = "unknown";
+            }
+            line4 = "ODOA: " + odoaText + " (累計加算: " + addYesNo + ")";
+          }
+
           onceEl.innerHTML =
-            "oncePerDayToday: " + base + "<br>" +
-            odoaLabel + "<br>" +
-            countLabel + "<br>" +
-            reasonLabel;
+            line1 + "<br>" +
+            line2 + "<br>" +
+            line3 + "<br>" +
+            line4;
         }
       }
     }catch(_){
@@ -1958,28 +2098,6 @@
             <div class="sync-body sync-streak3wrongtoday">
               day: <span class="sync-streak3wrongtoday-day">-</span><br>
               unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
-            </div>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-body sync-lastday">
-              <div class="lastday-grid">
-                <div class="ld-head">LastDay</div>
-                <div class="ld-head">SYNC</div>
-                <div class="ld-head">local</div>
-
-                <div class="ld-label">lastSeen</div>
-                <div><span class="sync-last-seen-sync">（データなし）</span></div>
-                <div><span class="sync-last-seen-local">（データなし）</span></div>
-
-                <div class="ld-label">lastCorrect</div>
-                <div><span class="sync-last-correct-sync">（データなし）</span></div>
-                <div><span class="sync-last-correct-local">（データなし）</span></div>
-
-                <div class="ld-label">lastWrong</div>
-                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
-                <div><span class="sync-last-wrong-local">（データなし）</span></div>
-              </div>
             </div>
           </div>
 
