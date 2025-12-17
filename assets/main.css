@@ -291,6 +291,7 @@ opacity: 1.0;
     line-height: 1.25;
     margin-bottom: 10px;
     display: block;
+    width: 58%;
 }
 
 #dd-inline .dd-body-cause {
