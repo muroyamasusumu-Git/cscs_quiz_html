@@ -275,6 +275,26 @@
       body.removeChild(body.firstChild);
     }
 
+    // ★ 見出し行（A寄せ）
+    //   - 内容(text)は一切変えず、表示だけ「列見出し」を付ける
+    function appendHeaderRow() {
+      var hk = document.createElement("div");
+      hk.className = "cscs-sync-head-k";
+      hk.textContent = "項目";
+
+      var hv = document.createElement("div");
+      hv.className = "cscs-sync-head-v";
+      hv.textContent = "値";
+
+      body.appendChild(hk);
+      body.appendChild(hv);
+
+      var hr = document.createElement("div");
+      hr.className = "cscs-sync-head-divider";
+      hr.setAttribute("style", "grid-column: 1 / span 2;");
+      body.appendChild(hr);
+    }
+
     function appendDivider() {
       var hr = document.createElement("div");
       hr.className = "cscs-sync-divider";
@@ -302,6 +322,9 @@
       body.appendChild(k);
       body.appendChild(v);
     }
+
+    // ★ 先頭に見出し行を追加（A寄せの骨格）
+    appendHeaderRow();
 
     var lines = String(text).split(/\n/);
     for (var i = 0; i < lines.length; i++) {
@@ -382,7 +405,8 @@
         st.textContent = ""
           + "#cscs_sync_view_b_body.cscs-sync-grid{"
           + "display:grid;"
-          + "grid-template-columns: max-content 1fr;"
+          // ★ 左列固定幅（A寄せの最重要ポイント）
+          + "grid-template-columns: 124px 1fr;"
           + "column-gap:10px;"
           + "row-gap:4px;"
           + "align-items:start;"
@@ -392,19 +416,44 @@
           + "white-space:pre-wrap;"
           + "word-break:break-word;"
           + "}"
-          + "#cscs_sync_view_b_body .cscs-sync-k{"
+
+          // ★ 見出し行（A寄せ）
+          + "#cscs_sync_view_b_body .cscs-sync-head-k,"
+          + "#cscs_sync_view_b_body .cscs-sync-head-v{"
+          + "font-weight:800;"
+          + "opacity:0.9;"
+          + "padding:2px 0px;"
+          + "}"
+          + "#cscs_sync_view_b_body .cscs-sync-head-k{"
           + "opacity:0.75;"
           + "}"
+          + "#cscs_sync_view_b_body .cscs-sync-head-divider{"
+          + "height:0px;"
+          + "border-top:1px solid rgba(255,255,255,0.14);"
+          + "margin:2px 0px 6px 0px;"
+          + "}"
+
+          // ★ 通常行（A寄せ：左列は少し薄め、右列は読みやすく）
+          + "#cscs_sync_view_b_body .cscs-sync-k{"
+          + "opacity:0.72;"
+          + "}"
           + "#cscs_sync_view_b_body .cscs-sync-v{"
-          + "opacity:0.95;"
+          + "opacity:0.96;"
           + "}"
+
+          // ★ セクション見出し（A寄せ：グルーピング感を出す）
           + "#cscs_sync_view_b_body .cscs-sync-section{"
-          + "margin-top:6px;"
-          + "padding-top:6px;"
+          + "margin-top:8px;"
+          + "padding:6px 8px;"
           + "border-top:1px solid rgba(255,255,255,0.12);"
-          + "opacity:0.9;"
-          + "font-weight:700;"
+          + "background: rgba(255,255,255,0.04);"
+          + "border-radius:8px;"
+          + "opacity:0.92;"
+          + "font-weight:800;"
+          + "letter-spacing:0.2px;"
           + "}"
+
+          // ★ 空行由来の区切り（A寄せ：グループ内の段落感）
           + "#cscs_sync_view_b_body .cscs-sync-divider{"
           + "height:0px;"
           + "border-top:1px solid rgba(255,255,255,0.08);"
