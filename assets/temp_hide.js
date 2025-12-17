@@ -18,6 +18,7 @@
     // "#nl-panel",
     // "#cscs_sync_monitor_a",
     // "#cscs_sync_monitor_b",
+    // "#judge",
   ];
   // ==============================================
 
