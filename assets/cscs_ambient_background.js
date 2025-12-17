@@ -202,6 +202,31 @@
       + "transform: none;"
       + "transform-origin: 50% 50%;"
       + "}"
+
+      // ▼ 星スパークル用レイヤー（ambientの器側）
+      + "#cscs-ambient-sparkle-layer{"
+      + "position:absolute;"
+      + "inset:0;"
+      + "pointer-events:none;"
+      + "overflow:hidden;"
+      + "}"
+
+      // ▼ 1pxの星（ランダム生成して一瞬だけ光る）
+      + ".cscs-ambient-star{"
+      + "position:absolute;"
+      + "width:1px;"
+      + "height:1px;"
+      + "border-radius:999px;"
+      + "opacity:0;"
+      + "will-change: transform, opacity;"
+      + "filter: drop-shadow(0 0 2px rgba(255,255,255,0.35));"
+      + "}"
+
+      + "@keyframes cscsAmbientStarTwinkle{"
+      + "0%{opacity:0;transform:scale(1);}"
+      + "35%{opacity:1;transform:scale(1.8);}"
+      + "100%{opacity:0;transform:scale(1);}"
+      + "}"
       ;
 
     styleEl.appendChild(document.createTextNode(cssText));
@@ -250,6 +275,12 @@
       layer.appendChild(base);
       layer.appendChild(tuned);
 
+      // ▼ 星スパークル用レイヤー（ambient側の“器”）
+      // 目的: adjust の描画先（tuned）を汚さず、ambient が管理する軽量演出の置き場を確保
+      var sparkleLayer = document.createElement("div");
+      sparkleLayer.id = "cscs-ambient-sparkle-layer";
+      layer.appendChild(sparkleLayer);
+
       // body の閉じタグ直前に挿入
       // 目的: DOM順で常に UI（#root 等）より後ろに配置し、
       //       z-index 管理とスタッキングコンテキストを単純化する
@@ -262,6 +293,17 @@
         var tunedRot2 = document.createElement("div");
         tunedRot2.id = TUNED_ROT_ID;
         tunedEl.appendChild(tunedRot2);
+      }
+
+      // ▼ 星スパークル用レイヤーが無い場合だけ追加
+      // 目的: 既存DOMでも ambient の“器”としての正規構造を満たす
+      if (!document.getElementById("cscs-ambient-sparkle-layer")) {
+        var layerForSparkle = document.getElementById(LAYER_ID);
+        if (layerForSparkle) {
+          var sparkleLayer2 = document.createElement("div");
+          sparkleLayer2.id = "cscs-ambient-sparkle-layer";
+          layerForSparkle.appendChild(sparkleLayer2);
+        }
       }
 
       // ▼ 既に layer が存在する場合でも、必ず body の末尾へ移動
@@ -302,6 +344,85 @@
     // ▼ 背景レイヤーDOM（layer/base/tuned）を準備
     // 目的: adjust の描画先（#cscs-ambient-tuned）を常に存在させる
     ensureLayer();
+
+    // ▼ たまに1pxの小さい星が上の方でキラッと光る（ランダム位置・ランダム間隔）
+    // 目的: UIを邪魔せず、背景に“生体反応”っぽい微細な気配を足す
+    (function startAmbientStarTwinkleLoop(){
+      var timerId = 0;
+
+      function rand(min, max){
+        return min + Math.random() * (max - min);
+      }
+
+      function scheduleNext(){
+        // だいたい 0.9〜3.6秒に1回（ランダム）
+        var wait = Math.floor(rand(900, 3600));
+        timerId = window.setTimeout(fireOnce, wait);
+      }
+
+      function fireOnce(){
+        // enabled が false の時は何もしない（次も予約しない）
+        if (!enabled) return;
+
+        var layer = document.getElementById(LAYER_ID);
+        if (!layer) {
+          scheduleNext();
+          return;
+        }
+        try {
+          if (String(layer.style.display || "") === "none") {
+            scheduleNext();
+            return;
+          }
+        } catch (_eDisp) {
+        }
+
+        var sparkleHost = document.getElementById("cscs-ambient-sparkle-layer");
+        if (!sparkleHost) {
+          scheduleNext();
+          return;
+        }
+
+        // 星を1個生成
+        var star = document.createElement("div");
+        star.className = "cscs-ambient-star";
+
+        // 上の方だけ：0〜35vh
+        var topVh = rand(2, 35);
+
+        // 横は全面：0〜100vw 相当（%でOK）
+        var leftPct = rand(0, 100);
+
+        // ほんのり白（テーマには依存させず、最小限の粒子として固定）
+        star.style.left = String(leftPct) + "%";
+        star.style.top = String(topVh) + "vh";
+        star.style.background = "rgba(255,255,255,0.9)";
+
+        // 点滅時間も少しランダム（0.35〜0.9s）
+        var dur = rand(0.35, 0.9);
+        star.style.animation = "cscsAmbientStarTwinkle " + String(dur) + "s ease-out 0s 1";
+
+        sparkleHost.appendChild(star);
+
+        // 終わったら消す（DOM肥大防止）
+        window.setTimeout(function(){
+          try {
+            if (star && star.parentNode) {
+              star.parentNode.removeChild(star);
+            }
+          } catch (_eRm) {
+          }
+        }, Math.ceil(dur * 1000) + 50);
+
+        scheduleNext();
+      }
+
+      // 起動（多重起動防止）
+      if (window.__cscsAmbientStarTwinkleInstalled) return;
+      window.__cscsAmbientStarTwinkleInstalled = true;
+
+      scheduleNext();
+    })();
 
     // 補足: 描画（グラデ/楕円/明暗/beam）は adjust 側のみが担当する
   }
