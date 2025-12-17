@@ -2241,9 +2241,20 @@
   text-overflow: ellipsis;
 }
 
-/* ★ 開いたときは summary 行を隠して、展開側の「LastWrong｜SYNC｜local」だけを見せる */
+/* ★ 開いたとき：summary は「クリック領域」として残す（折りたたみ維持）
+   - ただし “中身の文字” は薄く（ほぼ見えない）して、展開側が主役になるようにする */
 #cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary{
-  display: none;
+  display: grid;        /* 消さない */
+  opacity: 0.25;        /* 全体を弱める */
+  margin-bottom: 6px;
+}
+
+/* 文字だけさらに弱める（矢印▼/▶は残して操作感を維持） */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-type,
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-sync,
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-local,
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary .sync-lastday-summary-sep{
+  opacity: 0.15;
 }
           `.trim();
           (document.head || document.documentElement).appendChild(st);
