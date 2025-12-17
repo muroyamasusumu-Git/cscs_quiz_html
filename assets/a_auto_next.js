@@ -2586,7 +2586,30 @@
         window.clearInterval(counterTimerId);
         counterTimerId = null;
       }
-      goNextIfExists(NEXT_URL);
+
+      // ▼ 自動遷移（タイマー発火）だと判別できるように、URLにマーカーを付与する
+      //   - 手動クリックの遷移では付与しない（NEXT_URL自体は汚さない）
+      //   - b_judge.js 側で「自動遷移かどうか」「TRYAL/検証AUTOか」を判定できるようにする
+      var urlToGo = NEXT_URL;
+      try {
+        var u = new URL(String(NEXT_URL || ""), location.href);
+        u.searchParams.set("auto", "1");
+
+        var vOn = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
+        var tOn = (typeof window.CSCS_TRIAL_MODE === "string" && window.CSCS_TRIAL_MODE === "on");
+        if (tOn) {
+          u.searchParams.set("trial_auto", "1");
+        }
+        if (vOn) {
+          u.searchParams.set("verify_auto", "1");
+        }
+
+        urlToGo = u.toString();
+      } catch (_eAutoMark) {
+        urlToGo = NEXT_URL;
+      }
+
+      goNextIfExists(urlToGo);
     }, effectiveMs);
   }
 

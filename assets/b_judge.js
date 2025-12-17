@@ -396,17 +396,34 @@
             trialMode = (typeof window.CSCS_TRIAL_MODE === 'string' && window.CSCS_TRIAL_MODE === 'on') ? 'on' : 'off';
           }
 
-          // ▼ モードに応じて表示メッセージを切り替え（no choice = 自動遷移のときだけここに来る）
-          //   優先順位:
-          //     1) TRYAL : ON  … 自動遷移で選択が無い（この時だけ TRYAL文言）
-          //     2) 自動検証 : ON … 検証AUTOで計測しない
-          //     3) それ以外 … 従来どおり ODOA 理由
+          // ▼ モードに応じて表示メッセージを切り替え（no choice の原因を切り分ける）
+          //   - TRYAL文言は「TRYALがON」なだけでは出さない
+          //   - 「自動遷移だった」ことが判定できる時だけ TRYAL文言を出す
+          //   - 自動遷移の判定ができない場合は、従来どおり VERIFY → ODOA の順で表示する
+          //
+          // 【自動遷移マーカーの想定】
+          //   - URLクエリに auto=1 / autonext=1 / trial_auto=1 等が付いている場合は「自動遷移」とみなす
+          //   - それ以外は「自動遷移と断定できない」ため TRYAL文言は出さない（誤表示防止）
+          var isTrialAutoTransition = false;
+          try {
+            var sp = new URL(location.href).searchParams;
+            var a1 = sp.get('auto');
+            var a2 = sp.get('autonext');
+            var a3 = sp.get('trial_auto');
+            if (a1 === '1' || a2 === '1' || a3 === '1') {
+              isTrialAutoTransition = true;
+            }
+          } catch (_eAuto) {
+            isTrialAutoTransition = false;
+          }
+
           var messageHtml = '';
           var noCountReason = 'ODOA';
-          if (trialMode === 'on') {
+
+          if (trialMode === 'on' && isTrialAutoTransition) {
             messageHtml =
               '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※TRYAL Mode : ON のため、この問題の正誤計測はされていません。</span>';
-            noCountReason = 'TRYAL';
+            noCountReason = 'TRYAL_AUTO';
           } else if (verifyMode === 'on') {
             messageHtml =
               '<span class="judge-msg judge-msg-wrong judge-odoa-nocount">※自動検証 Mode : ON のため、この問題の正誤計測はされていません。</span>';
