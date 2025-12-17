@@ -282,6 +282,31 @@
     }
   }
 
+  function updateStatusGrid(odoaStatusText, statusText) {
+    var statusDiv = document.getElementById("cscs_sync_view_b_status");
+    if (!statusDiv) return;
+
+    while (statusDiv.firstChild) {
+      statusDiv.removeChild(statusDiv.firstChild);
+    }
+
+    function addRow(label, value) {
+      var k = document.createElement("div");
+      k.textContent = label;
+      k.setAttribute("style", "opacity:0.70; white-space:nowrap;");
+
+      var v = document.createElement("div");
+      v.textContent = value;
+      v.setAttribute("style", "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;");
+
+      statusDiv.appendChild(k);
+      statusDiv.appendChild(v);
+    }
+
+    addRow("ODOA", odoaStatusText || "O.D.O.A Mode : OFF");
+    addRow("status", statusText ? statusText : "-");
+  }
+
   function fetchState() {
     return fetch(SYNC_STATE_ENDPOINT, { method: "GET" }).then(function (res) {
       if (!res.ok) {
@@ -305,6 +330,17 @@
 
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
+    statusDiv.setAttribute("style",
+      "display:grid;" +
+      "grid-template-columns:auto 1fr;" +
+      "column-gap:10px;" +
+      "row-gap:2px;" +
+      "align-items:baseline;" +
+      "font-size:11px;" +
+      "line-height:1.25;" +
+      "margin-top:4px;" +
+      "opacity:0.95;"
+    );
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
@@ -625,10 +661,7 @@
         console.log("[SYNC-B] ODOA HUD status set from mode:", odoaStatusText);
       }
 
-      var statusDiv = document.getElementById("cscs_sync_view_b_status");
-      if (statusDiv) {
-        statusDiv.textContent = odoaStatusText;
-      }
+      updateStatusGrid(odoaStatusText, statusText);
 
       // 内部用の statusText はログとして残すだけ
       if (statusText) {
@@ -638,11 +671,7 @@
       var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
       updateSyncBody(errorText);
 
-      var statusDiv = document.getElementById("cscs_sync_view_b_status");
-      if (statusDiv) {
-        // エラー時もフォーマットは崩さず OFF として出す
-        statusDiv.textContent = "O.D.O.A Mode : OFF";
-      }
+      updateStatusGrid("O.D.O.A Mode : OFF", "renderPanel error");
 
       console.error("[SYNC-B] renderPanel error:", e);
     }
