@@ -2494,6 +2494,9 @@
         if (lastdayDetails) {
           lastdayDetails.addEventListener("toggle", function(){
             writeLsBool(LS_LASTDAY_OPEN, !!lastdayDetails.open);
+
+            // ★ details開閉直後に “見出し差し替え（LastWrong/LastCorrect）” を即反映
+            updateMonitor();
           });
         }
       }catch(_){}
