@@ -266,54 +266,98 @@
       return;
     }
 
+    // 2カラムグリッドとして扱う
+    if (!body.classList.contains("cscs-sync-grid")) {
+      body.classList.add("cscs-sync-grid");
+    }
+
     while (body.firstChild) {
       body.removeChild(body.firstChild);
     }
 
-    var lines = String(text).split(/\n/);
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      if (!line.trim()) {
-        continue;
-      }
-      var lineDiv = document.createElement("div");
-      lineDiv.textContent = line;
-      body.appendChild(lineDiv);
-    }
-  }
-
-  function updateStatusGrid(odoaStatusText, statusText) {
-    var statusDiv = document.getElementById("cscs_sync_view_b_status");
-    if (!statusDiv) return;
-
-    while (statusDiv.firstChild) {
-      statusDiv.removeChild(statusDiv.firstChild);
+    function appendDivider() {
+      var hr = document.createElement("div");
+      hr.className = "cscs-sync-divider";
+      hr.setAttribute("style", "grid-column: 1 / span 2;");
+      body.appendChild(hr);
     }
 
-    function addRow(label, value) {
+    function appendSection(title) {
+      var sec = document.createElement("div");
+      sec.className = "cscs-sync-section";
+      sec.setAttribute("style", "grid-column: 1 / span 2;");
+      sec.textContent = title;
+      body.appendChild(sec);
+    }
+
+    function appendRow(label, value) {
       var k = document.createElement("div");
+      k.className = "cscs-sync-k";
       k.textContent = label;
 
-      // ★ A側と同じ「左ラベル」見た目に統一（CSS側で調整可能にする）
-      //   - .status-label が opacity / font-weight / nowrap を担う
-      k.className = "status-label";
-
       var v = document.createElement("div");
+      v.className = "cscs-sync-v";
       v.textContent = value;
 
-      // ★ A側と同じ「右値」見た目に統一（数値の桁揃えもCSS側で吸収）
-      //   - .status-value が tabular-nums / nowrap を担う
-      //   - ここでは B特有の「長文がはみ出す事故」だけ防ぐために ellipsis を最小限で維持する
-      v.className = "status-value";
-      v.style.overflow = "hidden";
-      v.style.textOverflow = "ellipsis";
-
-      statusDiv.appendChild(k);
-      statusDiv.appendChild(v);
+      body.appendChild(k);
+      body.appendChild(v);
     }
 
-    addRow("ODOA", odoaStatusText || "O.D.O.A Mode : OFF");
-    addRow("status", statusText ? statusText : "-");
+    var lines = String(text).split(/\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var raw = lines[i];
+      var line = String(raw == null ? "" : raw);
+
+      // 空行は「区切り」にする（縦積みの“余白”ではなくセパレータ扱い）
+      if (!line.trim()) {
+        appendDivider();
+        continue;
+      }
+
+      // "xxxx:" だけの行はセクション見出しとして2列結合
+      var trimmed = line.trim();
+      if (/:\s*$/.test(trimmed) && trimmed.replace(/:\s*$/, "").trim() !== "") {
+        // ただし "day: 20251201" みたいに値があるケースもあるので、":"で分割して値が空の時だけ見出し化
+        var idxColon = trimmed.indexOf(":");
+        var left = trimmed.slice(0, idxColon).trim();
+        var right = trimmed.slice(idxColon + 1).trim();
+        if (!right) {
+          appendSection(left);
+          continue;
+        }
+        appendRow(left, right);
+        continue;
+      }
+
+      // "- sync 20251201" みたいな行は、"-" を落として label/value にする
+      if (/^\s*-\s+/.test(line)) {
+        var t = line.replace(/^\s*-\s+/, "");
+        var partsDash = t.split(/\s+/);
+        var dashLabel = partsDash.length ? partsDash[0] : "";
+        var dashValue = partsDash.slice(1).join(" ");
+        appendRow(dashLabel, dashValue);
+        continue;
+      }
+
+      // "key: value" 形式は label/value
+      if (trimmed.indexOf(":") !== -1) {
+        var idx = trimmed.indexOf(":");
+        var k1 = trimmed.slice(0, idx).trim();
+        var v1 = trimmed.slice(idx + 1).trim();
+        if (v1) {
+          appendRow(k1, v1);
+        } else {
+          appendSection(k1);
+        }
+        continue;
+      }
+
+      // それ以外は「先頭トークン=ラベル、残り=値」
+      var parts = trimmed.split(/\s+/);
+      var label = parts.length ? parts[0] : "";
+      var value = parts.slice(1).join(" ");
+      appendRow(label, value);
+    }
   }
 
   function fetchState() {
@@ -329,21 +373,58 @@
     var box = document.createElement("div");
     box.id = "cscs_sync_view_b";
 
+    // ★ グリッド表示用CSS（1回だけ注入）
+    (function ensureSyncBGridStyle(){
+      try {
+        if (document.getElementById("cscs_sync_view_b_grid_style")) return;
+        var st = document.createElement("style");
+        st.id = "cscs_sync_view_b_grid_style";
+        st.textContent = ""
+          + "#cscs_sync_view_b_body.cscs-sync-grid{"
+          + "display:grid;"
+          + "grid-template-columns: max-content 1fr;"
+          + "column-gap:10px;"
+          + "row-gap:4px;"
+          + "align-items:start;"
+          + "font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace;"
+          + "font-size:11px;"
+          + "line-height:1.25;"
+          + "white-space:pre-wrap;"
+          + "word-break:break-word;"
+          + "}"
+          + "#cscs_sync_view_b_body .cscs-sync-k{"
+          + "opacity:0.75;"
+          + "}"
+          + "#cscs_sync_view_b_body .cscs-sync-v{"
+          + "opacity:0.95;"
+          + "}"
+          + "#cscs_sync_view_b_body .cscs-sync-section{"
+          + "margin-top:6px;"
+          + "padding-top:6px;"
+          + "border-top:1px solid rgba(255,255,255,0.12);"
+          + "opacity:0.9;"
+          + "font-weight:700;"
+          + "}"
+          + "#cscs_sync_view_b_body .cscs-sync-divider{"
+          + "height:0px;"
+          + "border-top:1px solid rgba(255,255,255,0.08);"
+          + "margin:4px 0px;"
+          + "}";
+        document.head.appendChild(st);
+      } catch (_e) {}
+    })();
+
     var title = document.createElement("div");
     title.id = "cscs_sync_view_b_title";
     title.textContent = "SYNC(B): " + info.qid;
 
     var body = document.createElement("div");
     body.id = "cscs_sync_view_b_body";
+    body.className = "cscs-sync-grid";
     body.textContent = "読み込み中…";
 
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
-
-    // ★ A側と同じ見た目（CSSクラス）でステータス2列グリッドを描画する
-    //   - inline style を捨てて .status-grid に寄せる（見た目の一元化）
-    //   - 既存CSS（.status-grid/.status-label/.status-value）をそのまま使えるようにする
-    statusDiv.className = "status-grid";
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
@@ -664,7 +745,10 @@
         console.log("[SYNC-B] ODOA HUD status set from mode:", odoaStatusText);
       }
 
-      updateStatusGrid(odoaStatusText, statusText);
+      var statusDiv = document.getElementById("cscs_sync_view_b_status");
+      if (statusDiv) {
+        statusDiv.textContent = odoaStatusText;
+      }
 
       // 内部用の statusText はログとして残すだけ
       if (statusText) {
@@ -674,7 +758,11 @@
       var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
       updateSyncBody(errorText);
 
-      updateStatusGrid("O.D.O.A Mode : OFF", "renderPanel error");
+      var statusDiv = document.getElementById("cscs_sync_view_b_status");
+      if (statusDiv) {
+        // エラー時もフォーマットは崩さず OFF として出す
+        statusDiv.textContent = "O.D.O.A Mode : OFF";
+      }
 
       console.error("[SYNC-B] renderPanel error:", e);
     }
