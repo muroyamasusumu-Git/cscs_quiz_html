@@ -228,6 +228,34 @@
       "background:rgba(0,0,0,0.35);" +
       "opacity:0.90;" +
       "}" +
+
+      // 追加した処理:
+      // - パネル最下部に「反映」ボタンを置くためのフッタ＆ボタンスタイル
+      // - 明るめ・幅いっぱい・押しやすい高さにする（重い反映操作の導線を明確化）
+      "#" + PANEL_ID + " .applybar{" +
+      "margin-top:8px;" +
+      "padding-top:8px;" +
+      "border-top:1px solid rgba(255,255,255,0.12);" +
+      "}" +
+      "#" + PANEL_ID + " .applybtn{" +
+      "display:block;" +
+      "width:100%;" +
+      "height:34px;" +
+      "line-height:32px;" +
+      "border-radius:10px;" +
+      "border:1px solid rgba(255,255,255,0.28);" +
+      "background:rgba(255,255,255,0.86);" +
+      "color:#111;" +
+      "font-weight:800;" +
+      "cursor:pointer;" +
+      "user-select:none;" +
+      "-webkit-user-select:none;" +
+      "box-shadow:none;" +
+      "}" +
+      "#" + PANEL_ID + " .applybtn:active{" +
+      "transform:translateY(1px);" +
+      "}" +
+
       "#" + PANEL_ID + " .hint{" +
       "font-size:11px;" +
       "opacity:0.72;" +
@@ -327,40 +355,6 @@
       var pendingMap = safeGetMap();
       if (!pendingMap || typeof pendingMap !== "object") pendingMap = {};
 
-      (function () {
-        var rowApply = document.createElement("div");
-        rowApply.className = "row";
-
-        var labelApply = document.createElement("span");
-        labelApply.textContent = "Apply";
-
-        var btnApply = document.createElement("button");
-        btnApply.type = "button";
-        btnApply.className = "btn";
-        btnApply.textContent = "反映";
-
-        btnApply.addEventListener("click", function () {
-          // 追加した処理:
-          // - pendingMap を localStorage に保存して確定させる
-          // - 演出JSは冒頭ガードが正なので、確実な反映のためにリロードする
-          safeSetMap(pendingMap);
-          applyFlag(isDisabledNow());
-
-          try {
-            location.reload();
-          } catch (_eReloadApply) {
-            try {
-              location.href = location.href;
-            } catch (_eHrefApply) {
-            }
-          }
-        });
-
-        rowApply.appendChild(labelApply);
-        rowApply.appendChild(btnApply);
-        panel.appendChild(rowApply);
-      })();
-
       for (var i = 0; i < EFFECTS.length; i++) {
         (function (def) {
           var row = document.createElement("div");
@@ -390,6 +384,39 @@
           panel.appendChild(row);
         })(EFFECTS[i]);
       }
+
+      (function () {
+        // 追加した処理:
+        // - 「反映」ボタンはパネル最下部（フッタ）に置く
+        // - 幅いっぱいの明るめボタンで、押すまで反映されないことを明確化
+        var applyBar = document.createElement("div");
+        applyBar.className = "applybar";
+
+        var btnApply = document.createElement("button");
+        btnApply.type = "button";
+        btnApply.className = "applybtn";
+        btnApply.textContent = "反映";
+
+        btnApply.addEventListener("click", function () {
+          // 追加した処理:
+          // - pendingMap を localStorage に保存して確定させる
+          // - 演出JSは冒頭ガードが正なので、確実な反映のためにリロードする
+          safeSetMap(pendingMap);
+          applyFlag(isDisabledNow());
+
+          try {
+            location.reload();
+          } catch (_eReloadApply) {
+            try {
+              location.href = location.href;
+            } catch (_eHrefApply) {
+            }
+          }
+        });
+
+        applyBar.appendChild(btnApply);
+        panel.appendChild(applyBar);
+      })();
 
       // （削除）Tip 表示は不要になったため何も追加しない
 
