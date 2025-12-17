@@ -149,6 +149,96 @@
     try{ localStorage.setItem(presetKey(layoutId), JSON.stringify(pos)); }catch(_){}
   }
 
+  // ===== 追加：固定ON/OFF（要素ごと） =====
+  // 目的：
+  //   - ターゲットごとに「固定（EDIT/LOCK管理対象）」と「固定解除（管理外）」を切替可能にする
+  //   - 固定ONのときは EDIT/LOCK中に位置＋W/Hを固定してレイアウト揺れを防ぐ
+  //   - 固定OFFのときは元のインラインstyleへ戻し、このツールの管理外にする
+  var ENABLE_NS = "cscs_layout_v1_fixed_targets_enabled";
+
+  function enabledKey(layoutId){
+    return ENABLE_NS + ":" + envKey() + ":" + layoutId;
+  }
+
+  function isTargetEnabled(layoutId){
+    try{
+      var v = localStorage.getItem(enabledKey(layoutId));
+      if(v === null || v === "") return true; // 既定：固定ON
+      return v === "1";
+    }catch(_){
+      return true; // localStorage不可でも既定は固定ON（壊さない方針）
+    }
+  }
+
+  function setTargetEnabled(layoutId, on){
+    try{
+      localStorage.setItem(enabledKey(layoutId), on ? "1" : "0");
+    }catch(_){}
+  }
+
+  function enableTargetFixed(layoutId){
+    // 追加した処理:
+    // - 固定ONにした瞬間の見た目を「そのまま凍結」できるようにする
+    // - 保存位置が無ければ、現在rectから pos を作って保存し、applyPosで固定運用へ入れる
+    var el = null;
+    for(var i=0;i<TARGETS.length;i++){
+      if(TARGETS[i].id === layoutId){
+        el = document.querySelector(TARGETS[i].sel);
+        break;
+      }
+    }
+    if(!el) return;
+
+    rememberOrigStyleIfNeeded(el);
+    setTargetEnabled(layoutId, true);
+
+    var pos = loadPos(layoutId);
+    if(!pos){
+      var rect = el.getBoundingClientRect();
+      pos = {
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        z: el.style.zIndex ? parseInt(el.style.zIndex, 10) : null
+      };
+      savePos(layoutId, pos);
+    }
+
+    applyPos(el, pos);
+  }
+
+  function disableTargetFixed(layoutId){
+    // 追加した処理:
+    // - 固定解除は「元のインラインstyle」へ戻して管理外にする（フォールバックで埋めない）
+    var el = null;
+    for(var i=0;i<TARGETS.length;i++){
+      if(TARGETS[i].id === layoutId){
+        el = document.querySelector(TARGETS[i].sel);
+        break;
+      }
+    }
+    if(!el) return;
+
+    setTargetEnabled(layoutId, false);
+
+    var orig = loadOrigStyle(el);
+    if(orig){
+      applyOrigStyle(el, orig);
+      return;
+    }
+
+    // 元styleが無い場合は、最小限だけ解除（壊さない方針）
+    el.style.position = "";
+    el.style.left = "";
+    el.style.top = "";
+    el.style.right = "";
+    el.style.bottom = "";
+    el.style.width = "";
+    el.style.height = "";
+    el.style.zIndex = "";
+  }
+
   function loadPreset(layoutId){
     try{
       var raw = localStorage.getItem(presetKey(layoutId));
@@ -834,8 +924,41 @@
           sel.value = getSelectedId();
         }
 
-        var el = getElById(getSelectedId());
-        if(el && getEditMode()){
+        // 追加した処理:
+        // - 固定OFF（管理外）の要素は、EDITモードでもスライダー操作不可にする
+        var __id = getSelectedId();
+        var el = getElById(__id);
+        var enabled = isTargetEnabled(__id);
+
+        var pinBtn = document.getElementById("cscs-layout-menu-pin");
+        if(pinBtn){
+          pinBtn.textContent = enabled ? "FREE" : "FIX";
+        }
+
+        // 追加した処理:
+        // - 固定OFF（FREE）にした瞬間に誤操作ゼロにするため、
+        //   SAVE/AUTO/RESET を disabled + 半透明 にする（RESET ALLは残す）
+        function guardBtn(btn, ok){
+          if(!btn) return;
+          try{
+            btn.disabled = !ok;
+            btn.style.opacity = ok ? "1" : "0.45";
+          }catch(_eGuard){
+          }
+        }
+
+        var saveBtn = document.getElementById("cscs-layout-menu-save");
+        var autoBtn = document.getElementById("cscs-layout-menu-auto");
+        var resetBtn = document.getElementById("cscs-layout-menu-reset");
+        var resetAllBtn = document.getElementById("cscs-layout-menu-reset-all");
+
+        var okActions = !!el && enabled;
+        guardBtn(saveBtn, okActions);
+        guardBtn(autoBtn, okActions);
+        guardBtn(resetBtn, okActions);
+        guardBtn(resetAllBtn, true);
+
+        if(el && getEditMode() && enabled){
           setRangeEnabled(true);
           syncSlidersFromEl(el);
         }else{
@@ -1109,6 +1232,35 @@
       });
 
       rowSel.appendChild(sel);
+
+      // ===== 追加：FIX/FREE（固定ON/OFF） =====
+      // 目的：
+      //   - 選択中ターゲットを「固定（EDIT/LOCK管理対象）」⇄「固定解除（管理外）」で切替できるようにする
+      //   - 固定ONに戻すときは、現在見えている位置＋サイズを保存して即固定化できるようにする
+      var pinBtn = makeMiniButton(isTargetEnabled(getSelectedId()) ? "FREE" : "FIX");
+      pinBtn.id = "cscs-layout-menu-pin";
+
+      pinBtn.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        var __id = getSelectedId();
+        var __el = getElById(__id);
+        if(!__el) return;
+
+        var nowEnabled = isTargetEnabled(__id);
+
+        if(nowEnabled){
+          disableTargetFixed(__id);
+        }else{
+          enableTargetFixed(__id);
+        }
+
+        updateHandlesVisibility();
+        refreshLayoutPanelUI();
+      });
+
+      rowSel.appendChild(pinBtn);
 
       // (3) Xスライダー
       var rowX = document.createElement("div");
@@ -1448,10 +1600,14 @@
   }
 
   function updateHandlesVisibility(){
+    // 追加した処理:
+    // - ハンドルは「EDITモード」かつ「対象が固定ON」のときだけ表示
     var on = getEditMode();
     var handles = document.querySelectorAll(".cscs-layout-handle");
     for(var i=0;i<handles.length;i++){
-      handles[i].style.display = on ? "flex" : "none";
+      var hid = handles[i].getAttribute("data-layout-id-handle") || "";
+      var show = on && hid && isTargetEnabled(hid);
+      handles[i].style.display = show ? "flex" : "none";
     }
   }
 
@@ -1474,7 +1630,11 @@
     }
 
     // 位置復元
-    applyPos(el, loadPos(t.id));
+    // 追加した処理:
+    // - 固定ONのときだけ applyPos で fixed運用へ入れる（固定OFFは管理外のため触らない）
+    if(isTargetEnabled(t.id)){
+      applyPos(el, loadPos(t.id));
+    }
 
     // ハンドル＆ドラッグ
     var handle = createHandle(el, t.id);
@@ -1514,7 +1674,12 @@
         var t = TARGETS[i];
         var el = document.querySelector(t.sel);
         if(!el) continue;
-        applyPos(el, loadPos(t.id));
+
+        // 追加した処理:
+        // - 固定ONの要素だけ、envKey切替後の保存位置を適用する（固定OFFは管理外）
+        if(isTargetEnabled(t.id)){
+          applyPos(el, loadPos(t.id));
+        }
       }
     }, { passive: true });
   }
