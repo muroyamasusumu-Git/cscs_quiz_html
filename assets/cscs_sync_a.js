@@ -1962,32 +1962,25 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <details class="sync-fold" data-fold="days">
-              <summary>Days（SYNC / local / 今日？）</summary>
-              <div class="sync-body">
-                <div class="days-grid">
-                  <div class="days-head"></div>
-                  <div class="days-head">SYNC</div>
-                  <div class="days-head">local</div>
-                  <div class="days-head">今日？</div>
+            <div class="sync-body sync-lastday">
+              <div class="lastday-grid">
+                <div class="ld-head">LastDay</div>
+                <div class="ld-head">SYNC</div>
+                <div class="ld-head">local</div>
 
-                  <div class="days-label">streak3_today_day</div>
-                  <div class="days-val"><span class="sync-streak3today-day-sync">（データなし）</span></div>
-                  <div class="days-val"><span class="sync-streak3today-day-local">（データなし）</span></div>
-                  <div class="days-val"><span class="sync-streak3today-day-istoday">unknown</span></div>
+                <div class="ld-label">lastSeen</div>
+                <div><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div><span class="sync-last-seen-local">（データなし）</span></div>
 
-                  <div class="days-label">streak3_wrong_today_day</div>
-                  <div class="days-val"><span class="sync-streak3wrongtoday-day-sync">（データなし）</span></div>
-                  <div class="days-val"><span class="sync-streak3wrongtoday-day-local">（データなし）</span></div>
-                  <div class="days-val"><span class="sync-streak3wrongtoday-day-istoday">unknown</span></div>
+                <div class="ld-label">lastCorrect</div>
+                <div><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div><span class="sync-last-correct-local">（データなし）</span></div>
 
-                  <div class="days-label">oncePerDayToday.day</div>
-                  <div class="days-val"><span class="sync-onceperday-day-sync">（データなし）</span></div>
-                  <div class="days-val"><span class="sync-onceperday-day-local">（データなし）</span></div>
-                  <div class="days-val"><span class="sync-onceperday-day-istoday">unknown</span></div>
-                </div>
+                <div class="ld-label">lastWrong</div>
+                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div><span class="sync-last-wrong-local">（データなし）</span></div>
               </div>
-            </details>
+            </div>
           </div>
 
           <div class="sync-card sync-span-2">
