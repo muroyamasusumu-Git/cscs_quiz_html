@@ -5,44 +5,6 @@
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
 
-  // ★ HUDスタイル（更新はここだけ触ればOK）
-  //   - #cscs_sync_monitor_b に適用（要望）
-  //   - このJSが生成する #cscs_sync_view_b にも同一スタイルを適用（見た目の統一）
-  var SYNC_B_HUD_CSS = [
-    "#cscs_sync_monitor_b,",
-    "#cscs_sync_view_b {",
-    "  position: fixed;",
-    "  right: 15px;",
-    "  top: 100px;",
-    "  color: #eee;",
-    "  padding: 8px;",
-    "  font: 10px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
-    "  max-width: 46vw;",
-    "  width: 308px;",
-    "  opacity: 0.55;",
-    "  z-index: 2147483647;",
-    "}",
-    ""
-  ].join("\n");
-
-  function ensureSyncBHudStyle() {
-    try {
-      var styleId = "cscs_sync_view_b_style";
-      var el = document.getElementById(styleId);
-      if (!el) {
-        el = document.createElement("style");
-        el.id = styleId;
-        el.type = "text/css";
-        (document.head || document.documentElement).appendChild(el);
-      }
-      if (el.textContent !== SYNC_B_HUD_CSS) {
-        el.textContent = SYNC_B_HUD_CSS;
-      }
-    } catch (e) {
-      console.error("[SYNC-B:view] failed to inject HUD style:", e);
-    }
-  }
-
   /**
    * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
    * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
@@ -122,6 +84,55 @@
 
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
   var LAST_ODOA_STATUS = "";
+
+  // ★ このファイル内で管理する CSS（ここにどんどん追記していく）
+  //   - #cscs_sync_view_b が現行のパネルID
+  //   - 将来 #cscs_sync_monitor_b に変えても同じCSSが効くよう、両方を対象にしている
+  var CSCS_SYNC_VIEW_B_CSS = [
+    "/* cscs_sync_view_b.js injected CSS */",
+    "#cscs_sync_view_b,",
+    "#cscs_sync_monitor_b {",
+    "  position: fixed;",
+    "  right: 15px;",
+    "  top: 100px;",
+    "  color: #eee;",
+    "  padding: 8px;",
+    "  font: 10px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  max-width: 46vw;",
+    "  width: 308px;",
+    "  opacity: 0.55;",
+    "  z-index: 2147483647;",
+    "}",
+    ""
+  ].join("\n");
+
+  // ★ styleタグを1回だけ注入（同じidがあれば中身を更新して上書き）
+  function upsertStyleTag(styleId, cssText) {
+    try {
+      var head = document.head || document.getElementsByTagName("head")[0] || null;
+      if (!head) {
+        return;
+      }
+
+      var el = document.getElementById(styleId);
+      if (!el) {
+        el = document.createElement("style");
+        el.id = styleId;
+        el.type = "text/css";
+        head.appendChild(el);
+      }
+
+      if (el.textContent !== cssText) {
+        el.textContent = cssText;
+      }
+    } catch (e) {
+      console.error("[SYNC-B:view] upsertStyleTag failed:", e);
+    }
+  }
+
+  function ensureSyncViewBStyles() {
+    upsertStyleTag("cscs_sync_view_b_inline_css", CSCS_SYNC_VIEW_B_CSS);
+  }
 
   function detectInfo() {
     var path = window.location.pathname || "";
@@ -1627,6 +1638,9 @@
   }
 
   function init() {
+    // ★ パネル生成より先にCSSを注入（初回表示から確実に適用）
+    ensureSyncViewBStyles();
+
     var box = createPanel();
 
     function append() {
