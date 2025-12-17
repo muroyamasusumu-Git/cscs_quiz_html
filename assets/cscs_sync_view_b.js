@@ -293,11 +293,20 @@
     function addRow(label, value) {
       var k = document.createElement("div");
       k.textContent = label;
-      k.setAttribute("style", "opacity:0.70; white-space:nowrap;");
+
+      // ★ A側と同じ「左ラベル」見た目に統一（CSS側で調整可能にする）
+      //   - .status-label が opacity / font-weight / nowrap を担う
+      k.className = "status-label";
 
       var v = document.createElement("div");
       v.textContent = value;
-      v.setAttribute("style", "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;");
+
+      // ★ A側と同じ「右値」見た目に統一（数値の桁揃えもCSS側で吸収）
+      //   - .status-value が tabular-nums / nowrap を担う
+      //   - ここでは B特有の「長文がはみ出す事故」だけ防ぐために ellipsis を最小限で維持する
+      v.className = "status-value";
+      v.style.overflow = "hidden";
+      v.style.textOverflow = "ellipsis";
 
       statusDiv.appendChild(k);
       statusDiv.appendChild(v);
@@ -330,17 +339,11 @@
 
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
-    statusDiv.setAttribute("style",
-      "display:grid;" +
-      "grid-template-columns:auto 1fr;" +
-      "column-gap:10px;" +
-      "row-gap:2px;" +
-      "align-items:baseline;" +
-      "font-size:11px;" +
-      "line-height:1.25;" +
-      "margin-top:4px;" +
-      "opacity:0.95;"
-    );
+
+    // ★ A側と同じ見た目（CSSクラス）でステータス2列グリッドを描画する
+    //   - inline style を捨てて .status-grid に寄せる（見た目の一元化）
+    //   - 既存CSS（.status-grid/.status-label/.status-value）をそのまま使えるようにする
+    statusDiv.className = "status-grid";
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
