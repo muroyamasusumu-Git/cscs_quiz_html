@@ -752,6 +752,23 @@
         // 追加した処理:
         // - 保存後、スライダー表示も現在値に同期しておく
         syncSlidersFromEl(__el);
+
+        // 追加した処理:
+        // - SAVEしたことが分かるように、ボタン文言を一瞬だけ "SAVED" にする（1秒）
+        // - 多重クリックでも最終状態が必ず "SAVE" に戻るよう、タイマーを上書き管理する
+        try{
+          var __origText = "SAVE";
+          saveBtn.textContent = "SAVED";
+          if(saveBtn.__cscsSavedTimer){
+            clearTimeout(saveBtn.__cscsSavedTimer);
+            saveBtn.__cscsSavedTimer = 0;
+          }
+          saveBtn.__cscsSavedTimer = setTimeout(function(){
+            saveBtn.textContent = __origText;
+            saveBtn.__cscsSavedTimer = 0;
+          }, 1000);
+        }catch(_eSaved){
+        }
       });
 
       // ===== 変更：RESET（選択中）=====
