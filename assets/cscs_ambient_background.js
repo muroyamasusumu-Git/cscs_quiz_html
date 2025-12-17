@@ -383,38 +383,72 @@
           return;
         }
 
-        // 星を1個生成
-        var star = document.createElement("div");
-        star.className = "cscs-ambient-star";
+        function canSparkleNow(){
+          if (!enabled) return false;
 
-        // 上の方だけ：0〜35vh
-        var topVh = rand(2, 35);
+          var layer2 = document.getElementById(LAYER_ID);
+          if (!layer2) return false;
 
-        // 横は全面：0〜100vw 相当（%でOK）
-        var leftPct = rand(0, 100);
-
-        // ほんのり白（テーマには依存させず、最小限の粒子として固定）
-        star.style.left = String(leftPct) + "%";
-        star.style.top = String(topVh) + "vh";
-        star.style.background = "rgba(255,255,255,0.9)";
-
-        // 点滅時間も少しランダム（0.35〜0.9s）
-        var dur = rand(0.35, 0.9);
-        star.style.animation = "cscsAmbientStarTwinkle " + String(dur) + "s ease-out 0s 1";
-
-        sparkleHost.appendChild(star);
-
-        // 終わったら消す（DOM肥大防止）
-        window.setTimeout(function(){
           try {
-            if (star && star.parentNode) {
-              star.parentNode.removeChild(star);
-            }
-          } catch (_eRm) {
+            if (String(layer2.style.display || "") === "none") return false;
+          } catch (_eDisp2) {
           }
-        }, Math.ceil(dur * 1000) + 50);
 
-        scheduleNext();
+          var host2 = document.getElementById("cscs-ambient-sparkle-layer");
+          if (!host2) return false;
+
+          return true;
+        }
+
+        function spawnOneStar(){
+          var sparkleHost2 = document.getElementById("cscs-ambient-sparkle-layer");
+          if (!sparkleHost2) return;
+
+          // 星を1個生成
+          var star = document.createElement("div");
+          star.className = "cscs-ambient-star";
+
+          // 上の方だけ：0〜35vh
+          var topVh = rand(2, 35);
+
+          // 横は全面：0〜100vw 相当（%でOK）
+          var leftPct = rand(0, 100);
+
+          // ほんのり白（テーマには依存させず、最小限の粒子として固定）
+          star.style.left = String(leftPct) + "%";
+          star.style.top = String(topVh) + "vh";
+          star.style.background = "rgba(255,255,255,0.9)";
+
+          // 点滅時間も少しランダム（0.35〜0.9s）
+          var dur = rand(0.35, 0.9);
+          star.style.animation = "cscsAmbientStarTwinkle " + String(dur) + "s ease-out 0s 1";
+
+          sparkleHost2.appendChild(star);
+
+          // 終わったら消す（DOM肥大防止）
+          window.setTimeout(function(){
+            try {
+              if (star && star.parentNode) {
+                star.parentNode.removeChild(star);
+              }
+            } catch (_eRm) {
+            }
+          }, Math.ceil(dur * 1000) + 50);
+        }
+
+        // 1個目（即時）
+        if (canSparkleNow()) {
+          spawnOneStar();
+        }
+
+        // 2個目（時間差＋別場所）: 120〜520ms 遅らせる
+        var delay2 = Math.floor(rand(120, 520));
+        window.setTimeout(function(){
+          if (canSparkleNow()) {
+            spawnOneStar();
+          }
+          scheduleNext();
+        }, delay2);
       }
 
       // 起動（多重起動防止）
