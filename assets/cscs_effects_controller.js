@@ -237,15 +237,18 @@
       "padding-top:8px;" +
       "border-top:1px solid rgba(255,255,255,0.12);" +
       "}" +
+      // 追加した処理:
+      // - 反映ボタンを「明るめの黒」にして、白すぎる違和感をなくす
+      // - それでも目立つように、透明度はやや高め＆枠線も少し強めにする
       "#" + PANEL_ID + " .applybtn{" +
       "display:block;" +
       "width:100%;" +
       "height:34px;" +
       "line-height:32px;" +
       "border-radius:10px;" +
-      "border:1px solid rgba(255,255,255,0.28);" +
-      "background:rgba(255,255,255,0.86);" +
-      "color:#111;" +
+      "border:1px solid rgba(255,255,255,0.22);" +
+      "background:rgba(0,0,0,0.28);" +
+      "color:#fff;" +
       "font-weight:800;" +
       "cursor:pointer;" +
       "user-select:none;" +
