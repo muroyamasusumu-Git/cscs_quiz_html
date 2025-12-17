@@ -2073,7 +2073,7 @@
     var btn = document.createElement("a");
     btn.id = "auto-prev-toggle";
     btn.className = "back-to-top";
-    btn.textContent = "［前の問題へ］";
+    btn.textContent = "［履歴を見る］";
 
     // 左端固定（バーの外側に置く）
     // ▼ 位置調整は CSS と一致させる（left/bottom は inline が強いのでここで揃える）
