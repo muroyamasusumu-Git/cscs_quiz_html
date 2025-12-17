@@ -173,9 +173,10 @@
   // 方針:
   //   - デフォルトは閉じ（collapsed）
   //   - ユーザーが開いた状態/閉じた状態を localStorage に保存し、リロード/遷移後も維持
-  const LS_MON_OPEN    = "cscs_sync_a_monitor_open";
-  const LS_DAYS_OPEN   = "cscs_sync_a_days_open";
-  const LS_QDEL_OPEN   = "cscs_sync_a_queue_detail_open";
+  const LS_MON_OPEN     = "cscs_sync_a_monitor_open";
+  const LS_DAYS_OPEN    = "cscs_sync_a_days_open";
+  const LS_QDEL_OPEN    = "cscs_sync_a_queue_detail_open";
+  const LS_LASTDAY_OPEN = "cscs_sync_a_lastday_open";
 
   function readLsBool(key, defaultBool){
     try{
@@ -491,13 +492,18 @@
         const qdCorEl    = box.querySelector(".sync-queue-lastcorrect");
         const qdWrgEl    = box.querySelector(".sync-queue-lastwrong");
 
-        // ★ 問題別 最終日情報表示用要素
+        // ★ 問題別 最終日情報表示用要素（詳細テーブル）
         const lastSeenSyncEl     = box.querySelector(".sync-last-seen-sync");
         const lastCorrectSyncEl  = box.querySelector(".sync-last-correct-sync");
         const lastWrongSyncEl    = box.querySelector(".sync-last-wrong-sync");
         const lastSeenLocalEl    = box.querySelector(".sync-last-seen-local");
         const lastCorrectLocalEl = box.querySelector(".sync-last-correct-local");
         const lastWrongLocalEl   = box.querySelector(".sync-last-wrong-local");
+
+        // ★ 追加: lastday サマリー（summary 1行）
+        const lastdaySummaryTypeEl  = box.querySelector(".sync-lastday-summary-type");
+        const lastdaySummarySyncEl  = box.querySelector(".sync-lastday-summary-sync");
+        const lastdaySummaryLocalEl = box.querySelector(".sync-lastday-summary-local");
 
         if (s3tDayEl) {
           s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
@@ -598,7 +604,7 @@
         if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "（データなし）");
         if (onceDayIsTodayEl) onceDayIsTodayEl.textContent = isTodayYmdString(syncOnceDayRaw);
 
-        // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映
+        // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映（詳細テーブル）
         if (lastSeenSyncEl) {
           lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "（データなし）");
         }
@@ -616,6 +622,57 @@
         }
         if (lastWrongLocalEl) {
           lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "（データなし）");
+        }
+
+        // ★ 追加: lastday の「最新正誤記録」を 1行サマリーに反映
+        //   - lastCorrect と lastWrong のうち、日付が新しい方を「最新」として採用
+        //   - 表示は「ラベル + SYNC値 + local値」の1行にする
+        //   - フォールバックで別ソースから推測しない（取れている値だけで判定）
+        function ymdToNum8(v){
+          const s = String(v || "").trim();
+          if (!/^\d{8}$/.test(s)) return null;
+          const n = parseInt(s, 10);
+          if (!Number.isFinite(n) || n <= 0) return null;
+          return n;
+        }
+
+        function pickLatestType(){
+          const cS = ymdToNum8(lastCorrectSync);
+          const wS = ymdToNum8(lastWrongSync);
+          const cL = ymdToNum8(lastCorrectLocal);
+          const wL = ymdToNum8(lastWrongLocal);
+
+          let bestType = "lastCorrect";
+          let bestNum = null;
+
+          function consider(type, n){
+            if (n === null) return;
+            if (bestNum === null || n > bestNum) {
+              bestNum = n;
+              bestType = type;
+            }
+          }
+
+          consider("lastCorrect", cS);
+          consider("lastWrong",  wS);
+          consider("lastCorrect", cL);
+          consider("lastWrong",  wL);
+
+          return bestType;
+        }
+
+        const latestType = pickLatestType();
+        const latestSyncVal  = (latestType === "lastWrong") ? lastWrongSync  : lastCorrectSync;
+        const latestLocalVal = (latestType === "lastWrong") ? lastWrongLocal : lastCorrectLocal;
+
+        if (lastdaySummaryTypeEl) {
+          lastdaySummaryTypeEl.textContent = latestType;
+        }
+        if (lastdaySummarySyncEl) {
+          lastdaySummarySyncEl.textContent = toDisplayText(latestSyncVal, "（データなし）");
+        }
+        if (lastdaySummaryLocalEl) {
+          lastdaySummaryLocalEl.textContent = toDisplayText(latestLocalVal, "（データなし）");
         }
 
         const lEl  = box.querySelector(".sync-local");
@@ -2143,30 +2200,37 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-body sync-lastday">
-              <div class="lastday-grid">
-                <div class="ld-head">LastDay</div>
-                <div class="ld-head">SYNC</div>
-                <div class="ld-head">local</div>
-
-                <div class="ld-label">lastSeen</div>
-                <div><span class="sync-last-seen-sync">（データなし）</span></div>
-                <div><span class="sync-last-seen-local">（データなし）</span></div>
-
-                <div class="ld-label">lastCorrect</div>
-                <div><span class="sync-last-correct-sync">（データなし）</span></div>
-                <div><span class="sync-last-correct-local">（データなし）</span></div>
-
-                <div class="ld-label">lastWrong</div>
-                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
-                <div><span class="sync-last-wrong-local">（データなし）</span></div>
-              </div>
-            </div>
+            <div class="sync-title">OncePerDayToday / O.D.O.A Mode</div>
+            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">OncePerDayToday / O.D.O.A Mode</div>
-            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
+            <details class="sync-fold" data-fold="lastday">
+              <summary>
+                <span class="sync-lastday-summary-type">lastCorrect</span>
+                <span class="sync-lastday-summary-sync">（データなし）</span>
+                <span class="sync-lastday-summary-local">（データなし）</span>
+              </summary>
+              <div class="sync-body sync-lastday">
+                <div class="lastday-grid">
+                  <div class="ld-head">LastDay</div>
+                  <div class="ld-head">SYNC</div>
+                  <div class="ld-head">local</div>
+
+                  <div class="ld-label">lastSeen</div>
+                  <div><span class="sync-last-seen-sync">（データなし）</span></div>
+                  <div><span class="sync-last-seen-local">（データなし）</span></div>
+
+                  <div class="ld-label">lastCorrect</div>
+                  <div><span class="sync-last-correct-sync">（データなし）</span></div>
+                  <div><span class="sync-last-correct-local">（データなし）</span></div>
+
+                  <div class="ld-label">lastWrong</div>
+                  <div><span class="sync-last-wrong-sync">（データなし）</span></div>
+                  <div><span class="sync-last-wrong-local">（データなし）</span></div>
+                </div>
+              </div>
+            </details>
           </div>
 
           <div class="sync-card sync-span-2">
@@ -2255,6 +2319,7 @@
 
         const daysDetails    = box.querySelector('details.sync-fold[data-fold="days"]');
         const queueDetails   = box.querySelector('details.sync-fold[data-fold="queue"]');
+        const lastdayDetails = box.querySelector('details.sync-fold[data-fold="lastday"]');
 
         /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
            - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
@@ -2271,11 +2336,13 @@
         markOptional(daysDetails);
         markOptional(queueDetails);
 
-        const daysOpen    = readLsBool(LS_DAYS_OPEN, false);   // デフォルト閉じ
-        const queueOpen   = readLsBool(LS_QDEL_OPEN, false);   // デフォルト閉じ
+        const daysOpen     = readLsBool(LS_DAYS_OPEN, false);     // デフォルト閉じ
+        const queueOpen    = readLsBool(LS_QDEL_OPEN, false);     // デフォルト閉じ
+        const lastdayOpen  = readLsBool(LS_LASTDAY_OPEN, false);  // デフォルト閉じ
 
-        if (daysDetails)    daysDetails.open    = !!daysOpen;
-        if (queueDetails)   queueDetails.open   = !!queueOpen;
+        if (daysDetails)     daysDetails.open     = !!daysOpen;
+        if (queueDetails)    queueDetails.open    = !!queueOpen;
+        if (lastdayDetails)  lastdayDetails.open  = !!lastdayOpen;
 
         if (daysDetails) {
           daysDetails.addEventListener("toggle", function(){
@@ -2285,6 +2352,11 @@
         if (queueDetails) {
           queueDetails.addEventListener("toggle", function(){
             writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
+          });
+        }
+        if (lastdayDetails) {
+          lastdayDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_LASTDAY_OPEN, !!lastdayDetails.open);
           });
         }
       }catch(_){}
