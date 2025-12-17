@@ -2102,6 +2102,28 @@
           </div>
 
           <div class="sync-card sync-span-2">
+            <div class="sync-body sync-lastday">
+              <div class="lastday-grid">
+                <div class="ld-head">LastDay</div>
+                <div class="ld-head">SYNC</div>
+                <div class="ld-head">local</div>
+
+                <div class="ld-label">lastSeen</div>
+                <div><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div><span class="sync-last-seen-local">（データなし）</span></div>
+
+                <div class="ld-label">lastCorrect</div>
+                <div><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div><span class="sync-last-correct-local">（データなし）</span></div>
+
+                <div class="ld-label">lastWrong</div>
+                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div><span class="sync-last-wrong-local">（データなし）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card sync-span-2">
             <details class="sync-fold" data-fold="queue">
               <summary>Queue Δ detail（送信待ち）</summary>
               <div class="sync-body">
@@ -2132,28 +2154,6 @@
                 </div>
               </div>
             </details>
-          </div>
-
-          <div class="sync-card sync-span-2">
-            <div class="sync-body sync-lastday">
-              <div class="lastday-grid">
-                <div class="ld-head">LastDay</div>
-                <div class="ld-head">SYNC</div>
-                <div class="ld-head">local</div>
-
-                <div class="ld-label">lastSeen</div>
-                <div><span class="sync-last-seen-sync">（データなし）</span></div>
-                <div><span class="sync-last-seen-local">（データなし）</span></div>
-
-                <div class="ld-label">lastCorrect</div>
-                <div><span class="sync-last-correct-sync">（データなし）</span></div>
-                <div><span class="sync-last-correct-local">（データなし）</span></div>
-
-                <div class="ld-label">lastWrong</div>
-                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
-                <div><span class="sync-last-wrong-local">（データなし）</span></div>
-              </div>
-            </div>
           </div>
 
           <div class="sync-card sync-span-2">
