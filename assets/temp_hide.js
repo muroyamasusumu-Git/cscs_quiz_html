@@ -122,7 +122,7 @@
   bottom: 54px;
   width: 320px;
   max-width: calc(100vw - 20px);
-  z-index: 999999;
+  z-index: 999999 !important;
   background: rgba(0,0,0,0.70);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 12px;
