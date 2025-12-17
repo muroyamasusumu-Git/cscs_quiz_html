@@ -321,7 +321,45 @@
         panel.appendChild(rowAll);
       })();
 
-      var map = safeGetMap();
+      // 追加した処理:
+      // - チェック操作では即リロードせず、パネル内で「未反映の変更」を溜めるだけにする
+      // - 「反映」ボタン押下で localStorage に一括保存 → windowへ反映 → 1回だけリロード
+      var pendingMap = safeGetMap();
+      if (!pendingMap || typeof pendingMap !== "object") pendingMap = {};
+
+      (function () {
+        var rowApply = document.createElement("div");
+        rowApply.className = "row";
+
+        var labelApply = document.createElement("span");
+        labelApply.textContent = "Apply";
+
+        var btnApply = document.createElement("button");
+        btnApply.type = "button";
+        btnApply.className = "btn";
+        btnApply.textContent = "反映";
+
+        btnApply.addEventListener("click", function () {
+          // 追加した処理:
+          // - pendingMap を localStorage に保存して確定させる
+          // - 演出JSは冒頭ガードが正なので、確実な反映のためにリロードする
+          safeSetMap(pendingMap);
+          applyFlag(isDisabledNow());
+
+          try {
+            location.reload();
+          } catch (_eReloadApply) {
+            try {
+              location.href = location.href;
+            } catch (_eHrefApply) {
+            }
+          }
+        });
+
+        rowApply.appendChild(labelApply);
+        rowApply.appendChild(btnApply);
+        panel.appendChild(rowApply);
+      })();
 
       for (var i = 0; i < EFFECTS.length; i++) {
         (function (def) {
@@ -333,31 +371,17 @@
 
           var cb = document.createElement("input");
           cb.type = "checkbox";
-          // チェックON = 有効（OFF状態は map[id]=true で表現する）
-          cb.checked = !(map && map[def.id] === true);
+          // チェックON = 有効（OFF状態は pendingMap[id]=true で表現する）
+          cb.checked = !(pendingMap && pendingMap[def.id] === true);
 
           cb.addEventListener("change", function () {
-            // 追加した処理: チェックOFF = その演出をOFF（map[id]=true）
-            var m = safeGetMap();
-            if (!m || typeof m !== "object") m = {};
+            // 追加した処理:
+            // - ここでは localStorage を更新しない（未反映の変更として pendingMap だけを書き換える）
+            // - 反映は「反映」ボタン押下でまとめて行う
             if (cb.checked) {
-              delete m[def.id];
+              delete pendingMap[def.id];
             } else {
-              m[def.id] = true;
-            }
-            safeSetMap(m);
-
-            // windowへ即反映（各演出JSの冒頭ガードが参照）
-            applyFlag(isDisabledNow());
-
-            // 演出JSは「冒頭でreturn」が正なので、確実な反映にはリロードする
-            try {
-              location.reload();
-            } catch (_eReloadP) {
-              try {
-                location.href = location.href;
-              } catch (_eHrefP) {
-              }
+              pendingMap[def.id] = true;
             }
           });
 
