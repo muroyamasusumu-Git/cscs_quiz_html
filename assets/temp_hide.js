@@ -118,7 +118,7 @@
 
 #${PANEL_ID}{
   position: fixed;
-  right: 10px;
+  right: 190px;
   bottom: 54px;
   width: 320px;
   max-width: calc(100vw - 20px);
