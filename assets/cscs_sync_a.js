@@ -2028,8 +2028,8 @@
 }
 #cscs_sync_monitor_a .sync-card .sync-body{
   word-break: break-word;
-  font-weight: 500;
-  opacity: 0.80;
+  font-weight: 450;
+  opacity: 0.72;
 }
 
 /* ★ 値（バリュー）側を全体的に少し弱める：見出し/ラベルとの差を出す */
@@ -2040,14 +2040,14 @@
 #cscs_sync_monitor_a .sync-totals,
 #cscs_sync_monitor_a .sync-local,
 #cscs_sync_monitor_a .sync-queue{
-  font-weight: 500;
-  opacity: 0.80;
+  font-weight: 450;
+  opacity: 0.72;
 }
 
 /* ★ lastday の中身（SYNC/local の値）も同じトーンに揃える */
 #cscs_sync_monitor_a .lastday-grid span{
-  font-weight: 500;
-  opacity: 0.80;
+  font-weight: 450;
+  opacity: 0.72;
 }
 
 #cscs_sync_monitor_a .status-grid{
