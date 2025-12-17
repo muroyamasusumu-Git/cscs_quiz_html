@@ -1925,8 +1925,8 @@
           <div class="sync-card">
             <div class="sync-title">3連続正解 進捗</div>
             <div class="sync-body sync-streaklen">
-              SYNC (<span class="sync-streaklen-server-progress">0</span>/3) /
-              local (<span class="sync-streaklen-local-progress">0</span>/3)
+              SYNC <span class="sync-streaklen-server">0</span> (<span class="sync-streaklen-server-progress">0</span>/3) /
+              local <span class="sync-streaklen-val">0</span> (<span class="sync-streaklen-local-progress">0</span>/3)
             </div>
           </div>
 
@@ -1940,8 +1940,8 @@
           <div class="sync-card">
             <div class="sync-title">3連続不正解 進捗</div>
             <div class="sync-body sync-wrong-streaklen">
-              SYNC (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
-              local (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
+              SYNC <span class="sync-wrong-streaklen-server">0</span> (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
+              local <span class="sync-wrong-streaklen-val">0</span> (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
             </div>
           </div>
 
