@@ -1,4 +1,4 @@
-/**
+/** // assets/cscs_layout_tuner_fixed.js
  * CSCS Layout Editor (Fixed Targets) — 画面内パネルの位置をGUIで調整・保存するためのユーティリティ
  *
  * 【目的】
@@ -157,6 +157,12 @@
       if(!obj) return null;
       if(typeof obj.left !== "number") return null;
       if(typeof obj.top !== "number") return null;
+
+      // 追加した処理:
+      // - width/height は「無くてもOK」にする（旧データ互換）
+      if(obj.width != null && typeof obj.width !== "number") obj.width = null;
+      if(obj.height != null && typeof obj.height !== "number") obj.height = null;
+
       return obj;
     }catch(_){
       return null;
@@ -178,6 +184,12 @@
       if(!obj) return null;
       if(typeof obj.left !== "number") return null;
       if(typeof obj.top !== "number") return null;
+
+      // 追加した処理:
+      // - width/height は「無くてもOK」にする（旧データ互換）
+      if(obj.width != null && typeof obj.width !== "number") obj.width = null;
+      if(obj.height != null && typeof obj.height !== "number") obj.height = null;
+
       return obj;
     }catch(_){
       return null;
@@ -201,6 +213,8 @@
       top: el.style.top || "",
       right: el.style.right || "",
       bottom: el.style.bottom || "",
+      width: el.style.width || "",
+      height: el.style.height || "",
       zIndex: el.style.zIndex || ""
     };
 
@@ -229,6 +243,8 @@
     el.style.top = orig.top;
     el.style.right = orig.right;
     el.style.bottom = orig.bottom;
+    el.style.width = orig.width;
+    el.style.height = orig.height;
     el.style.zIndex = orig.zIndex;
   }
 
@@ -266,8 +282,12 @@
     }
 
     // 元styleが無い場合は、最小限だけ戻す（壊さない方針）
+    // 追加した処理:
+    // - width/height もクリアして、AUTO相当（CSS本来のサイズ）に戻せるようにする
     el.style.left = "";
     el.style.top = "";
+    el.style.width = "";
+    el.style.height = "";
     el.style.zIndex = "";
   }
 
@@ -302,6 +322,13 @@
     el.style.position = "fixed";
     el.style.left = pos.left + "px";
     el.style.top  = pos.top  + "px";
+
+    // 追加した処理:
+    // - width/height を保存している場合は適用（横/縦に広げる）
+    // - 未指定（null/undefined）の場合は触らず、明示的に空へ戻したい時は "" を入れる設計にする
+    if(pos.width != null) el.style.width = Math.round(pos.width) + "px";
+    if(pos.height != null) el.style.height = Math.round(pos.height) + "px";
+
     if(pos.z != null) el.style.zIndex = String(pos.z);
   }
 
@@ -434,9 +461,13 @@
         var sel = document.getElementById("cscs-layout-target-select");
         var x = document.getElementById("cscs-layout-x-slider");
         var y = document.getElementById("cscs-layout-y-slider");
+        var w = document.getElementById("cscs-layout-w-slider");
+        var h = document.getElementById("cscs-layout-h-slider");
         if(sel) sel.disabled = !enabled;
         if(x) x.disabled = !enabled;
         if(y) y.disabled = !enabled;
+        if(w) w.disabled = !enabled;
+        if(h) h.disabled = !enabled;
       }
 
       function clampInt(n, min, max){
@@ -449,6 +480,8 @@
       function updateRangesForEl(el){
         var x = document.getElementById("cscs-layout-x-slider");
         var y = document.getElementById("cscs-layout-y-slider");
+        var w = document.getElementById("cscs-layout-w-slider");
+        var h = document.getElementById("cscs-layout-h-slider");
         if(!x || !y) return;
 
         var vw = window.innerWidth;
@@ -465,13 +498,37 @@
         y.min = "0";
         y.max = String(maxY);
         y.step = "1";
+
+        // 追加した処理:
+        // - 幅/高さの上限は「いまの left/top を起点に、画面内に収まる最大値」にする
+        //   例: width は vw - rect.left、height は vh - rect.top
+        if(w){
+          var minW = 80;
+          var maxW = Math.max(minW, Math.floor(vw - rect.left));
+          w.min = String(minW);
+          w.max = String(maxW);
+          w.step = "1";
+        }
+        if(h){
+          var minH = 80;
+          var maxH = Math.max(minH, Math.floor(vh - rect.top));
+          h.min = String(minH);
+          h.max = String(maxH);
+          h.step = "1";
+        }
       }
 
       function syncSlidersFromEl(el){
         var x = document.getElementById("cscs-layout-x-slider");
         var y = document.getElementById("cscs-layout-y-slider");
+        var w = document.getElementById("cscs-layout-w-slider");
+        var h = document.getElementById("cscs-layout-h-slider");
+
         var xv = document.getElementById("cscs-layout-x-value");
         var yv = document.getElementById("cscs-layout-y-value");
+        var wv = document.getElementById("cscs-layout-w-value");
+        var hv = document.getElementById("cscs-layout-h-value");
+
         if(!x || !y || !xv || !yv) return;
 
         var rect = el.getBoundingClientRect();
@@ -489,6 +546,54 @@
 
         xv.textContent = String(left);
         yv.textContent = String(top);
+
+        // 追加した処理:
+        // - 幅/高さもスライダーに反映
+        if(w && wv){
+          var maxW = parseInt(w.max, 10) || 80;
+          var ww = clampInt(rect.width, parseInt(w.min, 10) || 80, maxW);
+          w.value = String(ww);
+          wv.textContent = String(ww);
+        }
+        if(h && hv){
+          var maxH = parseInt(h.max, 10) || 80;
+          var hh = clampInt(rect.height, parseInt(h.min, 10) || 80, maxH);
+          h.value = String(hh);
+          hv.textContent = String(hh);
+        }
+      }
+
+      function lockActionButtonsDuringResize(ms){
+        // 追加した処理:
+        // - W/H変更中（スライダー操作中・連打中）は誤タップが起きやすいので
+        //   SAVE/AUTO を短時間だけ disabled + 半透明にする
+        // - 連続で呼ばれても「最後の呼び出し」だけが復帰タイミングになるようタイマーを上書きする
+        var saveBtn = document.getElementById("cscs-layout-menu-save");
+        var autoBtn = document.getElementById("cscs-layout-menu-auto");
+        var dur = (typeof ms === "number" && ms > 0) ? ms : 250;
+
+        function lockOne(btn){
+          if(!btn) return;
+          try{
+            btn.disabled = true;
+            btn.style.opacity = "0.55";
+
+            if(btn.__cscsTempLockTimer){
+              clearTimeout(btn.__cscsTempLockTimer);
+              btn.__cscsTempLockTimer = 0;
+            }
+
+            btn.__cscsTempLockTimer = setTimeout(function(){
+              btn.disabled = false;
+              btn.style.opacity = "1";
+              btn.__cscsTempLockTimer = 0;
+            }, dur);
+          }catch(_eLock){
+          }
+        }
+
+        lockOne(saveBtn);
+        lockOne(autoBtn);
       }
 
       function applyFromSliders(){
@@ -498,8 +603,14 @@
 
         var x = document.getElementById("cscs-layout-x-slider");
         var y = document.getElementById("cscs-layout-y-slider");
+        var w = document.getElementById("cscs-layout-w-slider");
+        var h = document.getElementById("cscs-layout-h-slider");
+
         var xv = document.getElementById("cscs-layout-x-value");
         var yv = document.getElementById("cscs-layout-y-value");
+        var wv = document.getElementById("cscs-layout-w-value");
+        var hv = document.getElementById("cscs-layout-h-value");
+
         if(!x || !y || !xv || !yv) return;
 
         updateRangesForEl(el);
@@ -523,9 +634,42 @@
         xv.textContent = String(left);
         yv.textContent = String(top);
 
+        // 追加した処理:
+        // - 幅/高さも反映（横/縦に広げられる）
+        // - W/Hを触っている最中だけ、誤タップ防止で SAVE/AUTO を短時間ロックする
+        var widthVal = null;
+        var heightVal = null;
+        var touchedWH = false;
+
+        if(w && wv){
+          var minW = parseInt(w.min, 10) || 80;
+          var maxW = parseInt(w.max, 10) || minW;
+          widthVal = clampInt(parseInt(w.value, 10) || minW, minW, maxW);
+          w.value = String(widthVal);
+          wv.textContent = String(widthVal);
+          el.style.width = widthVal + "px";
+          touchedWH = true;
+        }
+
+        if(h && hv){
+          var minH = parseInt(h.min, 10) || 80;
+          var maxH = parseInt(h.max, 10) || minH;
+          heightVal = clampInt(parseInt(h.value, 10) || minH, minH, maxH);
+          h.value = String(heightVal);
+          hv.textContent = String(heightVal);
+          el.style.height = heightVal + "px";
+          touchedWH = true;
+        }
+
+        if(touchedWH){
+          lockActionButtonsDuringResize(250);
+        }
+
         savePos(id, {
           left: left,
           top: top,
+          width: widthVal,
+          height: heightVal,
           z: el.style.zIndex ? parseInt(el.style.zIndex, 10) : null
         });
       }
@@ -539,6 +683,8 @@
 
         var x = document.getElementById("cscs-layout-x-slider");
         var y = document.getElementById("cscs-layout-y-slider");
+        var w = document.getElementById("cscs-layout-w-slider");
+        var h = document.getElementById("cscs-layout-h-slider");
         if(!x || !y) return;
 
         updateRangesForEl(el);
@@ -557,6 +703,28 @@
           var curY = parseInt(y.value, 10) || 0;
           var nextY = clampInt(curY + delta, 0, maxY);
           y.value = String(nextY);
+          applyFromSliders();
+          return;
+        }
+
+        // 追加した処理:
+        // - width/height の ±1 も可能にする
+        if(axis === "w" && w){
+          var minW = parseInt(w.min, 10) || 80;
+          var maxW = parseInt(w.max, 10) || minW;
+          var curW = parseInt(w.value, 10) || minW;
+          var nextW = clampInt(curW + delta, minW, maxW);
+          w.value = String(nextW);
+          applyFromSliders();
+          return;
+        }
+
+        if(axis === "h" && h){
+          var minH = parseInt(h.min, 10) || 80;
+          var maxH = parseInt(h.max, 10) || minH;
+          var curH = parseInt(h.value, 10) || minH;
+          var nextH = clampInt(curH + delta, minH, maxH);
+          h.value = String(nextH);
           applyFromSliders();
           return;
         }
@@ -746,6 +914,8 @@
         savePreset(__id, {
           left: Math.round(__rect.left),
           top: Math.round(__rect.top),
+          width: Math.round(__rect.width),
+          height: Math.round(__rect.height),
           z: __el.style.zIndex ? parseInt(__el.style.zIndex, 10) : null
         });
 
@@ -850,8 +1020,48 @@
         // panel.style.display = "none";
       });
 
+      // ===== 追加：AUTO（選択中 / width&height クリア）=====
+      // 目的：
+      //   - 選択中ターゲットの width/height を "" に戻して「CSS本来のサイズ」に戻す
+      //   - 位置(left/top)は維持しつつ、保存値 width/height は null として更新する
+      //   - 変更後はスライダー表示も現在値に同期する
+      var autoBtn = makeMiniButton("AUTO");
+      autoBtn.id = "cscs-layout-menu-auto";
+
+      autoBtn.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        var __id = getSelectedId();
+        var __el = getElById(__id);
+        if(!__el) return;
+
+        var __rectBefore = __el.getBoundingClientRect();
+
+        // 追加した処理:
+        // - インラインwidth/heightをクリアしてCSS本来へ戻す
+        __el.style.width = "";
+        __el.style.height = "";
+
+        // 追加した処理:
+        // - left/top は今のまま維持（サイズだけ戻す）
+        // - 保存値として width/height は null にする（次回 applyPos で触らない）
+        savePos(__id, {
+          left: Math.round(__rectBefore.left),
+          top: Math.round(__rectBefore.top),
+          width: null,
+          height: null,
+          z: __el.style.zIndex ? parseInt(__el.style.zIndex, 10) : null
+        });
+
+        // 追加した処理:
+        // - UIを現在値に同期（AUTO後のrectに合わせる）
+        syncSlidersFromEl(__el);
+      });
+
       rowTop.appendChild(editWrap);
       rowTop.appendChild(saveBtn);
+      rowTop.appendChild(autoBtn);
       rowTop.appendChild(resetBtn);
       rowTop.appendChild(resetAllBtn);
 
@@ -979,6 +1189,90 @@
       rowY.appendChild(yValue);
 
       ySlider.addEventListener("input", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        applyFromSliders();
+      });
+
+      // (5) Wスライダー（幅）
+      var rowW = document.createElement("div");
+      rowW.style.display = "flex";
+      rowW.style.alignItems = "center";
+      rowW.style.gap = "8px";
+      rowW.style.justifyContent = "space-between";
+      col.appendChild(rowW);
+
+      var wLeft = document.createElement("div");
+      wLeft.style.display = "flex";
+      wLeft.style.alignItems = "center";
+      wLeft.style.gap = "8px";
+      rowW.appendChild(wLeft);
+
+      wLeft.appendChild(makeMiniLabel("W"));
+
+      var wMinus = makeMiniButton("-1");
+      wMinus.id = "cscs-layout-w-minus";
+      wMinus.style.padding = "6px 10px";
+      installHoldRepeat(wMinus, "w", -1);
+      wLeft.appendChild(wMinus);
+
+      var wSlider = makeRange();
+      wSlider.id = "cscs-layout-w-slider";
+      wLeft.appendChild(wSlider);
+
+      var wPlus = makeMiniButton("+1");
+      wPlus.id = "cscs-layout-w-plus";
+      wPlus.style.padding = "6px 10px";
+      installHoldRepeat(wPlus, "w", +1);
+      wLeft.appendChild(wPlus);
+
+      var wValue = makeValueText();
+      wValue.id = "cscs-layout-w-value";
+      rowW.appendChild(wValue);
+
+      wSlider.addEventListener("input", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        applyFromSliders();
+      });
+
+      // (6) Hスライダー（高さ）
+      var rowH = document.createElement("div");
+      rowH.style.display = "flex";
+      rowH.style.alignItems = "center";
+      rowH.style.gap = "8px";
+      rowH.style.justifyContent = "space-between";
+      col.appendChild(rowH);
+
+      var hLeft = document.createElement("div");
+      hLeft.style.display = "flex";
+      hLeft.style.alignItems = "center";
+      hLeft.style.gap = "8px";
+      rowH.appendChild(hLeft);
+
+      hLeft.appendChild(makeMiniLabel("H"));
+
+      var hMinus = makeMiniButton("-1");
+      hMinus.id = "cscs-layout-h-minus";
+      hMinus.style.padding = "6px 10px";
+      installHoldRepeat(hMinus, "h", -1);
+      hLeft.appendChild(hMinus);
+
+      var hSlider = makeRange();
+      hSlider.id = "cscs-layout-h-slider";
+      hLeft.appendChild(hSlider);
+
+      var hPlus = makeMiniButton("+1");
+      hPlus.id = "cscs-layout-h-plus";
+      hPlus.style.padding = "6px 10px";
+      installHoldRepeat(hPlus, "h", +1);
+      hLeft.appendChild(hPlus);
+
+      var hValue = makeValueText();
+      hValue.id = "cscs-layout-h-value";
+      rowH.appendChild(hValue);
+
+      hSlider.addEventListener("input", function(e){
         e.preventDefault();
         e.stopPropagation();
         applyFromSliders();
@@ -1129,8 +1423,13 @@
 
       var rect = el.getBoundingClientRect();
       savePos(layoutId, {
+        // 追加した処理:
+        // - ドラッグ確定でも width/height を保存する
+        //   （ここが無いと、W/Hを調整した後にドラッグするとW/Hが消える）
         left: Math.round(rect.left),
         top: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
         z: el.style.zIndex ? parseInt(el.style.zIndex, 10) : null
       });
 
