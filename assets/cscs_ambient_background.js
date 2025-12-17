@@ -408,8 +408,8 @@
           var star = document.createElement("div");
           star.className = "cscs-ambient-star";
 
-          // 上の方だけ：0〜35vh
-          var topVh = rand(2, 35);
+          // 上の方だけ：上部に寄せる（2〜18vh）
+          var topVh = rand(2, 18);
 
           // 横は全面：0〜100vw 相当（%でOK）
           var leftPct = rand(0, 100);
@@ -447,8 +447,16 @@
           if (canSparkleNow()) {
             spawnOneStar();
           }
-          scheduleNext();
         }, delay2);
+
+        // 3個目（さらに時間差＋別場所）: 260〜980ms 遅らせる（2個目より後に来やすい）
+        var delay3 = Math.floor(rand(260, 980));
+        window.setTimeout(function(){
+          if (canSparkleNow()) {
+            spawnOneStar();
+          }
+          scheduleNext();
+        }, delay3);
       }
 
       // 起動（多重起動防止）
