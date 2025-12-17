@@ -629,8 +629,13 @@
         //   - 表示は「ラベル + SYNC値 + local値」の1行にする
         //   - フォールバックで別ソースから推測しない（取れている値だけで判定）
         function ymdToNum8(v){
-          const s = String(v || "").trim();
+          const raw = String(v || "").trim();
+
+          // "2025-12-10" のような表記が混じっても判定できるように、数字だけに正規化する
+          const s = raw.replace(/[^\d]/g, "");
+
           if (!/^\d{8}$/.test(s)) return null;
+
           const n = parseInt(s, 10);
           if (!Number.isFinite(n) || n <= 0) return null;
           return n;
