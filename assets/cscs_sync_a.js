@@ -665,23 +665,19 @@
         const latestSyncVal  = (latestType === "lastWrong") ? lastWrongSync  : lastCorrectSync;
         const latestLocalVal = (latestType === "lastWrong") ? lastWrongLocal : lastCorrectLocal;
 
-        function toHeaderMd4(v){
-          const s = toDisplayText(v, "（データなし）");
-          if (/^\d{8}$/.test(s)) return s.slice(4); // YYYYMMDD → MMDD
-          return s;
-        }
-
         if (lastdaySummaryTypeEl) {
           // ★ summary の種別表示は 1行で読みやすい “LastWrong / LastCorrect” に統一
           lastdaySummaryTypeEl.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
         }
         if (lastdaySummarySyncEl) {
-          // ★ summary 見出しは「SYNC 1210」形式（年なし）
-          lastdaySummarySyncEl.textContent = "SYNC " + toHeaderMd4(latestSyncVal);
+          // ★ summary の SYNC 値（8桁日付 or データなし）
+          //   - 表示は「SYNC 20251210」のようにラベル込みにする
+          lastdaySummarySyncEl.textContent = "SYNC " + toDisplayText(latestSyncVal, "（データなし）");
         }
         if (lastdaySummaryLocalEl) {
-          // ★ summary 見出しは「local 1210」形式（年なし）
-          lastdaySummaryLocalEl.textContent = "local " + toHeaderMd4(latestLocalVal);
+          // ★ summary の local 値（8桁日付 or データなし）
+          //   - 表示は「local 20251210」のようにラベル込みにする
+          lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
         }
 
         // ★ 追加: lastday を「開いた時だけ」展開部の先頭見出し行（LastDay / SYNC / local）を
@@ -699,10 +695,10 @@
           if (head3 && !head3.dataset.origText) head3.dataset.origText = head3.textContent;
 
           if (lastdayDetailsEl && lastdayDetailsEl.open) {
-            // ★ 開いている間だけ “値” を見出し行に表示（見出しは年なし）
+            // ★ 開いている間だけ “値” を見出し行に表示
             if (head1) head1.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
-            if (head2) head2.textContent = "SYNC " + toHeaderMd4(latestSyncVal);
-            if (head3) head3.textContent = "local " + toHeaderMd4(latestLocalVal);
+            if (head2) head2.textContent = "SYNC " + toDisplayText(latestSyncVal, "（データなし）");
+            if (head3) head3.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
           } else {
             // ★ 閉じたら “元の見出し” に戻す
             if (head1) head1.textContent = head1.dataset.origText || "LastDay";
@@ -2209,6 +2205,7 @@
   grid-column: 4;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
+  font-size: 10px;
 
   /* 追加: 省略表示（改行しない） */
   min-width: 0;
@@ -2219,6 +2216,7 @@
   grid-column: 6;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
+  font-size: 10px;
 
   /* 追加: 省略表示（改行しない） */
   min-width: 0;
