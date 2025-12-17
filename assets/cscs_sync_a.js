@@ -678,8 +678,9 @@
           lastdaySummaryLocalEl.textContent = toDisplayText(latestLocalVal, "（データなし）");
         }
 
-        // ★ 追加: lastday を「開いた時だけ」展開部の先頭見出し行（LastDay / SYNC / local）を
-        //   サマリー値（LastWrong/LastCorrect｜SYNC値｜local値）に差し替える。
+        // ★ 追加: lastday を「開いた時」でも、展開部の先頭見出し行は
+        //   「LastWrong/LastCorrect｜SYNC｜local」という“列見出し”として保つ。
+        //   - 値（20251210 等）は下の各行（lastSeen/lastCorrect/lastWrong）にだけ出す。
         //   - 閉じたら元の見出しへ復元する（フォールバック無し）。
         try{
           const lastdayDetailsEl = box.querySelector('details.sync-fold[data-fold="lastday"]');
@@ -693,10 +694,10 @@
           if (head3 && !head3.dataset.origText) head3.dataset.origText = head3.textContent;
 
           if (lastdayDetailsEl && lastdayDetailsEl.open) {
-            // ★ 開いている間だけ “値” を見出し行に表示
+            // ★ 開いている間：1列目だけ “LastWrong/LastCorrect” にし、2-3列目は見出し固定
             if (head1) head1.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
-            if (head2) head2.textContent = toDisplayText(latestSyncVal, "（データなし）");
-            if (head3) head3.textContent = toDisplayText(latestLocalVal, "（データなし）");
+            if (head2) head2.textContent = head2.dataset.origText || "SYNC";
+            if (head3) head3.textContent = head3.dataset.origText || "local";
           } else {
             // ★ 閉じたら “元の見出し” に戻す
             if (head1) head1.textContent = head1.dataset.origText || "LastDay";
@@ -2238,6 +2239,11 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ★ 開いたときは summary 行を隠して、展開側の「LastWrong｜SYNC｜local」だけを見せる */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"][open] > summary{
+  display: none;
 }
           `.trim();
           (document.head || document.documentElement).appendChild(st);
