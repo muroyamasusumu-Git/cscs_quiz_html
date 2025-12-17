@@ -737,88 +737,88 @@
           onceLabel = "";
         }
 
-        // ★ 追加: ODOA の状態と count対象判定を「window.CSCS_ODOA」を唯一の参照元として取得
-        //   - ここでは localStorage や他DOMなどへフォールバックしない（取れなければ unknown で表示）
-        //   - CSCS_ODOA 側が提供しているAPI/形に合わせて、取れる情報だけ表示する
+        // ★ 変更: ODOA の状態と count対象判定は「唯一の参照元」を固定する
+        //   参照元:
+        //     (1) window.CSCS_ODOA_MODE            … "on" / "off"
+        //     (2) window.__cscs_sync_state.oncePerDayToday … { day, results }
+        //     (3) window.CSCS_VERIFY_MODE         … "on" の場合は常に計測対象外
+        //   方針:
+        //     - localStorage 等へのフォールバックは行わない（取れなければ unknown 表示）
         try{
-          const odoa = (window.CSCS_ODOA && typeof window.CSCS_ODOA === "object")
-            ? window.CSCS_ODOA
-            : null;
-
-          // (1) ODOA: ON/OFF の推定（CSCS_ODOA が明示している boolean を優先して読む）
-          let odoaOn = null;
-          if (odoa && typeof odoa.enabled === "boolean") {
-            odoaOn = odoa.enabled;
-          } else if (odoa && typeof odoa.isEnabled === "boolean") {
-            odoaOn = odoa.isEnabled;
-          } else if (odoa && typeof odoa.on === "boolean") {
-            odoaOn = odoa.on;
-          } else if (odoa && typeof odoa.isOn === "boolean") {
-            odoaOn = odoa.isOn;
-          }
-
-          if (odoaOn === true) {
+          // (1) ODOA モード表示：window.CSCS_ODOA_MODE をそのまま正とする
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          if (odoaMode === "on") {
             odoaLabel = "ODOA: ON";
-          } else if (odoaOn === false) {
+          } else if (odoaMode === "off") {
             odoaLabel = "ODOA: OFF";
           } else {
             odoaLabel = "ODOA: unknown";
           }
 
-          // (2) count対象 / 理由
-          //     - CSCS_ODOA が関数を持っている場合のみ、それを使って判定する
-          //     - 返り値が boolean の場合は YES/NO のみ
-          //     - 返り値が object の場合は { isTarget, reason } 形式を読める範囲で表示
-          let isTarget = null;
-          let reason = null;
+          // (2) VERIFY モード：ON の場合は常に「count対象: NO」
+          const verifyModeOn =
+            (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
 
-          if (odoa && typeof odoa.isCountTarget === "function") {
-            const r = odoa.isCountTarget(QID);
-            if (typeof r === "boolean") {
-              isTarget = r;
-            } else if (r && typeof r === "object") {
-              if (typeof r.isTarget === "boolean") {
-                isTarget = r.isTarget;
-              } else if (typeof r.target === "boolean") {
-                isTarget = r.target;
-              }
-              if (typeof r.reason === "string" && r.reason.trim() !== "") {
-                reason = r.reason.trim();
-              }
-            }
-          } else if (odoa && typeof odoa.getCountDecision === "function") {
-            const r2 = odoa.getCountDecision(QID);
-            if (typeof r2 === "boolean") {
-              isTarget = r2;
-            } else if (r2 && typeof r2 === "object") {
-              if (typeof r2.isTarget === "boolean") {
-                isTarget = r2.isTarget;
-              } else if (typeof r2.target === "boolean") {
-                isTarget = r2.target;
-              }
-              if (typeof r2.reason === "string" && r2.reason.trim() !== "") {
-                reason = r2.reason.trim();
-              }
-            }
-          }
-
-          if (isTarget === true) {
-            countLabel = "count対象: YES";
-          } else if (isTarget === false) {
+          if (verifyModeOn) {
             countLabel = "count対象: NO";
+            reasonLabel = "理由: VERIFY_MODE";
           } else {
-            countLabel = "count対象: unknown";
-          }
+            // (3) oncePerDayToday を __cscs_sync_state から取得（ここ以外からは取らない）
+            const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+              ? window.__cscs_sync_state
+              : null;
 
-          if (typeof reason === "string" && reason) {
-            // 期待される表示例: excluded / not-in-candidates / unknown（CSCS_ODOA が返したものを尊重）
-            reasonLabel = "理由: " + reason;
-          } else {
-            // 理由が取れない場合は unknown のまま
-            reasonLabel = "理由: unknown";
+            const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+              ? state.oncePerDayToday
+              : null;
+
+            // (4) 今日 YYYYMMDD（数値）を作る（once.day が number の想定に合わせる）
+            let todayYmd = null;
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              todayYmd = yy * 10000 + mm * 100 + dd;
+            }catch(_eDate){
+              todayYmd = null;
+            }
+
+            // (5) count対象判定
+            //   - ODOA: OFF → count対象: YES（ODOA制限が無い）
+            //   - ODOA: ON  → 今日すでに oncePerDayToday.results[QID] があれば count対象: NO
+            //   - 情報が取れない場合は unknown
+            if (odoaMode === "off") {
+              countLabel = "count対象: YES";
+              reasonLabel = "理由: ODOA_OFF";
+            } else if (odoaMode === "on") {
+              if (
+                once &&
+                typeof once.day === "number" &&
+                todayYmd !== null &&
+                once.day === todayYmd &&
+                once.results &&
+                typeof once.results === "object"
+              ) {
+                const hasEntry = Object.prototype.hasOwnProperty.call(once.results, QID);
+                if (hasEntry) {
+                  countLabel = "count対象: NO";
+                  reasonLabel = "理由: ALREADY_MEASURED_TODAY";
+                } else {
+                  countLabel = "count対象: YES";
+                  reasonLabel = "理由: NOT_MEASURED_TODAY";
+                }
+              } else {
+                countLabel = "count対象: unknown";
+                reasonLabel = "理由: ONCEPERDAY_STATE_UNAVAILABLE";
+              }
+            } else {
+              countLabel = "count対象: unknown";
+              reasonLabel = "理由: ODOA_MODE_UNKNOWN";
+            }
           }
         }catch(_eOdoa){
-          // ODOA 判定に失敗しても、oncePerDayToday 表示は維持する
+          // ★ 補足: 参照元が壊れていた/例外になった場合は unknown 表示に倒す（フォールバック取得はしない）
           odoaLabel = "ODOA: unknown";
           countLabel = "count対象: unknown";
           reasonLabel = "理由: unknown";
