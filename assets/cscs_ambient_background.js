@@ -457,10 +457,11 @@
           return leftPct;
         }
 
-        // ▼ 1回の発火で最大7個まで（時間差で順に出す）
+        // ▼ 1回の発火で最大12個まで（時間差で順に出す）
         // - 2個目以降は横方向の最小距離を確保して“別地点感”を出す
-        var MAX_STARS_PER_BURST = 7;
-        var MIN_SEP_PCT = 18; // 横方向の最小間隔（%）
+        // - 数を増やす分、散りを強めるため最小間隔も広げる
+        var MAX_STARS_PER_BURST = 12;
+        var MIN_SEP_PCT = 22; // 横方向の最小間隔（%）
 
         var usedLeftPcts = [];
 
