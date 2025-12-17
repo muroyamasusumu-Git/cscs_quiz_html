@@ -670,11 +670,40 @@
           lastdaySummaryTypeEl.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
         }
         if (lastdaySummarySyncEl) {
+          // ★ summary の SYNC 値（8桁日付 or データなし）
           lastdaySummarySyncEl.textContent = toDisplayText(latestSyncVal, "（データなし）");
         }
         if (lastdaySummaryLocalEl) {
+          // ★ summary の local 値（8桁日付 or データなし）
           lastdaySummaryLocalEl.textContent = toDisplayText(latestLocalVal, "（データなし）");
         }
+
+        // ★ 追加: lastday を「開いた時だけ」展開部の先頭見出し行（LastDay / SYNC / local）を
+        //   サマリー値（LastWrong/LastCorrect｜SYNC値｜local値）に差し替える。
+        //   - 閉じたら元の見出しへ復元する（フォールバック無し）。
+        try{
+          const lastdayDetailsEl = box.querySelector('details.sync-fold[data-fold="lastday"]');
+          const head1 = box.querySelector(".lastday-grid .ld-head:nth-of-type(1)");
+          const head2 = box.querySelector(".lastday-grid .ld-head:nth-of-type(2)");
+          const head3 = box.querySelector(".lastday-grid .ld-head:nth-of-type(3)");
+
+          // ★ 元の見出し文字列を一度だけ退避（復元のため）
+          if (head1 && !head1.dataset.origText) head1.dataset.origText = head1.textContent;
+          if (head2 && !head2.dataset.origText) head2.dataset.origText = head2.textContent;
+          if (head3 && !head3.dataset.origText) head3.dataset.origText = head3.textContent;
+
+          if (lastdayDetailsEl && lastdayDetailsEl.open) {
+            // ★ 開いている間だけ “値” を見出し行に表示
+            if (head1) head1.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
+            if (head2) head2.textContent = toDisplayText(latestSyncVal, "（データなし）");
+            if (head3) head3.textContent = toDisplayText(latestLocalVal, "（データなし）");
+          } else {
+            // ★ 閉じたら “元の見出し” に戻す
+            if (head1) head1.textContent = head1.dataset.origText || "LastDay";
+            if (head2) head2.textContent = head2.dataset.origText || "SYNC";
+            if (head3) head3.textContent = head3.dataset.origText || "local";
+          }
+        }catch(_){}
 
         const lEl  = box.querySelector(".sync-local");
         const qdEl = box.querySelector(".sync-queue");
