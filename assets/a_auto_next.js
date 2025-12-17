@@ -989,8 +989,14 @@
     };
   }
 
-  // Bパートで b_judge_record.js が localStorage に「正解/不正解の累計」を書き込んだ瞬間を監視し、
-  // 「直前の回答結果（○/×）」を qid ごとに確定保存する。
+  // Bパートで b_judge_record.js が localStorage に書く「正本」から、
+  // qid の直前結果（○/×）を確定保存する。
+  //
+  // 最優先の情報源:
+  //   - cscs_once_per_day_today_results  // { qid: "correct"|"wrong" }
+  //
+  // 次点（保険ではなく補助）:
+  //   - cscs_q_correct_total:{qid}, cscs_q_wrong_total:{qid}
   //
   // 情報源は localStorage のみ（DOMやAPIには依存しない）。
   function installLastResultWatcherIfNeeded() {
@@ -1008,6 +1014,7 @@
       var num3 = String(info.idx).padStart(3, "0");
       var qid = info.day + "-" + num3;
 
+      var onceKey = "cscs_once_per_day_today_results";
       var correctKey = "cscs_q_correct_total:" + qid;
       var wrongKey = "cscs_q_wrong_total:" + qid;
 
@@ -1021,43 +1028,143 @@
         }
       }
 
-      var lastCorrect = readInt(correctKey);
-      var lastWrong = readInt(wrongKey);
-
-      var originalSetItem = localStorage.setItem;
-      if (typeof originalSetItem !== "function") {
-        return;
+      function tryGetMarkFromOncePerDay() {
+        try {
+          var raw = localStorage.getItem(onceKey);
+          if (!raw) {
+            return null;
+          }
+          var obj = JSON.parse(raw);
+          if (!obj || typeof obj !== "object") {
+            return null;
+          }
+          if (!Object.prototype.hasOwnProperty.call(obj, qid)) {
+            return null;
+          }
+          var v = obj[qid];
+          if (v === "correct") {
+            return "○";
+          }
+          if (v === "wrong") {
+            return "×";
+          }
+          return null;
+        } catch (_e2) {
+          return null;
+        }
       }
 
-      localStorage.setItem = function (key, value) {
-        // 先に本来の setItem を実行（失敗したら監視もできない）
-        originalSetItem.call(localStorage, key, value);
+      var lastCorrect = readInt(correctKey);
+      var lastWrong = readInt(wrongKey);
+      var lastOnceRaw = null;
 
+      try {
+        lastOnceRaw = localStorage.getItem(onceKey);
+      } catch (_e3) {
+        lastOnceRaw = null;
+      }
+
+      function updateMarkIfPossible(reason) {
         try {
-          if (key === correctKey) {
-            var nowCorrect = readInt(correctKey);
-            if (nowCorrect > lastCorrect) {
-              lastCorrect = nowCorrect;
-              saveLastResultMark(qid, "○");
-              syncLog("LastResult: set ○ (correct increment).", { qid: qid, correct: nowCorrect });
-            }
-            return;
+          var m1 = tryGetMarkFromOncePerDay();
+          if (m1 === "○" || m1 === "×") {
+            saveLastResultMark(qid, m1);
+            syncLog("LastResult: set by oncePerDayToday_results.", { qid: qid, mark: m1, reason: reason || "" });
+            return true;
           }
 
-          if (key === wrongKey) {
-            var nowWrong = readInt(wrongKey);
-            if (nowWrong > lastWrong) {
-              lastWrong = nowWrong;
-              saveLastResultMark(qid, "×");
-              syncLog("LastResult: set × (wrong increment).", { qid: qid, wrong: nowWrong });
-            }
-            return;
-          }
-        } catch (_e2) {}
-      };
+          var nowCorrect = readInt(correctKey);
+          var nowWrong = readInt(wrongKey);
 
-      syncLog("LastResult watcher installed for B-part.", { qid: qid });
-    } catch (_e3) {}
+          if (nowCorrect > lastCorrect) {
+            lastCorrect = nowCorrect;
+            saveLastResultMark(qid, "○");
+            syncLog("LastResult: set ○ (correct_total increment).", { qid: qid, correct: nowCorrect, reason: reason || "" });
+            return true;
+          }
+
+          if (nowWrong > lastWrong) {
+            lastWrong = nowWrong;
+            saveLastResultMark(qid, "×");
+            syncLog("LastResult: set × (wrong_total increment).", { qid: qid, wrong: nowWrong, reason: reason || "" });
+            return true;
+          }
+
+          return false;
+        } catch (_e4) {
+          return false;
+        }
+      }
+
+      // 初回（既に回答済みで入っているケースも拾う）
+      updateMarkIfPossible("init");
+
+      // setItem を「localStorageインスタンス」ではなく「Storage.prototype」で監視する（こっちの方が外されにくい）
+      if (!window.__cscsLastResultStorageHookInstalled) {
+        window.__cscsLastResultStorageHookInstalled = true;
+
+        var originalProtoSetItem = null;
+        try {
+          originalProtoSetItem = Storage.prototype.setItem;
+        } catch (_e5) {
+          originalProtoSetItem = null;
+        }
+
+        if (typeof originalProtoSetItem === "function") {
+          Storage.prototype.setItem = function (key, value) {
+            originalProtoSetItem.call(this, key, value);
+
+            try {
+              if (this !== localStorage) {
+                return;
+              }
+
+              if (key === onceKey) {
+                var nowOnceRaw = null;
+                try {
+                  nowOnceRaw = localStorage.getItem(onceKey);
+                } catch (_e6) {
+                  nowOnceRaw = null;
+                }
+
+                if (nowOnceRaw !== lastOnceRaw) {
+                  lastOnceRaw = nowOnceRaw;
+                  updateMarkIfPossible("proto.setItem:onceKey");
+                }
+                return;
+              }
+
+              if (key === correctKey || key === wrongKey) {
+                updateMarkIfPossible("proto.setItem:totals");
+                return;
+              }
+            } catch (_e7) {}
+          };
+
+          syncLog("LastResult: Storage.prototype.setItem hook installed.", { qid: qid });
+        } else {
+          syncLog("LastResult: Storage.prototype.setItem is not available; hook skipped.", { qid: qid });
+        }
+      }
+
+      // 念のため、短時間だけポーリング（Bで回答してすぐ遷移するので、即反映を取りこぼさないため）
+      // ※ ローカルステージのみ参照。外部フォールバックはしない。
+      (function startShortPolling() {
+        var tries = 0;
+        var maxTries = 40; // 40 * 50ms = 2000ms
+        var timerId = window.setInterval(function () {
+          tries++;
+          updateMarkIfPossible("poll");
+          if (tries >= maxTries) {
+            try {
+              window.clearInterval(timerId);
+            } catch (_e8) {}
+          }
+        }, 50);
+      })();
+
+      syncLog("LastResult watcher installed for B-part (oncePerDay primary).", { qid: qid });
+    } catch (_e9) {}
   }
 
   // =========================
