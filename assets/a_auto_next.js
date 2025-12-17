@@ -406,39 +406,41 @@
   var RECENT_QID_HEAD_CACHE = {};
   var RECENT_QID_HEAD_CHARS = 15;
 
+  // 直前の回答結果（qidごと）を保存するキー（localStorage）
+  // - "○" = 正解, "×" = 不正解
+  // - 未保存（結果なし）は "-" 扱い
+  var LAST_RESULT_KEY_PREFIX = "cscs_q_last_result:";
+
+  function loadLastResultMark(qid) {
+    try {
+      if (!qid) {
+        return "-";
+      }
+      var v = localStorage.getItem(LAST_RESULT_KEY_PREFIX + qid);
+      if (v === "○" || v === "×") {
+        return v;
+      }
+      return "-";
+    } catch (_e) {
+      return "-";
+    }
+  }
+
+  function saveLastResultMark(qid, mark) {
+    try {
+      if (!qid) {
+        return;
+      }
+      if (mark !== "○" && mark !== "×") {
+        return;
+      }
+      localStorage.setItem(LAST_RESULT_KEY_PREFIX + qid, mark);
+    } catch (_e) {}
+  }
+
   // qid を span の id として安全に使うための変換
   function makeSafeDomIdFromQid(qid) {
     return String(qid || "").replace(/[^a-zA-Z0-9_-]/g, "_");
-  }
-
-  // localStorage の累計キーから、履歴表示用の「回答結果マーク」を返す
-  // - cscs_q_correct_total:{qid} > 0 なら "○"
-  // - それ以外で cscs_q_wrong_total:{qid} > 0 なら "×"
-  // - どちらも無い/0 なら ""（未表示）
-  function getAnswerMarkFromLocalStorage(qid) {
-    try {
-      if (!qid || typeof qid !== "string") {
-        return "";
-      }
-
-      var correctKey = "cscs_q_correct_total:" + qid;
-      var wrongKey = "cscs_q_wrong_total:" + qid;
-
-      var cRaw = localStorage.getItem(correctKey);
-      var wRaw = localStorage.getItem(wrongKey);
-
-      var c = parseInt(String(cRaw || "0"), 10);
-      var w = parseInt(String(wRaw || "0"), 10);
-
-      if (isNaN(c)) c = 0;
-      if (isNaN(w)) w = 0;
-
-      if (c > 0) return "○";
-      if (w > 0) return "×";
-      return "";
-    } catch (_e) {
-      return "";
-    }
   }
 
   // 取得した HTML から、問題文の冒頭（<h1> の text）を取り出す
@@ -726,9 +728,12 @@
       var safe = makeSafeDomIdFromQid(qid);
       var spanId = "cscs-recent-qhead-" + safe;
 
+      var mark = loadLastResultMark(qid);
+
       html +=
         '<div style="margin: 2px 0;">' +
         '<a href="' + url + '" data-cscs-recent-qid="' + qid + '" style="color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.45);">' +
+        '<span style="display:inline-block; width: 18px; color: rgba(255,255,255,0.9);">' + mark + "</span>" +
         qid +
         '<span id="' + spanId + '" data-cscs-filled="0" style="color: rgba(255,255,255,0.78);"></span>' +
         "</a>" +
@@ -982,6 +987,77 @@
       idx: idx,
       part: part
     };
+  }
+
+  // Bパートで b_judge_record.js が localStorage に「正解/不正解の累計」を書き込んだ瞬間を監視し、
+  // 「直前の回答結果（○/×）」を qid ごとに確定保存する。
+  //
+  // 情報源は localStorage のみ（DOMやAPIには依存しない）。
+  function installLastResultWatcherIfNeeded() {
+    try {
+      if (window.__cscsLastResultWatcherInstalled) {
+        return;
+      }
+      window.__cscsLastResultWatcherInstalled = true;
+
+      var info = parseSlideInfo();
+      if (!info || info.part !== "b") {
+        return;
+      }
+
+      var num3 = String(info.idx).padStart(3, "0");
+      var qid = info.day + "-" + num3;
+
+      var correctKey = "cscs_q_correct_total:" + qid;
+      var wrongKey = "cscs_q_wrong_total:" + qid;
+
+      function readInt(key) {
+        try {
+          var v = localStorage.getItem(key);
+          var n = parseInt(v, 10);
+          return isFinite(n) && n >= 0 ? n : 0;
+        } catch (_e) {
+          return 0;
+        }
+      }
+
+      var lastCorrect = readInt(correctKey);
+      var lastWrong = readInt(wrongKey);
+
+      var originalSetItem = localStorage.setItem;
+      if (typeof originalSetItem !== "function") {
+        return;
+      }
+
+      localStorage.setItem = function (key, value) {
+        // 先に本来の setItem を実行（失敗したら監視もできない）
+        originalSetItem.call(localStorage, key, value);
+
+        try {
+          if (key === correctKey) {
+            var nowCorrect = readInt(correctKey);
+            if (nowCorrect > lastCorrect) {
+              lastCorrect = nowCorrect;
+              saveLastResultMark(qid, "○");
+              syncLog("LastResult: set ○ (correct increment).", { qid: qid, correct: nowCorrect });
+            }
+            return;
+          }
+
+          if (key === wrongKey) {
+            var nowWrong = readInt(wrongKey);
+            if (nowWrong > lastWrong) {
+              lastWrong = nowWrong;
+              saveLastResultMark(qid, "×");
+              syncLog("LastResult: set × (wrong increment).", { qid: qid, wrong: nowWrong });
+            }
+            return;
+          }
+        } catch (_e2) {}
+      };
+
+      syncLog("LastResult watcher installed for B-part.", { qid: qid });
+    } catch (_e3) {}
   }
 
   // =========================
@@ -2413,6 +2489,9 @@
   async function onReady() {
     // 直近履歴に「今のQID」を積む（一覧ウィンドウ用）
     pushCurrentQidToRecentHistory();
+
+    // Bパートなら「直前結果（○/×）」の監視を開始（localStorageのみ）
+    installLastResultWatcherIfNeeded();
 
     // 左下バーの器を確実に作る（ボタン群を横一列にする）
     getOrCreateAutoNextBar();
