@@ -684,7 +684,7 @@
         }
 
         // ★ 追加: lastday を「開いた時」でも、展開部の先頭見出し行は
-        //   「LastWrong/LastCorrect｜SYNC｜local」という“列見出し”として保つ。
+        //   「LastDay｜SYNC｜local」という“列見出し”として固定する。
         //   - 値（20251210 等）は下の各行（lastSeen/lastCorrect/lastWrong）にだけ出す。
         //   - 閉じたら元の見出しへ復元する（フォールバック無し）。
         try{
@@ -699,8 +699,8 @@
           if (head3 && !head3.dataset.origText) head3.dataset.origText = head3.textContent;
 
           if (lastdayDetailsEl && lastdayDetailsEl.open) {
-            // ★ 開いている間：1列目だけ “LastWrong/LastCorrect” にし、2-3列目は見出し固定
-            if (head1) head1.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
+            // ★ 開いている間：列見出しは固定（LastDay｜SYNC｜local）
+            if (head1) head1.textContent = head1.dataset.origText || "LastDay";
             if (head2) head2.textContent = head2.dataset.origText || "SYNC";
             if (head3) head3.textContent = head3.dataset.origText || "local";
           } else {
