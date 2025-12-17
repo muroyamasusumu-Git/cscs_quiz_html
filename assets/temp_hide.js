@@ -117,7 +117,7 @@
 }
 
 #${PANEL_ID}{
-  position: fixed;
+  position: fixed !important;
   right: 190px;
   bottom: 54px;
   width: 320px;
