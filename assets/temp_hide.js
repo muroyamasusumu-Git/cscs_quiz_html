@@ -15,10 +15,10 @@
   // ========= 設定：ここに隠したいIDを登録 =========
   // 例: "#nl-panel" のように必ず # 付きで。
   const TARGET_IDS = [
-    // "#nl-panel",
-    // "#cscs_sync_monitor_a",
-    // "#cscs_sync_monitor_b",
-    // "#judge",
+    "#nl-panel",
+    "#cscs_sync_monitor_a",
+    "#cscs_sync_monitor_b",
+    "#judge",
   ];
   // ==============================================
 
@@ -33,6 +33,12 @@
 
   // <ol class="opts">用：hidden_map に保存するキー（IDと衝突しない名前空間）
   const OL_OPTS_MAP_KEY = "sel:ol.opts";
+
+  // 設定：.answer / .explain（ページ内1セット想定）をON/OFF対象に含めるか
+  const ENABLE_HIDE_ANSWER_EXPLAIN = true;
+
+  // .answer / .explain 用：hidden_map に保存するキー
+  const ANSWER_EXPLAIN_MAP_KEY = "cls:answer_explain";
 
   const LS_KEY_PREFIX = "cscs_temp_hide_v1:";
   const LS_KEY_PANEL_OPEN = LS_KEY_PREFIX + "panel_open";
@@ -87,6 +93,13 @@
     return Array.from(els || []);
   }
 
+  function getAnswerExplainElements(){
+    // .answer / .explain を直接取得する（ページ内1セット想定）
+    // ※フォールバックなし
+    const els = document.querySelectorAll(".answer, .explain");
+    return Array.from(els || []);
+  }
+
   function applyHiddenStateToElement(el, isHidden){
     if (!el) return;
     if (isHidden) el.classList.add(HIDDEN_CLASS);
@@ -121,6 +134,12 @@
     if (ENABLE_HIDE_OL_OPTS){
       const isHiddenOl = !!map[OL_OPTS_MAP_KEY];
       applyHiddenStateToElements(getOlOptsElements(), isHiddenOl);
+    }
+
+    // .answer / .explain にも同じ非表示クラスを適用する（設定ONのときだけ）
+    if (ENABLE_HIDE_ANSWER_EXPLAIN){
+      const isHiddenAE = !!map[ANSWER_EXPLAIN_MAP_KEY];
+      applyHiddenStateToElements(getAnswerExplainElements(), isHiddenAE);
     }
   }
 
@@ -370,6 +389,12 @@
         applyHiddenStateToElements(getOlOptsElements(), false);
       }
 
+      // .answer / .explain も一括で表示ONに戻す（設定ONのときだけ）
+      if (ENABLE_HIDE_ANSWER_EXPLAIN){
+        map[ANSWER_EXPLAIN_MAP_KEY] = false;
+        applyHiddenStateToElements(getAnswerExplainElements(), false);
+      }
+
       saveHiddenMap(map);
       refreshRows();
     });
@@ -396,6 +421,12 @@
       if (ENABLE_HIDE_OL_OPTS){
         map[OL_OPTS_MAP_KEY] = true;
         applyHiddenStateToElements(getOlOptsElements(), true);
+      }
+
+      // .answer / .explain も一括で表示OFFにする（設定ONのときだけ）
+      if (ENABLE_HIDE_ANSWER_EXPLAIN){
+        map[ANSWER_EXPLAIN_MAP_KEY] = true;
+        applyHiddenStateToElements(getAnswerExplainElements(), true);
       }
 
       saveHiddenMap(map);
@@ -527,6 +558,42 @@
           m[OL_OPTS_MAP_KEY] = !!toggle.checked;
           saveHiddenMap(m);
           applyHiddenStateToElements(getOlOptsElements(), !!toggle.checked);
+        });
+
+        row.appendChild(left);
+        row.appendChild(toggle);
+        list.appendChild(row);
+      }
+
+      // .answer / .explain をリストに追加して個別にON/OFFできるようにする（設定ONのときだけ）
+      if (ENABLE_HIDE_ANSWER_EXPLAIN){
+        const row = document.createElement("div");
+        row.className = "th-row";
+
+        const left = document.createElement("div");
+        left.className = "th-left";
+
+        const idLine = document.createElement("div");
+        idLine.className = "th-id";
+        idLine.textContent = ".answer / .explain";
+
+        const stLine = document.createElement("div");
+        stLine.className = "th-status";
+        stLine.textContent = getAnswerExplainElements().length ? "<answer+explain>" : "要素が見つかりません";
+
+        left.appendChild(idLine);
+        left.appendChild(stLine);
+
+        const toggle = document.createElement("input");
+        toggle.className = "th-toggle";
+        toggle.type = "checkbox";
+        toggle.checked = !!map[ANSWER_EXPLAIN_MAP_KEY];
+
+        toggle.addEventListener("change", function(){
+          const m = loadHiddenMap();
+          m[ANSWER_EXPLAIN_MAP_KEY] = !!toggle.checked;
+          saveHiddenMap(m);
+          applyHiddenStateToElements(getAnswerExplainElements(), !!toggle.checked);
         });
 
         row.appendChild(left);
