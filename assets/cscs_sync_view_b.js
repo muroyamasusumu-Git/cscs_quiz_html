@@ -104,24 +104,46 @@
     "  z-index: 2147483647;",
     "}",
     "",
-    "/* --- grid layout for status body --- */",
+    "/* --- card layout for status body --- */",
     "#cscs_sync_view_b_body {",
     "  display: grid;",
-    "  grid-template-columns: 1fr auto;",
-    "  column-gap: 10px;",
-    "  row-gap: 2px;",
+    "  grid-template-columns: 1fr;",
+    "  gap: 6px;",
     "  margin-top: 6px;",
     "  padding-top: 6px;",
     "  border-top: 1px solid rgba(255,255,255,0.10);",
     "}",
     "",
-    "#cscs_sync_view_b_body .cscs-svb-section {",
+    "/* 画面が広い時だけ 2列（“できるところは2列”） */",
+    "@media (min-width: 980px) {",
+    "  #cscs_sync_view_b_body {",
+    "    grid-template-columns: 1fr 1fr;",
+    "  }",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card {",
+    "  background: rgba(0,0,0,0.22);",
+    "  border: 1px solid rgba(255,255,255,0.10);",
+    "  border-radius: 8px;",
+    "  padding: 6px 7px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card.is-wide {",
     "  grid-column: 1 / -1;",
-    "  margin-top: 6px;",
-    "  padding-top: 6px;",
-    "  border-top: 1px solid rgba(255,255,255,0.10);",
-    "  font-weight: 700;",
-    "  opacity: 0.85;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card-title {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
+    "  margin-bottom: 5px;",
+    "  letter-spacing: 0.2px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card-grid {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr auto;",
+    "  column-gap: 10px;",
+    "  row-gap: 2px;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-k {",
@@ -360,14 +382,34 @@
     var body = clearSyncBody();
     if (!body) return;
 
-    // エラー時などはテキスト1本表示（グリッドCSSが効いても崩れにくいように2カラムを跨がせる）
-    var one = document.createElement("div");
-    one.className = "cscs-svb-section";
-    one.textContent = String(text);
-    body.appendChild(one);
+    // エラー時など：カード1枚で表示（狭い/広い両方で崩れにくい）
+    var card = document.createElement("div");
+    card.className = "cscs-svb-card is-wide";
+
+    var title = document.createElement("div");
+    title.className = "cscs-svb-card-title";
+    title.textContent = "Status";
+
+    var grid = document.createElement("div");
+    grid.className = "cscs-svb-card-grid";
+
+    var k = document.createElement("div");
+    k.className = "cscs-svb-k cscs-svb-muted";
+    k.textContent = "message";
+
+    var v = document.createElement("div");
+    v.className = "cscs-svb-v";
+    v.textContent = String(text);
+
+    grid.appendChild(k);
+    grid.appendChild(v);
+
+    card.appendChild(title);
+    card.appendChild(grid);
+    body.appendChild(card);
   }
 
-  function appendGridRow(body, key, value, keyClass, valClass) {
+  function appendGridRow(gridEl, key, value, keyClass, valClass) {
     var k = document.createElement("div");
     k.className = "cscs-svb-k" + (keyClass ? " " + keyClass : "");
     k.textContent = key;
@@ -376,15 +418,29 @@
     v.className = "cscs-svb-v" + (valClass ? " " + valClass : "");
     v.textContent = value;
 
-    body.appendChild(k);
-    body.appendChild(v);
+    gridEl.appendChild(k);
+    gridEl.appendChild(v);
   }
 
-  function appendGridSection(body, title) {
-    var s = document.createElement("div");
-    s.className = "cscs-svb-section";
-    s.textContent = title;
-    body.appendChild(s);
+  function appendGridSection(body, title, options) {
+    options = options || {};
+    var wide = !!options.wide;
+
+    var card = document.createElement("div");
+    card.className = "cscs-svb-card" + (wide ? " is-wide" : "");
+
+    var h = document.createElement("div");
+    h.className = "cscs-svb-card-title";
+    h.textContent = title;
+
+    var grid = document.createElement("div");
+    grid.className = "cscs-svb-card-grid";
+
+    card.appendChild(h);
+    card.appendChild(grid);
+    body.appendChild(card);
+
+    return grid;
   }
 
   function updateSyncBodyGrid(model) {
@@ -397,49 +453,49 @@
     }
 
     // --- Counts ---
-    appendGridSection(body, "Counts");
-    appendGridRow(body, "server (correct / wrong)", String(model.serverCorrect) + " / " + String(model.serverWrong));
-    appendGridRow(body, "local  (correct / wrong)", String(model.localCorrect) + " / " + String(model.localWrong));
-    appendGridRow(body, "diff   (correct / wrong)", String(model.diffCorrect) + " / " + String(model.diffWrong), "cscs-svb-muted", "");
+    var gCounts = appendGridSection(body, "Counts");
+    appendGridRow(gCounts, "server (correct / wrong)", String(model.serverCorrect) + " / " + String(model.serverWrong));
+    appendGridRow(gCounts, "local  (correct / wrong)", String(model.localCorrect) + " / " + String(model.localWrong));
+    appendGridRow(gCounts, "diff   (correct / wrong)", String(model.diffCorrect) + " / " + String(model.diffWrong), "cscs-svb-muted", "");
 
     // --- Streak (Correct) ---
-    appendGridSection(body, "Streak (Correct)");
-    appendGridRow(body, "s3 (sync / local / +diff)",
+    var gStreakC = appendGridSection(body, "Streak (Correct)");
+    appendGridRow(gStreakC, "s3 (sync / local / +diff)",
       String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
     );
-    appendGridRow(body, "sLen (sync / local / +diff)",
+    appendGridRow(gStreakC, "sLen (sync / local / +diff)",
       String(model.serverStreakLen) + " / " + String(model.localStreakLen) + " (+" + String(model.diffStreakLen) + ")"
     );
-    appendGridRow(body, "progress (sync / local)",
+    appendGridRow(gStreakC, "progress (sync / local)",
       String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
     );
 
     // --- Streak (Wrong) ---
-    appendGridSection(body, "Streak (Wrong)");
-    appendGridRow(body, "s3W (sync / local / +diff)",
+    var gStreakW = appendGridSection(body, "Streak (Wrong)");
+    appendGridRow(gStreakW, "s3W (sync / local / +diff)",
       String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
     );
-    appendGridRow(body, "sLenW (sync / local / +diff)",
+    appendGridRow(gStreakW, "sLenW (sync / local / +diff)",
       String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen) + " (+" + String(model.diffWrongStreakLen) + ")"
     );
-    appendGridRow(body, "progress (sync / local)",
+    appendGridRow(gStreakW, "progress (sync / local)",
       String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
     );
 
     // --- Today Unique ---
-    appendGridSection(body, "Streak3TodayUnique");
-    appendGridRow(body, "day", String(model.s3TodayDayLabel));
-    appendGridRow(body, "unique (sync / local)", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
+    var gToday = appendGridSection(body, "Streak3TodayUnique");
+    appendGridRow(gToday, "day", String(model.s3TodayDayLabel));
+    appendGridRow(gToday, "unique (sync / local)", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
 
-    appendGridSection(body, "Streak3WrongTodayUnique");
-    appendGridRow(body, "day", String(model.s3WrongTodayDayLabel));
-    appendGridRow(body, "unique (sync / local)", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
+    var gTodayW = appendGridSection(body, "Streak3WrongTodayUnique");
+    appendGridRow(gTodayW, "day", String(model.s3WrongTodayDayLabel));
+    appendGridRow(gTodayW, "unique (sync / local)", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
 
-    // --- LastDay ---
-    appendGridSection(body, "LastDay (SYNC / local)");
-    appendGridRow(body, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
-    appendGridRow(body, "lastCorrect", "sync " + String(model.lastCorrectSyncLabel) + " / local " + String(model.lastCorrectLocalLabel));
-    appendGridRow(body, "lastWrong", "sync " + String(model.lastWrongSyncLabel) + " / local " + String(model.lastWrongLocalLabel));
+    // --- LastDay（情報量多めなのでワイドカードに） ---
+    var gLast = appendGridSection(body, "LastDay (SYNC / local)", { wide: true });
+    appendGridRow(gLast, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
+    appendGridRow(gLast, "lastCorrect", "sync " + String(model.lastCorrectSyncLabel) + " / local " + String(model.lastCorrectLocalLabel));
+    appendGridRow(gLast, "lastWrong", "sync " + String(model.lastWrongSyncLabel) + " / local " + String(model.lastWrongLocalLabel));
   }
 
   function fetchState() {
