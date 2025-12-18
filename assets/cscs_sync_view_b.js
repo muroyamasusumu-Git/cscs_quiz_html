@@ -700,7 +700,7 @@
       // ③ 行の先頭に "Counts" を入れる（見出しも同じ行にまとめる）
       var head = document.createElement("span");
       head.className = "svb-counts-head";
-      head.textContent = "Counts";
+      head.textContent = "Counts (c/w)";
       line.appendChild(head);
 
       // ④ 各パート（label + value）を横に連結していく
@@ -722,17 +722,17 @@
       }
 
       addPart(
-        "SYNC (c / w)",
+        "SYNC",
         String(model.serverCorrect) + " / " + String(model.serverWrong),
         false
       );
       addPart(
-        "local (c / w)",
+        "local",
         String(model.localCorrect) + " / " + String(model.localWrong),
         false
       );
       addPart(
-        "diff (c / w)",
+        "diff",
         String(model.diffCorrect) + " / " + String(model.diffWrong),
         true
       );
