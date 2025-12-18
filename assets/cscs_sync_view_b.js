@@ -730,18 +730,6 @@
       body.appendChild(card);
     })();
 
-    // --- Streak (Wrong) ---
-    var gStreakW = appendGridSection(body, "Streak (Wrong)");
-    appendGridRow(gStreakW, "s3W (sync / local / +diff)",
-      String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
-    );
-    appendGridRow(gStreakW, "sLenW (sync / local / +diff)",
-      String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen) + " (+" + String(model.diffWrongStreakLen) + ")"
-    );
-    appendGridRow(gStreakW, "progress (sync / local)",
-      String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
-    );
-
     // --- Streak (Correct) ※Countsの下段に回し、Wrongと横2列で並ぶ（広い画面時） ---
     var gStreakC = appendGridSection(body, "Streak (Correct)");
     appendGridRow(gStreakC, "s3 (sync / local / +diff)",
@@ -752,6 +740,18 @@
     );
     appendGridRow(gStreakC, "progress (sync / local)",
       String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
+    );
+
+    // --- Streak (Wrong) ---
+    var gStreakW = appendGridSection(body, "Streak (Wrong)");
+    appendGridRow(gStreakW, "s3W (sync / local / +diff)",
+      String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+    );
+    appendGridRow(gStreakW, "sLenW (sync / local / +diff)",
+      String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen) + " (+" + String(model.diffWrongStreakLen) + ")"
+    );
+    appendGridRow(gStreakW, "progress (sync / local)",
+      String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
     );
 
     // --- Today Unique ---
