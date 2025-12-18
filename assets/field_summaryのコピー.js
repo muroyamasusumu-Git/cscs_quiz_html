@@ -89,9 +89,10 @@
     }
 
     .cscs-star-summary-line-compact {
-        display: grid;
-        grid-template-columns: 1fr;
-        row-gap: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1px;
         font-size: 12px;
         margin-bottom: 13px;
         margin-left: 0px;
@@ -102,39 +103,22 @@
     }
 
     .cscs-star-mood {
-        margin-left: 6px;
+        margin-left: 2px;
         opacity: 0.8;
-        white-space: nowrap;
     }
 
-    /* 3行それぞれの「区画」 */
-    .cscs-star-row {
-        display: grid;
-        grid-template-columns: auto auto 1fr auto;
+    .cscs-star-section-compact {
+        display: inline-flex;
         align-items: center;
-        column-gap: 8px;
-        padding: 6px 8px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 8px;
-        background: rgba(0, 0, 0, 0.18);
+        gap: 0px;
+        flex: 1 1 0;
         white-space: nowrap;
     }
 
-    /* 行の中の左側テキスト（ラベル） */
-    .cscs-star-row .cscs-star-label {
-        font-weight: 600;
-    }
-
-    /* % 表示 */
-    .cscs-star-row .cscs-star-percent {
+    .cscs-star-section-compact .cscs-star-percent {
+        min-width: 0;
         text-align: right;
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-    }
-
-    /* meter は中央で伸びる */
-    .cscs-star-row .cscs-star-meter {
-        justify-self: stretch;
     }
 
     .cscs-star-meter {
@@ -1325,7 +1309,7 @@
       totalPercent = Number(totalPercent.toFixed(2));
     }
 
-    // コンパクトな進捗行を構築（3行・縦並び）
+    // コンパクトな進捗行を構築（CSSミニバー付き）
     needLine.className = "cscs-star-summary-line-compact";
 
     var moodText = mood || "順調";
@@ -1343,33 +1327,30 @@
       preReachCount = 0;
     }
 
-    // 1) 本日の目標（⭐️ / ⚡️ / ✨）
-    html += "<div class=\"cscs-star-row cscs-star-row-goal\">";
-    html += "<span class=\"cscs-star-label\">本日の目標</span>";
-    html += "<span class=\"cscs-star-percent\">⭐️" + String(targetNum) + "個</span>";
-    html += "<span class=\"cscs-star-label\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個</span>";
-    html += "<span class=\"cscs-star-mood\"></span>";
-    html += "</div>";
+    // ⭐️本日の目標 21個（リーチ⚡️2個 ✨1個）
+    html += "<span class=\"cscs-star-main-compact\">";
+    html += "⭐️本日目標 " + String(targetNum) + "個";
+    html += "<span class=\"cscs-star-main\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個／</span>";
+    html += "</span>";
 
-    // 2) 本日の獲得分（+X / ゲージ / % / 状況）
-    html += "<div class=\"cscs-star-row cscs-star-row-today\">";
-    html += "<span class=\"cscs-star-label\">本日の獲得分</span>";
-    html += "<span class=\"cscs-star-percent\">+" + String(starTodayCount) + "</span>";
+    // 本日の獲得 +4：15%
+    html += "<span class=\"cscs-star-section-compact\">";
+    html += "本日獲得 +" + String(starTodayCount) + "：";
+    html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
     html += "</span>";
-    html += "<span class=\"cscs-star-mood\">" + String(todayPercent) + "% (状況:" + moodText + ")</span>";
-    html += "</div>";
+    html += "</span>";
 
-    // 3) 現在の総進捗（獲得数 / ゲージ / % / 状況）
-    html += "<div class=\"cscs-star-row cscs-star-row-total\">";
-    html += "<span class=\"cscs-star-label\">現在の総進捗</span>";
-    html += "<span class=\"cscs-star-percent\">" + String(starTotalSolvedQuestions) + "個</span>";
+    // 総進捗：0.07%（状況:余裕）
+    html += "<span class=\"cscs-star-section-compact\">";
+    html += "／総進捗：";
+    html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
+    html += "<span class=\"cscs-star-mood\">(状況:" + moodText + ")</span>";
     html += "<span class=\"cscs-star-meter\">";
     html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
     html += "</span>";
-    html += "<span class=\"cscs-star-mood\">" + totalPercent.toFixed(2) + "% (状況:" + moodText + ")</span>";
-    html += "</div>";
+    html += "</span>";
 
     needLine.innerHTML = html;
 
@@ -2817,34 +2798,27 @@
           }
 
           var html = "";
+          html += "<span class=\"cscs-star-main-compact\">";
+          html += "⭐️本日目標 " + String(targetNum) + "個";
+          html += "<span class=\"cscs-star-main\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個／</span>";
+          html += "</span>";
 
-          // 1) 本日の目標（⭐️ / ⚡️ / ✨）
-          html += "<div class=\"cscs-star-row cscs-star-row-goal\">";
-          html += "<span class=\"cscs-star-label\">本日の目標</span>";
-          html += "<span class=\"cscs-star-percent\">⭐️" + String(targetNum) + "個</span>";
-          html += "<span class=\"cscs-star-label\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個</span>";
-          html += "<span class=\"cscs-star-mood\"></span>";
-          html += "</div>";
-
-          // 2) 本日の獲得分（+X / ゲージ / % / 状況）
-          html += "<div class=\"cscs-star-row cscs-star-row-today\">";
-          html += "<span class=\"cscs-star-label\">本日の獲得分</span>";
-          html += "<span class=\"cscs-star-percent\">+" + String(starTodayCount) + "</span>";
+          html += "<span class=\"cscs-star-section-compact\">";
+          html += "本日獲得 +" + String(starTodayCount) + "：";
+          html += "<span class=\"cscs-star-percent\">" + String(todayPercent) + "%</span>";
           html += "<span class=\"cscs-star-meter\">";
           html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
           html += "</span>";
-          html += "<span class=\"cscs-star-mood\">" + String(todayPercent) + "% (状況:" + moodText + ")</span>";
-          html += "</div>";
+          html += "</span>";
 
-          // 3) 現在の総進捗（獲得数 / ゲージ / % / 状況）
-          html += "<div class=\"cscs-star-row cscs-star-row-total\">";
-          html += "<span class=\"cscs-star-label\">現在の総進捗</span>";
-          html += "<span class=\"cscs-star-percent\">" + String(starTotalSolvedQuestions) + "個</span>";
+          html += "<span class=\"cscs-star-section-compact\">";
+          html += "／総進捗：";
+          html += "<span class=\"cscs-star-percent\">" + totalPercent.toFixed(2) + "%</span>";
+          html += "<span class=\"cscs-star-mood\">(状況:" + moodText + ")</span>";
           html += "<span class=\"cscs-star-meter\">";
           html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
           html += "</span>";
-          html += "<span class=\"cscs-star-mood\">" + totalPercent.toFixed(2) + "% (状況:" + moodText + ")</span>";
-          html += "</div>";
+          html += "</span>";
 
           line.innerHTML = html;
 
