@@ -2059,7 +2059,7 @@
 #cscs_sync_monitor_a .mini-grid{
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 10px;
+  gap: 0px 10px;
   font-size: 11px;
   line-height: 1.25;
 }
