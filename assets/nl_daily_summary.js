@@ -437,7 +437,17 @@
 
 /* 今日解いてない問題（デフォルト）を “黒に近い” 方へ寄せる */
 #nl-progress-header .nl-ph-cell-q{
-  background: rgba(0,0,0,0.22);
+  /* 変更:
+     - 真っ黒に沈む瞬間が強すぎるので、ベースとして “うっすら白の内部グラデ” を常時持たせる
+     - ただし全体は黒寄りのまま（白ベタにはしない） */
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.045),
+    rgba(255,255,255,0.010)
+  );
+  background-color: rgba(0,0,0,0.22);
+  background-repeat: no-repeat;
+
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 
