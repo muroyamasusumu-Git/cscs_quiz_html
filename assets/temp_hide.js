@@ -258,14 +258,11 @@
   padding: 10px 12px 12px 12px;
 
   /* 追加した処理:
-     - パネルの高さ上限の中で、ボディ部分だけ伸縮させる（スクロール担当） */
+     - th-body は “器” にして中身（th-list）にスクロールを担当させる */
   flex: 1 1 auto;
   min-height: 0;
 
-  /* 追加した処理:
-     - 内容が多い時にボディだけスクロールできるようにする */
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 #${PANEL_ID} .th-note{
@@ -278,6 +275,17 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  /* 追加した処理:
+     - リスト領域だけスクロールさせる（確実に効く） */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* 追加した処理:
+     - スクロールバーが要素の角丸で欠けるのを防ぐ */
+  padding-right: 2px;
 }
 
 #${PANEL_ID} .th-row{
