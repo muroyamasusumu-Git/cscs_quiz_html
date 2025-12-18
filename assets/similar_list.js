@@ -461,7 +461,7 @@
     line-height: 1.5;
     color: #fff;
     border-top: 0 solid #555;
-    width: 60%;
+    width: 57%;
 }
 
 #similar-list .sl-head{ color:#cfe8ff; margin-bottom:8px; font-size:15px; }
