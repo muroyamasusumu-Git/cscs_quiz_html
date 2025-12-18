@@ -302,6 +302,202 @@
       results: results
     };
   }
+  
+    // ★ HUD用：送信待機（SYNC未反映っぽいもの）を判定して返す
+  //   - ローカルと SYNC(state) を比較して「未反映の可能性」を拾う
+  //   - フォールバックで別ソースを見ない（localStorage と window.__cscs_sync_state のみ）
+  function computePendingFlags(syncState, qid) {
+    var flags = {
+      pendingDiffCounts: false,
+      pendingOncePerDayToday: false,
+      pendingLastSeenDay: false,
+      pendingLastCorrectDay: false,
+      pendingLastWrongDay: false,
+      pendingStreak3Today: false,
+      pendingStreak3WrongToday: false,
+      details: []
+    };
+
+    try {
+      // ---- oncePerDayToday（このqidがSYNCに入ってるか）----
+      try {
+        var localOnce = readOncePerDayTodayFromLocal();
+        if (localOnce && typeof localOnce.day === "number" && localOnce.results && typeof localOnce.results === "object") {
+          var localOnceVal = localOnce.results[qid];
+          if (localOnceVal === "correct" || localOnceVal === "wrong") {
+            var serverOnceVal = null;
+            if (syncState &&
+                syncState.oncePerDayToday &&
+                typeof syncState.oncePerDayToday === "object" &&
+                typeof syncState.oncePerDayToday.day === "number" &&
+                syncState.oncePerDayToday.results &&
+                typeof syncState.oncePerDayToday.results === "object") {
+              if (syncState.oncePerDayToday.day === localOnce.day) {
+                if (Object.prototype.hasOwnProperty.call(syncState.oncePerDayToday.results, qid)) {
+                  serverOnceVal = syncState.oncePerDayToday.results[qid];
+                }
+              }
+            }
+            if (serverOnceVal !== localOnceVal) {
+              flags.pendingOncePerDayToday = true;
+              flags.details.push("oncePerDayToday");
+            }
+          }
+        }
+      } catch (_eOnce) {}
+
+      // ---- lastDay（localに値があり、SYNCと違う）----
+      try {
+        var locSeen = readDayFromLocalStorage("cscs_q_last_seen_day:" + qid);
+        var locCor  = readDayFromLocalStorage("cscs_q_last_correct_day:" + qid);
+        var locWro  = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qid);
+
+        var srvSeen = null;
+        var srvCor  = null;
+        var srvWro  = null;
+
+        if (syncState) {
+          if (syncState.lastSeenDay && typeof syncState.lastSeenDay === "object" && syncState.lastSeenDay[qid] != null) {
+            if (typeof syncState.lastSeenDay[qid] === "number" && Number.isFinite(syncState.lastSeenDay[qid]) && syncState.lastSeenDay[qid] > 0) {
+              srvSeen = syncState.lastSeenDay[qid];
+            }
+          }
+          if (syncState.lastCorrectDay && typeof syncState.lastCorrectDay === "object" && syncState.lastCorrectDay[qid] != null) {
+            if (typeof syncState.lastCorrectDay[qid] === "number" && Number.isFinite(syncState.lastCorrectDay[qid]) && syncState.lastCorrectDay[qid] > 0) {
+              srvCor = syncState.lastCorrectDay[qid];
+            }
+          }
+          if (syncState.lastWrongDay && typeof syncState.lastWrongDay === "object" && syncState.lastWrongDay[qid] != null) {
+            if (typeof syncState.lastWrongDay[qid] === "number" && Number.isFinite(syncState.lastWrongDay[qid]) && syncState.lastWrongDay[qid] > 0) {
+              srvWro = syncState.lastWrongDay[qid];
+            }
+          }
+        }
+
+        if (locSeen !== null && locSeen !== srvSeen) {
+          flags.pendingLastSeenDay = true;
+          flags.details.push("lastSeenDay");
+        }
+        if (locCor !== null && locCor !== srvCor) {
+          flags.pendingLastCorrectDay = true;
+          flags.details.push("lastCorrectDay");
+        }
+        if (locWro !== null && locWro !== srvWro) {
+          flags.pendingLastWrongDay = true;
+          flags.details.push("lastWrongDay");
+        }
+      } catch (_eLast) {}
+
+      // ---- streak3Today（local qidsがあるのにSYNC側に反映されてなさそう）----
+      try {
+        var localDay = "";
+        var localQids = [];
+        try {
+          localDay = localStorage.getItem("cscs_streak3_today_day") || "";
+          var raw = localStorage.getItem("cscs_streak3_today_qids");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              localQids = parsed.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+        } catch (_eS3t) {
+          localDay = "";
+          localQids = [];
+        }
+
+        if (localDay && localQids.length > 0) {
+          var syncDay = "";
+          var syncQids = [];
+          if (syncState && syncState.streak3Today && typeof syncState.streak3Today === "object") {
+            if (typeof syncState.streak3Today.day === "number" && Number.isFinite(syncState.streak3Today.day)) {
+              syncDay = String(syncState.streak3Today.day);
+            }
+            if (Array.isArray(syncState.streak3Today.qids)) {
+              syncQids = syncState.streak3Today.qids.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+
+          var missing = false;
+          if (syncDay !== localDay) {
+            missing = true;
+          } else {
+            var set = Object.create(null);
+            for (var i = 0; i < syncQids.length; i++) {
+              set[syncQids[i]] = 1;
+            }
+            for (var j = 0; j < localQids.length; j++) {
+              if (!set[localQids[j]]) {
+                missing = true;
+                break;
+              }
+            }
+          }
+
+          if (missing) {
+            flags.pendingStreak3Today = true;
+            flags.details.push("streak3Today");
+          }
+        }
+      } catch (_eS3t2) {}
+
+      // ---- streak3WrongToday（local qidsがあるのにSYNC側に反映されてなさそう）----
+      try {
+        var localDayW = "";
+        var localQidsW = [];
+        try {
+          localDayW = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+          var rawW = localStorage.getItem("cscs_streak3_wrong_today_qids");
+          if (rawW) {
+            var parsedW = JSON.parse(rawW);
+            if (Array.isArray(parsedW)) {
+              localQidsW = parsedW.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+        } catch (_eS3w) {
+          localDayW = "";
+          localQidsW = [];
+        }
+
+        if (localDayW && localQidsW.length > 0) {
+          var syncDayW = "";
+          var syncQidsW = [];
+          if (syncState && syncState.streak3WrongToday && typeof syncState.streak3WrongToday === "object") {
+            if (typeof syncState.streak3WrongToday.day === "number" && Number.isFinite(syncState.streak3WrongToday.day)) {
+              syncDayW = String(syncState.streak3WrongToday.day);
+            }
+            if (Array.isArray(syncState.streak3WrongToday.qids)) {
+              syncQidsW = syncState.streak3WrongToday.qids.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+
+          var missingW = false;
+          if (syncDayW !== localDayW) {
+            missingW = true;
+          } else {
+            var setW = Object.create(null);
+            for (var k = 0; k < syncQidsW.length; k++) {
+              setW[syncQidsW[k]] = 1;
+            }
+            for (var t = 0; t < localQidsW.length; t++) {
+              if (!setW[localQidsW[t]]) {
+                missingW = true;
+                break;
+              }
+            }
+          }
+
+          if (missingW) {
+            flags.pendingStreak3WrongToday = true;
+            flags.details.push("streak3WrongToday");
+          }
+        }
+      } catch (_eS3w2) {}
+
+    } catch (_eAll) {}
+
+    return flags;
+  }
 
   // ★ サーバ state.oncePerDayToday と比較して delta を作る
   //   - 差分が無ければ null を返す
@@ -496,6 +692,27 @@
     appendGridRow(gLast, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
     appendGridRow(gLast, "lastCorrect", "sync " + String(model.lastCorrectSyncLabel) + " / local " + String(model.lastCorrectLocalLabel));
     appendGridRow(gLast, "lastWrong", "sync " + String(model.lastWrongSyncLabel) + " / local " + String(model.lastWrongLocalLabel));
+
+    // --- Pending (unsent) ---
+    var pendingText = "none";
+    if (model.pending && typeof model.pending === "object") {
+      var bits = [];
+
+      if (model.pending.pendingDiffCounts) bits.push("diffCounts");
+      if (model.pending.pendingOncePerDayToday) bits.push("oncePerDayToday");
+      if (model.pending.pendingLastSeenDay) bits.push("lastSeenDay");
+      if (model.pending.pendingLastCorrectDay) bits.push("lastCorrectDay");
+      if (model.pending.pendingLastWrongDay) bits.push("lastWrongDay");
+      if (model.pending.pendingStreak3Today) bits.push("streak3Today");
+      if (model.pending.pendingStreak3WrongToday) bits.push("streak3WrongToday");
+
+      if (bits.length > 0) {
+        pendingText = bits.join(", ");
+      }
+    }
+
+    var gPending = appendGridSection(body, "Pending (unsent)", { wide: true });
+    appendGridRow(gPending, "status", pendingText);
   }
 
   function fetchState() {
@@ -790,7 +1007,9 @@
 
         lastSeenLocalLabel: lastSeenLocalLabel,
         lastCorrectLocalLabel: lastCorrectLocalLabel,
-        lastWrongLocalLabel: lastWrongLocalLabel
+        lastWrongLocalLabel: lastWrongLocalLabel,
+
+        pending: (payload && payload.pending) ? payload.pending : null
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
@@ -1703,6 +1922,9 @@
           console.log("[SYNC-B] ODOA HUD: initial status set from mode:", odoaStatusTextForPanelInit);
         }
 
+        var pending = computePendingFlags(state, info.qid);
+        pending.pendingDiffCounts = (diffCorrect > 0 || diffWrong > 0 || diffStreak3 > 0 || diffStreakLen > 0 || diffStreak3Wrong > 0 || diffWrongStreakLen > 0);
+
         renderPanel(box, {
           serverCorrect: serverCorrect,
           serverWrong: serverWrong,
@@ -1718,7 +1940,8 @@
           diffStreakLen: diffStreakLen,
           statusText: statusTextForRender,
           odoaModeText: odoaModeText,
-          odoaStatusText: odoaStatusTextForPanelInit
+          odoaStatusText: odoaStatusTextForPanelInit,
+          pending: pending
         });
 
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
