@@ -163,34 +163,41 @@
     "  opacity: 0.70;",
     "}",
     "",
-    "/* --- Counts: 横一列（3カラム） --- */",
-    "#cscs_sync_view_b_body .svb-counts-row {",
-    "  display: grid;",
-    "  grid-template-columns: 1fr 1fr 1fr;",
+    "/* --- Counts: 1行（Counts + SYNC/local/diff を横一列） --- */",
+    "#cscs_sync_view_b_body .svb-counts-inline {",
+    "  display: flex;",
+    "  align-items: baseline;",
+    "  gap: 10px;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-head {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part {",
+    "  display: inline-flex;",
+    "  align-items: baseline;",
     "  gap: 6px;",
+    "  box-shadow: none;",
+    "  background: transparent;",
+    "  border: none;",
+    "  padding: 0;",
     "}",
     "",
-    "#cscs_sync_view_b_body .svb-counts-item {",
-    "  border: 1px solid rgba(255,255,255,0.08);",
-    "  border-radius: 7px;",
-    "  padding: 5px 6px;",
-    "  background: rgba(255,255,255,0.03);",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-item.is-muted {",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part.is-muted {",
     "  opacity: 0.78;",
     "}",
     "",
-    "#cscs_sync_view_b_body .svb-counts-k {",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-k {",
     "  opacity: 0.85;",
     "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
     "}",
     "",
-    "#cscs_sync_view_b_body .svb-counts-v {",
-    "  margin-top: 2px;",
-    "  text-align: right;",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-v {",
+    "  text-align: left;",
     "  font-variant-numeric: tabular-nums;",
     "  white-space: nowrap;",
     "}",
@@ -680,53 +687,58 @@
       return;
     }
 
-    // --- Counts (横一列) ---
-    (function appendCountsSectionHorizontal() {
+    // --- Counts（1行表示：Counts + SYNC/local/diff を横一列） ---
+    (function appendCountsSectionInline() {
+      // ① ワイドカード（Counts行を収めるコンテナ）
       var card = document.createElement("div");
       card.className = "cscs-svb-card is-wide svb-counts";
 
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "Counts";
+      // ② 1行の横並びコンテナ（折り返しなし）
+      var line = document.createElement("div");
+      line.className = "svb-counts-inline";
 
-      var row = document.createElement("div");
-      row.className = "svb-counts-row";
+      // ③ 行の先頭に "Counts" を入れる（見出しも同じ行にまとめる）
+      var head = document.createElement("span");
+      head.className = "svb-counts-head";
+      head.textContent = "Counts";
+      line.appendChild(head);
 
-      function addItem(label, valueText, isMuted) {
-        var item = document.createElement("div");
-        item.className = "svb-counts-item" + (isMuted ? " is-muted" : "");
+      // ④ 各パート（label + value）を横に連結していく
+      function addPart(label, valueText, isMuted) {
+        var part = document.createElement("span");
+        part.className = "svb-counts-part" + (isMuted ? " is-muted" : "");
 
-        var k = document.createElement("div");
+        var k = document.createElement("span");
         k.className = "svb-counts-k";
         k.textContent = label;
 
-        var v = document.createElement("div");
+        var v = document.createElement("span");
         v.className = "svb-counts-v";
         v.textContent = valueText;
 
-        item.appendChild(k);
-        item.appendChild(v);
-        row.appendChild(item);
+        part.appendChild(k);
+        part.appendChild(v);
+        line.appendChild(part);
       }
 
-      addItem(
+      addPart(
         "SYNC (c / w)",
         String(model.serverCorrect) + " / " + String(model.serverWrong),
         false
       );
-      addItem(
+      addPart(
         "local (c / w)",
         String(model.localCorrect) + " / " + String(model.localWrong),
         false
       );
-      addItem(
+      addPart(
         "diff (c / w)",
         String(model.diffCorrect) + " / " + String(model.diffWrong),
         true
       );
 
-      card.appendChild(h);
-      card.appendChild(row);
+      // ⑤ カードに1行を入れて body に追加
+      card.appendChild(line);
       body.appendChild(card);
     })();
 
