@@ -646,9 +646,19 @@
 
           function consider(type, n){
             if (n === null) return;
+
+            // ★ 処理1: まだ候補が無い or より新しい日付なら更新
             if (bestNum === null || n > bestNum) {
               bestNum = n;
               bestType = type;
+              return;
+            }
+
+            // ★ 処理2: 同日タイなら correct 優先（lastWrong が勝っていたら lastCorrect に戻す）
+            if (bestNum !== null && n === bestNum) {
+              if (type === "lastCorrect" && bestType === "lastWrong") {
+                bestType = "lastCorrect";
+              }
             }
           }
 
@@ -678,6 +688,25 @@
           //   - 表示は「local 20251210」のようにラベル込みにする
           lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
         }
+
+        // ★ 追加: 見出しと下の詳細が “同じ情報で二重表示” にならないように調整する
+        // ★ 処理1: 見出しが LastCorrect の場合 → 下の lastCorrect 行を非表示
+        // ★ 処理2: 見出しが LastWrong   の場合 → 下の lastWrong 行を非表示
+        // ★ 処理3: 見出しがどちらでもない/未判定の場合 → 両方表示（ここではフォールバック推測はしない）
+        try{
+          const hideCorrect = (latestType === "lastCorrect");
+          const hideWrong   = (latestType === "lastWrong");
+
+          const correctRows = box.querySelectorAll(".lastday-grid .ld-row-lastcorrect");
+          const wrongRows   = box.querySelectorAll(".lastday-grid .ld-row-lastwrong");
+
+          correctRows.forEach(function(el){
+            el.style.display = hideCorrect ? "none" : "";
+          });
+          wrongRows.forEach(function(el){
+            el.style.display = hideWrong ? "none" : "";
+          });
+        }catch(_){}
 
         // ★ lastday は折りたたみ無し：見出し差し替え（open判定）は不要
 
@@ -2314,21 +2343,17 @@
 
             <div class="sync-body sync-lastday">
               <div class="lastday-grid">
-                <div class="ld-head">LastDay</div>
-                <div class="ld-head">SYNC</div>
-                <div class="ld-head">local</div>
+                <div class="ld-label ld-row-lastseen">lastSeen</div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-local">（データなし）</span></div>
 
-                <div class="ld-label">lastSeen</div>
-                <div><span class="sync-last-seen-sync">（データなし）</span></div>
-                <div><span class="sync-last-seen-local">（データなし）</span></div>
+                <div class="ld-label ld-row-lastcorrect">lastCorrect</div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">（データなし）</span></div>
 
-                <div class="ld-label">lastCorrect</div>
-                <div><span class="sync-last-correct-sync">（データなし）</span></div>
-                <div><span class="sync-last-correct-local">（データなし）</span></div>
-
-                <div class="ld-label">lastWrong</div>
-                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
-                <div><span class="sync-last-wrong-local">（データなし）</span></div>
+                <div class="ld-label ld-row-lastwrong">lastWrong</div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
               </div>
             </div>
           </div>
