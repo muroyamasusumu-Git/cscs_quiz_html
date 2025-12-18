@@ -2182,6 +2182,7 @@
   grid-column: 2;
   font-weight: 700;
   opacity: 0.90;
+  margin-left: -4px;
 }
 
 /* ★ SYNC/local は「縮む列」に入れ、入り切らない時は … で省略する */
