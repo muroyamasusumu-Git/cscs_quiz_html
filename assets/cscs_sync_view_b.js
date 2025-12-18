@@ -126,6 +126,8 @@
     "  border: 1px solid rgba(255,255,255,0.10);",
     "  border-radius: 8px;",
     "  padding: 6px 7px;",
+    "  width: 100%;",
+    "  box-sizing: border-box;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card.is-wide {",
