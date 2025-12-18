@@ -331,6 +331,13 @@
   font-size:12px;
   letter-spacing:0.02em;
   opacity:0.85;
+
+  /* 追加: 右寄せ＋右側テキストに近づける */
+  text-align: right;
+  min-width: 34px;     /* ラベルが潰れすぎない最低幅 */
+  margin-left: auto;   /* 左の余白を吸って右へ寄せる */
+  margin-right: 6px;   /* 右側テキストとの距離 */
+  flex: 0 0 auto;      /* 余計に伸びない */
 }
 
 #nl-progress-header .nl-ph-value{
