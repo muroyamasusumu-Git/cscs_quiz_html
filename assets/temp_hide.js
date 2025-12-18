@@ -259,10 +259,10 @@
 
   /* 追加した処理:
      - th-body は “器” にして中身（th-list）にスクロールを担当させる */
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 #${PANEL_ID} .th-note{
@@ -278,14 +278,15 @@
 
   /* 追加した処理:
      - リスト領域だけスクロールさせる（確実に効く） */
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
 
   /* 追加した処理:
      - スクロールバーが要素の角丸で欠けるのを防ぐ */
   padding-right: 2px;
+  padding-bottom: 8px;
 }
 
 #${PANEL_ID} .th-row{
