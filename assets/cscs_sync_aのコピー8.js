@@ -176,6 +176,7 @@
   const LS_MON_OPEN     = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN    = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN    = "cscs_sync_a_queue_detail_open";
+  const LS_LASTDAY_OPEN = "cscs_sync_a_lastday_open";
 
   function readLsBool(key, defaultBool){
     try{
@@ -679,7 +680,32 @@
           lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
         }
 
-        // ★ lastday は折りたたみ無し：見出し差し替え（open判定）は不要
+        // ★ 追加: lastday を「開いた時だけ」展開部の先頭見出し行（LastDay / SYNC / local）を
+        //   サマリー値（LastWrong/LastCorrect｜SYNC値｜local値）に差し替える。
+        //   - 閉じたら元の見出しへ復元する（フォールバック無し）。
+        try{
+          const lastdayDetailsEl = box.querySelector('details.sync-fold[data-fold="lastday"]');
+          const head1 = box.querySelector(".lastday-grid .ld-head:nth-of-type(1)");
+          const head2 = box.querySelector(".lastday-grid .ld-head:nth-of-type(2)");
+          const head3 = box.querySelector(".lastday-grid .ld-head:nth-of-type(3)");
+
+          // ★ 元の見出し文字列を一度だけ退避（復元のため）
+          if (head1 && !head1.dataset.origText) head1.dataset.origText = head1.textContent;
+          if (head2 && !head2.dataset.origText) head2.dataset.origText = head2.textContent;
+          if (head3 && !head3.dataset.origText) head3.dataset.origText = head3.textContent;
+
+          if (lastdayDetailsEl && lastdayDetailsEl.open) {
+            // ★ 開いている間だけ “値” を見出し行に表示
+            if (head1) head1.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
+            if (head2) head2.textContent = "SYNC " + toDisplayText(latestSyncVal, "（データなし）");
+            if (head3) head3.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
+          } else {
+            // ★ 閉じたら “元の見出し” に戻す
+            if (head1) head1.textContent = head1.dataset.origText || "LastDay";
+            if (head2) head2.textContent = head2.dataset.origText || "SYNC";
+            if (head3) head3.textContent = head3.dataset.origText || "local";
+          }
+        }catch(_){}
 
         const lEl  = box.querySelector(".sync-local");
         const qdEl = box.querySelector(".sync-queue");
@@ -2180,39 +2206,49 @@
   white-space: nowrap;
 }
 
-/* ★ lastday は折りたたみ無し：常時表示の1行ヘッダー */
-#cscs_sync_monitor_a .sync-lastday-headline{
+/* ★ lastday summary を「必ず1行」に固定する（grid + 折返し禁止 + 省略） */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary{
   display: grid;
-  grid-template-columns: max-content minmax(0,1fr) minmax(0,1fr);
+
+  /* ★ 区切り線列を廃止： type / SYNC / local の3ブロックだけ */
+  grid-template-columns: 14px max-content minmax(0,1fr) minmax(0,1fr);
+
   column-gap: 10px;
   align-items: baseline;
   white-space: nowrap;
   overflow: hidden;
-  margin-bottom: 6px;
-  font-weight: 700;
-  font-size: 11px;
-  opacity: 0.85;
+}
+
+/* ★ ▼/▶ は summary::before のまま。grid 1列目へ固定する */
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary::before{
+  grid-column: 1;
 }
 
 /* ★ type */
-#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-type{
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-type{
+  grid-column: 2;
   font-weight: 700;
   opacity: 0.90;
+  margin-left: -4px;
 }
 
 /* ★ SYNC/local は「縮む列」に入れ、入り切らない時は … で省略する */
-#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-sync{
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-sync{
+  grid-column: 3;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
   font-size: 10px;
+
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-local{
+#cscs_sync_monitor_a details.sync-fold[data-fold="lastday"] > summary .sync-lastday-summary-local{
+  grid-column: 4;
   font-variant-numeric: tabular-nums;
   opacity: 0.88;
   font-size: 10px;
+
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2306,31 +2342,32 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-lastday-headline">
-              <span class="sync-lastday-summary-type">LastCorrect</span>
-              <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
-              <span class="sync-lastday-summary-local">local （データなし）</span>
-            </div>
+            <details class="sync-fold" data-fold="lastday">
+              <summary>
+                <span class="sync-lastday-summary-type">LastCorrect</span>
+                <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
+                <span class="sync-lastday-summary-local">local （データなし）</span>
+              </summary>
+              <div class="sync-body sync-lastday">
+                <div class="lastday-grid">
+                  <div class="ld-head">LastDay</div>
+                  <div class="ld-head">SYNC</div>
+                  <div class="ld-head">local</div>
 
-            <div class="sync-body sync-lastday">
-              <div class="lastday-grid">
-                <div class="ld-head">LastDay</div>
-                <div class="ld-head">SYNC</div>
-                <div class="ld-head">local</div>
+                  <div class="ld-label">lastSeen</div>
+                  <div><span class="sync-last-seen-sync">（データなし）</span></div>
+                  <div><span class="sync-last-seen-local">（データなし）</span></div>
 
-                <div class="ld-label">lastSeen</div>
-                <div><span class="sync-last-seen-sync">（データなし）</span></div>
-                <div><span class="sync-last-seen-local">（データなし）</span></div>
+                  <div class="ld-label">lastCorrect</div>
+                  <div><span class="sync-last-correct-sync">（データなし）</span></div>
+                  <div><span class="sync-last-correct-local">（データなし）</span></div>
 
-                <div class="ld-label">lastCorrect</div>
-                <div><span class="sync-last-correct-sync">（データなし）</span></div>
-                <div><span class="sync-last-correct-local">（データなし）</span></div>
-
-                <div class="ld-label">lastWrong</div>
-                <div><span class="sync-last-wrong-sync">（データなし）</span></div>
-                <div><span class="sync-last-wrong-local">（データなし）</span></div>
+                  <div class="ld-label">lastWrong</div>
+                  <div><span class="sync-last-wrong-sync">（データなし）</span></div>
+                  <div><span class="sync-last-wrong-local">（データなし）</span></div>
+                </div>
               </div>
-            </div>
+            </details>
           </div>
 
           <div class="sync-card sync-span-2">
@@ -2419,6 +2456,7 @@
 
         const daysDetails    = box.querySelector('details.sync-fold[data-fold="days"]');
         const queueDetails   = box.querySelector('details.sync-fold[data-fold="queue"]');
+        const lastdayDetails = box.querySelector('details.sync-fold[data-fold="lastday"]');
 
         /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
            - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
@@ -2437,9 +2475,11 @@
 
         const daysOpen     = readLsBool(LS_DAYS_OPEN, false);     // デフォルト閉じ
         const queueOpen    = readLsBool(LS_QDEL_OPEN, false);     // デフォルト閉じ
+        const lastdayOpen  = readLsBool(LS_LASTDAY_OPEN, false);  // デフォルト閉じ
 
         if (daysDetails)     daysDetails.open     = !!daysOpen;
         if (queueDetails)    queueDetails.open    = !!queueOpen;
+        if (lastdayDetails)  lastdayDetails.open  = !!lastdayOpen;
 
         if (daysDetails) {
           daysDetails.addEventListener("toggle", function(){
@@ -2449,6 +2489,11 @@
         if (queueDetails) {
           queueDetails.addEventListener("toggle", function(){
             writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
+          });
+        }
+        if (lastdayDetails) {
+          lastdayDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_LASTDAY_OPEN, !!lastdayDetails.open);
           });
         }
       }catch(_){}
