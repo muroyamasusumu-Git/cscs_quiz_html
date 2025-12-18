@@ -2026,7 +2026,7 @@
   font-weight: 700;
   font-size: 11px;
   opacity: 0.85;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 
   /* ★ 見出しは基本的に改行しない（入り切らない時は…） */
   white-space: nowrap;
