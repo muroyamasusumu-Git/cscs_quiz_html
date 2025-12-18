@@ -769,7 +769,8 @@
     (function appendStreakCorrectSplit2Cards() {
       // 上：回数
       var card1 = document.createElement("div");
-      card1.className = "cscs-svb-card";
+      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
+      card1.className = "cscs-svb-card is-wide";
 
       var h1 = document.createElement("div");
       h1.className = "cscs-svb-card-title";
@@ -795,7 +796,8 @@
 
       // 下：進捗
       var card2 = document.createElement("div");
-      card2.className = "cscs-svb-card";
+      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
+      card2.className = "cscs-svb-card is-wide";
 
       var h2 = document.createElement("div");
       h2.className = "cscs-svb-card-title";
@@ -824,7 +826,8 @@
     (function appendStreakWrongSplit2Cards() {
       // 上：回数
       var card1 = document.createElement("div");
-      card1.className = "cscs-svb-card";
+      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
+      card1.className = "cscs-svb-card is-wide";
 
       var h1 = document.createElement("div");
       h1.className = "cscs-svb-card-title";
@@ -850,7 +853,8 @@
 
       // 下：進捗
       var card2 = document.createElement("div");
-      card2.className = "cscs-svb-card";
+      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
+      card2.className = "cscs-svb-card is-wide";
 
       var h2 = document.createElement("div");
       h2.className = "cscs-svb-card-title";
