@@ -97,7 +97,7 @@
     "  top: 100px;",
     "  color: #eee;",
     "  padding: 8px;",
-    "  font: 10px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
     "  max-width: 46vw;",
     "  width: 330px;",
     "  opacity: 0.55;",
