@@ -1007,7 +1007,9 @@
 
         lastSeenLocalLabel: lastSeenLocalLabel,
         lastCorrectLocalLabel: lastCorrectLocalLabel,
-        lastWrongLocalLabel: lastWrongLocalLabel
+        lastWrongLocalLabel: lastWrongLocalLabel,
+
+        pending: (payload && payload.pending) ? payload.pending : null
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
