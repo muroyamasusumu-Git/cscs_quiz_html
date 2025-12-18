@@ -648,16 +648,11 @@
       return;
     }
 
-    // --- Totals (A-like single row) ---
-    var gTotals = appendGridSection(body, "Totals (c / w)");
-    appendGridRow(
-      gTotals,
-      "Totals (c / w)",
-      "SYNC " + String(model.serverCorrect) + " / " + String(model.serverWrong) +
-        "    local " + String(model.localCorrect) + " / " + String(model.localWrong) +
-        "    +Δ " + String(model.diffCorrect) + " / " + String(model.diffWrong) +
-        "    diff " + String(model.diffCorrect) + "/" + String(model.diffWrong)
-    );
+    // --- Counts ---
+    var gCounts = appendGridSection(body, "Counts");
+    appendGridRow(gCounts, "server (correct / wrong)", String(model.serverCorrect) + " / " + String(model.serverWrong));
+    appendGridRow(gCounts, "local  (correct / wrong)", String(model.localCorrect) + " / " + String(model.localWrong));
+    appendGridRow(gCounts, "diff   (correct / wrong)", String(model.diffCorrect) + " / " + String(model.diffWrong), "cscs-svb-muted", "");
 
     // --- Streak (Correct) ---
     var gStreakC = appendGridSection(body, "Streak (Correct)");
