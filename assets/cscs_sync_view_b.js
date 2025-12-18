@@ -818,7 +818,7 @@
 
       appendGridRow(
         grid,
-        "回数(s3)",
+        "回数(s3W)",
         String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
       );
 
