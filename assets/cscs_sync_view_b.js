@@ -162,6 +162,7 @@
     "  grid-template-columns: 1fr auto;",
     "  column-gap: 10px;",
     "  row-gap: 2px;",
+    "  opacity: 0.78;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-k {",
