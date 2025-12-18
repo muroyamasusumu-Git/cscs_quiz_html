@@ -1371,7 +1371,6 @@
 
     needLine.innerHTML = html;
 
-    needLine.style.marginBottom = "10px";
     needLine.style.marginLeft = "0px";
     needLine.style.fontWeight = "500";
     needLine.style.fontSize = "15px";
