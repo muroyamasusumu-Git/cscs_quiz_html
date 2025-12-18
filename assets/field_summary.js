@@ -92,10 +92,12 @@
         display: grid;
         grid-template-columns: 1fr;
         row-gap: 6px;
-        font-size: 12px;
+        font-size: 14px;
         margin-bottom: 15px;
         margin-left: 0px;
         width: 57%;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     }
 
     .cscs-star-main-compact {
@@ -1373,7 +1375,6 @@
 
     needLine.style.marginLeft = "0px";
     needLine.style.fontWeight = "500";
-    needLine.style.fontSize = "15px";
     panel.appendChild(needLine);
 
     // コンソールに現在の目標値と進捗・リーチ数・✨数を出力して、値とレンダリング結果を確認できるようにする
