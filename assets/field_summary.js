@@ -93,8 +93,9 @@
         grid-template-columns: 1fr;
         row-gap: 6px;
         font-size: 12px;
-        margin-bottom: 13px;
+        margin-bottom: 20px;
         margin-left: 0px;
+        width: 57%;
     }
 
     .cscs-star-main-compact {
@@ -113,10 +114,7 @@
         grid-template-columns: auto auto 1fr auto;
         align-items: center;
         column-gap: 8px;
-        padding: 6px 8px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 8px;
-        background: rgba(0, 0, 0, 0.18);
+        padding: 0px 0px;
         white-space: nowrap;
     }
 
