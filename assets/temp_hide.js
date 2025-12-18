@@ -177,8 +177,7 @@
       applyHiddenStateToElements(getAnswerExplainElements(), isHiddenAE);
     }
 
-    // 追加した処理:
-    // - field summary の一部（4要素）も hidden_map の値に従って非表示クラスを付与/解除する
+    // field summary の一部（4要素）も hidden_map の値に従って非表示クラスを付与/解除する
     if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
       const isHiddenStarLine = !!map[STAR_SUMMARY_LINE_MAP_KEY];
       applyHiddenStateToElements(getStarSummaryLineElements(), isHiddenStarLine);
@@ -210,8 +209,8 @@
   position: fixed !important;
   right: 190px;
   bottom: 54px;
-  width: 320px;
-  max-width: calc(100vw - 20px);
+  width: 560px !important;
+  max-width: calc(100vw - 20px) !important;
   max-height: calc(100vh - 110px) !important;
   z-index: 999999 !important;
   background: rgba(0,0,0,0.70);
@@ -223,8 +222,6 @@
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   overflow: hidden;
 
-  /* 追加した処理:
-     - パネル全体を画面内に収めるため、内部を3段（ヘッド/ボディ/フッター）構造で高さ制御する */
   display: flex;
   flex-direction: column;
 }
@@ -256,12 +253,8 @@
 
 #${PANEL_ID} .th-body{
   padding: 10px 12px 12px 12px;
-
-  /* 追加した処理:
-     - th-body は “器” にして中身（th-list）にスクロールを担当させる */
   flex: 1 1 auto !important;
   min-height: 0 !important;
-
   overflow: hidden !important;
 }
 
@@ -271,22 +264,29 @@
   margin: 0 0 10px 0;
 }
 
+/* ★ここ：縦スクロールは捨てて、最大3列で横に詰める */
 #${PANEL_ID} .th-list{
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
 
-  /* 追加した処理:
-     - リスト領域だけスクロールさせる（確実に効く） */
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden !important;
 
-  /* 追加した処理:
-     - スクロールバーが要素の角丸で欠けるのを防ぐ */
   padding-right: 2px;
   padding-bottom: 8px;
+}
+
+@media (max-width: 760px){
+  #${PANEL_ID} .th-list{
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 520px){
+  #${PANEL_ID} .th-list{
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
 }
 
 #${PANEL_ID} .th-row{
@@ -294,7 +294,7 @@
   grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 10px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.10);
@@ -321,10 +321,11 @@
   text-overflow: ellipsis;
 }
 
+/* ★ここ：スイッチ小型化 */
 #${PANEL_ID} .th-toggle{
   appearance: none;
-  width: 54px;
-  height: 28px;
+  width: 40px !important;
+  height: 20px !important;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(0,0,0,0.35);
@@ -336,10 +337,10 @@
 #${PANEL_ID} .th-toggle::after{
   content: "";
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 22px;
-  height: 22px;
+  top: 2px !important;
+  left: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
   border-radius: 999px;
   background: rgba(255,255,255,0.75);
   transition: transform 160ms ease;
@@ -350,16 +351,13 @@
 }
 
 #${PANEL_ID} .th-toggle:checked::after{
-  transform: translateX(26px);
+  transform: translateX(20px) !important;
 }
 
 #${PANEL_ID} .th-footer{
   margin-top: 10px;
   display: flex;
   gap: 8px;
-
-  /* 追加した処理:
-     - スクロール領域（th-body）の中でもフッターが最後に固定されて見えるようにする */
   flex: 0 0 auto;
 }
 
@@ -457,26 +455,21 @@
         applyHiddenStateToElement(getElByHash(idHash), false);
       }
 
-      // h1（タグ）も一括で表示ONに戻す（設定ONのときだけ）
       if (ENABLE_HIDE_H1){
         map[H1_MAP_KEY] = false;
         applyHiddenStateToElements(getH1Elements(), false);
       }
 
-      // <ol class="opts"> も一括で表示ONに戻す（設定ONのときだけ）
       if (ENABLE_HIDE_OL_OPTS){
         map[OL_OPTS_MAP_KEY] = false;
         applyHiddenStateToElements(getOlOptsElements(), false);
       }
 
-      // .answer / .explain も一括で表示ONに戻す（設定ONのときだけ）
       if (ENABLE_HIDE_ANSWER_EXPLAIN){
         map[ANSWER_EXPLAIN_MAP_KEY] = false;
         applyHiddenStateToElements(getAnswerExplainElements(), false);
       }
 
-      // 追加した処理:
-      // - field summary の一部（4要素）も一括で表示ONに戻す
       if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
         map[STAR_SUMMARY_LINE_MAP_KEY] = false;
         applyHiddenStateToElements(getStarSummaryLineElements(), false);
@@ -507,26 +500,21 @@
         applyHiddenStateToElement(getElByHash(idHash), true);
       }
 
-      // h1（タグ）も一括で表示OFFにする（設定ONのときだけ）
       if (ENABLE_HIDE_H1){
         map[H1_MAP_KEY] = true;
         applyHiddenStateToElements(getH1Elements(), true);
       }
 
-      // <ol class="opts"> も一括で表示OFFにする（設定ONのときだけ）
       if (ENABLE_HIDE_OL_OPTS){
         map[OL_OPTS_MAP_KEY] = true;
         applyHiddenStateToElements(getOlOptsElements(), true);
       }
 
-      // .answer / .explain も一括で表示OFFにする（設定ONのときだけ）
       if (ENABLE_HIDE_ANSWER_EXPLAIN){
         map[ANSWER_EXPLAIN_MAP_KEY] = true;
         applyHiddenStateToElements(getAnswerExplainElements(), true);
       }
 
-      // 追加した処理:
-      // - field summary の一部（4要素）も一括で表示OFFにする
       if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
         map[STAR_SUMMARY_LINE_MAP_KEY] = true;
         applyHiddenStateToElements(getStarSummaryLineElements(), true);
@@ -588,7 +576,6 @@
         const toggle = document.createElement("input");
         toggle.className = "th-toggle";
         toggle.type = "checkbox";
-        // checked=true を「非表示」にする（スイッチが右に行く＝OFF感）
         toggle.checked = !!map[idHash];
 
         toggle.addEventListener("change", function(){
@@ -603,7 +590,6 @@
         list.appendChild(row);
       }
 
-      // h1（タグ）をリストに追加して個別にON/OFFできるようにする（設定ONのときだけ）
       if (ENABLE_HIDE_H1){
         const row = document.createElement("div");
         row.className = "th-row";
@@ -625,7 +611,6 @@
         const toggle = document.createElement("input");
         toggle.className = "th-toggle";
         toggle.type = "checkbox";
-        // checked=true を「非表示」にする
         toggle.checked = !!map[H1_MAP_KEY];
 
         toggle.addEventListener("change", function(){
@@ -640,7 +625,6 @@
         list.appendChild(row);
       }
 
-      // <ol class="opts"> をリストに追加して個別にON/OFFできるようにする（設定ONのときだけ）
       if (ENABLE_HIDE_OL_OPTS){
         const row = document.createElement("div");
         row.className = "th-row";
@@ -662,7 +646,6 @@
         const toggle = document.createElement("input");
         toggle.className = "th-toggle";
         toggle.type = "checkbox";
-        // checked=true を「非表示」にする
         toggle.checked = !!map[OL_OPTS_MAP_KEY];
 
         toggle.addEventListener("change", function(){
@@ -677,7 +660,6 @@
         list.appendChild(row);
       }
 
-      // .answer / .explain をリストに追加して個別にON/OFFできるようにする（設定ONのときだけ）
       if (ENABLE_HIDE_ANSWER_EXPLAIN){
         const row = document.createElement("div");
         row.className = "th-row";
@@ -713,8 +695,6 @@
         list.appendChild(row);
       }
 
-      // 追加した処理:
-      // - field summary の一部（4要素）をリストに追加して個別にON/OFFできるようにする
       if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
         (function(){
           const row = document.createElement("div");
