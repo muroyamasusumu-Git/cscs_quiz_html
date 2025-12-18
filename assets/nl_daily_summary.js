@@ -1328,7 +1328,7 @@
       buildProgressGrid(
         30,                    // total（問題数）
         qFilled,               // filled（★獲得済み数）
-        30,                    // cols（横一列）
+        15,                    // cols（横15 × 縦2）
         currentQIndex,         // 現在位置（点滅）
         "q",
         qSolvedIndexMapForUi    // 今日(強)＋過去(薄) の合成マップ
