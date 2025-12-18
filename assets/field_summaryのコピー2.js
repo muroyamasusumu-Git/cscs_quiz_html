@@ -100,22 +100,6 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     }
 
-    /* 追加した処理:
-       - Aパート（body.mode-a）だけ compact 行の見た目を上書きする（Bは従来のまま） */
-    body.mode-a .cscs-star-summary-line-compact {
-        display: grid;
-        grid-template-columns: 1fr;
-        row-gap: 6px;
-        font-size: 14px;
-        margin-bottom: -5px;
-        margin-left: 0px;
-        width: 54%;
-        padding-bottom: 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-        margin-top: 10px;
-        opacity: 0.5;
-    }
-
     .cscs-star-main-compact {
         font-weight: 600;
     }
@@ -1240,30 +1224,6 @@
     function insertIntoWrapEnd(el) {
       if (!el) return;
       wrapContainer.appendChild(el);
-    }
-
-    /* 追加した処理:
-       - Aパート（body.mode-a）のみ、field_summary パネルを #similar-list の直前に入れる
-       - Bパートは従来どおり .wrap の末尾に入れる（挙動を変えない） */
-    function insertFieldSummaryPanelPreferred(el) {
-      if (!el) return;
-
-      var isModeA = false;
-      try {
-        isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
-      } catch (_e) {
-        isModeA = false;
-      }
-
-      if (isModeA) {
-        var similar = document.getElementById("similar-list");
-        if (similar && similar.parentNode) {
-          similar.parentNode.insertBefore(el, similar);
-          return;
-        }
-      }
-
-      insertIntoWrapEnd(el);
     }
 
     // すでに表示済みなら二重生成しない
@@ -2742,10 +2702,7 @@
     panel.appendChild(list);
     panel.appendChild(qidInlineBox);
     // 通常パネルも「.wrap 内＆整合性パネル直後」に入れる
-    // 追加した処理:
-    // - Aパートは #similar-list 直前（見つからなければ従来どおり末尾）
-    // - Bパートは従来どおり末尾
-    insertFieldSummaryPanelPreferred(panel);
+    insertIntoWrapEnd(panel);
   }
 
   // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
