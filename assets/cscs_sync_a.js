@@ -2109,15 +2109,17 @@
 
 #cscs_sync_monitor_a .totals-row{
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: auto 1fr 1fr 1fr;
   gap: 6px 10px;
   align-items: center;
   font-size: 11px;
 }
 
 #cscs_sync_monitor_a .sync-totals-label{
-  font-weight: 700;
-  opacity: 0.85;
+  font-weight: 850;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  opacity: 0.96;
   white-space: nowrap;
 }
 
@@ -2261,8 +2263,9 @@
 
         <div class="sync-grid">
           <div class="sync-card sync-span-2">
-            <div class="sync-title">Totals(c/w)</div>
             <div class="sync-body totals-row">
+              <div class="sync-totals-label">Totals(c/w)</div>
+
               <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">
                 <span class="sync-server-text">SYNC 0 / 0</span>
               </div>
