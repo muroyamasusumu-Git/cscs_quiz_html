@@ -2027,6 +2027,18 @@
   font-size: 11px;
   opacity: 0.85;
   margin-bottom: 4px;
+
+  /* ★ 見出しは基本的に改行しない（入り切らない時は…） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ★ 英語ラベルだけ少し薄く・軽く */
+#cscs_sync_monitor_a .sync-card .sync-title .sync-title-en{
+  opacity: 0.58;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 #cscs_sync_monitor_a .sync-card .sync-body{
   /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
@@ -2239,14 +2251,14 @@
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">3連続正解 回数 Count</div>
+            <div class="sync-title">3連続正解 回数 <span class="sync-title-en">Count</span></div>
             <div class="sync-body sync-streak3">
               SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
             </div>
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">3連続正解 進捗 Progress</div>
+            <div class="sync-title">3連続正解 進捗 <span class="sync-title-en">Progress</span></div>
             <div class="sync-body sync-streaklen">
               SYNC (<span class="sync-streaklen-server-progress">0</span>/3) /
               local (<span class="sync-streaklen-local-progress">0</span>/3)
@@ -2254,14 +2266,14 @@
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">3連続不正解 回数 Count</div>
+            <div class="sync-title">3連続不正解 回数 <span class="sync-title-en">Count</span></div>
             <div class="sync-body sync-wrong-streak3">
               SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
             </div>
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">3連続不正解 進捗 Progress</div>
+            <div class="sync-title">3連続不正解 進捗 <span class="sync-title-en">Progress</span></div>
             <div class="sync-body sync-wrong-streaklen">
               SYNC (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
               local (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
