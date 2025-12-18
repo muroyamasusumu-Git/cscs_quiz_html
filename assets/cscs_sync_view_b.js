@@ -700,7 +700,7 @@
       // ③ 行の先頭に "Counts" を入れる（見出しも同じ行にまとめる）
       var head = document.createElement("span");
       head.className = "svb-counts-head";
-      head.textContent = "Counts (c/w)";
+      head.textContent = "Totals (c/w)";
       line.appendChild(head);
 
       // ④ 各パート（label + value）を横に連結していく
