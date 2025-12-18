@@ -219,7 +219,7 @@
       + "border-radius:999px;"
       + "opacity:0;"
       + "will-change: transform, opacity;"
-      + "filter: drop-shadow(0 0 2px rgba(255,255,255,0.35));"
+      + "box-shadow: 0 0 2px rgba(255,255,255,0.32);"
       + "}"
 
       + "@keyframes cscsAmbientStarTwinkle{"
@@ -457,10 +457,10 @@
           return leftPct;
         }
 
-        // ▼ 1回の発火で最大12個まで（時間差で順に出す）
+        // ▼ 1回の発火で最大17個まで（時間差で順に出す）
         // - 2個目以降は横方向の最小距離を確保して“別地点感”を出す
         // - 数を増やす分、散りを強めるため最小間隔も広げる
-        var MAX_STARS_PER_BURST = 12;
+        var MAX_STARS_PER_BURST = 17;
         var MIN_SEP_PCT = 22; // 横方向の最小間隔（%）
 
         var usedLeftPcts = [];
