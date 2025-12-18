@@ -93,7 +93,7 @@
         grid-template-columns: 1fr;
         row-gap: 6px;
         font-size: 12px;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         margin-left: 0px;
         width: 57%;
     }
