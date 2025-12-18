@@ -162,6 +162,38 @@
     "#cscs_sync_view_b_body .cscs-svb-muted {",
     "  opacity: 0.70;",
     "}",
+    "",
+    "/* --- Counts: 横一列（3カラム） --- */",
+    "#cscs_sync_view_b_body .svb-counts-row {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr 1fr 1fr;",
+    "  gap: 6px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-item {",
+    "  border: 1px solid rgba(255,255,255,0.08);",
+    "  border-radius: 7px;",
+    "  padding: 5px 6px;",
+    "  background: rgba(255,255,255,0.03);",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-item.is-muted {",
+    "  opacity: 0.78;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-k {",
+    "  opacity: 0.85;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-v {",
+    "  margin-top: 2px;",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "}",
     ""
   ].join("\n");
 
@@ -648,23 +680,55 @@
       return;
     }
 
-    // --- Counts ---
-    var gCounts = appendGridSection(body, "Counts");
-    appendGridRow(gCounts, "server (correct / wrong)", String(model.serverCorrect) + " / " + String(model.serverWrong));
-    appendGridRow(gCounts, "local  (correct / wrong)", String(model.localCorrect) + " / " + String(model.localWrong));
-    appendGridRow(gCounts, "diff   (correct / wrong)", String(model.diffCorrect) + " / " + String(model.diffWrong), "cscs-svb-muted", "");
+    // --- Counts (横一列) ---
+    (function appendCountsSectionHorizontal() {
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide svb-counts";
 
-    // --- Streak (Correct) ---
-    var gStreakC = appendGridSection(body, "Streak (Correct)");
-    appendGridRow(gStreakC, "s3 (sync / local / +diff)",
-      String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
-    );
-    appendGridRow(gStreakC, "sLen (sync / local / +diff)",
-      String(model.serverStreakLen) + " / " + String(model.localStreakLen) + " (+" + String(model.diffStreakLen) + ")"
-    );
-    appendGridRow(gStreakC, "progress (sync / local)",
-      String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
-    );
+      var h = document.createElement("div");
+      h.className = "cscs-svb-card-title";
+      h.textContent = "Counts";
+
+      var row = document.createElement("div");
+      row.className = "svb-counts-row";
+
+      function addItem(label, valueText, isMuted) {
+        var item = document.createElement("div");
+        item.className = "svb-counts-item" + (isMuted ? " is-muted" : "");
+
+        var k = document.createElement("div");
+        k.className = "svb-counts-k";
+        k.textContent = label;
+
+        var v = document.createElement("div");
+        v.className = "svb-counts-v";
+        v.textContent = valueText;
+
+        item.appendChild(k);
+        item.appendChild(v);
+        row.appendChild(item);
+      }
+
+      addItem(
+        "server (correct / wrong)",
+        String(model.serverCorrect) + " / " + String(model.serverWrong),
+        false
+      );
+      addItem(
+        "local (correct / wrong)",
+        String(model.localCorrect) + " / " + String(model.localWrong),
+        false
+      );
+      addItem(
+        "diff (correct / wrong)",
+        String(model.diffCorrect) + " / " + String(model.diffWrong),
+        true
+      );
+
+      card.appendChild(h);
+      card.appendChild(row);
+      body.appendChild(card);
+    })();
 
     // --- Streak (Wrong) ---
     var gStreakW = appendGridSection(body, "Streak (Wrong)");
@@ -676,6 +740,18 @@
     );
     appendGridRow(gStreakW, "progress (sync / local)",
       String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
+    );
+
+    // --- Streak (Correct) ※Countsの下段に回し、Wrongと横2列で並ぶ（広い画面時） ---
+    var gStreakC = appendGridSection(body, "Streak (Correct)");
+    appendGridRow(gStreakC, "s3 (sync / local / +diff)",
+      String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+    );
+    appendGridRow(gStreakC, "sLen (sync / local / +diff)",
+      String(model.serverStreakLen) + " / " + String(model.localStreakLen) + " (+" + String(model.diffStreakLen) + ")"
+    );
+    appendGridRow(gStreakC, "progress (sync / local)",
+      String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
     );
 
     // --- Today Unique ---
