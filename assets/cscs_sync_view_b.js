@@ -765,72 +765,114 @@
       body.appendChild(card);
     })();
 
-    // --- 3連続正解（SYNC / local / diff）※2行：回数(s3) / 進捗(progress) ---
-    (function appendStreakCorrect2Rows() {
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card";
+    // --- 3連続正解：上下2ブロック（上=回数 / 下=進捗） ---
+    (function appendStreakCorrectSplit2Cards() {
+      // 上：回数
+      var card1 = document.createElement("div");
+      card1.className = "cscs-svb-card";
 
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "3連続正解";
+      var h1 = document.createElement("div");
+      h1.className = "cscs-svb-card-title";
+      h1.textContent = "3連続正解（回数）";
 
-      var suf = document.createElement("span");
-      suf.className = "svb-title-suffix";
-      suf.textContent = "(SYNC/local/diff)";
-      h.appendChild(suf);
+      var suf1 = document.createElement("span");
+      suf1.className = "svb-title-suffix";
+      suf1.textContent = "(SYNC/local/diff)";
+      h1.appendChild(suf1);
 
-      var grid = document.createElement("div");
-      grid.className = "cscs-svb-card-grid";
+      var grid1 = document.createElement("div");
+      grid1.className = "cscs-svb-card-grid";
 
       appendGridRow(
-        grid,
+        grid1,
         "回数(s3)",
         String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
       );
 
+      card1.appendChild(h1);
+      card1.appendChild(grid1);
+      body.appendChild(card1);
+
+      // 下：進捗
+      var card2 = document.createElement("div");
+      card2.className = "cscs-svb-card";
+
+      var h2 = document.createElement("div");
+      h2.className = "cscs-svb-card-title";
+      h2.textContent = "3連続正解（進捗）";
+
+      var suf2 = document.createElement("span");
+      suf2.className = "svb-title-suffix";
+      suf2.textContent = "(SYNC/local/diff)";
+      h2.appendChild(suf2);
+
+      var grid2 = document.createElement("div");
+      grid2.className = "cscs-svb-card-grid";
+
       appendGridRow(
-        grid,
+        grid2,
         "進捗(progress)",
         String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
       );
 
-      card.appendChild(h);
-      card.appendChild(grid);
-      body.appendChild(card);
+      card2.appendChild(h2);
+      card2.appendChild(grid2);
+      body.appendChild(card2);
     })();
 
-    // --- 3連続不正解（SYNC / local / diff）※2行：回数(s3) / 進捗(progress) ---
-    (function appendStreakWrong2Rows() {
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card";
+    // --- 3連続不正解：上下2ブロック（上=回数 / 下=進捗） ---
+    (function appendStreakWrongSplit2Cards() {
+      // 上：回数
+      var card1 = document.createElement("div");
+      card1.className = "cscs-svb-card";
 
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "3連続不正解";
+      var h1 = document.createElement("div");
+      h1.className = "cscs-svb-card-title";
+      h1.textContent = "3連続不正解（回数）";
 
-      var suf = document.createElement("span");
-      suf.className = "svb-title-suffix";
-      suf.textContent = "(SYNC/local/diff)";
-      h.appendChild(suf);
+      var suf1 = document.createElement("span");
+      suf1.className = "svb-title-suffix";
+      suf1.textContent = "(SYNC/local/diff)";
+      h1.appendChild(suf1);
 
-      var grid = document.createElement("div");
-      grid.className = "cscs-svb-card-grid";
+      var grid1 = document.createElement("div");
+      grid1.className = "cscs-svb-card-grid";
 
       appendGridRow(
-        grid,
+        grid1,
         "回数(s3W)",
         String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
       );
 
+      card1.appendChild(h1);
+      card1.appendChild(grid1);
+      body.appendChild(card1);
+
+      // 下：進捗
+      var card2 = document.createElement("div");
+      card2.className = "cscs-svb-card";
+
+      var h2 = document.createElement("div");
+      h2.className = "cscs-svb-card-title";
+      h2.textContent = "3連続不正解（進捗）";
+
+      var suf2 = document.createElement("span");
+      suf2.className = "svb-title-suffix";
+      suf2.textContent = "(SYNC/local/diff)";
+      h2.appendChild(suf2);
+
+      var grid2 = document.createElement("div");
+      grid2.className = "cscs-svb-card-grid";
+
       appendGridRow(
-        grid,
+        grid2,
         "進捗(progress)",
         String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
       );
 
-      card.appendChild(h);
-      card.appendChild(grid);
-      body.appendChild(card);
+      card2.appendChild(h2);
+      card2.appendChild(grid2);
+      body.appendChild(card2);
     })();
 
     // --- Today Unique ---
