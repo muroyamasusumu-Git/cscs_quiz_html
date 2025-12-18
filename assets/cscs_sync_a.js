@@ -2049,8 +2049,8 @@
 
   /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
   word-break: normal;
-  font-weight: 450;
-  opacity: 0.70;
+  font-weight: 400;
+  opacity: 0.60;
   font-size: 10.5px;
   letter-spacing: 0.01em;
 }
@@ -2059,7 +2059,7 @@
 #cscs_sync_monitor_a .mini-grid{
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 4px 10px;
+  gap: 2px 10px;
   font-size: 11px;
   line-height: 1.25;
 }
