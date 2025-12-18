@@ -163,54 +163,7 @@
     "  opacity: 0.70;",
     "}",
     ""
-  ,
-  "",
-  "/* ===== B-SYNC PANEL layout adjustment (2025-12) ===== */",
-  "",
-  "/* Totals を1行横並びにする */",
-  ".cscs-svb-totals-line {",
-  "  display: grid;",
-  "  grid-template-columns: auto auto auto auto;",
-  "  gap: 8px;",
-  "  align-items: center;",
-  "  font-variant-numeric: tabular-nums;",
-  "  white-space: nowrap;",
-  "}",
-  "",
-  "/* 2カラム罫線風ブロック */",
-  ".cscs-svb-two-col {",
-  "  display: grid;",
-  "  grid-template-columns: 1fr 1fr;",
-  "  column-gap: 12px;",
-  "}",
-  "",
-  ".cscs-svb-two-col .col {",
-  "  border-left: 1px solid rgba(255,255,255,0.15);",
-  "  padding-left: 8px;",
-  "}",
-  "",
-  ".cscs-svb-two-col .col:first-child {",
-  "  border-left: none;",
-  "  padding-left: 0;",
-  "}",
-  "",
-  "/* Status 行を横1行で明示 */",
-  ".cscs-svb-status-line {",
-  "  display: flex;",
-  "  gap: 10px;",
-  "  font-weight: 700;",
-  "  white-space: nowrap;",
-  "}",
-  "",
-  ".cscs-svb-ok {",
-  "  color: #9fe0b0;",
-  "}",
-  "",
-  ".cscs-svb-warn {",
-  "  color: #ffd080;",
-  "}",
-  ""
-].join(\"\\n\");
+  ].join("\n");
 
   // ★ styleタグを1回だけ注入（同じidがあれば中身を更新して上書き）
   function upsertStyleTag(styleId, cssText) {
@@ -1054,9 +1007,7 @@
 
         lastSeenLocalLabel: lastSeenLocalLabel,
         lastCorrectLocalLabel: lastCorrectLocalLabel,
-        lastWrongLocalLabel: lastWrongLocalLabel,
-
-        pending: (payload && payload.pending) ? payload.pending : null
+        lastWrongLocalLabel: lastWrongLocalLabel
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
