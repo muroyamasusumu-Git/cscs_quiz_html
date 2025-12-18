@@ -837,7 +837,7 @@
     appendGridRow(gToday, "day", String(model.s3TodayDayLabel));
     appendGridRow(gToday, "unique", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
 
-    var gTodayW = appendGridSection(body, "Streak3WrongTodayUnique");
+    var gTodayW = appendGridSection(body, "Streak3WrongTodayUq");
     appendGridRow(gTodayW, "day", String(model.s3WrongTodayDayLabel));
     appendGridRow(gTodayW, "unique", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
 
