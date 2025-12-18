@@ -835,11 +835,11 @@
     // --- Today Unique ---
     var gToday = appendGridSection(body, "Streak3TodayUnique");
     appendGridRow(gToday, "day", String(model.s3TodayDayLabel));
-    appendGridRow(gToday, "unique (sync / local)", String(model.s3TodaySyncCnt) + " / " + String(model.localS3TodayCnt));
+    appendGridRow(gToday, "unique", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
 
     var gTodayW = appendGridSection(body, "Streak3WrongTodayUnique");
     appendGridRow(gTodayW, "day", String(model.s3WrongTodayDayLabel));
-    appendGridRow(gTodayW, "unique (sync / local)", String(model.s3WrongTodaySyncCnt) + " / " + String(model.localS3WrongTodayCnt));
+    appendGridRow(gTodayW, "unique", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
 
     // --- LastDay（情報量多めなのでワイドカードに） ---
     var gLast = appendGridSection(body, "LastDay (SYNC / local)", { wide: true });
