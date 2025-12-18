@@ -212,6 +212,7 @@
   bottom: 54px;
   width: 320px;
   max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 110px);
   z-index: 999999 !important;
   background: rgba(0,0,0,0.70);
   border: 1px solid rgba(255,255,255,0.18);
@@ -221,6 +222,11 @@
   line-height: 1.35;
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   overflow: hidden;
+
+  /* 追加した処理:
+     - パネル全体を画面内に収めるため、内部を3段（ヘッド/ボディ/フッター）構造で高さ制御する */
+  display: flex;
+  flex-direction: column;
 }
 
 #${PANEL_ID} .th-head{
@@ -250,6 +256,16 @@
 
 #${PANEL_ID} .th-body{
   padding: 10px 12px 12px 12px;
+
+  /* 追加した処理:
+     - パネルの高さ上限の中で、ボディ部分だけ伸縮させる（スクロール担当） */
+  flex: 1 1 auto;
+  min-height: 0;
+
+  /* 追加した処理:
+     - 内容が多い時にボディだけスクロールできるようにする */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #${PANEL_ID} .th-note{
@@ -332,6 +348,10 @@
   margin-top: 10px;
   display: flex;
   gap: 8px;
+
+  /* 追加した処理:
+     - スクロール領域（th-body）の中でもフッターが最後に固定されて見えるようにする */
+  flex: 0 0 auto;
 }
 
 #${PANEL_ID} .th-btn{
