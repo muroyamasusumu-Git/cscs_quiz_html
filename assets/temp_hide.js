@@ -15,11 +15,12 @@
   // ========= 設定：ここに隠したいIDを登録 =========
   // 例: "#nl-panel" のように必ず # 付きで。
   const TARGET_IDS = [
-    "#nl-panel",
+    "#nl-body",
     "#cscs_sync_monitor_a",
     "#cscs_sync_monitor_b",
     "#similar-list",
     "#cscs-field-star-summary",
+    "#nl-daily-summary-host",
     "#judge",
   ];
   // ==============================================
