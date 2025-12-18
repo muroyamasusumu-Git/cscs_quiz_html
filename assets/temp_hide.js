@@ -42,6 +42,15 @@
   // .answer / .explain 用：hidden_map に保存するキー
   const ANSWER_EXPLAIN_MAP_KEY = "cls:answer_explain";
 
+  // 設定：field summary の一部（ページ内1セット想定）をON/OFF対象に含めるか
+  const ENABLE_HIDE_FIELD_SUMMARY_PARTS = true;
+
+  // field summary 用：hidden_map に保存するキー（それぞれ個別）
+  const STAR_SUMMARY_LINE_MAP_KEY = "cls:cscs_star_summary_line_compact";
+  const FIELD_HINT_MAP_KEY = "cls:hint";
+  const TOPMETA_LEFT_MAP_KEY = "cls:topmeta_left";
+  const QNO_MAP_KEY = "cls:qno";
+
   const LS_KEY_PREFIX = "cscs_temp_hide_v1:";
   const LS_KEY_PANEL_OPEN = LS_KEY_PREFIX + "panel_open";
   const LS_KEY_HIDDEN_MAP = LS_KEY_PREFIX + "hidden_map";
@@ -102,6 +111,30 @@
     return Array.from(els || []);
   }
 
+  function getStarSummaryLineElements(){
+    // .cscs-star-summary-line-compact を直接取得する（フォールバックなし）
+    const els = document.querySelectorAll(".cscs-star-summary-line-compact");
+    return Array.from(els || []);
+  }
+
+  function getHintElements(){
+    // .hint を直接取得する（フォールバックなし）
+    const els = document.querySelectorAll(".hint");
+    return Array.from(els || []);
+  }
+
+  function getTopmetaLeftElements(){
+    // .topmeta-left を直接取得する（フォールバックなし）
+    const els = document.querySelectorAll(".topmeta-left");
+    return Array.from(els || []);
+  }
+
+  function getQnoElements(){
+    // .qno を直接取得する（フォールバックなし）
+    const els = document.querySelectorAll(".qno");
+    return Array.from(els || []);
+  }
+
   function applyHiddenStateToElement(el, isHidden){
     if (!el) return;
     if (isHidden) el.classList.add(HIDDEN_CLASS);
@@ -142,6 +175,22 @@
     if (ENABLE_HIDE_ANSWER_EXPLAIN){
       const isHiddenAE = !!map[ANSWER_EXPLAIN_MAP_KEY];
       applyHiddenStateToElements(getAnswerExplainElements(), isHiddenAE);
+    }
+
+    // 追加した処理:
+    // - field summary の一部（4要素）も hidden_map の値に従って非表示クラスを付与/解除する
+    if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
+      const isHiddenStarLine = !!map[STAR_SUMMARY_LINE_MAP_KEY];
+      applyHiddenStateToElements(getStarSummaryLineElements(), isHiddenStarLine);
+
+      const isHiddenHint = !!map[FIELD_HINT_MAP_KEY];
+      applyHiddenStateToElements(getHintElements(), isHiddenHint);
+
+      const isHiddenTopLeft = !!map[TOPMETA_LEFT_MAP_KEY];
+      applyHiddenStateToElements(getTopmetaLeftElements(), isHiddenTopLeft);
+
+      const isHiddenQno = !!map[QNO_MAP_KEY];
+      applyHiddenStateToElements(getQnoElements(), isHiddenQno);
     }
   }
 
@@ -397,6 +446,22 @@
         applyHiddenStateToElements(getAnswerExplainElements(), false);
       }
 
+      // 追加した処理:
+      // - field summary の一部（4要素）も一括で表示ONに戻す
+      if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
+        map[STAR_SUMMARY_LINE_MAP_KEY] = false;
+        applyHiddenStateToElements(getStarSummaryLineElements(), false);
+
+        map[FIELD_HINT_MAP_KEY] = false;
+        applyHiddenStateToElements(getHintElements(), false);
+
+        map[TOPMETA_LEFT_MAP_KEY] = false;
+        applyHiddenStateToElements(getTopmetaLeftElements(), false);
+
+        map[QNO_MAP_KEY] = false;
+        applyHiddenStateToElements(getQnoElements(), false);
+      }
+
       saveHiddenMap(map);
       refreshRows();
     });
@@ -429,6 +494,22 @@
       if (ENABLE_HIDE_ANSWER_EXPLAIN){
         map[ANSWER_EXPLAIN_MAP_KEY] = true;
         applyHiddenStateToElements(getAnswerExplainElements(), true);
+      }
+
+      // 追加した処理:
+      // - field summary の一部（4要素）も一括で表示OFFにする
+      if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
+        map[STAR_SUMMARY_LINE_MAP_KEY] = true;
+        applyHiddenStateToElements(getStarSummaryLineElements(), true);
+
+        map[FIELD_HINT_MAP_KEY] = true;
+        applyHiddenStateToElements(getHintElements(), true);
+
+        map[TOPMETA_LEFT_MAP_KEY] = true;
+        applyHiddenStateToElements(getTopmetaLeftElements(), true);
+
+        map[QNO_MAP_KEY] = true;
+        applyHiddenStateToElements(getQnoElements(), true);
       }
 
       saveHiddenMap(map);
@@ -601,6 +682,150 @@
         row.appendChild(left);
         row.appendChild(toggle);
         list.appendChild(row);
+      }
+
+      // 追加した処理:
+      // - field summary の一部（4要素）をリストに追加して個別にON/OFFできるようにする
+      if (ENABLE_HIDE_FIELD_SUMMARY_PARTS){
+        (function(){
+          const row = document.createElement("div");
+          row.className = "th-row";
+
+          const left = document.createElement("div");
+          left.className = "th-left";
+
+          const idLine = document.createElement("div");
+          idLine.className = "th-id";
+          idLine.textContent = ".cscs-star-summary-line-compact";
+
+          const stLine = document.createElement("div");
+          stLine.className = "th-status";
+          stLine.textContent = getStarSummaryLineElements().length ? "<star-summary-line>" : "要素が見つかりません";
+
+          left.appendChild(idLine);
+          left.appendChild(stLine);
+
+          const toggle = document.createElement("input");
+          toggle.className = "th-toggle";
+          toggle.type = "checkbox";
+          toggle.checked = !!map[STAR_SUMMARY_LINE_MAP_KEY];
+
+          toggle.addEventListener("change", function(){
+            const m = loadHiddenMap();
+            m[STAR_SUMMARY_LINE_MAP_KEY] = !!toggle.checked;
+            saveHiddenMap(m);
+            applyHiddenStateToElements(getStarSummaryLineElements(), !!toggle.checked);
+          });
+
+          row.appendChild(left);
+          row.appendChild(toggle);
+          list.appendChild(row);
+        })();
+
+        (function(){
+          const row = document.createElement("div");
+          row.className = "th-row";
+
+          const left = document.createElement("div");
+          left.className = "th-left";
+
+          const idLine = document.createElement("div");
+          idLine.className = "th-id";
+          idLine.textContent = ".hint";
+
+          const stLine = document.createElement("div");
+          stLine.className = "th-status";
+          stLine.textContent = getHintElements().length ? "<hint>" : "要素が見つかりません";
+
+          left.appendChild(idLine);
+          left.appendChild(stLine);
+
+          const toggle = document.createElement("input");
+          toggle.className = "th-toggle";
+          toggle.type = "checkbox";
+          toggle.checked = !!map[FIELD_HINT_MAP_KEY];
+
+          toggle.addEventListener("change", function(){
+            const m = loadHiddenMap();
+            m[FIELD_HINT_MAP_KEY] = !!toggle.checked;
+            saveHiddenMap(m);
+            applyHiddenStateToElements(getHintElements(), !!toggle.checked);
+          });
+
+          row.appendChild(left);
+          row.appendChild(toggle);
+          list.appendChild(row);
+        })();
+
+        (function(){
+          const row = document.createElement("div");
+          row.className = "th-row";
+
+          const left = document.createElement("div");
+          left.className = "th-left";
+
+          const idLine = document.createElement("div");
+          idLine.className = "th-id";
+          idLine.textContent = ".topmeta-left";
+
+          const stLine = document.createElement("div");
+          stLine.className = "th-status";
+          stLine.textContent = getTopmetaLeftElements().length ? "<topmeta-left>" : "要素が見つかりません";
+
+          left.appendChild(idLine);
+          left.appendChild(stLine);
+
+          const toggle = document.createElement("input");
+          toggle.className = "th-toggle";
+          toggle.type = "checkbox";
+          toggle.checked = !!map[TOPMETA_LEFT_MAP_KEY];
+
+          toggle.addEventListener("change", function(){
+            const m = loadHiddenMap();
+            m[TOPMETA_LEFT_MAP_KEY] = !!toggle.checked;
+            saveHiddenMap(m);
+            applyHiddenStateToElements(getTopmetaLeftElements(), !!toggle.checked);
+          });
+
+          row.appendChild(left);
+          row.appendChild(toggle);
+          list.appendChild(row);
+        })();
+
+        (function(){
+          const row = document.createElement("div");
+          row.className = "th-row";
+
+          const left = document.createElement("div");
+          left.className = "th-left";
+
+          const idLine = document.createElement("div");
+          idLine.className = "th-id";
+          idLine.textContent = ".qno";
+
+          const stLine = document.createElement("div");
+          stLine.className = "th-status";
+          stLine.textContent = getQnoElements().length ? "<qno>" : "要素が見つかりません";
+
+          left.appendChild(idLine);
+          left.appendChild(stLine);
+
+          const toggle = document.createElement("input");
+          toggle.className = "th-toggle";
+          toggle.type = "checkbox";
+          toggle.checked = !!map[QNO_MAP_KEY];
+
+          toggle.addEventListener("change", function(){
+            const m = loadHiddenMap();
+            m[QNO_MAP_KEY] = !!toggle.checked;
+            saveHiddenMap(m);
+            applyHiddenStateToElements(getQnoElements(), !!toggle.checked);
+          });
+
+          row.appendChild(left);
+          row.appendChild(toggle);
+          list.appendChild(row);
+        })();
       }
     }
 
