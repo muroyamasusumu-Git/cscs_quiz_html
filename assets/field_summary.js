@@ -101,7 +101,8 @@
     }
 
     /* 追加した処理:
-       - Aパート（body.mode-a）だけ compact 行の見た目を上書きする（Bは従来のまま） */
+       - Aパート(body.mode-a)のときだけ、compact行の見た目を指定スタイルで上書きする
+       - Bパートには影響しない（セレクタを body.mode-a に限定） */
     body.mode-a .cscs-star-summary-line-compact {
         display: grid;
         grid-template-columns: 1fr;
@@ -1242,30 +1243,6 @@
       wrapContainer.appendChild(el);
     }
 
-    /* 追加した処理:
-       - Aパート（body.mode-a）のみ、field_summary パネルを #similar-list の直前に入れる
-       - Bパートは従来どおり .wrap の末尾に入れる（挙動を変えない） */
-    function insertFieldSummaryPanelPreferred(el) {
-      if (!el) return;
-
-      var isModeA = false;
-      try {
-        isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
-      } catch (_e) {
-        isModeA = false;
-      }
-
-      if (isModeA) {
-        var similar = document.getElementById("similar-list");
-        if (similar && similar.parentNode) {
-          similar.parentNode.insertBefore(el, similar);
-          return;
-        }
-      }
-
-      insertIntoWrapEnd(el);
-    }
-
     // すでに表示済みなら二重生成しない
     if (document.getElementById("cscs-field-star-summary")) return;
 
@@ -1415,7 +1392,30 @@
 
     needLine.style.marginLeft = "0px";
     needLine.style.fontWeight = "500";
-    panel.appendChild(needLine);
+
+    /* 追加した処理:
+       - Aパート(body.mode-a)のときだけ、compact行(div.cscs-star-summary-line-compact)を
+         <div id="similar-list"> の直前へ移動して挿入する
+       - similar-list が無い場合は移動せず、従来通り panel 内に入れる
+       - Bパートは何も変えず、従来通り panel 内に入れる */
+    (function () {
+      var isModeA = false;
+      try {
+        isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
+      } catch (_eModeA) {
+        isModeA = false;
+      }
+
+      if (isModeA) {
+        var similar = document.getElementById("similar-list");
+        if (similar && similar.parentNode) {
+          similar.parentNode.insertBefore(needLine, similar);
+          return;
+        }
+      }
+
+      panel.appendChild(needLine);
+    })();
 
     // コンソールに現在の目標値と進捗・リーチ数・✨数を出力して、値とレンダリング結果を確認できるようにする
     console.log("field_summary.js: compact star summary rendered", {
@@ -2742,10 +2742,7 @@
     panel.appendChild(list);
     panel.appendChild(qidInlineBox);
     // 通常パネルも「.wrap 内＆整合性パネル直後」に入れる
-    // 追加した処理:
-    // - Aパートは #similar-list 直前（見つからなければ従来どおり末尾）
-    // - Bパートは従来どおり末尾
-    insertFieldSummaryPanelPreferred(panel);
+    insertIntoWrapEnd(panel);
   }
 
   // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
