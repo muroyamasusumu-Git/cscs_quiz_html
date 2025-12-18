@@ -2031,8 +2031,8 @@
 #cscs_sync_monitor_a .sync-card .sync-body{
   /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
   word-break: break-word;
-  font-weight: 500;
-  opacity: 0.78;
+  font-weight: 450;
+  opacity: 0.70;
   font-size: 10.5px;
   letter-spacing: 0.01em;
 }
