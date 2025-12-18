@@ -86,142 +86,84 @@
   var LAST_ODOA_STATUS = "";
 
   // ★ このファイル内で管理する CSS（ここにどんどん追記していく）
-  //   - 目的: Bパートの SYNC ステータスパネルを「カード＋グリッド」レイアウトに統一する
-  //   - 手段: JS から style を注入し、テンプレ側のCSSに依存しない
+  //   - #cscs_sync_view_b が現行のパネルID
+  //   - 将来 #cscs_sync_monitor_b に変えても同じCSSが効くよう、両方を対象にしている
   var CSCS_SYNC_VIEW_B_CSS = [
-    "/* ===== CSCS SYNC STATUS PANEL (A/B 共通) ===== */",
-    "",
-    "#cscs_sync_monitor_b{",
+    "/* cscs_sync_view_b.js injected CSS */",
+    "#cscs_sync_view_b,",
+    "#cscs_sync_monitor_b {",
     "  position: fixed;",
     "  right: 15px;",
     "  top: 100px;",
-    "  width: 310px;",
-    "  max-width: 46vw;",
+    "  color: #eee;",
     "  padding: 8px;",
-    "  font: 10px/1.3 system-ui, -apple-system, sans-serif;",
-    "  color: #eee;",
-    "  background: transparent;",
-    "  z-index: 2147483647;",
+    "  font: 10px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  max-width: 46vw;",
+    "  width: 308px;",
     "  opacity: 0.55;",
+    "  z-index: 2147483647;",
     "}",
     "",
-    ".sync-header{",
-    "  display: flex;",
-    "  justify-content: flex-end;",
-    "  gap: 8px;",
-    "  font-weight: 700;",
-    "  margin-bottom: 6px;",
-    "}",
-    "",
-    ".sync-toggle-btn{",
-    "  border-radius: 999px;",
-    "  padding: 3px 8px;",
-    "  font-size: 10.5px;",
-    "  border: 1px solid rgba(255,255,255,0.18);",
-    "  background: rgba(0,0,0,0.45);",
-    "  color: #eee;",
-    "}",
-    "",
-    ".sync-grid{",
+    "/* --- card layout for status body --- */",
+    "#cscs_sync_view_b_body {",
     "  display: grid;",
-    "  grid-template-columns: repeat(2, 1fr);",
-    "  gap: 4px;",
+    "  grid-template-columns: 1fr;",
+    "  gap: 6px;",
+    "  margin-top: 6px;",
+    "  padding-top: 6px;",
+    "  border-top: 1px solid rgba(255,255,255,0.10);",
     "}",
     "",
-    ".sync-card{",
-    "  background: rgba(0,0,0,0.52);",
-    "  backdrop-filter: blur(6px);",
-    "  border: 1px solid rgba(255,255,255,0.14);",
-    "  border-radius: 10px;",
-    "  padding: 8px 10px;",
+    "/* 画面が広い時だけ 2列（“できるところは2列”） */",
+    "@media (min-width: 980px) {",
+    "  #cscs_sync_view_b_body {",
+    "    grid-template-columns: 1fr 1fr;",
+    "  }",
     "}",
     "",
-    ".sync-span-2{",
+    "#cscs_sync_view_b_body .cscs-svb-card {",
+    "  background: rgba(0,0,0,0.22);",
+    "  border: 1px solid rgba(255,255,255,0.10);",
+    "  border-radius: 8px;",
+    "  padding: 6px 7px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card.is-wide {",
     "  grid-column: 1 / -1;",
     "}",
     "",
-    ".sync-title{",
-    "  font-size: 11px;",
-    "  font-weight: 700;",
-    "  opacity: 0.85;",
-    "  margin-bottom: 4px;",
-    "  white-space: nowrap;",
+    "#cscs_sync_view_b_body .cscs-svb-card-title {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
+    "  margin-bottom: 5px;",
+    "  letter-spacing: 0.2px;",
     "}",
     "",
-    ".sync-title-en{",
-    "  opacity: 0.55;",
-    "  font-weight: 600;",
-    "  margin-left: 4px;",
-    "}",
-    "",
-    ".sync-body{",
-    "  font-size: 10.5px;",
-    "  opacity: 0.55;",
-    "}",
-    "",
-    ".totals-row{",
+    "#cscs_sync_view_b_body .cscs-svb-card-grid {",
     "  display: grid;",
-    "  grid-template-columns: auto 1fr 1fr 1fr;",
-    "  gap: 6px 10px;",
-    "  align-items: center;",
+    "  grid-template-columns: 1fr auto;",
+    "  column-gap: 10px;",
+    "  row-gap: 2px;",
     "}",
     "",
-    ".sync-totals-label{",
-    "  font-weight: 700;",
+    "#cscs_sync_view_b_body .cscs-svb-k {",
     "  opacity: 0.85;",
-    "}",
-    "",
-    ".mini-grid{",
-    "  display: grid;",
-    "  grid-template-columns: auto 1fr;",
-    "  gap: 4px 10px;",
-    "}",
-    "",
-    ".mini-label{",
-    "  font-weight: 600;",
-    "  opacity: 0.8;",
     "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
     "}",
     "",
-    ".mini-val{",
+    "#cscs_sync_view_b_body .cscs-svb-v {",
+    "  text-align: right;",
     "  font-variant-numeric: tabular-nums;",
     "  white-space: nowrap;",
     "}",
     "",
-    ".delta{",
-    "  opacity: 0.75;",
-    "  margin-left: 4px;",
-    "}",
-    "",
-    ".lastday-grid{",
-    "  display: grid;",
-    "  grid-template-columns: 80px 1fr 1fr;",
-    "  gap: 4px 10px;",
-    "  font-size: 10.5px;",
-    "}",
-    "",
-    ".ld-label{",
-    "  opacity: 0.75;",
-    "}",
-    "",
-    ".sync-lastday-headline{",
-    "  display: grid;",
-    "  grid-template-columns: max-content 1fr 1fr;",
-    "  gap: 10px;",
-    "  font-weight: 700;",
-    "  font-size: 11px;",
-    "  opacity: 0.85;",
-    "  margin-bottom: 6px;",
-    "}",
-    "",
-    ".status-grid{",
-    "  display: grid;",
-    "  grid-template-columns: auto 1fr;",
-    "  gap: 8px;",
-    "  font-size: 11px;",
+    "#cscs_sync_view_b_body .cscs-svb-muted {",
+    "  opacity: 0.70;",
     "}",
     ""
-  ].join(\"\\n\");
+  ].join("\n");
 
   // ★ styleタグを1回だけ注入（同じidがあれば中身を更新して上書き）
   function upsertStyleTag(styleId, cssText) {
@@ -623,8 +565,7 @@
   }
 
   function clearSyncBody() {
-    // ★ パネル本体（カード群）を描画するグリッド要素を取得して全消去する
-    var body = document.getElementById("cscs_sync_monitor_b_body");
+    var body = document.getElementById("cscs_sync_view_b_body");
     if (!body) return null;
 
     while (body.firstChild) {
@@ -637,64 +578,65 @@
     var body = clearSyncBody();
     if (!body) return;
 
-    // ★ エラー等は「ワイドカード1枚」で固定表示（sync-grid内で崩れにくくする）
+    // エラー時など：カード1枚で表示（狭い/広い両方で崩れにくい）
     var card = document.createElement("div");
-    card.className = "sync-card sync-span-2";
+    card.className = "cscs-svb-card is-wide";
 
-    var h = document.createElement("div");
-    h.className = "sync-title";
-    h.textContent = "Status";
+    var title = document.createElement("div");
+    title.className = "cscs-svb-card-title";
+    title.textContent = "Status";
 
     var grid = document.createElement("div");
-    grid.className = "mini-grid";
+    grid.className = "cscs-svb-card-grid";
 
     var k = document.createElement("div");
-    k.className = "mini-label";
+    k.className = "cscs-svb-k cscs-svb-muted";
     k.textContent = "message";
 
     var v = document.createElement("div");
-    v.className = "mini-val";
+    v.className = "cscs-svb-v";
     v.textContent = String(text);
 
     grid.appendChild(k);
     grid.appendChild(v);
 
-    card.appendChild(h);
+    card.appendChild(title);
     card.appendChild(grid);
     body.appendChild(card);
   }
 
-  function appendMiniRow(gridEl, key, value) {
-    // ★ 2列（label/value）の最小単位を追加する
+  function appendGridRow(gridEl, key, value, keyClass, valClass) {
     var k = document.createElement("div");
-    k.className = "mini-label";
+    k.className = "cscs-svb-k" + (keyClass ? " " + keyClass : "");
     k.textContent = key;
 
     var v = document.createElement("div");
-    v.className = "mini-val";
+    v.className = "cscs-svb-v" + (valClass ? " " + valClass : "");
     v.textContent = value;
 
     gridEl.appendChild(k);
     gridEl.appendChild(v);
   }
 
-  function appendCard(body, titleText, isWide) {
-    // ★ sync-card を生成して body(sync-grid) に追加し、本文の描画先要素を返す
+  function appendGridSection(body, title, options) {
+    options = options || {};
+    var wide = !!options.wide;
+
     var card = document.createElement("div");
-    card.className = "sync-card" + (isWide ? " sync-span-2" : "");
+    card.className = "cscs-svb-card" + (wide ? " is-wide" : "");
 
     var h = document.createElement("div");
-    h.className = "sync-title";
-    h.textContent = titleText;
+    h.className = "cscs-svb-card-title";
+    h.textContent = title;
 
-    var content = document.createElement("div");
-    content.className = "sync-body";
+    var grid = document.createElement("div");
+    grid.className = "cscs-svb-card-grid";
 
     card.appendChild(h);
-    card.appendChild(content);
+    card.appendChild(grid);
     body.appendChild(card);
 
-    return content;
+    return grid;
   }
 
   function updateSyncBodyGrid(model) {
@@ -706,148 +648,52 @@
       return;
     }
 
-    // ★ 1) Totals（Counts）カード：提示UIの「Totals (c / w)」行を再現
-    var cTotals = appendCard(body, "Totals (c / w)", true);
+    // --- Counts ---
+    var gCounts = appendGridSection(body, "Counts");
+    appendGridRow(gCounts, "server (correct / wrong)", String(model.serverCorrect) + " / " + String(model.serverWrong));
+    appendGridRow(gCounts, "local  (correct / wrong)", String(model.localCorrect) + " / " + String(model.localWrong));
+    appendGridRow(gCounts, "diff   (correct / wrong)", String(model.diffCorrect) + " / " + String(model.diffWrong), "cscs-svb-muted", "");
 
-    var totals = document.createElement("div");
-    totals.className = "totals-row";
+    // --- Streak (Correct) ---
+    var gStreakC = appendGridSection(body, "Streak (Correct)");
+    appendGridRow(gStreakC, "s3 (sync / local / +diff)",
+      String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+    );
+    appendGridRow(gStreakC, "sLen (sync / local / +diff)",
+      String(model.serverStreakLen) + " / " + String(model.localStreakLen) + " (+" + String(model.diffStreakLen) + ")"
+    );
+    appendGridRow(gStreakC, "progress (sync / local)",
+      String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
+    );
 
-    var lab = document.createElement("div");
-    lab.className = "sync-totals-label";
-    lab.textContent = "SYNC";
+    // --- Streak (Wrong) ---
+    var gStreakW = appendGridSection(body, "Streak (Wrong)");
+    appendGridRow(gStreakW, "s3W (sync / local / +diff)",
+      String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+    );
+    appendGridRow(gStreakW, "sLenW (sync / local / +diff)",
+      String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen) + " (+" + String(model.diffWrongStreakLen) + ")"
+    );
+    appendGridRow(gStreakW, "progress (sync / local)",
+      String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
+    );
 
-    var vSync = document.createElement("div");
-    vSync.className = "mini-val";
-    vSync.textContent = String(model.serverCorrect) + " / " + String(model.serverWrong);
+    // --- Today Unique ---
+    var gToday = appendGridSection(body, "Streak3TodayUnique");
+    appendGridRow(gToday, "day", String(model.s3TodayDayLabel));
+    appendGridRow(gToday, "unique (sync / local)", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
 
-    var vLocal = document.createElement("div");
-    vLocal.className = "mini-val";
-    vLocal.textContent = "local " + String(model.localCorrect) + " / " + String(model.localWrong);
+    var gTodayW = appendGridSection(body, "Streak3WrongTodayUnique");
+    appendGridRow(gTodayW, "day", String(model.s3WrongTodayDayLabel));
+    appendGridRow(gTodayW, "unique (sync / local)", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
 
-    var vDelta = document.createElement("div");
-    vDelta.className = "mini-val";
-    vDelta.textContent = "+Δ " + String(model.diffCorrect) + " / " + String(model.diffWrong);
+    // --- LastDay（情報量多めなのでワイドカードに） ---
+    var gLast = appendGridSection(body, "LastDay (SYNC / local)", { wide: true });
+    appendGridRow(gLast, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
+    appendGridRow(gLast, "lastCorrect", "sync " + String(model.lastCorrectSyncLabel) + " / local " + String(model.lastCorrectLocalLabel));
+    appendGridRow(gLast, "lastWrong", "sync " + String(model.lastWrongSyncLabel) + " / local " + String(model.lastWrongLocalLabel));
 
-    totals.appendChild(lab);
-    totals.appendChild(vSync);
-    totals.appendChild(vLocal);
-    totals.appendChild(vDelta);
-
-    cTotals.appendChild(totals);
-
-    // ★ 2) 3連続 正解（左）と 3連続 正解 進捗（右）
-    var cS3 = appendCard(body, "3連続 正解", false);
-    var gS3 = document.createElement("div");
-    gS3.className = "mini-grid";
-    appendMiniRow(gS3, "SYNC / local", "SYNC " + String(model.serverStreak3) + " / local " + String(model.localStreak3));
-    appendMiniRow(gS3, "s3 (Δ)", String(model.diffStreak3));
-    cS3.appendChild(gS3);
-
-    var cS3Prog = appendCard(body, "3連続 正解 進捗", false);
-    var gS3p = document.createElement("div");
-    gS3p.className = "mini-grid";
-    appendMiniRow(gS3p, "SYNC / local", "SYNC (" + String(model.serverProgress) + "/3) / local (" + String(model.localProgress) + "/3)");
-    appendMiniRow(gS3p, "sLen (Δ)", String(model.diffStreakLen));
-    cS3Prog.appendChild(gS3p);
-
-    // ★ 3) 3連続 不正解（左）と 3連続 不正解 進捗（右）
-    var cS3w = appendCard(body, "3連続 不正解", false);
-    var gS3w = document.createElement("div");
-    gS3w.className = "mini-grid";
-    appendMiniRow(gS3w, "SYNC / local", "SYNC " + String(model.serverStreak3Wrong) + " / local " + String(model.localStreak3Wrong));
-    appendMiniRow(gS3w, "s3W (Δ)", String(model.diffStreak3Wrong));
-    cS3w.appendChild(gS3w);
-
-    var cS3wProg = appendCard(body, "3連続 不正解 進捗", false);
-    var gS3wp = document.createElement("div");
-    gS3wp.className = "mini-grid";
-    appendMiniRow(gS3wp, "SYNC / local", "SYNC (" + String(model.serverWrongProgress) + "/3) / local (" + String(model.localWrongProgress) + "/3)");
-    appendMiniRow(gS3wp, "sLenW (Δ)", String(model.diffWrongStreakLen));
-    cS3wProg.appendChild(gS3wp);
-
-    // ★ 4) Streak3TodayUnique（左） / Streak3WrongTodayUnique（右）
-    var cToday = appendCard(body, "Streak3TodayUnique", false);
-    var gToday = document.createElement("div");
-    gToday.className = "mini-grid";
-    appendMiniRow(gToday, "day", String(model.s3TodayDayLabel));
-    appendMiniRow(gToday, "unique", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
-    cToday.appendChild(gToday);
-
-    var cTodayW = appendCard(body, "Streak3WrongTodayUnique", false);
-    var gTodayW = document.createElement("div");
-    gTodayW.className = "mini-grid";
-    appendMiniRow(gTodayW, "day", String(model.s3WrongTodayDayLabel));
-    appendMiniRow(gTodayW, "unique", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
-    cTodayW.appendChild(gTodayW);
-
-    // ★ 5) LastDay（ワイド）: 3行×(SYNC/local) の見た目に寄せる
-    var cLast = appendCard(body, "LastDay", true);
-
-    var head = document.createElement("div");
-    head.className = "sync-lastday-headline";
-
-    var h0 = document.createElement("div");
-    h0.textContent = "";
-
-    var h1 = document.createElement("div");
-    h1.textContent = "SYNC";
-
-    var h2 = document.createElement("div");
-    h2.textContent = "local";
-
-    head.appendChild(h0);
-    head.appendChild(h1);
-    head.appendChild(h2);
-
-    var gLast = document.createElement("div");
-    gLast.className = "lastday-grid";
-
-    var r1 = document.createElement("div");
-    r1.className = "ld-label";
-    r1.textContent = "lastSeen";
-    var r1s = document.createElement("div");
-    r1s.className = "mini-val";
-    r1s.textContent = String(model.lastSeenSyncLabel);
-    var r1l = document.createElement("div");
-    r1l.className = "mini-val";
-    r1l.textContent = String(model.lastSeenLocalLabel);
-
-    var r2 = document.createElement("div");
-    r2.className = "ld-label";
-    r2.textContent = "lastCorrect";
-    var r2s = document.createElement("div");
-    r2s.className = "mini-val";
-    r2s.textContent = String(model.lastCorrectSyncLabel);
-    var r2l = document.createElement("div");
-    r2l.className = "mini-val";
-    r2l.textContent = String(model.lastCorrectLocalLabel);
-
-    var r3 = document.createElement("div");
-    r3.className = "ld-label";
-    r3.textContent = "lastWrong";
-    var r3s = document.createElement("div");
-    r3s.className = "mini-val";
-    r3s.textContent = String(model.lastWrongSyncLabel);
-    var r3l = document.createElement("div");
-    r3l.className = "mini-val";
-    r3l.textContent = String(model.lastWrongLocalLabel);
-
-    gLast.appendChild(r1);
-    gLast.appendChild(r1s);
-    gLast.appendChild(r1l);
-
-    gLast.appendChild(r2);
-    gLast.appendChild(r2s);
-    gLast.appendChild(r2l);
-
-    gLast.appendChild(r3);
-    gLast.appendChild(r3s);
-    gLast.appendChild(r3l);
-
-    cLast.appendChild(head);
-    cLast.appendChild(gLast);
-
-    // ★ 6) Queue / Pending（ワイド）
+    // --- Pending (unsent) ---
     var pendingText = "none";
     if (model.pending && typeof model.pending === "object") {
       var bits = [];
@@ -865,11 +711,8 @@
       }
     }
 
-    var cPending = appendCard(body, "Queue Δ detail（送信待ち）", true);
-    var gPending = document.createElement("div");
-    gPending.className = "mini-grid";
-    appendMiniRow(gPending, "pending", pendingText);
-    cPending.appendChild(gPending);
+    var gPending = appendGridSection(body, "Pending (unsent)", { wide: true });
+    appendGridRow(gPending, "status", pendingText);
   }
 
   function fetchState() {
@@ -883,31 +726,18 @@
 
   function createPanel() {
     var box = document.createElement("div");
-    box.id = "cscs_sync_monitor_b";
+    box.id = "cscs_sync_view_b";
 
-    // ★ 1) ヘッダー領域（右寄せのボタン群）
-    //   - ここでは「CLOSE」の見た目だけ用意（閉じる挙動はこのファイルでは増設しない）
-    var header = document.createElement("div");
-    header.className = "sync-header";
+    var title = document.createElement("div");
+    title.id = "cscs_sync_view_b_title";
+    title.textContent = "SYNC(B): " + info.qid;
 
-    var closeBtn = document.createElement("button");
-    closeBtn.type = "button";
-    closeBtn.className = "sync-toggle-btn";
-    closeBtn.textContent = "CLOSE";
-
-    header.appendChild(closeBtn);
-
-    // ★ 2) グリッド本体（カード群をここに描画する）
-    //   - updateSyncBodyGrid / updateSyncBodyText がこの要素を更新する
     var body = document.createElement("div");
-    body.id = "cscs_sync_monitor_b_body";
-    body.className = "sync-grid";
+    body.id = "cscs_sync_view_b_body";
     body.textContent = "読み込み中…";
 
-    // ★ 3) ステータス行（最下部の短文ステータス表示）
-    //   - O.D.O.A Mode などの短い文をここに出す
     var statusDiv = document.createElement("div");
-    statusDiv.id = "cscs_sync_monitor_b_status";
+    statusDiv.id = "cscs_sync_view_b_status";
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
@@ -922,12 +752,15 @@
     btn.id = "cscs_sync_view_b_send_btn";
     btn.type = "button";
     btn.textContent = "SYNC送信";
-    // ★ UIとしては完全非表示。ただし click() のターゲットとして DOM 上に必ず残す。
+    // ★ ボタンは UI としては完全に非表示にするが、DOM 上には残すために inline style で display:none を指定する。
+    //   - CSS ファイル側で非表示にすると、スタイル整理時に誤って削除されるリスクがあるため、
+    //     あえてここで style 属性を直書きしている。
     btn.setAttribute("style", "display:none;");
 
-    box.appendChild(header);
+    box.appendChild(title);
     box.appendChild(body);
     box.appendChild(statusDiv);
+    // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
     box.appendChild(btn);
 
     return box;
@@ -1239,7 +1072,7 @@
         console.log("[SYNC-B] ODOA HUD status set from mode:", odoaStatusText);
       }
 
-      var statusDiv = document.getElementById("cscs_sync_monitor_b_status");
+      var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
         statusDiv.textContent = odoaStatusText;
       }
@@ -1252,7 +1085,7 @@
       var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
       updateSyncBodyText(errorText);
 
-      var statusDiv = document.getElementById("cscs_sync_monitor_b_status");
+      var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
         // エラー時もフォーマットは崩さず OFF として出す
         statusDiv.textContent = "O.D.O.A Mode : OFF";
@@ -2599,8 +2432,7 @@
   };
 
   window.addEventListener("online", function () {
-    // ★ online復帰時：新パネルIDの要素を取得して HUD を更新する
-    var box = document.getElementById("cscs_sync_monitor_b");
+    var box = document.getElementById("cscs_sync_view_b");
     if (!box) return;
     refreshAndSend(box);
   });
