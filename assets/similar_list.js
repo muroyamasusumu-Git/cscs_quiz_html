@@ -471,8 +471,27 @@
   padding-left:0;
   list-style:none;   /* ← ドット削除 */
 }
-#similar-list li{ margin:4px 0; font-size:14px; font-weight:300; }
-#similar-list a{ color:#fff; text-decoration:none; }
+#similar-list li{
+  margin:4px 0;
+  font-size:14px;
+  font-weight:300;
+
+  display:flex;
+  align-items:center;
+  gap:0;
+}
+#similar-list a{
+  color:#fff;
+  text-decoration:none;
+
+  /* 追加：1行固定＋省略表示 */
+  display:inline-block;
+  max-width: calc(100% - 70px); /* タグ分を除外（微調整可） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
 #similar-list a:hover{ text-decoration:underline; }
 #similar-list .tag{
   display:inline-flex;
