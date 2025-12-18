@@ -2041,42 +2041,12 @@
   letter-spacing: 0.02em;
 }
 #cscs_sync_monitor_a .sync-card .sync-body{
-  /* ★ グリッドのマス内では改行させない（必要なら行をグリッドで分ける） */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-
   /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
-  word-break: normal;
+  word-break: break-word;
   font-weight: 450;
   opacity: 0.70;
   font-size: 10.5px;
   letter-spacing: 0.01em;
-}
-
-/* ★ “複数行” に見せたいものは <br> ではなく「小グリッド」で行を分ける */
-#cscs_sync_monitor_a .mini-grid{
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 10px;
-  font-size: 11px;
-  line-height: 1.25;
-}
-
-#cscs_sync_monitor_a .mini-label{
-  font-weight: 600;
-  opacity: 0.80;
-  white-space: nowrap;
-}
-
-#cscs_sync_monitor_a .mini-val{
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 #cscs_sync_monitor_a .status-grid{
@@ -2313,26 +2283,16 @@
           <div class="sync-card">
             <div class="sync-title">Streak3TodayUnique</div>
             <div class="sync-body sync-streak3today">
-              <div class="mini-grid">
-                <div class="mini-label">day</div>
-                <div class="mini-val"><span class="sync-streak3today-day">-</span></div>
-
-                <div class="mini-label">unique</div>
-                <div class="mini-val">sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span></div>
-              </div>
+              day: <span class="sync-streak3today-day">-</span><br>
+              unique: sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span>
             </div>
           </div>
 
           <div class="sync-card">
             <div class="sync-title">Streak3WrongTodayUq</div>
             <div class="sync-body sync-streak3wrongtoday">
-              <div class="mini-grid">
-                <div class="mini-label">day</div>
-                <div class="mini-val"><span class="sync-streak3wrongtoday-day">-</span></div>
-
-                <div class="mini-label">unique</div>
-                <div class="mini-val">sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span></div>
-              </div>
+              day: <span class="sync-streak3wrongtoday-day">-</span><br>
+              unique: sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span>
             </div>
           </div>
 
