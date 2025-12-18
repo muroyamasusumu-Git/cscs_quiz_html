@@ -144,6 +144,17 @@
     "  opacity: 0.90;",
     "  margin-bottom: 5px;",
     "  letter-spacing: 0.2px;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-title-suffix {",
+    "  font-size: 9px;",
+    "  font-weight: 600;",
+    "  opacity: 0.55;",
+    "  margin-left: 6px;",
+    "  white-space: nowrap;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card-grid {",
@@ -753,29 +764,73 @@
       body.appendChild(card);
     })();
 
-    // --- 3連続正解（SYNC / local / diff）※Countsの下段に回し、3連続不正解と横2列で並ぶ（広い画面時） ---
-    var gStreakC = appendGridSection(body, "3連続正解 (SYNC / local / diff)");
-    appendGridRow(gStreakC, "s3",
-      String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
-    );
-    appendGridRow(gStreakC, "sLen",
-      String(model.serverStreakLen) + " / " + String(model.localStreakLen) + " (+" + String(model.diffStreakLen) + ")"
-    );
-    appendGridRow(gStreakC, "progress",
-      String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3"
-    );
+    // --- 3連続正解（SYNC / local / diff）※2行：回数(s3) / 進捗(progress) ---
+    (function appendStreakCorrect2Rows() {
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card";
 
-    // --- 3連続不正解（SYNC / local / diff） ---
-    var gStreakW = appendGridSection(body, "3連続不正解 (SYNC / local / diff)");
-    appendGridRow(gStreakW, "s3",
-      String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
-    );
-    appendGridRow(gStreakW, "sLen",
-      String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen) + " (+" + String(model.diffWrongStreakLen) + ")"
-    );
-    appendGridRow(gStreakW, "progress",
-      String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3"
-    );
+      var h = document.createElement("div");
+      h.className = "cscs-svb-card-title";
+      h.textContent = "3連続正解";
+
+      var suf = document.createElement("span");
+      suf.className = "svb-title-suffix";
+      suf.textContent = "(SYNC / local / diff)";
+      h.appendChild(suf);
+
+      var grid = document.createElement("div");
+      grid.className = "cscs-svb-card-grid";
+
+      appendGridRow(
+        grid,
+        "回数(s3)",
+        String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+      );
+
+      appendGridRow(
+        grid,
+        "進捗(progress)",
+        String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
+      );
+
+      card.appendChild(h);
+      card.appendChild(grid);
+      body.appendChild(card);
+    })();
+
+    // --- 3連続不正解（SYNC / local / diff）※2行：回数(s3) / 進捗(progress) ---
+    (function appendStreakWrong2Rows() {
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card";
+
+      var h = document.createElement("div");
+      h.className = "cscs-svb-card-title";
+      h.textContent = "3連続不正解";
+
+      var suf = document.createElement("span");
+      suf.className = "svb-title-suffix";
+      suf.textContent = "(SYNC / local / diff)";
+      h.appendChild(suf);
+
+      var grid = document.createElement("div");
+      grid.className = "cscs-svb-card-grid";
+
+      appendGridRow(
+        grid,
+        "回数(s3)",
+        String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+      );
+
+      appendGridRow(
+        grid,
+        "進捗(progress)",
+        String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
+      );
+
+      card.appendChild(h);
+      card.appendChild(grid);
+      body.appendChild(card);
+    })();
 
     // --- Today Unique ---
     var gToday = appendGridSection(body, "Streak3TodayUnique");
@@ -887,6 +942,7 @@
 
       var serverProgress = serverStreakLen % 3;
       var localProgress = localStreakLen % 3;
+      var diffProgress = Math.max(0, localProgress - serverProgress);
 
       // ★ 3連続不正解用のサマリを server / local / diff から計算して HUD に追加表示する
       //   - server 側: window.__cscs_sync_state.streak3Wrong / streakWrongLen（存在すれば使用）
@@ -946,6 +1002,7 @@
 
           serverWrongProgress = serverWrongStreakLen % 3;
           localWrongProgress = localWrongStreakLen % 3;
+          diffWrongProgress = Math.max(0, localWrongProgress - serverWrongProgress);
 
           console.log("[SYNC-B:view] wrong-streak status", {
             qid: qidForStreakWrong,
@@ -1080,6 +1137,7 @@
 
         serverProgress: serverProgress,
         localProgress: localProgress,
+        diffProgress: diffProgress,
 
         serverStreak3Wrong: serverStreak3Wrong,
         localStreak3Wrong: localStreak3Wrong,
@@ -1091,6 +1149,7 @@
 
         serverWrongProgress: serverWrongProgress,
         localWrongProgress: localWrongProgress,
+        diffWrongProgress: diffWrongProgress,
 
         s3TodayDayLabel: s3TodayDayLabel,
         s3TodaySyncCnt: s3TodaySyncCnt,
