@@ -349,7 +349,7 @@
 
 /* ---- cells (shared base) ---- */
 #nl-progress-header .nl-ph-cell{
-  height: 8px;
+  height: 12px;
   border-radius: 2px;
   background: rgba(255,255,255,0.02);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
@@ -471,8 +471,9 @@
 }
 
 #nl-progress-header .nl-ph-grid-q {
-    gap: 1px 2px !important;
+    gap: 3px 3px !important;
     margin-bottom: 5px;
+    margin-left: 60px;
 }
 
 #nl-progress-header .nl-ph-cell-day {
