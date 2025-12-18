@@ -710,17 +710,17 @@
       }
 
       addItem(
-        "server (correct / wrong)",
+        "SYNC (c / w)",
         String(model.serverCorrect) + " / " + String(model.serverWrong),
         false
       );
       addItem(
-        "local (correct / wrong)",
+        "local (c / w)",
         String(model.localCorrect) + " / " + String(model.localWrong),
         false
       );
       addItem(
-        "diff (correct / wrong)",
+        "diff (c / w)",
         String(model.diffCorrect) + " / " + String(model.diffWrong),
         true
       );
