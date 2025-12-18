@@ -544,6 +544,31 @@
     will-change: background-position, filter;
 }
 
+/* =========================================================
+   追加: 問題別マスにも日別と同じ“流れる呼吸”を適用
+   - is-today / is-solved-today はJS側で除外（見た目を壊さない）
+   ========================================================= */
+#nl-progress-header .nl-ph-cell-q.is-fx-breath{
+    /* 日別と同じ “斜めの多段グラデ” を流す */
+    background-image: linear-gradient(
+      135deg,
+      rgba(255,255,255,0.120) 0%,
+      rgba(255,255,255,0.018) 32%,
+      rgba(0,0,0,0.220) 68%,
+      rgba(255,255,255,0.090) 100%
+    );
+    background-size: 240% 240%;
+    background-position: 0% 0%;
+    background-repeat: no-repeat;
+
+    animation-name: nl-day-gradient-shift;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: normal;
+
+    will-change: background-position, filter;
+}
+
 /* 斜めグラデの“移動”だけを行う（明暗の総量は変えない） */
 @keyframes nl-day-gradient-shift{
     0%{
@@ -1330,18 +1355,100 @@
       dayGrid.__nlDayTwinkleTimer = null;
 
     }catch(_eAll){}
+  }
+
+  function startQGridFx(qGrid, todayIndex){
+    // =========================================================
+    // 問題別マスの演出（機能と完全分離）
+    //
+    // 目的:
+    // - 日別マスと同じ「斜めグラデが流れる呼吸」を問題別にも適用する
+    //
+    // 仕様:
+    // - is-today（現在地）と is-solved-today（今日解いた白マス）は演出除外
+    //   （既存の “白” 表現を壊さない）
+    // - それ以外のセルに is-fx-breath を付与し、delay/duration を座標で固定計算
+    // =========================================================
+    try{
+      if (!qGrid) return;
+
+      var kind = String(qGrid.getAttribute("data-kind") || "");
+      if (kind !== "q") return;
+
+      var cols = Number(qGrid.getAttribute("data-cols") || 0);
+      if (!Number.isFinite(cols) || cols <= 0) cols = 15;
+
+      var cells = qGrid.querySelectorAll(".nl-ph-cell-q");
+      if (!cells || cells.length <= 0) return;
+
+      var total = cells.length;
+      var rows = Math.ceil(total / cols);
+      if (!Number.isFinite(rows) || rows <= 0) rows = 1;
+
+      // 既存タイマーがあれば終了（q側も同じ扱い）
+      if (qGrid.__nlQModeTimer) {
+        clearInterval(qGrid.__nlQModeTimer);
+        qGrid.__nlQModeTimer = null;
+      }
+
+      // 日別と同系統（少しだけ短めでもOK）
+      var dur = 16 + Math.random() * 7;
+
+      // 位相差（delay）は day と同じ思想
+      var delayStep = 0.20;
+
+      // 波の形（固定）
+      var waveA = 0.80;
+      var waveB = 0.55;
+
+      var i;
+      for (i = 0; i < cells.length; i++){
+        var c = cells[i];
+        if (!c) continue;
+
+        // 現在地/今日解いた白マスは演出除外（見た目維持）
+        if (c.classList.contains("is-today") || c.classList.contains("is-solved-today")) {
+          c.classList.remove("is-fx-breath");
+          try{
+            c.style.animationDelay = "";
+            c.style.animationDuration = "";
+          }catch(_eQSkip){}
+          continue;
+        }
+
+        var x = i % cols;
+        var y = Math.floor(i / cols);
+
+        var fx = cols > 1 ? (x / (cols - 1)) : 0;
+        var fy = rows > 1 ? (y / (rows - 1)) : 0;
+
+        var diag = fx + fy;
+
+        var t = (diag * 0.5 * waveA) + (diag * 0.5 * waveB);
+
+        c.classList.add("is-fx-breath");
+
+        try{
+          c.style.animationDuration = String(dur.toFixed(2)) + "s";
+          var baseDelay = (t * delayStep);
+          var startInPast = baseDelay - (dur * 0.85);
+          c.style.animationDelay = String(startInPast.toFixed(2)) + "s";
+        }catch(_eQStyle){}
+      }
+
+    }catch(_eAll){}
   }    
 
-    progressHost.appendChild(
-      buildProgressGrid(
-        30,                    // total（問題数）
-        qFilled,               // filled（★獲得済み数）
-        15,                    // cols（横15 × 縦2）
-        currentQIndex,         // 現在位置（点滅）
-        "q",
-        qSolvedIndexMapForUi    // 今日(強)＋過去(薄) の合成マップ
-      )
+    var qGrid = buildProgressGrid(
+      30,                    // total（問題数）
+      qFilled,               // filled（★獲得済み数）
+      15,                    // cols（横15 × 縦2）
+      currentQIndex,         // 現在位置（点滅）
+      "q",
+      qSolvedIndexMapForUi    // 今日(強)＋過去(薄) の合成マップ
     );
+    progressHost.appendChild(qGrid);
+    startQGridFx(qGrid, currentQIndex);
 
     // =========================================================
     // 進捗テキスト（数字の行）を “問題別マスの下” に統合表示する
