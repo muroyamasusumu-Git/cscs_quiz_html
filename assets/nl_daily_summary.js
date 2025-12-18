@@ -323,7 +323,7 @@
   display:flex;
   align-items:baseline;
   justify-content:space-between;
-  gap:5px;
+  gap:2px;             /* 変更: ラベルと値を近づける */
   margin-top: 0px;
 }
 
