@@ -2053,8 +2053,8 @@
   /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
   word-break: normal;
   font-weight: 400;
-  opacity: 0.60;
-  font-size: 10.5px;
+  opacity: 0.52;
+  font-size: 10.25px;
   letter-spacing: 0.01em;
 }
 
