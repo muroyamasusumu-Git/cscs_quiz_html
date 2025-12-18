@@ -956,6 +956,7 @@
       var diffWrongStreakLen = 0;
       var serverWrongProgress = 0;
       var localWrongProgress = 0;
+      var diffWrongProgress = 0;
 
       try {
         if (qidForStreakWrong) {
