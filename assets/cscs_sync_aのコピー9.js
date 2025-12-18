@@ -333,7 +333,7 @@
 
         const serverTextEl = totalsEl.querySelector(".sync-server-text");
         if (serverTextEl) {
-          serverTextEl.textContent = "SYNC " + sc + " / " + si;
+          serverTextEl.textContent = "server " + sc + " / " + si;
         }
       }
 
@@ -2265,7 +2265,7 @@
               <div class="sync-totals-label">Totals(c/w)</div>
 
               <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">
-                <span class="sync-server-text">SYNC 0 / 0</span>
+                <span class="sync-server-text">server 0 / 0</span>
               </div>
 
               <div class="sync-local">local  0 / 0</div>
