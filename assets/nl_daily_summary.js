@@ -315,7 +315,7 @@
   border-bottom: 0;
   text-align: left;
   opacity: 0.7;
-  margin: 0 0 5px 40px;
+  margin: 0 0 5px 0;
 }
 
 
@@ -467,7 +467,7 @@
 #nl-progress-header .nl-ph-grid-day {
     gap: 2px 4px;
     margin-bottom: 5px;
-    margin-left: 0px;
+    margin-left: 60px;
 }
 
 #nl-progress-header .nl-ph-grid-q {
