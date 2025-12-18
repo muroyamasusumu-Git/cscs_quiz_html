@@ -107,6 +107,7 @@
     "/* --- card layout for status body --- */",
     "#cscs_sync_view_b_title {",
     "  text-align: right;",
+    "  margin-right: 3px;",
     "}",
     "",
     "#cscs_sync_view_b_body {",
