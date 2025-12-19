@@ -123,7 +123,7 @@
     "#cscs_sync_view_b_body .svb-streak-quad {",
     "  display: grid;",
     "  grid-template-columns: 1fr 1fr;",
-    "  gap: 6px;",
+    "  gap: 4px 2px;",
     "}",
     "",
     "#cscs_sync_view_b_body .svb-streak-quad .svb-streak-card {",
