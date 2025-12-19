@@ -2208,40 +2208,6 @@
   white-space: nowrap;
 }
 
-/* ============================================================
-   ★ 右ブロック（値側）を右寄せに統一
-   ------------------------------------------------------------
-   - 2カラム系: mini-grid / status-grid / delta-grid / once-grid
-   - Totals(c/w) 行: 2〜4列を右寄せ
-   - lastday-grid / days-grid: 「ラベル以外」を右寄せ
-   ============================================================ */
-#cscs_sync_monitor_a .mini-val,
-#cscs_sync_monitor_a .status-value,
-#cscs_sync_monitor_a .delta-val,
-#cscs_sync_monitor_a .once-val{
-  text-align: right;
-}
-
-/* Totals(c/w) の行は 4カラムなので、値側(2〜4列)を右寄せ */
-#cscs_sync_monitor_a .totals-row > :nth-child(2),
-#cscs_sync_monitor_a .totals-row > :nth-child(3),
-#cscs_sync_monitor_a .totals-row > :nth-child(4){
-  text-align: right;
-}
-
-/* lastday-grid は 3カラム（label / SYNC / local） */
-#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+2),
-#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+3){
-  text-align: right;
-}
-
-/* days-grid は 4カラム（label / sync / local / isToday） */
-#cscs_sync_monitor_a .days-grid > :nth-child(4n+2),
-#cscs_sync_monitor_a .days-grid > :nth-child(4n+3),
-#cscs_sync_monitor_a .days-grid > :nth-child(4n+4){
-  text-align: right;
-}
-
 /* ★ lastday は折りたたみ無し：常時表示の1行ヘッダー */
 #cscs_sync_monitor_a .sync-lastday-headline{
   display: grid;
