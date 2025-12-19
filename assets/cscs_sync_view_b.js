@@ -357,19 +357,26 @@
     "}",
     "",
     "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
+    "/* 何をしているか: LastDay の列定義/ギャップ定義を1箇所に集約し、見出し(head)と本文(grid)で完全共有する */",
+    "#cscs_sync_view_b_body .svb-lastday-card {",
+    "  --svb-lastday-cols: minmax(0, 1fr) minmax(0, 14ch) minmax(0, 14ch);",
+    "  --svb-lastday-gap: 10px;",
+    "}",
+    "",
     "#cscs_sync_view_b_body .svb-lastday-head {",
     "  display: grid;",
-    "  /* 何をしているか: 見出し/本文で列幅がズレないように、3列の幅ルールを固定化する */",
-    "  grid-template-columns: minmax(0, 1fr) minmax(0, 14ch) minmax(0, 14ch);",
+    "  /* 何をしているか: 列幅は .svb-lastday-card のCSS変数を参照して、本文とズレないようにする */",
+    "  grid-template-columns: var(--svb-lastday-cols);",
     "  /* 何をしているか: グリッドがカード幅いっぱいに伸びるように明示する（見た目の幅ズレ防止） */",
     "  width: 100%;",
     "  box-sizing: border-box;",
-    "  column-gap: 10px;",
+    "  /* 何をしているか: ギャップも共通化して、head/gridで列位置が一致するようにする */",
+    "  column-gap: var(--svb-lastday-gap);",
     "  row-gap: 3px;",
     "  align-items: baseline;",
     "  opacity: 0.90;",
     "  font-weight: 800;",
-    "  margin-bottom: 5px;", 
+    "  margin-bottom: 5px;",
     "}",
     "",
     "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-k {",
@@ -395,12 +402,13 @@
     "",
     "#cscs_sync_view_b_body .svb-lastday-grid {",
     "  display: grid;",
-    "  /* 何をしているか: 見出しと完全に同じ列定義にして、ヘッダーと本文の幅を揃える */",
-    "  grid-template-columns: minmax(0, 1fr) minmax(0, 14ch) minmax(0, 14ch);",
+    "  /* 何をしているか: 見出しと同じCSS変数を参照して、ヘッダーと本文の列位置を完全一致させる */",
+    "  grid-template-columns: var(--svb-lastday-cols);",
     "  /* 何をしているか: 本文側もカード幅いっぱいに伸ばして、列幅計算を一致させる */",
     "  width: 100%;",
     "  box-sizing: border-box;",
-    "  column-gap: 10px;",
+    "  /* 何をしているか: ギャップも共通化して、head/gridで列位置が一致するようにする */",
+    "  column-gap: var(--svb-lastday-gap);",
     "  row-gap: 3px;",
     "  opacity: 0.60;",
     "}",
@@ -1088,7 +1096,8 @@
     // --- OncePerDayToday / O.D.O.A Mode（ワイドカード） ---
     (function appendOncePerDayAndOdoaWideCard() {
       var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide";
+      // 何をしているか: LastDay専用のCSS変数（列幅/ギャップ）をこのカードにだけ効かせるため、専用classを付与する
+      card.className = "cscs-svb-card is-wide svb-lastday-card";
 
       var h = document.createElement("div");
       h.className = "cscs-svb-card-title";
