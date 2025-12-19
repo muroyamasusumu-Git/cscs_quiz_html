@@ -414,7 +414,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     const styleReset = document.createElement("style");
     styleReset.textContent = `
 #dd-inline, #dd-inline * {
-    margin: 7px 7px 0 0!important;
+    margin: 7px 7px 7px 0!important;
     padding: 0 !important;
     border: 0 !important;
     line-height: 16px !important;
