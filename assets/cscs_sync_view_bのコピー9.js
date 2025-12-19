@@ -1297,37 +1297,6 @@
       body.appendChild(card);
     })();
 
-    // --- Correct Streak (local / b_judge_record.js) ---
-    (function appendCorrectStreakMaxCard() {
-      // ★ 何をしているか:
-      //   b_judge_record.js の localStorage 計測結果（現在の連続正解数 / 最高連続正解数 / 達成日）を
-      //   1枚のワイドカードとして表示し、Pending の直前に差し込む
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide";
-
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "Correct Streak (this q / local)";
-
-      var grid = document.createElement("div");
-      grid.className = "cscs-svb-card-grid";
-
-      appendGridRow(grid, "streak_len", String(model.localStreakLen));
-      appendGridRow(grid, "streak_max", String(model.localCorrectStreakMax));
-      appendGridRow(grid, "max_day", String(model.localCorrectStreakMaxDayLabel));
-
-      card.appendChild(h);
-      card.appendChild(grid);
-      body.appendChild(card);
-
-      console.log("[SYNC-B:view] appended Correct Streak card", {
-        qid: (info && info.qid) ? info.qid : "-",
-        streak_len: model.localStreakLen,
-        streak_max: model.localCorrectStreakMax,
-        max_day: model.localCorrectStreakMaxDayLabel
-      });
-    })();
-
     // --- Pending (unsent) ---
     var pendingText = "none";
     if (model.pending && typeof model.pending === "object") {
@@ -1592,28 +1561,6 @@
       var serverStreakLen = payload.serverStreakLen || 0;
       var localStreakLen = payload.localStreakLen || 0;
       var diffStreakLen = payload.diffStreakLen || 0;
-
-      // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続正解数 / 更新日）を読み出す
-      //   何をしているか: localStorage の確定キーから「現在/最高/達成日」を取得し、HUD model に載せる
-      //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
-      var localCorrectStreakMax = 0;
-      var localCorrectStreakMaxDayLabel = "（データなし）";
-      try {
-        localCorrectStreakMax = readIntFromLocalStorage("cscs_q_correct_streak_max:" + info.qid);
-        var maxDayNum = readDayFromLocalStorage("cscs_q_correct_streak_max_day:" + info.qid);
-        if (maxDayNum !== null) {
-          localCorrectStreakMaxDayLabel = String(maxDayNum);
-        }
-
-        console.log("[SYNC-B:view] correct-streak max from localStorage", {
-          qid: info.qid,
-          localCorrectStreakLen: localStreakLen,
-          localCorrectStreakMax: localCorrectStreakMax,
-          localCorrectStreakMaxDay: localCorrectStreakMaxDayLabel
-        });
-      } catch (eStreakMax) {
-        console.error("[SYNC-B:view] correct-streak max read error:", eStreakMax);
-      }
 
       // statusText は内部状態としてログだけに使う
       var statusText = payload.statusText || "";
@@ -2060,11 +2007,7 @@
         onceQidLabel: onceQidLabel,
         onceCountableLabel: onceCountableLabel,
         onceRecordLabel: onceRecordLabel,
-        onceOdoaLabel: onceOdoaLabel,
-
-        // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続正解数 / 更新日）
-        localCorrectStreakMax: localCorrectStreakMax,
-        localCorrectStreakMaxDayLabel: localCorrectStreakMaxDayLabel
+        onceOdoaLabel: onceOdoaLabel
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
