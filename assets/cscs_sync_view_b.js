@@ -255,6 +255,32 @@
     "  overflow: hidden;",
     "  text-overflow: ellipsis;",
     "}",
+    "",
+    "/* --- Wide card: dual-column text rows (OncePerDayToday / O.D.O.A) --- */",
+    "#cscs_sync_view_b_body .svb-wide-dual-grid {",
+    "  display: grid;",
+    "  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);",
+    "  column-gap: 10px;",
+    "  row-gap: 2px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-wide-dual-cell {",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-wide-dual-cell.is-right {",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-wide-dual-strong {",
+    "  opacity: 0.90;",
+    "  font-weight: 800;",
+    "}",
     ""
   ].join("\n");
 
@@ -914,6 +940,61 @@
       body.appendChild(pair);
     })();
 
+    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード） ---
+    (function appendOncePerDayAndOdoaWideCard() {
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide";
+
+      var h = document.createElement("div");
+      h.className = "cscs-svb-card-title";
+      h.textContent = "OncePerDayToday / O.D.O.A Mode";
+
+      var grid = document.createElement("div");
+      grid.className = "svb-wide-dual-grid";
+
+      function addRow(leftText, rightText, strongLeft, strongRight) {
+        var l = document.createElement("div");
+        l.className = "svb-wide-dual-cell" + (strongLeft ? " svb-wide-dual-strong" : "");
+        l.textContent = leftText;
+
+        var r = document.createElement("div");
+        r.className = "svb-wide-dual-cell is-right" + (strongRight ? " svb-wide-dual-strong" : "");
+        r.textContent = rightText;
+
+        grid.appendChild(l);
+        grid.appendChild(r);
+      }
+
+      addRow(
+        "oncePerDayToday   " + String(model.onceStateLabel),
+        "計測: " + String(model.onceMeasureOkLabel) + " ｜結果: " + String(model.onceResultLabel),
+        true,
+        false
+      );
+      addRow(
+        "Today             " + String(model.onceTodayDateLabel),
+        "qid: " + String(model.onceQidLabel),
+        false,
+        false
+      );
+      addRow(
+        "count対象         " + String(model.onceCountableLabel),
+        "記録: " + String(model.onceRecordLabel),
+        false,
+        false
+      );
+      addRow(
+        "ODOA              " + String(model.onceOdoaLabel),
+        "",
+        false,
+        false
+      );
+
+      card.appendChild(h);
+      card.appendChild(grid);
+      body.appendChild(card);
+    })();
+
     // --- LastDay（情報量多めなのでワイドカードに） ---
     var gLast = appendGridSection(body, "LastDay (SYNC / local)", { wide: true });
     appendGridRow(gLast, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
@@ -1192,6 +1273,156 @@
         console.error("[SYNC-B:view] lastDay HUD build error:", eLast);
       }
 
+      // ★ OncePerDayToday / O.D.O.A 表示用の値を localStorage + window.__cscs_sync_state から組み立て
+      var onceStateLabel = "未開始";
+      var onceMeasureOkLabel = "-";
+      var onceResultLabel = "-";
+      var onceTodayDateLabel = "-";
+      var onceQidLabel = (info && info.qid) ? info.qid : "-";
+      var onceCountableLabel = "-";
+      var onceRecordLabel = "-";
+      var onceOdoaLabel = "-";
+
+      try {
+        // 今日(YYYY-MM-DD) は JST の「日付だけ」表示
+        try {
+          var now = new Date();
+          var y = now.getFullYear();
+          var m = String(now.getMonth() + 1).padStart(2, "0");
+          var d = String(now.getDate()).padStart(2, "0");
+          onceTodayDateLabel = String(y) + "-" + String(m) + "-" + String(d);
+        } catch (_eDate) {
+          onceTodayDateLabel = "-";
+        }
+
+        var stOnce = null;
+        try { stOnce = window.__cscs_sync_state || null; } catch (_eSt) { stOnce = null; }
+
+        var localOnce = null;
+        try {
+          localOnce = readOncePerDayTodayFromLocal();
+        } catch (_eLocalOnce) {
+          localOnce = { day: null, results: {} };
+        }
+        if (!localOnce || typeof localOnce !== "object") {
+          localOnce = { day: null, results: {} };
+        }
+        if (!localOnce.results || typeof localOnce.results !== "object") {
+          localOnce.results = {};
+        }
+
+        var localOnceVal = null;
+        if (onceQidLabel && Object.prototype.hasOwnProperty.call(localOnce.results, onceQidLabel)) {
+          localOnceVal = localOnce.results[onceQidLabel];
+        }
+
+        var serverOnceVal = null;
+        var serverOnceDay = null;
+        if (stOnce && stOnce.oncePerDayToday && typeof stOnce.oncePerDayToday === "object") {
+          var s = stOnce.oncePerDayToday;
+          if (typeof s.day === "number" && Number.isFinite(s.day)) {
+            serverOnceDay = s.day;
+          }
+          if (s.results && typeof s.results === "object" && Object.prototype.hasOwnProperty.call(s.results, onceQidLabel)) {
+            serverOnceVal = s.results[onceQidLabel];
+          }
+        }
+
+        // 状態表示（簡易）
+        if (localOnceVal === "correct" || localOnceVal === "wrong") {
+          onceStateLabel = "計測中";
+        } else {
+          onceStateLabel = "未開始";
+        }
+
+        // 記録（local）
+        if (localOnceVal === "correct" || localOnceVal === "wrong") {
+          onceRecordLabel = String(localOnceVal);
+        } else {
+          onceRecordLabel = "-";
+        }
+
+        // 結果（server 優先、なければ local）
+        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
+          onceResultLabel = String(serverOnceVal);
+        } else if (localOnceVal === "correct" || localOnceVal === "wrong") {
+          onceResultLabel = String(localOnceVal);
+        } else {
+          onceResultLabel = "-";
+        }
+
+        // 計測OK判定（local にあるなら、server と一致していれば OK）
+        if (localOnceVal === "correct" || localOnceVal === "wrong") {
+          if (serverOnceVal === localOnceVal) {
+            onceMeasureOkLabel = "OK";
+          } else {
+            onceMeasureOkLabel = "NG";
+          }
+        } else {
+          onceMeasureOkLabel = "-";
+        }
+
+        // count対象（すでに計測済みなら No）
+        var alreadyCounted = false;
+        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
+          alreadyCounted = true;
+        } else if (localOnceVal === "correct" || localOnceVal === "wrong") {
+          alreadyCounted = true;
+        }
+
+        var verifyModeOn =
+          typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+
+        var odoaNocount = false;
+        if (stOnce && (stOnce.odoaMode === "on_nocount" || stOnce.odoa_mode === "on_nocount")) {
+          odoaNocount = true;
+        }
+
+        if (alreadyCounted) {
+          onceCountableLabel = "No（計測済）";
+        } else if (verifyModeOn) {
+          onceCountableLabel = "No（ガード）";
+        } else if (odoaNocount) {
+          onceCountableLabel = "No（ガード）";
+        } else {
+          onceCountableLabel = "Yes（未計測）";
+        }
+
+        // ODOA 表示（累計加算: No/Yes）
+        var odoaText = "OFF";
+        try {
+          if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
+            odoaText = payload.odoaModeText;
+          } else if (stOnce && typeof stOnce.odoa_mode === "string") {
+            if (stOnce.odoa_mode === "on" || stOnce.odoa_mode === "ON") odoaText = "ON";
+            if (stOnce.odoa_mode === "off" || stOnce.odoa_mode === "OFF") odoaText = "OFF";
+          }
+        } catch (_eO) {
+          odoaText = "OFF";
+        }
+
+        var addNo = false;
+        if (verifyModeOn) addNo = true;
+        if (odoaText === "ON" && odoaNocount) addNo = true;
+
+        if (odoaText === "ON") {
+          onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）";
+        } else if (odoaText === "OFF") {
+          onceOdoaLabel = "OFF（累計加算: Yes）";
+        } else {
+          onceOdoaLabel = String(odoaText) + "（累計加算: " + (addNo ? "No" : "Yes") + "）";
+        }
+      } catch (_eOnceAll) {
+        onceStateLabel = "未開始";
+        onceMeasureOkLabel = "-";
+        onceResultLabel = "-";
+        onceTodayDateLabel = "-";
+        onceQidLabel = (info && info.qid) ? info.qid : "-";
+        onceCountableLabel = "-";
+        onceRecordLabel = "-";
+        onceOdoaLabel = "-";
+      }
+
       // ★ グリッド描画用モデル（2列：label / value）
       updateSyncBodyGrid({
         serverCorrect: serverCorrect,
@@ -1241,7 +1472,16 @@
         lastCorrectLocalLabel: lastCorrectLocalLabel,
         lastWrongLocalLabel: lastWrongLocalLabel,
 
-        pending: (payload && payload.pending) ? payload.pending : null
+        pending: (payload && payload.pending) ? payload.pending : null,
+
+        onceStateLabel: onceStateLabel,
+        onceMeasureOkLabel: onceMeasureOkLabel,
+        onceResultLabel: onceResultLabel,
+        onceTodayDateLabel: onceTodayDateLabel,
+        onceQidLabel: onceQidLabel,
+        onceCountableLabel: onceCountableLabel,
+        onceRecordLabel: onceRecordLabel,
+        onceOdoaLabel: onceOdoaLabel
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
