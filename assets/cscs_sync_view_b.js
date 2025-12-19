@@ -1238,8 +1238,6 @@
     body.id = "cscs_sync_view_b_body";
     body.textContent = "読み込み中…";
 
-    var statusDiv = document.createElement("div");
-    statusDiv.id = "cscs_sync_view_b_status";
 
     // ★【超重要仕様：この非表示ボタンは「削除禁止」】
     //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
