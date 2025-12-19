@@ -80,6 +80,10 @@
    *   - SYNC state: state.debug.odoaMode / state.debug.odoa_mode / state.debug.ODOA_MODE
    *   - SYNC state: state.navGuard.odoaMode / state.navGuard.odoa_mode
    *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
+   *
+   * ▼ HUD(Bビュー) 表示状態
+   *   - localStorage: "cscs_sync_view_b_pending_collapsed"
+   *       → "1" のとき Pending (unsent) を折りたたみ表示にする
    */
 
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
@@ -198,6 +202,42 @@
     "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-v {",
     "  text-align: left;",
     "  white-space: pre-line;",
+    "}",
+    "",
+    "/* --- Pending fold (collapsible) --- */",
+    "#cscs_sync_view_b_body .svb-pending-head {",
+    "  display: flex;",
+    "  align-items: baseline;",
+    "  justify-content: space-between;",
+    "  gap: 10px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-toggle {",
+    "  appearance: none;",
+    "  -webkit-appearance: none;",
+    "  border: none;",
+    "  background: transparent;",
+    "  color: inherit;",
+    "  padding: 0;",
+    "  margin: 0;",
+    "  font: inherit;",
+    "  cursor: pointer;",
+    "  opacity: 0.80;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-toggle:hover {",
+    "  opacity: 0.95;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-toggle .svb-pending-chev {",
+    "  display: inline-block;",
+    "  width: 1.2em;",
+    "  text-align: center;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-card.is-collapsed .svb-pending-grid {",
+    "  display: none;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-k {",
@@ -1237,16 +1277,67 @@
 
     // --- Pending (unsent) ---
     var pendingCard = document.createElement("div");
-    pendingCard.className = "cscs-svb-card is-wide";
+    pendingCard.className = "cscs-svb-card is-wide svb-pending-card";
+
+    // 折りたたみ状態（永続）
+    var pendingCollapsed = false;
+    try {
+      pendingCollapsed = (localStorage.getItem("cscs_sync_view_b_pending_collapsed") === "1");
+    } catch (_ePendingCollapsed) {
+      pendingCollapsed = false;
+    }
+
+    if (pendingCollapsed) {
+      pendingCard.className += " is-collapsed";
+    }
+
+    // ヘッダー行（タイトル + トグル）
+    var pendingHead = document.createElement("div");
+    pendingHead.className = "svb-pending-head";
 
     var pendingH = document.createElement("div");
     pendingH.className = "cscs-svb-card-title";
     pendingH.textContent = "Pending (unsent)";
 
+    var pendingBtn = document.createElement("button");
+    pendingBtn.className = "svb-pending-toggle";
+    pendingBtn.type = "button";
+    pendingBtn.setAttribute("aria-expanded", pendingCollapsed ? "false" : "true");
+
+    function updatePendingBtnLabel() {
+      var chev = pendingCollapsed ? "▶" : "▼";
+      var label = pendingCollapsed ? "show" : "hide";
+      pendingBtn.innerHTML = "<span class=\"svb-pending-chev\">" + chev + "</span>" + label;
+      pendingBtn.setAttribute("aria-expanded", pendingCollapsed ? "false" : "true");
+    }
+
+    updatePendingBtnLabel();
+
+    pendingBtn.addEventListener("click", function () {
+      pendingCollapsed = !pendingCollapsed;
+
+      if (pendingCollapsed) {
+        if (pendingCard.className.indexOf("is-collapsed") === -1) {
+          pendingCard.className += " is-collapsed";
+        }
+      } else {
+        pendingCard.className = pendingCard.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+      }
+
+      try {
+        localStorage.setItem("cscs_sync_view_b_pending_collapsed", pendingCollapsed ? "1" : "0");
+      } catch (_eSavePending) {}
+
+      updatePendingBtnLabel();
+    });
+
+    pendingHead.appendChild(pendingH);
+    pendingHead.appendChild(pendingBtn);
+
     var gPending = document.createElement("div");
     gPending.className = "svb-pending-grid";
 
-    pendingCard.appendChild(pendingH);
+    pendingCard.appendChild(pendingHead);
     pendingCard.appendChild(gPending);
     body.appendChild(pendingCard);
 
