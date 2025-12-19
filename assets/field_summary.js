@@ -88,7 +88,114 @@
         z-index: 20;
     }
 
-    /* compact star summary のCSSは assets/star_summary_compact.js 側に分離 */
+    .cscs-star-summary-line-compact {
+        display: grid;
+        grid-template-columns: 1fr;
+        row-gap: 6px;
+        font-size: 14px;
+        margin-bottom: 15px;
+        margin-left: 0px;
+        width: 57%;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    /* 追加した処理:
+       - Aパート(body.mode-a)のときだけ、compact行の見た目を指定スタイルで上書きする
+       - Bパートには影響しない（セレクタを body.mode-a に限定） */
+    body.mode-a .cscs-star-summary-line-compact {
+        display: grid;
+        grid-template-columns: 1fr;
+        row-gap: 6px;
+        font-size: 16px;
+        margin-bottom: -5px;
+        margin-left: 0px;
+        width: 54%;
+        padding-bottom: 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+        margin-top: 10px;
+        opacity: 0.5;
+    }
+
+    /* 追加した処理:
+       - Bパート用（セレクタを body.mode-a に限定） */
+    body.mode-b .cscs-star-summary-line-compact {
+        display: grid;
+        grid-template-columns: 1fr;
+        row-gap: 6px;
+        font-size: 14px;
+        margin-bottom: 15px;
+        margin-left: 0px;
+        width: 54%;
+        padding-bottom: 0px;
+        border-bottom: 0px solid rgba(255, 255, 255, 0.18);
+        margin-top: 15px;
+        opacity: 0.5;
+    }
+   
+    .cscs-star-main-compact {
+        font-weight: 600;
+    }
+
+    .cscs-star-mood {
+        margin-left: 6px;
+        opacity: 0.8;
+        white-space: nowrap;
+    }
+
+    /* 3行それぞれの「区画」 */
+    .cscs-star-row {
+        display: grid;
+        grid-template-columns: auto auto 1fr auto;
+        align-items: center;
+        column-gap: 8px;
+        padding: 0px 0px;
+        white-space: nowrap;
+    }
+
+    /* 行の中の左側テキスト（ラベル） */
+    .cscs-star-row .cscs-star-label {
+        font-weight: 600;
+    }
+
+    /* % 表示 */
+    .cscs-star-row .cscs-star-percent {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    /* meter は中央で伸びる */
+    .cscs-star-row .cscs-star-meter {
+        justify-self: stretch;
+    }
+
+    .cscs-star-meter {
+        position: relative;
+        display: inline-block;
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 30px;
+        max-width: 220px;
+        height: 8px;
+        margin-left: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+        margin-top: 1px;
+    }
+
+    .cscs-star-meter-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
+    }
+
+    .cscs-star-meter-fill-total {
+        /* ⭐️と同じ黄色グラデーションに統一 */
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.95), rgba(255, 255, 255, 0.95));
+    }
 
     /* 分野ゲージ用 内側バー（黄色グラデーション） */
     .cscs-field-bar-inner {
@@ -1210,7 +1317,152 @@
       mood = "要注意";
     }
 
-    // compact star summary（.cscs-star-summary-line-compact）は assets/star_summary_compact.js 側に分離
+    // 上部に表示する「⭐️本日の目標〜」行を構築
+    var needLine = document.createElement("div");
+
+    // SYNCから計算された「本日の目標（★何個/日）」を使用
+    var targetNum = Number(starTargetPerDay);
+    if (!Number.isFinite(targetNum) || targetNum < 0) {
+      targetNum = 0;
+    }
+
+    // 今日の 3連続正解ユニーク数を SYNC から読み込む
+    starTodayCount = await loadTodayStreak3CountFromSync();
+
+    // 今日の達成率（本日の獲得数 / 本日の目標数）
+    var todayPercent = 0;
+    if (targetNum > 0) {
+      todayPercent = Math.floor((starTodayCount / targetNum) * 100);
+      if (!Number.isFinite(todayPercent) || todayPercent < 0) {
+        todayPercent = 0;
+      }
+      if (todayPercent > 100) {
+        todayPercent = 100;
+      }
+    }
+
+    // 全体の達成率（★獲得済み問題数 / 全体問題数）
+    var totalPercent = 0;
+    var totalQuestions = Number(totalQuestionsGlobal || 0);
+    if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+      totalQuestions = 0;
+    }
+    if (totalQuestions > 0) {
+      totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
+      if (!Number.isFinite(totalPercent) || totalPercent < 0) {
+        totalPercent = 0;
+      }
+      if (totalPercent > 100) {
+        totalPercent = 100;
+      }
+      totalPercent = Number(totalPercent.toFixed(2));
+    }
+
+    // コンパクトな進捗行を構築（3行・縦並び）
+    needLine.className = "cscs-star-summary-line-compact";
+
+    var moodText = mood || "順調";
+    var html = "";
+
+    // SYNC から計算された「リーチ⚡️（2連続正解）」の問題数
+    var reachCount = Number(starReachCountFromSync || 0);
+    if (!Number.isFinite(reachCount) || reachCount < 0) {
+      reachCount = 0;
+    }
+
+    // SYNC から計算された「あと1回でリーチ✨（1連続正解中）」の問題数
+    var preReachCount = Number(starPreReachCountFromSync || 0);
+    if (!Number.isFinite(preReachCount) || preReachCount < 0) {
+      preReachCount = 0;
+    }
+
+    // 1) 本日の目標（⭐️ / ⚡️ / ✨）
+    html += "<div class=\"cscs-star-row cscs-star-row-goal\">";
+    html += "<span class=\"cscs-star-label\">本日の目標</span>";
+    html += "<span class=\"cscs-star-percent\">⭐️" + String(targetNum) + "個</span>";
+    html += "<span class=\"cscs-star-label\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個</span>";
+    html += "<span class=\"cscs-star-mood\"></span>";
+    html += "</div>";
+
+    // 2) 本日の獲得分（+X / ゲージ / % / 状況）
+    html += "<div class=\"cscs-star-row cscs-star-row-today\">";
+    html += "<span class=\"cscs-star-label\">本日の獲得分</span>";
+    html += "<span class=\"cscs-star-percent\">+" + String(starTodayCount) + "</span>";
+    html += "<span class=\"cscs-star-meter\">";
+    html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
+    html += "</span>";
+    html += "<span class=\"cscs-star-mood\">" + String(todayPercent) + "% (状況:" + moodText + ")</span>";
+    html += "</div>";
+
+    // 3) 現在の総進捗（獲得数 / ゲージ / % / 状況）
+    html += "<div class=\"cscs-star-row cscs-star-row-total\">";
+    html += "<span class=\"cscs-star-label\">現在の総進捗</span>";
+    html += "<span class=\"cscs-star-percent\">" + String(starTotalSolvedQuestions) + "個</span>";
+    html += "<span class=\"cscs-star-meter\">";
+    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
+    html += "</span>";
+    html += "<span class=\"cscs-star-mood\">" + totalPercent.toFixed(2) + "% (状況:" + moodText + ")</span>";
+    html += "</div>";
+
+    needLine.innerHTML = html;
+
+    needLine.style.marginLeft = "0px";
+    needLine.style.fontWeight = "500";
+
+    /* 追加した処理:
+       - Aパート(body.mode-a)のとき：
+           compact行(div.cscs-star-summary-line-compact)を <div id="similar-list"> の直前へ移動して挿入する
+           similar-list が無い場合は移動せず、従来通り panel 内に入れる
+       - Bパートのとき：
+           compact行を <div class="explain_menu"> の直前へ移動して挿入する
+           explain_menu が無い場合は従来通り panel 内に入れる */
+    (function () {
+      var isModeA = false;
+      var isModeB = false;
+
+      try {
+        isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
+      } catch (_eModeA) {
+        isModeA = false;
+      }
+
+      try {
+        isModeB = !!(document.body && document.body.classList && document.body.classList.contains("mode-b"));
+      } catch (_eModeB) {
+        isModeB = false;
+      }
+
+      if (isModeA) {
+        var similar = document.getElementById("similar-list");
+        if (similar && similar.parentNode) {
+          similar.parentNode.insertBefore(needLine, similar);
+          return;
+        }
+      }
+
+      if (isModeB) {
+        var explainMenu = document.querySelector(".explain_menu");
+        if (explainMenu && explainMenu.parentNode) {
+          explainMenu.parentNode.insertBefore(needLine, explainMenu);
+          return;
+        }
+      }
+
+      panel.appendChild(needLine);
+    })();
+
+    // コンソールに現在の目標値と進捗・リーチ数・✨数を出力して、値とレンダリング結果を確認できるようにする
+    console.log("field_summary.js: compact star summary rendered", {
+      targetNum: targetNum,
+      starTodayCount: starTodayCount,
+      todayPercent: todayPercent,
+      totalPercent: totalPercent,
+      moodText: moodText,
+      starReachCountFromSync: starReachCountFromSync,
+      starPreReachCountFromSync: starPreReachCountFromSync,
+      reachCountUsedForView: reachCount,
+      preReachCountUsedForView: preReachCount
+    });
 
     // 分野別の一覧を <ul> として作成
     // あわせて「分野名クリック時に qid 一覧をインライン表示するコンテナ」も用意する
@@ -2527,15 +2779,175 @@
     insertIntoWrapEnd(panel);
   }
 
+  // Bパートで表示されたときに、1.5秒後に一度だけ field_summary を再計算・再描画する
+  function scheduleBPageFieldSummaryRefresh() {
+    var path = location.pathname || "";
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+    if (!m) {
+      // Bパートでないページでは何もしない
+      return;
+    }
+
+    console.log("field_summary.js: B-page detected, scheduling delayed refresh (500ms).");
+
+    // ▼▼▼ ここが遅延時間（ms）。500 → 1000 にすると「1秒後」に実行される ▼▼▼
+    setTimeout(function () {
+      (async function () {
+        try {
+          // ▼ 1) 既存パネルは消さずに、上部の compact 行だけを探す
+          var panel = document.getElementById("cscs-field-star-summary");
+          if (!panel) {
+            console.warn("field_summary.js: delayed refresh skipped (panel not found).");
+            return;
+          }
+
+          var line = panel.querySelector(".cscs-star-summary-line-compact");
+          if (!line) {
+            console.warn("field_summary.js: delayed refresh skipped (compact line not found).");
+            return;
+          }
+
+          // ▼ 2) 表示に使う SYNC 由来の集計値だけをリセットしてから読み直す（DOMは触らない）
+          // - パネル全体の再生成はしない
+          // - /api/sync/state を読み直して starTargetPerDay / reach / totalPercent などを最新化する
+          starFieldCounts = null;
+          starTotalSolvedQuestions = 0;
+          starRemainingDays = 0;
+          starTargetPerDay = 0;
+          starReachCountFromSync = 0;
+          if (typeof starPreReachCountFromSync !== "undefined") {
+            starPreReachCountFromSync = 0;
+          }
+          unsolvedCountFromSync = 0;
+          unansweredCountFromSync = 0;
+
+          // ▼ 3) SYNC を読み直して、compact 行に必要な値を更新する
+          await loadStarFieldCountsStrict();
+
+          // ▼ 4) streak3Today も SYNC から取り直して、今日の進捗%を再計算する
+          starTodayCount = await loadTodayStreak3CountFromSync();
+
+          // ▼ 5) compact 行（HTML）だけを再構築して差し替える
+          var targetNum = Number(starTargetPerDay);
+          if (!Number.isFinite(targetNum) || targetNum < 0) {
+            targetNum = 0;
+          }
+
+          var todayPercent = 0;
+          if (targetNum > 0) {
+            todayPercent = Math.floor((starTodayCount / targetNum) * 100);
+            if (!Number.isFinite(todayPercent) || todayPercent < 0) {
+              todayPercent = 0;
+            }
+            if (todayPercent > 100) {
+              todayPercent = 100;
+            }
+          }
+
+          var totalPercent = 0;
+          var totalQuestions = Number(totalQuestionsGlobal || 0);
+          if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+            totalQuestions = 0;
+          }
+          if (totalQuestions > 0) {
+            totalPercent = ((starTotalSolvedQuestions / totalQuestions) * 100);
+            if (!Number.isFinite(totalPercent) || totalPercent < 0) {
+              totalPercent = 0;
+            }
+            if (totalPercent > 100) {
+              totalPercent = 100;
+            }
+            totalPercent = Number(totalPercent.toFixed(2));
+          }
+
+          // ▼ 6) mood/diff は「ダミー needPerDay」ではなく、SYNC計算の targetNum を基準に決める
+          // - これで表示ロジックが「SYNC計算と二重化」しない
+          var basePerDay = 30;
+          var diff = targetNum - basePerDay;
+
+          var mood = "";
+          if (targetNum <= basePerDay * 0.8) {
+            mood = "余裕";
+          } else if (targetNum <= basePerDay * 1.1) {
+            mood = "順調";
+          } else if (targetNum <= basePerDay * 1.4) {
+            mood = "巻き返し";
+          } else {
+            mood = "要注意";
+          }
+
+          var moodText = mood || "順調";
+
+          var reachCount = Number(starReachCountFromSync || 0);
+          if (!Number.isFinite(reachCount) || reachCount < 0) {
+            reachCount = 0;
+          }
+
+          var preReachCount = Number(starPreReachCountFromSync || 0);
+          if (!Number.isFinite(preReachCount) || preReachCount < 0) {
+            preReachCount = 0;
+          }
+
+          var html = "";
+
+          // 1) 本日の目標（⭐️ / ⚡️ / ✨）
+          html += "<div class=\"cscs-star-row cscs-star-row-goal\">";
+          html += "<span class=\"cscs-star-label\">本日の目標</span>";
+          html += "<span class=\"cscs-star-percent\">⭐️" + String(targetNum) + "個</span>";
+          html += "<span class=\"cscs-star-label\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個</span>";
+          html += "<span class=\"cscs-star-mood\"></span>";
+          html += "</div>";
+
+          // 2) 本日の獲得分（+X / ゲージ / % / 状況）
+          html += "<div class=\"cscs-star-row cscs-star-row-today\">";
+          html += "<span class=\"cscs-star-label\">本日の獲得分</span>";
+          html += "<span class=\"cscs-star-percent\">+" + String(starTodayCount) + "</span>";
+          html += "<span class=\"cscs-star-meter\">";
+          html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
+          html += "</span>";
+          html += "<span class=\"cscs-star-mood\">" + String(todayPercent) + "% (状況:" + moodText + ")</span>";
+          html += "</div>";
+
+          // 3) 現在の総進捗（獲得数 / ゲージ / % / 状況）
+          html += "<div class=\"cscs-star-row cscs-star-row-total\">";
+          html += "<span class=\"cscs-star-label\">現在の総進捗</span>";
+          html += "<span class=\"cscs-star-percent\">" + String(starTotalSolvedQuestions) + "個</span>";
+          html += "<span class=\"cscs-star-meter\">";
+          html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
+          html += "</span>";
+          html += "<span class=\"cscs-star-mood\">" + totalPercent.toFixed(2) + "% (状況:" + moodText + ")</span>";
+          html += "</div>";
+
+          line.innerHTML = html;
+
+          console.log("field_summary.js: B-page delayed compact-line refresh done.", {
+            targetNum: targetNum,
+            diff: diff,
+            moodText: moodText,
+            starTodayCount: starTodayCount,
+            todayPercent: todayPercent,
+            totalPercent: totalPercent,
+            reachCount: reachCount,
+            preReachCount: preReachCount
+          });
+        } catch (e) {
+          console.error("field_summary.js: B-page delayed compact-line refresh failed", e);
+        }
+      })();
+    }, 2000);  // ← ★ ここを 1000 に変更（1秒後に refresh）
+  }
+
   // =========================
   // 8. DOM読み込み完了タイミングで実行
   // =========================
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       renderFieldStarSummary();
+      scheduleBPageFieldSummaryRefresh();
     });
   } else {
     renderFieldStarSummary();
+    scheduleBPageFieldSummaryRefresh();
   }
 
 })();
