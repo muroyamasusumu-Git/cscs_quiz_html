@@ -1497,26 +1497,12 @@
         var stOnce = null;
         try { stOnce = window.__cscs_sync_state || null; } catch (_eSt) { stOnce = null; }
 
-        var localOnce = null;
-        try {
-          localOnce = readOncePerDayTodayFromLocal();
-        } catch (_eLocalOnce) {
-          localOnce = { day: null, results: {} };
-        }
-        if (!localOnce || typeof localOnce !== "object") {
-          localOnce = { day: null, results: {} };
-        }
-        if (!localOnce.results || typeof localOnce.results !== "object") {
-          localOnce.results = {};
-        }
-
-        var localOnceVal = null;
-        if (onceQidLabel && Object.prototype.hasOwnProperty.call(localOnce.results, onceQidLabel)) {
-          localOnceVal = localOnce.results[onceQidLabel];
-        }
-
+        // --- 何をしているか:
+        //   今日の「計測済み判定」は唯一の参照元として window.__cscs_sync_state.oncePerDayToday だけを見る
+        //   （localStorage の oncePerDayToday は HUD 判定に一切使わない）
         var serverOnceVal = null;
         var serverOnceDay = null;
+
         if (stOnce && stOnce.oncePerDayToday && typeof stOnce.oncePerDayToday === "object") {
           var s = stOnce.oncePerDayToday;
           if (typeof s.day === "number" && Number.isFinite(s.day)) {
@@ -1527,167 +1513,99 @@
           }
         }
 
-        // 状態表示（簡易）
-        if (localOnceVal === "correct" || localOnceVal === "wrong") {
-          onceStateLabel = "計測中";
+        // --- 何をしているか:
+        //   HUD 表示用の状態文字列を serverOnceVal だけで作る（フォールバックしない）
+        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
+          onceStateLabel = "計測済";
         } else {
           onceStateLabel = "未開始";
         }
 
-        // 記録（local）
-        if (localOnceVal === "correct" || localOnceVal === "wrong") {
-          onceRecordLabel = String(localOnceVal);
-        } else {
-          onceRecordLabel = "-";
-        }
+        // --- 何をしているか:
+        //   localの記録表示は “today 判定” の参照元から外すため、HUDでは常に "-" に固定
+        onceRecordLabel = "-";
 
-        // 結果（server 優先、なければ local）
+        // --- 何をしているか:
+        //   結果表示も serverOnceVal のみ（フォールバックしない）
         if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
           onceResultLabel = String(serverOnceVal);
-        } else if (localOnceVal === "correct" || localOnceVal === "wrong") {
-          onceResultLabel = String(localOnceVal);
         } else {
           onceResultLabel = "-";
         }
 
-        // 計測OK判定：
-        // - local が未計測 → NG
-        // - local が計測済み かつ server と一致 → OK
-        // - それ以外 → NG
-        if (localOnceVal === "correct" || localOnceVal === "wrong") {
-          if (serverOnceVal === localOnceVal) {
-            onceMeasureOkLabel = "OK";
-          } else {
-            onceMeasureOkLabel = "NG";
-          }
+        // --- 何をしているか:
+        //   計測OKは「serverOnceVal が存在するか」だけで決める（ローカル照合はしない）
+        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
+          onceMeasureOkLabel = "OK";
         } else {
           onceMeasureOkLabel = "NG";
         }
 
-        // count対象（すでに計測済みなら No）
+        // --- 何をしているか:
+        //   すでに計測済みかどうかも唯一の参照元（serverOnceVal）だけで判定
         var alreadyCounted = false;
         if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
           alreadyCounted = true;
-        } else if (localOnceVal === "correct" || localOnceVal === "wrong") {
-          alreadyCounted = true;
         }
 
+        // --- 何をしているか:
+        //   VERIFYモードは常に count対象 NO（ガード）
         var verifyModeOn =
           typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
 
-        // ★ ODOA状態を “state/payload のどこに入っていても” 取り出して正規化する
-        //   - 目的: Aと同じく「ONだが累計加算しない（on_nocount）」を B でも確実に拾う
+        // --- 何をしているか:
+        //   ODOAモードは唯一の参照元 window.CSCS_ODOA_MODE（"on"/"off"）のみを見る
         var odoaRaw = null;
         try {
-          // ① payload 経由があれば最優先（HUD表示の意図が明確）
-          if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
-            odoaRaw = payload.odoaModeText;
-          } else if (stOnce) {
-            // ② top-level 候補
-            if (odoaRaw == null && typeof stOnce.odoaMode === "string") odoaRaw = stOnce.odoaMode;
-            if (odoaRaw == null && typeof stOnce.odoa_mode === "string") odoaRaw = stOnce.odoa_mode;
-            if (odoaRaw == null && typeof stOnce.ODOA_MODE === "string") odoaRaw = stOnce.ODOA_MODE;
-            if (odoaRaw == null && typeof stOnce.ODOA === "string") odoaRaw = stOnce.ODOA;
-
-            // ③ debug 配下候補
-            if (odoaRaw == null && stOnce.debug && typeof stOnce.debug === "object") {
-              if (typeof stOnce.debug.odoaMode === "string") odoaRaw = stOnce.debug.odoaMode;
-              if (odoaRaw == null && typeof stOnce.debug.odoa_mode === "string") odoaRaw = stOnce.debug.odoa_mode;
-              if (odoaRaw == null && typeof stOnce.debug.ODOA_MODE === "string") odoaRaw = stOnce.debug.ODOA_MODE;
-            }
-
-            // ④ navGuard 配下候補
-            if (odoaRaw == null && stOnce.navGuard && typeof stOnce.navGuard === "object") {
-              if (typeof stOnce.navGuard.odoaMode === "string") odoaRaw = stOnce.navGuard.odoaMode;
-              if (odoaRaw == null && typeof stOnce.navGuard.odoa_mode === "string") odoaRaw = stOnce.navGuard.odoa_mode;
-            }
+          if (typeof window.CSCS_ODOA_MODE === "string") {
+            odoaRaw = window.CSCS_ODOA_MODE;
           }
         } catch (_eOdoaPick) {
           odoaRaw = null;
         }
 
-        // ★ 正規化: ON/OFF と「nocount」判定を分離して確定
-        //   - "on_nocount" / "ON_NOCOUNT" / "on-nocount" などの揺れを吸収（フォールバックで別ソースは見ない）
-        var odoaNorm = "";
-        try {
-          if (odoaRaw != null) {
-            odoaNorm = String(odoaRaw).trim();
-          }
-        } catch (_eOdoaNorm) {
-          odoaNorm = "";
-        }
-
         var odoaLower = "";
         try {
-          odoaLower = odoaNorm.toLowerCase();
+          odoaLower = (odoaRaw == null ? "" : String(odoaRaw)).trim().toLowerCase();
         } catch (_eOdoaLower) {
           odoaLower = "";
         }
 
-        // ★ 何をしているか:
-        //   - odoaIsOn: ODOAがONかどうか
-        //   - odoaNocount: ONの中でも「累計加算しない」モードかどうか
-        var odoaIsOn = false;
-        var odoaNocount = false;
+        // --- 何をしているか:
+        //   "on"/"off" 以外は未知扱いにせず OFF に寄せる（参照元は変えない）
+        var odoaIsOn = (odoaLower === "on");
 
-        if (odoaLower === "on" || odoaLower === "true" || odoaLower === "1") {
-          odoaIsOn = true;
-        } else if (odoaLower === "off" || odoaLower === "false" || odoaLower === "0") {
-          odoaIsOn = false;
-        } else if (odoaLower.indexOf("on") === 0) {
-          // "on_nocount" / "on-nocount" 等をここで拾う
-          odoaIsOn = true;
-        }
-
-        if (odoaLower.indexOf("nocount") !== -1 || odoaLower.indexOf("no_count") !== -1 || odoaLower.indexOf("on_nocount") !== -1 || odoaLower.indexOf("on-nocount") !== -1) {
-          odoaNocount = true;
-        }
-
+        // --- 何をしているか:
+        //   count対象は「計測済」「VERIFY」「ODOA」で No、それ以外のみ Yes
         if (alreadyCounted) {
           onceCountableLabel = "No（計測済）";
         } else if (verifyModeOn) {
           onceCountableLabel = "No（ガード）";
-        } else if (odoaNocount) {
+        } else if (odoaIsOn) {
           onceCountableLabel = "No（ガード）";
         } else {
           onceCountableLabel = "Yes（未計測）";
         }
 
-        // ★ ODOA表示（累計加算: No/Yes）の “ON/OFF” 部分を確定
-        var odoaText = odoaIsOn ? "ON" : "OFF";
-
-        // ★ 累計加算判定:
-        //   - verify-mode は常に No
-        //   - ODOA が ON かつ nocount なら No
-        var addNo = false;
-        if (verifyModeOn) addNo = true;
-        if (odoaIsOn && odoaNocount) addNo = true;
-
-        // ★ ODOA行の末尾ステータス（Correct / Wrong / nocount）を決める
-        //   - 計測された場合：oncePerDayToday の結果（server優先→local）を採用
-        //   - 計測されなかった場合：nocount
+        // --- 何をしているか:
+        //   ODOA行の末尾ステータスは「oncePerDayToday の結果」だけを採用（フォールバックしない）
         var odoaResultSuffix = "nocount";
         if (serverOnceVal === "correct") {
           odoaResultSuffix = "Correct";
         } else if (serverOnceVal === "wrong") {
           odoaResultSuffix = "Wrong";
-        } else if (localOnceVal === "correct") {
-          odoaResultSuffix = "Correct";
-        } else if (localOnceVal === "wrong") {
-          odoaResultSuffix = "Wrong";
         }
 
-        // ★ ODOA 表示（累計加算: No/Yes）＋ 末尾ステータス（Correct/Wrong/nocount）を付与
-        //   例:
-        //     OFF（累計加算: Yes）  Correct
-        //     ON（累計加算: Yes）   Wrong
-        //     ON（累計加算: Yes）   nocount
-        if (odoaText === "ON") {
+        // --- 何をしているか:
+        //   VERIFY/ODOA は累計加算 No として表示する（ガード理由の明示）
+        var addNo = false;
+        if (verifyModeOn) addNo = true;
+        if (odoaIsOn) addNo = true;
+
+        if (odoaIsOn) {
           onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
-        } else if (odoaText === "OFF") {
-          onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
         } else {
-          onceOdoaLabel = String(odoaText) + "（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
+          onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
         }
       } catch (_eOnceAll) {
         onceStateLabel = "未開始";
@@ -1884,8 +1802,19 @@
       serverWrongStreakLen: serverWrongStreakLen
     });
 
-    // ★ O.D.O.A Mode 表示用テキスト（refreshAndSend から渡される）
-    var odoaModeText = params.odoaModeText || "不明";
+    // ★ 何をしているか:
+    //   ODOAモードは唯一の参照元 window.CSCS_ODOA_MODE（"on"/"off"）のみを見る（params には依存しない）
+    var odoaModeText = "OFF";
+    try {
+      var t = (typeof window.CSCS_ODOA_MODE === "string" ? window.CSCS_ODOA_MODE : "").trim().toLowerCase();
+      if (t === "on") {
+        odoaModeText = "ON";
+      } else if (t === "off") {
+        odoaModeText = "OFF";
+      }
+    } catch (_eOdoaModeText) {
+      odoaModeText = "OFF";
+    }
 
     // ★ 追加: /api/sync/state の snapshot を受け取り、
     //    そこから oncePerDayTodayDelta / 最終日 Delta を構築するために利用する
@@ -2594,55 +2523,35 @@
           diffWrongStreakLen: diffWrongStreakLen
         });
 
-        // ★ O.D.O.A Mode の状態を SYNC state から読み取る
-        //   - Workers 側で実際にどこに保存しているかに合わせてここを書き換えること
+        // ★ 何をしているか:
+        //   ODOAモードは唯一の参照元 window.CSCS_ODOA_MODE（"on"/"off"）のみを見る
         var odoaModeRaw = null;
-        if (state) {
-          // トップレベル候補
-          if (Object.prototype.hasOwnProperty.call(state, "odoaMode")) {
-            odoaModeRaw = state.odoaMode;
-          } else if (Object.prototype.hasOwnProperty.call(state, "odoa_mode")) {
-            odoaModeRaw = state.odoa_mode;
-          } else if (Object.prototype.hasOwnProperty.call(state, "ODOA_MODE")) {
-            odoaModeRaw = state.ODOA_MODE;
-          } else if (Object.prototype.hasOwnProperty.call(state, "ODOA")) {
-            odoaModeRaw = state.ODOA;
+        try {
+          if (typeof window.CSCS_ODOA_MODE === "string") {
+            odoaModeRaw = window.CSCS_ODOA_MODE;
           }
-
-          // debug 配下の候補
-          if (odoaModeRaw == null && state.debug && typeof state.debug === "object") {
-            if (Object.prototype.hasOwnProperty.call(state.debug, "odoaMode")) {
-              odoaModeRaw = state.debug.odoaMode;
-            } else if (Object.prototype.hasOwnProperty.call(state.debug, "odoa_mode")) {
-              odoaModeRaw = state.debug.odoa_mode;
-            } else if (Object.prototype.hasOwnProperty.call(state.debug, "ODOA_MODE")) {
-              odoaModeRaw = state.debug.ODOA_MODE;
-            }
-          }
-
-          // navGuard 配下の候補（nav_guard.js が Workers にこう保存している可能性用）
-          if (odoaModeRaw == null && state.navGuard && typeof state.navGuard === "object") {
-            if (Object.prototype.hasOwnProperty.call(state.navGuard, "odoaMode")) {
-              odoaModeRaw = state.navGuard.odoaMode;
-            } else if (Object.prototype.hasOwnProperty.call(state.navGuard, "odoa_mode")) {
-              odoaModeRaw = state.navGuard.odoa_mode;
-            }
-          }
+        } catch (_eOdoaModeRaw) {
+          odoaModeRaw = null;
         }
 
-        // デバッグ用に一度ログ出し（騒がしければ後で消してOK）
-        console.log("[SYNC-B] detected O.D.O.A from state:", {
-          odoaModeRaw: odoaModeRaw
-        });
-
-        var odoaModeText = "不明";
-        if (odoaModeRaw === true || odoaModeRaw === "TRUE" || odoaModeRaw === "true" ||
-            odoaModeRaw === "ON" || odoaModeRaw === "on") {
-          odoaModeText = "ON";
-        } else if (odoaModeRaw === false || odoaModeRaw === "FALSE" || odoaModeRaw === "false" ||
-                   odoaModeRaw === "OFF" || odoaModeRaw === "off") {
+        // ★ 何をしているか:
+        //   HUDで使う表記を "ON"/"OFF" に正規化（他ソースへはフォールバックしない）
+        var odoaModeText = "OFF";
+        try {
+          var t = (odoaModeRaw == null ? "" : String(odoaModeRaw)).trim().toLowerCase();
+          if (t === "on") {
+            odoaModeText = "ON";
+          } else if (t === "off") {
+            odoaModeText = "OFF";
+          }
+        } catch (_eOdoaModeText) {
           odoaModeText = "OFF";
         }
+
+        console.log("[SYNC-B] detected O.D.O.A from window.CSCS_ODOA_MODE:", {
+          odoaModeRaw: odoaModeRaw,
+          odoaModeText: odoaModeText
+        });
 
         var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
 
