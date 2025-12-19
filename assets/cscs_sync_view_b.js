@@ -1575,8 +1575,71 @@
         var verifyModeOn =
           typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
 
+        // ★ ODOA状態を “state/payload のどこに入っていても” 取り出して正規化する
+        //   - 目的: Aと同じく「ONだが累計加算しない（on_nocount）」を B でも確実に拾う
+        var odoaRaw = null;
+        try {
+          // ① payload 経由があれば最優先（HUD表示の意図が明確）
+          if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
+            odoaRaw = payload.odoaModeText;
+          } else if (stOnce) {
+            // ② top-level 候補
+            if (odoaRaw == null && typeof stOnce.odoaMode === "string") odoaRaw = stOnce.odoaMode;
+            if (odoaRaw == null && typeof stOnce.odoa_mode === "string") odoaRaw = stOnce.odoa_mode;
+            if (odoaRaw == null && typeof stOnce.ODOA_MODE === "string") odoaRaw = stOnce.ODOA_MODE;
+            if (odoaRaw == null && typeof stOnce.ODOA === "string") odoaRaw = stOnce.ODOA;
+
+            // ③ debug 配下候補
+            if (odoaRaw == null && stOnce.debug && typeof stOnce.debug === "object") {
+              if (typeof stOnce.debug.odoaMode === "string") odoaRaw = stOnce.debug.odoaMode;
+              if (odoaRaw == null && typeof stOnce.debug.odoa_mode === "string") odoaRaw = stOnce.debug.odoa_mode;
+              if (odoaRaw == null && typeof stOnce.debug.ODOA_MODE === "string") odoaRaw = stOnce.debug.ODOA_MODE;
+            }
+
+            // ④ navGuard 配下候補
+            if (odoaRaw == null && stOnce.navGuard && typeof stOnce.navGuard === "object") {
+              if (typeof stOnce.navGuard.odoaMode === "string") odoaRaw = stOnce.navGuard.odoaMode;
+              if (odoaRaw == null && typeof stOnce.navGuard.odoa_mode === "string") odoaRaw = stOnce.navGuard.odoa_mode;
+            }
+          }
+        } catch (_eOdoaPick) {
+          odoaRaw = null;
+        }
+
+        // ★ 正規化: ON/OFF と「nocount」判定を分離して確定
+        //   - "on_nocount" / "ON_NOCOUNT" / "on-nocount" などの揺れを吸収（フォールバックで別ソースは見ない）
+        var odoaNorm = "";
+        try {
+          if (odoaRaw != null) {
+            odoaNorm = String(odoaRaw).trim();
+          }
+        } catch (_eOdoaNorm) {
+          odoaNorm = "";
+        }
+
+        var odoaLower = "";
+        try {
+          odoaLower = odoaNorm.toLowerCase();
+        } catch (_eOdoaLower) {
+          odoaLower = "";
+        }
+
+        // ★ 何をしているか:
+        //   - odoaIsOn: ODOAがONかどうか
+        //   - odoaNocount: ONの中でも「累計加算しない」モードかどうか
+        var odoaIsOn = false;
         var odoaNocount = false;
-        if (stOnce && (stOnce.odoaMode === "on_nocount" || stOnce.odoa_mode === "on_nocount")) {
+
+        if (odoaLower === "on" || odoaLower === "true" || odoaLower === "1") {
+          odoaIsOn = true;
+        } else if (odoaLower === "off" || odoaLower === "false" || odoaLower === "0") {
+          odoaIsOn = false;
+        } else if (odoaLower.indexOf("on") === 0) {
+          // "on_nocount" / "on-nocount" 等をここで拾う
+          odoaIsOn = true;
+        }
+
+        if (odoaLower.indexOf("nocount") !== -1 || odoaLower.indexOf("no_count") !== -1 || odoaLower.indexOf("on_nocount") !== -1 || odoaLower.indexOf("on-nocount") !== -1) {
           odoaNocount = true;
         }
 
@@ -1590,22 +1653,15 @@
           onceCountableLabel = "Yes（未計測）";
         }
 
-        // ODOA 表示（累計加算: No/Yes）
-        var odoaText = "OFF";
-        try {
-          if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
-            odoaText = payload.odoaModeText;
-          } else if (stOnce && typeof stOnce.odoa_mode === "string") {
-            if (stOnce.odoa_mode === "on" || stOnce.odoa_mode === "ON") odoaText = "ON";
-            if (stOnce.odoa_mode === "off" || stOnce.odoa_mode === "OFF") odoaText = "OFF";
-          }
-        } catch (_eO) {
-          odoaText = "OFF";
-        }
+        // ★ ODOA表示（累計加算: No/Yes）の “ON/OFF” 部分を確定
+        var odoaText = odoaIsOn ? "ON" : "OFF";
 
+        // ★ 累計加算判定:
+        //   - verify-mode は常に No
+        //   - ODOA が ON かつ nocount なら No
         var addNo = false;
         if (verifyModeOn) addNo = true;
-        if (odoaText === "ON" && odoaNocount) addNo = true;
+        if (odoaIsOn && odoaNocount) addNo = true;
 
         // ★ ODOA行の末尾ステータス（Correct / Wrong / nocount）を決める
         //   - 計測された場合：oncePerDayToday の結果（server優先→local）を採用
