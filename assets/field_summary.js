@@ -88,18 +88,6 @@
         z-index: 20;
     }
 
-    .cscs-star-summary-line-compact {
-        display: grid;
-        grid-template-columns: 1fr;
-        row-gap: 6px;
-        font-size: 14px;
-        margin-bottom: 15px;
-        margin-left: 0px;
-        width: 57%;
-        padding-bottom: 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-    }
-
     /* 追加した処理:
        - Aパート(body.mode-a)のときだけ、compact行の見た目を指定スタイルで上書きする
        - Bパートには影響しない（セレクタを body.mode-a に限定） */
@@ -123,7 +111,7 @@
         display: grid;
         grid-template-columns: 1fr;
         row-gap: 6px;
-        font-size: 14px;
+        font-size: 16px;
         margin-bottom: 15px;
         margin-left: 0px;
         width: 54%;
