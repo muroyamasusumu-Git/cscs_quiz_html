@@ -369,6 +369,7 @@
     "  align-items: baseline;",
     "  opacity: 0.90;",
     "  font-weight: 800;",
+    "  margin-bottom: 5px;", 
     "}",
     "",
     "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-k {",
