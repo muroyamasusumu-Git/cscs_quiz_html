@@ -132,7 +132,7 @@
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card {",
-    "  background: rgba(0,0,0,0.22);",
+    "  background: rgba(0,0,0,0.42);",
     "  border: 1px solid rgba(255,255,255,0.10);",
     "  border-radius: 8px;",
     "  padding: 10px 10px;",
