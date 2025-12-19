@@ -281,6 +281,55 @@
     "  opacity: 0.90;",
     "  font-weight: 800;",
     "}",
+    "",
+    "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
+    "#cscs_sync_view_b_body .svb-lastday-head {",
+    "  display: grid;",
+    "  grid-template-columns: minmax(0, 1fr) auto auto;",
+    "  column-gap: 10px;",
+    "  row-gap: 2px;",
+    "  align-items: baseline;",
+    "  opacity: 0.90;",
+    "  font-weight: 800;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-k {",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-v {",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-grid {",
+    "  display: grid;",
+    "  grid-template-columns: minmax(0, 1fr) auto auto;",
+    "  column-gap: 10px;",
+    "  row-gap: 2px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-k {",
+    "  opacity: 0.85;",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-v {",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "  min-width: 0;",
+    "}",
     ""
   ].join("\n");
 
@@ -995,11 +1044,129 @@
       body.appendChild(card);
     })();
 
-    // --- LastDay（情報量多めなのでワイドカードに） ---
-    var gLast = appendGridSection(body, "LastDay (SYNC / local)", { wide: true });
-    appendGridRow(gLast, "lastSeen", "sync " + String(model.lastSeenSyncLabel) + " / local " + String(model.lastSeenLocalLabel));
-    appendGridRow(gLast, "lastCorrect", "sync " + String(model.lastCorrectSyncLabel) + " / local " + String(model.lastCorrectLocalLabel));
-    appendGridRow(gLast, "lastWrong", "sync " + String(model.lastWrongSyncLabel) + " / local " + String(model.lastWrongLocalLabel));
+    // --- LastDay（ヘッダー=最新レコード / 3列=項目・SYNC・local） ---
+    (function appendLastDayCard() {
+      function asDayNum(s) {
+        if (s == null) return null;
+        var t = String(s);
+        if (!/^\d{8}$/.test(t)) return null;
+        var n = parseInt(t, 10);
+        if (!Number.isFinite(n) || n <= 0) return null;
+        return n;
+      }
+
+      function max2(a, b) {
+        if (a == null && b == null) return null;
+        if (a == null) return b;
+        if (b == null) return a;
+        return a > b ? a : b;
+      }
+
+      var seenS = asDayNum(model.lastSeenSyncLabel);
+      var seenL = asDayNum(model.lastSeenLocalLabel);
+      var corS  = asDayNum(model.lastCorrectSyncLabel);
+      var corL  = asDayNum(model.lastCorrectLocalLabel);
+      var wroS  = asDayNum(model.lastWrongSyncLabel);
+      var wroL  = asDayNum(model.lastWrongLocalLabel);
+
+      var seenMax = max2(seenS, seenL);
+      var corMax  = max2(corS, corL);
+      var wroMax  = max2(wroS, wroL);
+
+      var headKey = "LastDay";
+      var best = null;
+
+      if (seenMax != null) {
+        headKey = "lastSeen";
+        best = seenMax;
+      }
+      if (corMax != null && (best == null || corMax > best)) {
+        headKey = "lastCorrect";
+        best = corMax;
+      }
+      if (wroMax != null && (best == null || wroMax > best)) {
+        headKey = "lastWrong";
+        best = wroMax;
+      }
+
+      function showLabel(n, fallback) {
+        if (n == null) return fallback;
+        return String(n);
+      }
+
+      var headSync = "-";
+      var headLocal = "-";
+
+      if (headKey === "lastSeen") {
+        headSync = showLabel(seenS, "-");
+        headLocal = showLabel(seenL, "-");
+      } else if (headKey === "lastCorrect") {
+        headSync = showLabel(corS, "-");
+        headLocal = showLabel(corL, "-");
+      } else if (headKey === "lastWrong") {
+        headSync = showLabel(wroS, "-");
+        headLocal = showLabel(wroL, "-");
+      }
+
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide";
+
+      // タイトル（カード見出し）
+      var h = document.createElement("div");
+      h.className = "cscs-svb-card-title";
+      h.textContent = "LastDay";
+      card.appendChild(h);
+
+      // ヘッダー（最新レコード行：横3列）
+      var head = document.createElement("div");
+      head.className = "svb-lastday-head";
+
+      var hk = document.createElement("div");
+      hk.className = "svb-lastday-k";
+      hk.textContent = headKey;
+
+      var hs = document.createElement("div");
+      hs.className = "svb-lastday-v";
+      hs.textContent = "SYNC " + String(headSync);
+
+      var hl = document.createElement("div");
+      hl.className = "svb-lastday-v";
+      hl.textContent = "local " + String(headLocal);
+
+      head.appendChild(hk);
+      head.appendChild(hs);
+      head.appendChild(hl);
+      card.appendChild(head);
+
+      // 本体（3行：lastCorrect/lastSeen/lastWrong を固定順で）
+      var grid = document.createElement("div");
+      grid.className = "svb-lastday-grid";
+
+      function addRow(kText, syncText, localText) {
+        var k = document.createElement("div");
+        k.className = "svb-lastday-k";
+        k.textContent = kText;
+
+        var s = document.createElement("div");
+        s.className = "svb-lastday-v";
+        s.textContent = showLabel(asDayNum(syncText), "-");
+
+        var l = document.createElement("div");
+        l.className = "svb-lastday-v";
+        l.textContent = showLabel(asDayNum(localText), "-");
+
+        grid.appendChild(k);
+        grid.appendChild(s);
+        grid.appendChild(l);
+      }
+
+      addRow("lastCorrect", model.lastCorrectSyncLabel, model.lastCorrectLocalLabel);
+      addRow("lastSeen", model.lastSeenSyncLabel, model.lastSeenLocalLabel);
+      addRow("lastWrong", model.lastWrongSyncLabel, model.lastWrongLocalLabel);
+
+      card.appendChild(grid);
+      body.appendChild(card);
+    })();
 
     // --- Pending (unsent) ---
     var pendingText = "none";
