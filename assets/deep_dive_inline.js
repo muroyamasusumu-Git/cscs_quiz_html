@@ -418,6 +418,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
     padding: 0 !important;
     border: 0 !important;
     line-height: 16px !important;
+    opacity: 0.8;
 }
       /* ブロック要素による改行を排除 */
       #dd-inline section { display: contents !important; }  /* 親ボックスを消して子だけ残す */
