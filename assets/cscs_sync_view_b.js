@@ -151,7 +151,7 @@
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card-title {",
-    "  font-weight: 700;",
+    "  font-weight: 600;",
     "  opacity: 0.90;",
     "  margin-bottom: 5px;",
     "  letter-spacing: 0.2px;",
