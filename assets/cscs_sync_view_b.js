@@ -357,33 +357,6 @@
     "  text-align: center;",
     "}",
     "",
-    "/* --- Pending: 内部を囲いグリッド化して見やすくする --- */",
-    "#cscs_sync_view_b_body .svb-pending-block {",
-    "  border: 1px solid rgba(255,255,255,0.10);",
-    "  border-radius: 8px;",
-    "  padding: 8px 8px;",
-    "  margin-top: 6px;",
-    "  background: rgba(255,255,255,0.03);",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-block-title {",
-    "  font-weight: 650;",
-    "  opacity: 0.85;",
-    "  margin-bottom: 6px;",
-    "  letter-spacing: 0.2px;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-block-grid {",
-    "  display: grid;",
-    "  grid-template-columns: minmax(0, 1fr) auto;",
-    "  column-gap: 10px;",
-    "  row-gap: 2px;",
-    "  opacity: 0.60;",
-    "}",
-    "",
     "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
     "#cscs_sync_view_b_status {",
     "  display: none !important;",
@@ -1228,8 +1201,6 @@
     })();
 
     // --- Pending (unsent) ---
-    // ★ 何をしているか:
-    //   pendingフラグを一覧化して "status" 1行にまとめる（視認性）
     var pendingText = "none";
     if (model.pending && typeof model.pending === "object") {
       var bits = [];
@@ -1272,114 +1243,91 @@
     }
 
     // ★ 何をしているか:
-    //   localQids - syncQids を算出し「localにいてsyncにいないqid差分」を作る（フォールバック無し）
-    function diffLocalOnlyQids(localQids, syncQids) {
-      var out = [];
-      if (!Array.isArray(localQids) || localQids.length === 0) return out;
-
+    //   local に居て sync に居ない qid を抽出して「未反映の差分(qids)」として可視化する
+    //   （フォールバック無し：引数で渡された配列だけを使う）
+    function pickLocalOnlyQids(syncArr, localArr) {
+      if (!Array.isArray(localArr) || localArr.length === 0) return [];
       var set = Object.create(null);
-      if (Array.isArray(syncQids)) {
-        for (var i = 0; i < syncQids.length; i++) {
-          var s = syncQids[i];
-          if (typeof s === "string" && s) {
-            set[s] = 1;
-          }
+      if (Array.isArray(syncArr) && syncArr.length > 0) {
+        for (var i = 0; i < syncArr.length; i++) {
+          var s = syncArr[i];
+          if (typeof s === "string" && s) set[s] = 1;
         }
       }
-
-      for (var j = 0; j < localQids.length; j++) {
-        var l = localQids[j];
+      var out = [];
+      for (var j = 0; j < localArr.length; j++) {
+        var l = localArr[j];
         if (typeof l !== "string" || !l) continue;
         if (!set[l]) out.push(l);
       }
       return out;
     }
 
-    // ★ 何をしているか:
-    //   Pendingカード内に「囲いブロック」を作り、その中を2列グリッドで並べる（視認性）
-    function appendPendingBlock(bodyGrid, titleText, rows) {
-      var wrap = document.createElement("div");
-      wrap.className = "svb-pending-block";
-
-      var t = document.createElement("div");
-      t.className = "svb-pending-block-title";
-      t.textContent = titleText;
-
-      var grid = document.createElement("div");
-      grid.className = "svb-pending-block-grid";
-
-      for (var i = 0; i < rows.length; i++) {
-        appendGridRow(grid, rows[i].k, rows[i].v);
-      }
-
-      wrap.appendChild(t);
-      wrap.appendChild(grid);
-
-      // gPending は「card-grid」なので、その中に“1アイテム”として囲いブロックを追加する
-      bodyGrid.appendChild(wrap);
-    }
-
     if (model.pending && typeof model.pending === "object") {
       if (model.pending.pendingStreak3Today) {
-        // ★ 何をしているか:
-        //   streak3Today の local-only qids を算出して表示する（localにいてsyncにいない分）
-        var s3tLocalOnly = diffLocalOnlyQids(model.localS3TodayQids, model.s3TodaySyncQids);
+        appendGridRow(
+          gPending,
+          "streak3Today.day",
+          fmtDayPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.day : "-"),
+            (function () { try { return localStorage.getItem("cscs_streak3_today_day") || "-"; } catch (_e) { return "-"; } })()
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3Today.unique",
+          fmtNumPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.unique_count : 0),
+            model.localS3TodayCnt
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3Today.qids",
+          "sync " + fmtQidsPreview(model.s3TodaySyncQids) + " / local " + fmtQidsPreview(model.localS3TodayQids)
+        );
 
-        appendPendingBlock(gPending, "streak3Today", [
-          {
-            k: "day",
-            v: fmtDayPair(
-              (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.day : "-"),
-              (function () { try { return localStorage.getItem("cscs_streak3_today_day") || "-"; } catch (_e) { return "-"; } })()
-            )
-          },
-          {
-            k: "unique",
-            v: fmtNumPair(
-              (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.unique_count : 0),
-              model.localS3TodayCnt
-            )
-          },
-          {
-            k: "qids",
-            v: "sync " + fmtQidsPreview(model.s3TodaySyncQids) + " / local " + fmtQidsPreview(model.localS3TodayQids)
-          },
-          {
-            k: "qids(local-only)",
-            v: fmtQidsPreview(s3tLocalOnly)
-          }
-        ]);
+        // ★ 何をしているか:
+        //   「local-only（sync未反映）」の qids を行として追加して、差分が即わかるようにする
+        var s3TodayMissing = pickLocalOnlyQids(model.s3TodaySyncQids, model.localS3TodayQids);
+        appendGridRow(
+          gPending,
+          "streak3Today.missing",
+          "local-only " + fmtQidsPreview(s3TodayMissing)
+        );
       }
 
       if (model.pending.pendingStreak3WrongToday) {
-        // ★ 何をしているか:
-        //   streak3WrongToday の local-only qids を算出して表示する（localにいてsyncにいない分）
-        var s3wLocalOnly = diffLocalOnlyQids(model.localS3WrongTodayQids, model.s3WrongTodaySyncQids);
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.day",
+          fmtDayPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.day : "-"),
+            (function () { try { return localStorage.getItem("cscs_streak3_wrong_today_day") || "-"; } catch (_e2) { return "-"; } })()
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.unique",
+          fmtNumPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0),
+            model.localS3WrongTodayCnt
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.qids",
+          "sync " + fmtQidsPreview(model.s3WrongTodaySyncQids) + " / local " + fmtQidsPreview(model.localS3WrongTodayQids)
+        );
 
-        appendPendingBlock(gPending, "streak3WrongToday", [
-          {
-            k: "day",
-            v: fmtDayPair(
-              (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.day : "-"),
-              (function () { try { return localStorage.getItem("cscs_streak3_wrong_today_day") || "-"; } catch (_e2) { return "-"; } })()
-            )
-          },
-          {
-            k: "unique",
-            v: fmtNumPair(
-              (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0),
-              model.localS3WrongTodayCnt
-            )
-          },
-          {
-            k: "qids",
-            v: "sync " + fmtQidsPreview(model.s3WrongTodaySyncQids) + " / local " + fmtQidsPreview(model.localS3WrongTodayQids)
-          },
-          {
-            k: "qids(local-only)",
-            v: fmtQidsPreview(s3wLocalOnly)
-          }
-        ]);
+        // ★ 何をしているか:
+        //   「local-only（sync未反映）」の qids を行として追加して、差分が即わかるようにする
+        var s3WrongTodayMissing = pickLocalOnlyQids(model.s3WrongTodaySyncQids, model.localS3WrongTodayQids);
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.missing",
+          "local-only " + fmtQidsPreview(s3WrongTodayMissing)
+        );
       }
     }
   }
@@ -3317,5 +3265,4 @@
   });
 
   init();
-})();　
-
+})();
