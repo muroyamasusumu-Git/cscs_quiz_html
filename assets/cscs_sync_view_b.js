@@ -819,7 +819,7 @@
       // 左上：3連続正解（回数）
       quad.appendChild(
         makeCard(
-          "3連続正解（回数）",
+          "3連続正解回数",
           "回数(s3)",
           String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
         )
@@ -828,7 +828,7 @@
       // 右上：3連続不正解（回数）
       quad.appendChild(
         makeCard(
-          "3連続不正解（回数）",
+          "3連続不正解回数",
           "回数(s3W)",
           String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
         )
@@ -837,7 +837,7 @@
       // 左下：3連続正解（進捗）
       quad.appendChild(
         makeCard(
-          "3連続正解（進捗）",
+          "3連続正解進捗",
           "進捗(progress)",
           String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
         )
@@ -846,7 +846,7 @@
       // 右下：3連続不正解（進捗）
       quad.appendChild(
         makeCard(
-          "3連続不正解（進捗）",
+          "3連続不正解進捗",
           "進捗(progress)",
           String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
         )
