@@ -119,11 +119,16 @@
     "  border-top: none;",
     "}",
     "",
-    "/* 画面が広い時だけ 2列（“できるところは2列”） */",
-    "@media (min-width: 980px) {",
-    "  #cscs_sync_view_b_body {",
-    "    grid-template-columns: 1fr 1fr;",
-    "  }",
+    "/* --- 3連続（正解/不正解）4枚を 2列×2段で固定配置 --- */",
+    "#cscs_sync_view_b_body .svb-streak-quad {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr 1fr;",
+    "  gap: 6px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-streak-quad .svb-streak-card {",
+    "  width: 100%;",
+    "  box-sizing: border-box;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card {",
@@ -163,34 +168,6 @@
     "  column-gap: 10px;",
     "  row-gap: 2px;",
     "  opacity: 0.60;",
-    "}",
-    "",
-    "/* --- Streaks: 2列×2段（ミニカード無し） --- */",
-    "#cscs_sync_view_b_body .svb-streak-matrix {",
-    "  display: grid;",
-    "  grid-template-columns: 1fr 1fr;",
-    "  gap: 6px 10px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-streak-cell {",
-    "  min-width: 0;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-streak-label {",
-    "  font-weight: 800;",
-    "  opacity: 0.90;",
-    "  margin-bottom: 2px;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-streak-value {",
-    "  opacity: 0.62;",
-    "  font-variant-numeric: tabular-nums;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-k {",
@@ -793,61 +770,71 @@
       body.appendChild(card);
     })();
 
-    // --- Streaks: 左=3連続正解 / 右=3連続不正解（2列×2段 / ミニカード無し） ---
-    (function appendStreakMatrix2x2() {
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide";
+    // --- 3連続（正解/不正解）：2列×2段（左=正解 / 右=不正解、上=回数 / 下=進捗） ---
+    (function appendStreakQuad4WideCards() {
+      var quad = document.createElement("div");
+      quad.className = "svb-streak-quad";
 
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "Streaks";
+      function makeCard(titleText, rowKey, valueText) {
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-streak-card";
 
-      var suf = document.createElement("span");
-      suf.className = "svb-title-suffix";
-      suf.textContent = "(SYNC/local/diff)";
-      h.appendChild(suf);
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
 
-      var matrix = document.createElement("div");
-      matrix.className = "svb-streak-matrix";
+        var suf = document.createElement("span");
+        suf.className = "svb-title-suffix";
+        suf.textContent = "(SYNC/local/diff)";
+        h.appendChild(suf);
 
-      function addCell(labelText, valueText) {
-        var cell = document.createElement("div");
-        cell.className = "svb-streak-cell";
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
 
-        var lab = document.createElement("div");
-        lab.className = "svb-streak-label";
-        lab.textContent = labelText;
+        appendGridRow(grid, rowKey, valueText);
 
-        var val = document.createElement("div");
-        val.className = "svb-streak-value";
-        val.textContent = valueText;
-
-        cell.appendChild(lab);
-        cell.appendChild(val);
-        matrix.appendChild(cell);
+        card.appendChild(h);
+        card.appendChild(grid);
+        return card;
       }
 
-      // 左列（上→下）
-      addCell(
-        "3連続正解（回数）",
-        "s3: " + String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
-      );
-      addCell(
-        "3連続不正解（回数）",
-        "s3W: " + String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
-      );
-      addCell(
-        "3連続正解（進捗）",
-        "progress: " + String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
-      );
-      addCell(
-        "3連続不正解（進捗）",
-        "progress: " + String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
+      // 左上：3連続正解（回数）
+      quad.appendChild(
+        makeCard(
+          "3連続正解（回数）",
+          "回数(s3)",
+          String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+        )
       );
 
-      card.appendChild(h);
-      card.appendChild(matrix);
-      body.appendChild(card);
+      // 右上：3連続不正解（回数）
+      quad.appendChild(
+        makeCard(
+          "3連続不正解（回数）",
+          "回数(s3W)",
+          String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+        )
+      );
+
+      // 左下：3連続正解（進捗）
+      quad.appendChild(
+        makeCard(
+          "3連続正解（進捗）",
+          "進捗(progress)",
+          String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
+        )
+      );
+
+      // 右下：3連続不正解（進捗）
+      quad.appendChild(
+        makeCard(
+          "3連続不正解（進捗）",
+          "進捗(progress)",
+          String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
+        )
+      );
+
+      body.appendChild(quad);
     })();
 
     // --- Today Unique ---
@@ -2615,4 +2602,5 @@
   });
 
   init();
-})();
+})();　
+
