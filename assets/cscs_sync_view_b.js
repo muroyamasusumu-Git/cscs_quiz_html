@@ -1545,7 +1545,10 @@
           onceResultLabel = "-";
         }
 
-        // 計測OK判定（local にあるなら、server と一致していれば OK）
+        // 計測OK判定：
+        // - local が未計測 → NG
+        // - local が計測済み かつ server と一致 → OK
+        // - それ以外 → NG
         if (localOnceVal === "correct" || localOnceVal === "wrong") {
           if (serverOnceVal === localOnceVal) {
             onceMeasureOkLabel = "OK";
@@ -1553,7 +1556,7 @@
             onceMeasureOkLabel = "NG";
           }
         } else {
-          onceMeasureOkLabel = "-";
+          onceMeasureOkLabel = "NG";
         }
 
         // count対象（すでに計測済みなら No）
