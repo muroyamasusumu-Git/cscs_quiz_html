@@ -308,6 +308,11 @@
     "  text-overflow: ellipsis;",
     "}",
     "",
+    "/* --- LastDay head: 真ん中列（SYNC）だけ中央揃え --- */",
+    "#cscs_sync_view_b_body .svb-lastday-head > :nth-child(2) {",
+    "  text-align: center;",
+    "}",
+    "",
     "#cscs_sync_view_b_body .svb-lastday-grid {",
     "  display: grid;",
     "  grid-template-columns: repeat(3, minmax(0, 1fr));",
@@ -331,6 +336,11 @@
     "  overflow: hidden;",
     "  text-overflow: ellipsis;",
     "  min-width: 0;",
+    "}",
+    "",
+    "/* --- LastDay rows: 真ん中列（SYNC）だけ中央揃え --- */",
+    "#cscs_sync_view_b_body .svb-lastday-grid > :nth-child(3n+2) {",
+    "  text-align: center;",
     "}",
     ""
   ].join("\n");
