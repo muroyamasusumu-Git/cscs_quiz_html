@@ -1144,11 +1144,13 @@
       head.appendChild(hl);
       card.appendChild(head);
 
-      // 本体（3行：lastCorrect/lastSeen/lastWrong を固定順で）
+      // 本体（見出しと同じ項目は表示しない）
       var grid = document.createElement("div");
       grid.className = "svb-lastday-grid";
 
       function addRow(kText, syncText, localText) {
+        if (kText === headKey) return;
+
         var k = document.createElement("div");
         k.className = "svb-lastday-k";
         k.textContent = kText;
@@ -1170,7 +1172,10 @@
       addRow("lastSeen", model.lastSeenSyncLabel, model.lastSeenLocalLabel);
       addRow("lastWrong", model.lastWrongSyncLabel, model.lastWrongLocalLabel);
 
-      card.appendChild(grid);
+      if (grid.childNodes.length > 0) {
+        card.appendChild(grid);
+      }
+
       body.appendChild(card);
     })();
 
