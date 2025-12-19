@@ -149,7 +149,7 @@
     "",
     "#cscs_sync_view_b_body .cscs-svb-card.is-wide {",
     "  grid-column: 1 / -1;",
-    "  font-weight: 400;",
+    "  font-weight: 350;",
     "}",
     "",
     "/* --- wide card: 左右カラム幅を同一に固定（key/value を等幅） --- */",
