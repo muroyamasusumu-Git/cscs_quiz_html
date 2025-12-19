@@ -837,14 +837,56 @@
       body.appendChild(quad);
     })();
 
-    // --- Today Unique ---
-    var gToday = appendGridSection(body, "Streak3TodayUnique");
-    appendGridRow(gToday, "day", String(model.s3TodayDayLabel));
-    appendGridRow(gToday, "unique", "sync " + String(model.s3TodaySyncCnt) + " / local " + String(model.localS3TodayCnt));
+    // --- Today Unique（左右2列：左=Streak3TodayUnique / 右=Streak3WrongTodayUq） ---
+    (function appendTodayUniquePair() {
+      var pair = document.createElement("div");
+      pair.className = "svb-streak-quad";
 
-    var gTodayW = appendGridSection(body, "Streak3WrongTodayUq");
-    appendGridRow(gTodayW, "day", String(model.s3WrongTodayDayLabel));
-    appendGridRow(gTodayW, "unique", "sync " + String(model.s3WrongTodaySyncCnt) + " / local " + String(model.localS3WrongTodayCnt));
+      function makeTodayCard(titleText, dayLabel, syncCnt, localCnt) {
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-streak-card";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(grid, "day", String(dayLabel));
+        appendGridRow(
+          grid,
+          "unique",
+          "sync " + String(syncCnt) + " / local " + String(localCnt)
+        );
+
+        card.appendChild(h);
+        card.appendChild(grid);
+        return card;
+      }
+
+      // 左：Streak3TodayUnique
+      pair.appendChild(
+        makeTodayCard(
+          "Streak3TodayUnique",
+          model.s3TodayDayLabel,
+          model.s3TodaySyncCnt,
+          model.localS3TodayCnt
+        )
+      );
+
+      // 右：Streak3WrongTodayUq
+      pair.appendChild(
+        makeTodayCard(
+          "Streak3WrongTodayUq",
+          model.s3WrongTodayDayLabel,
+          model.s3WrongTodaySyncCnt,
+          model.localS3WrongTodayCnt
+        )
+      );
+
+      body.appendChild(pair);
+    })();
 
     // --- LastDay（情報量多めなのでワイドカードに） ---
     var gLast = appendGridSection(body, "LastDay (SYNC / local)", { wide: true });
