@@ -107,7 +107,7 @@
         display: grid;
         grid-template-columns: 1fr;
         row-gap: 6px;
-        font-size: 14px;
+        font-size: 16px;
         margin-bottom: -5px;
         margin-left: 0px;
         width: 54%;
