@@ -148,6 +148,7 @@
     "  overflow: visible;",
     "  text-overflow: clip;",
     "  word-break: break-word;",
+    "  text-align: left;",
     "}",
     "",
     "/* --- Counts card only: tighter padding --- */",
