@@ -1602,12 +1602,31 @@
         if (verifyModeOn) addNo = true;
         if (odoaText === "ON" && odoaNocount) addNo = true;
 
+        // ★ ODOA行の末尾ステータス（Correct / Wrong / nocount）を決める
+        //   - 計測された場合：oncePerDayToday の結果（server優先→local）を採用
+        //   - 計測されなかった場合：nocount
+        var odoaResultSuffix = "nocount";
+        if (serverOnceVal === "correct") {
+          odoaResultSuffix = "Correct";
+        } else if (serverOnceVal === "wrong") {
+          odoaResultSuffix = "Wrong";
+        } else if (localOnceVal === "correct") {
+          odoaResultSuffix = "Correct";
+        } else if (localOnceVal === "wrong") {
+          odoaResultSuffix = "Wrong";
+        }
+
+        // ★ ODOA 表示（累計加算: No/Yes）＋ 末尾ステータス（Correct/Wrong/nocount）を付与
+        //   例:
+        //     OFF（累計加算: Yes）  Correct
+        //     ON（累計加算: Yes）   Wrong
+        //     ON（累計加算: Yes）   nocount
         if (odoaText === "ON") {
-          onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）";
+          onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
         } else if (odoaText === "OFF") {
-          onceOdoaLabel = "OFF（累計加算: Yes）";
+          onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
         } else {
-          onceOdoaLabel = String(odoaText) + "（累計加算: " + (addNo ? "No" : "Yes") + "）";
+          onceOdoaLabel = String(odoaText) + "（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
         }
       } catch (_eOnceAll) {
         onceStateLabel = "未開始";
