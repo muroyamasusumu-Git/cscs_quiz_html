@@ -127,8 +127,8 @@
         margin-bottom: 15px;
         margin-left: 0px;
         width: 54%;
-    /* padding-bottom: 15px; */
-    /* border-bottom: 1px solid rgba(255, 255, 255, 0.18); */
+        padding-bottom: 0px;
+        border-bottom: 0px solid rgba(255, 255, 255, 0.18);
         margin-top: 15px;
         opacity: 0.5;
     }
