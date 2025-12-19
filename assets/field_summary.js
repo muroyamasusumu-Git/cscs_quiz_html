@@ -124,15 +124,15 @@
         grid-template-columns: 1fr;
         row-gap: 6px;
         font-size: 14px;
-        margin-bottom: -5px;
+        margin-bottom: 15px;
         margin-left: 0px;
         width: 54%;
-        padding-bottom: 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-        margin-top: 10px;
+    /* padding-bottom: 15px; */
+    /* border-bottom: 1px solid rgba(255, 255, 255, 0.18); */
+        margin-top: 15px;
         opacity: 0.5;
-    }    
-
+    }
+   
     .cscs-star-main-compact {
         font-weight: 600;
     }
