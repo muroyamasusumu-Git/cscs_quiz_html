@@ -387,8 +387,9 @@
     "  text-overflow: ellipsis;",
     "}",
     "",
-    "/* --- LastDay head: 真ん中列（SYNC）だけ中央揃え --- */",
-    "#cscs_sync_view_b_body .svb-lastday-head > :nth-child(2) {",
+    "/* --- LastDay: 真ん中列（SYNC）だけ中央揃え（nth-child依存をやめてclass指定にする） --- */",
+    "/* 何をしているか: LastDayの真ん中列に付与する .svb-lastday-mid を中央寄せに固定する */",
+    "#cscs_sync_view_b_body .svb-lastday-mid {",
     "  text-align: center;",
     "}",
     "",
@@ -419,11 +420,6 @@
     "  overflow: hidden;",
     "  text-overflow: ellipsis;",
     "  min-width: 0;",
-    "}",
-    "",
-    "/* --- LastDay rows: 真ん中列（SYNC）だけ中央揃え --- */",
-    "#cscs_sync_view_b_body .svb-lastday-grid > :nth-child(3n+2) {",
-    "  text-align: center;",
     "}",
     "",
     "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
@@ -1222,10 +1218,12 @@
       hk.textContent = headKey;
 
       var hs = document.createElement("div");
-      hs.className = "svb-lastday-v";
+      // 何をしているか: LastDayの真ん中列（SYNC列）だと明示するclassを付与する（CSSで中央寄せ固定）
+      hs.className = "svb-lastday-v svb-lastday-mid";
       hs.textContent = "SYNC " + String(headSync);
 
       var hl = document.createElement("div");
+      // 何をしているか: 右列（local列）として通常の右寄せスタイルを維持する
       hl.className = "svb-lastday-v";
       hl.textContent = "local " + String(headLocal);
 
@@ -1246,10 +1244,12 @@
         k.textContent = kText;
 
         var s = document.createElement("div");
-        s.className = "svb-lastday-v";
+        // 何をしているか: LastDayの真ん中列（SYNC列）だと明示するclassを付与する（CSSで中央寄せ固定）
+        s.className = "svb-lastday-v svb-lastday-mid";
         s.textContent = showLabel(asDayNum(syncText), "-");
 
         var l = document.createElement("div");
+        // 何をしているか: 右列（local列）は従来通り右寄せのまま
         l.className = "svb-lastday-v";
         l.textContent = showLabel(asDayNum(localText), "-");
 
