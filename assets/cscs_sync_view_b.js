@@ -135,7 +135,7 @@
     "  background: rgba(0,0,0,0.22);",
     "  border: 1px solid rgba(255,255,255,0.10);",
     "  border-radius: 8px;",
-    "  padding: 6px 8px;",
+    "  padding: 10px 10px;",
     "  width: 100%;",
     "  box-sizing: border-box;",
     "}",
