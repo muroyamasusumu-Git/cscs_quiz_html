@@ -2016,8 +2016,6 @@
   background: rgba(0,0,0,0.52);
 
   /* ガラス感：背面ぼかし（対応ブラウザのみ効く） */
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
 
   /* エッジの光：薄い白枠 + ほんの少し内側のハイライト */
   border: 1px solid rgba(255,255,255,0.14);
