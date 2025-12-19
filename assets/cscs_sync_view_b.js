@@ -285,7 +285,7 @@
     "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
     "#cscs_sync_view_b_body .svb-lastday-head {",
     "  display: grid;",
-    "  grid-template-columns: minmax(0, 1fr) auto auto;",
+    "  grid-template-columns: minmax(0, 1fr) 10ch 10ch;",
     "  column-gap: 10px;",
     "  row-gap: 2px;",
     "  align-items: baseline;",
@@ -304,11 +304,13 @@
     "  text-align: right;",
     "  font-variant-numeric: tabular-nums;",
     "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
     "}",
     "",
     "#cscs_sync_view_b_body .svb-lastday-grid {",
     "  display: grid;",
-    "  grid-template-columns: minmax(0, 1fr) auto auto;",
+    "  grid-template-columns: minmax(0, 1fr) 10ch 10ch;",
     "  column-gap: 10px;",
     "  row-gap: 2px;",
     "  opacity: 0.60;",
@@ -1111,12 +1113,6 @@
       var card = document.createElement("div");
       card.className = "cscs-svb-card is-wide";
 
-      // タイトル（カード見出し）
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "LastDay";
-      card.appendChild(h);
-
       // ヘッダー（最新レコード行：横3列）
       var head = document.createElement("div");
       head.className = "svb-lastday-head";
@@ -1127,11 +1123,11 @@
 
       var hs = document.createElement("div");
       hs.className = "svb-lastday-v";
-      hs.textContent = "SYNC " + String(headSync);
+      hs.textContent = String(headSync);
 
       var hl = document.createElement("div");
       hl.className = "svb-lastday-v";
-      hl.textContent = "local " + String(headLocal);
+      hl.textContent = String(headLocal);
 
       head.appendChild(hk);
       head.appendChild(hs);
