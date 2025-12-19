@@ -117,22 +117,6 @@
         opacity: 0.5;
     }
 
-    /* 追加した処理:
-       - Bパート用（セレクタを body.mode-a に限定） */
-    body.mode-b .cscs-star-summary-line-compact {
-        display: grid;
-        grid-template-columns: 1fr;
-        row-gap: 6px;
-        font-size: 14px;
-        margin-bottom: -5px;
-        margin-left: 0px;
-        width: 54%;
-        padding-bottom: 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-        margin-top: 10px;
-        opacity: 0.5;
-    }    
-
     .cscs-star-main-compact {
         font-weight: 600;
     }
@@ -1410,40 +1394,22 @@
     needLine.style.fontWeight = "500";
 
     /* 追加した処理:
-       - Aパート(body.mode-a)のとき：
-           compact行(div.cscs-star-summary-line-compact)を <div id="similar-list"> の直前へ移動して挿入する
-           similar-list が無い場合は移動せず、従来通り panel 内に入れる
-       - Bパートのとき：
-           compact行を <div class="explain_menu"> の直前へ移動して挿入する
-           explain_menu が無い場合は従来通り panel 内に入れる */
+       - Aパート(body.mode-a)のときだけ、compact行(div.cscs-star-summary-line-compact)を
+         <div id="similar-list"> の直前へ移動して挿入する
+       - similar-list が無い場合は移動せず、従来通り panel 内に入れる
+       - Bパートは何も変えず、従来通り panel 内に入れる */
     (function () {
       var isModeA = false;
-      var isModeB = false;
-
       try {
         isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
       } catch (_eModeA) {
         isModeA = false;
       }
 
-      try {
-        isModeB = !!(document.body && document.body.classList && document.body.classList.contains("mode-b"));
-      } catch (_eModeB) {
-        isModeB = false;
-      }
-
       if (isModeA) {
         var similar = document.getElementById("similar-list");
         if (similar && similar.parentNode) {
           similar.parentNode.insertBefore(needLine, similar);
-          return;
-        }
-      }
-
-      if (isModeB) {
-        var explainMenu = document.querySelector(".explain_menu");
-        if (explainMenu && explainMenu.parentNode) {
-          explainMenu.parentNode.insertBefore(needLine, explainMenu);
           return;
         }
       }
