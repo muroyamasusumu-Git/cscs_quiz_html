@@ -1926,7 +1926,7 @@
   line-height: 1.35;
 }
 #cscs_sync_monitor_a .sync-header{
-  font-weight: 700;
+  font-weight: 400;
   margin: 0 3px 6px 0;
   text-align: right;
   display: flex;
