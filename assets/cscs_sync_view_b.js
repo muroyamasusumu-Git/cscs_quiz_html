@@ -282,6 +282,15 @@
     "  font-weight: 800;",
     "}",
     "",
+    "/* --- Wide card: single full-width row (ODOA line) --- */",
+    "#cscs_sync_view_b_body .svb-wide-single {",
+    "  grid-column: 1 / -1;",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
     "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
     "#cscs_sync_view_b_body .svb-lastday-head {",
     "  display: grid;",
@@ -1044,12 +1053,14 @@
         false,
         false
       );
-      addRow(
-        "ODOA              " + String(model.onceOdoaLabel),
-        "",
-        false,
-        false
-      );
+
+      // ODOA 行は「右カラム無し」で全幅1行にする（右側ブロック削除）
+      (function addOdoaSingleRow() {
+        var line = document.createElement("div");
+        line.className = "svb-wide-single";
+        line.textContent = "ODOA              " + String(model.onceOdoaLabel);
+        grid.appendChild(line);
+      })();
 
       card.appendChild(h);
       card.appendChild(grid);
