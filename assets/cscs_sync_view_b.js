@@ -379,7 +379,7 @@
     "  row-gap: 3px;",
     "  align-items: baseline;",
     "  opacity: 0.90;",
-    "  font-weight: 800;",
+    "  font-weight: 500;",
     "  margin-bottom: 5px;",
     "}",
     "",
