@@ -2245,7 +2245,10 @@
 /* ★ lastday は折りたたみ無し：常時表示の1行ヘッダー */
 #cscs_sync_monitor_a .sync-lastday-headline{
   display: grid;
-  grid-template-columns: max-content minmax(0,1fr) minmax(0,1fr);
+
+  /* ★ lastday-grid と列幅を完全一致させる（label=80px / SYNC / local） */
+  grid-template-columns: 80px minmax(0,1fr) minmax(0,1fr);
+
   column-gap: 10px;
   align-items: baseline;
   white-space: nowrap;
