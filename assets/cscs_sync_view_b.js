@@ -165,6 +165,34 @@
     "  opacity: 0.60;",
     "}",
     "",
+    "/* --- Streaks: 2列×2段（ミニカード無し） --- */",
+    "#cscs_sync_view_b_body .svb-streak-matrix {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr 1fr;",
+    "  gap: 6px 10px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-streak-cell {",
+    "  min-width: 0;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-streak-label {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
+    "  margin-bottom: 2px;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-streak-value {",
+    "  opacity: 0.62;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
     "#cscs_sync_view_b_body .cscs-svb-k {",
     "  opacity: 0.85;",
     "  white-space: nowrap;",
@@ -765,118 +793,61 @@
       body.appendChild(card);
     })();
 
-    // --- 3連続正解：上下2ブロック（上=回数 / 下=進捗） ---
-    (function appendStreakCorrectSplit2Cards() {
-      // 上：回数
-      var card1 = document.createElement("div");
-      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
-      card1.className = "cscs-svb-card is-wide";
+    // --- Streaks: 左=3連続正解 / 右=3連続不正解（2列×2段 / ミニカード無し） ---
+    (function appendStreakMatrix2x2() {
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide";
 
-      var h1 = document.createElement("div");
-      h1.className = "cscs-svb-card-title";
-      h1.textContent = "3連続正解（回数）";
+      var h = document.createElement("div");
+      h.className = "cscs-svb-card-title";
+      h.textContent = "Streaks";
 
-      var suf1 = document.createElement("span");
-      suf1.className = "svb-title-suffix";
-      suf1.textContent = "(SYNC/local/diff)";
-      h1.appendChild(suf1);
+      var suf = document.createElement("span");
+      suf.className = "svb-title-suffix";
+      suf.textContent = "(SYNC/local/diff)";
+      h.appendChild(suf);
 
-      var grid1 = document.createElement("div");
-      grid1.className = "cscs-svb-card-grid";
+      var matrix = document.createElement("div");
+      matrix.className = "svb-streak-matrix";
 
-      appendGridRow(
-        grid1,
-        "回数(s3)",
-        String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+      function addCell(labelText, valueText) {
+        var cell = document.createElement("div");
+        cell.className = "svb-streak-cell";
+
+        var lab = document.createElement("div");
+        lab.className = "svb-streak-label";
+        lab.textContent = labelText;
+
+        var val = document.createElement("div");
+        val.className = "svb-streak-value";
+        val.textContent = valueText;
+
+        cell.appendChild(lab);
+        cell.appendChild(val);
+        matrix.appendChild(cell);
+      }
+
+      // 左列（上→下）
+      addCell(
+        "3連続正解（回数）",
+        "s3: " + String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+      );
+      addCell(
+        "3連続不正解（回数）",
+        "s3W: " + String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+      );
+      addCell(
+        "3連続正解（進捗）",
+        "progress: " + String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
+      );
+      addCell(
+        "3連続不正解（進捗）",
+        "progress: " + String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
       );
 
-      card1.appendChild(h1);
-      card1.appendChild(grid1);
-      body.appendChild(card1);
-
-      // 下：進捗
-      var card2 = document.createElement("div");
-      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
-      card2.className = "cscs-svb-card is-wide";
-
-      var h2 = document.createElement("div");
-      h2.className = "cscs-svb-card-title";
-      h2.textContent = "3連続正解（進捗）";
-
-      var suf2 = document.createElement("span");
-      suf2.className = "svb-title-suffix";
-      suf2.textContent = "(SYNC/local/diff)";
-      h2.appendChild(suf2);
-
-      var grid2 = document.createElement("div");
-      grid2.className = "cscs-svb-card-grid";
-
-      appendGridRow(
-        grid2,
-        "進捗(progress)",
-        String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
-      );
-
-      card2.appendChild(h2);
-      card2.appendChild(grid2);
-      body.appendChild(card2);
-    })();
-
-    // --- 3連続不正解：上下2ブロック（上=回数 / 下=進捗） ---
-    (function appendStreakWrongSplit2Cards() {
-      // 上：回数
-      var card1 = document.createElement("div");
-      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
-      card1.className = "cscs-svb-card is-wide";
-
-      var h1 = document.createElement("div");
-      h1.className = "cscs-svb-card-title";
-      h1.textContent = "3連続不正解（回数）";
-
-      var suf1 = document.createElement("span");
-      suf1.className = "svb-title-suffix";
-      suf1.textContent = "(SYNC/local/diff)";
-      h1.appendChild(suf1);
-
-      var grid1 = document.createElement("div");
-      grid1.className = "cscs-svb-card-grid";
-
-      appendGridRow(
-        grid1,
-        "回数(s3W)",
-        String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
-      );
-
-      card1.appendChild(h1);
-      card1.appendChild(grid1);
-      body.appendChild(card1);
-
-      // 下：進捗
-      var card2 = document.createElement("div");
-      // ★ 常に縦積み固定（2列グリッドでも横に並ばない）
-      card2.className = "cscs-svb-card is-wide";
-
-      var h2 = document.createElement("div");
-      h2.className = "cscs-svb-card-title";
-      h2.textContent = "3連続不正解（進捗）";
-
-      var suf2 = document.createElement("span");
-      suf2.className = "svb-title-suffix";
-      suf2.textContent = "(SYNC/local/diff)";
-      h2.appendChild(suf2);
-
-      var grid2 = document.createElement("div");
-      grid2.className = "cscs-svb-card-grid";
-
-      appendGridRow(
-        grid2,
-        "進捗(progress)",
-        String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
-      );
-
-      card2.appendChild(h2);
-      card2.appendChild(grid2);
-      body.appendChild(card2);
+      card.appendChild(h);
+      card.appendChild(matrix);
+      body.appendChild(card);
     })();
 
     // --- Today Unique ---
