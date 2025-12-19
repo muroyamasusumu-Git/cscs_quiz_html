@@ -2229,9 +2229,21 @@
   text-align: right;
 }
 
-/* lastday-grid は 3カラム（label / SYNC / local） */
-#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+2),
+/* lastday-grid は 3カラム（label / SYNC / local）
+   ★ 2列目（真ん中=SYNC列）だけセンター寄せ
+   ★ 3列目（local列）は右寄せ */
+#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+2){
+  text-align: center;
+}
 #cscs_sync_monitor_a .lastday-grid > :nth-child(3n+3){
+  text-align: right;
+}
+
+/* ★ lastday 見出し（type / SYNC / local）の寄せ方：真ん中だけセンター */
+#cscs_sync_monitor_a .sync-lastday-headline > :nth-child(2){
+  text-align: center;
+}
+#cscs_sync_monitor_a .sync-lastday-headline > :nth-child(3){
   text-align: right;
 }
 
