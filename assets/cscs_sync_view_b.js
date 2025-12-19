@@ -803,7 +803,7 @@
 
         var suf = document.createElement("span");
         suf.className = "svb-title-suffix";
-        suf.textContent = "S/L/D";
+        suf.textContent = "Syc/Lcl/Df";
         h.appendChild(suf);
 
         var grid = document.createElement("div");
