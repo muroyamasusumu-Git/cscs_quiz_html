@@ -142,15 +142,6 @@
     "  box-sizing: border-box;",
     "}",
     "",
-    "/* --- Allow wrapping inside cards (no ellipsis) --- */",
-    "#cscs_sync_view_b_body .cscs-svb-card * {",
-    "  white-space: normal;",
-    "  overflow: visible;",
-    "  text-overflow: clip;",
-    "  word-break: break-word;",
-    "  text-align: left;",
-    "}",
-    "",
     "/* --- Counts card only: tighter padding --- */",
     "#cscs_sync_view_b_body .cscs-svb-card.svb-counts {",
     "  padding: 5px 10px;",
@@ -192,12 +183,28 @@
     "  opacity: 0.60;",
     "}",
     "",
+    "/* --- Pending card only: 縦積み（key→value→...） --- */",
+    "#cscs_sync_view_b_body .svb-pending-grid {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr;",
+    "  row-gap: 4px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-k {",
+    "  opacity: 0.85;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-v {",
+    "  text-align: left;",
+    "  white-space: pre-line;",
+    "}",
+    "",
     "#cscs_sync_view_b_body .cscs-svb-k {",
     "  opacity: 0.85;",
     "  white-space: nowrap;",
     "  overflow: hidden;",
     "  text-overflow: ellipsis;",
-    "  text-align: left;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-v {",
@@ -206,7 +213,6 @@
     "  white-space: nowrap;",
     "  overflow: hidden;",
     "  text-overflow: ellipsis;",
-    "  text-align: left;",
     "  min-width: 0;",
     "}",
     "",
@@ -214,13 +220,12 @@
     "  opacity: 0.70;",
     "}",
     "",
-    "/* --- Counts: 縦並び（1項目1行） --- */",
+    "/* --- Counts: 1行（Counts + SYNC/local/diff を横一列） --- */",
     "#cscs_sync_view_b_body .svb-counts-inline {",
     "  display: flex;",
-    "  flex-direction: column;",
-    "  align-items: stretch;",
-    "  gap: 4px;",
-    "  white-space: normal;",
+    "  align-items: baseline;",
+    "  gap: 10px;",
+    "  white-space: nowrap;",
     "  overflow: hidden;",
     "}",
     "",
@@ -230,17 +235,21 @@
     "  min-width: 0;",
     "  overflow: hidden;",
     "  text-overflow: ellipsis;",
-    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-head {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
     "}",
     "",
     "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part {",
-    "  display: flex;",
+    "  display: inline-flex;",
     "  align-items: baseline;",
-    "  justify-content: space-between;",
-    "  gap: 10px;",
-    "  flex: 0 0 auto;",
+    "  justify-content: center;",
+    "  gap: 6px;",
+    "  flex: 1 1 0;",
     "  min-width: 0;",
-    "  text-align: left;",
+    "  text-align: center;",
     "  box-shadow: none;",
     "  background: transparent;",
     "  border: none;",
@@ -261,7 +270,7 @@
     "}",
     "",
     "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-v {",
-    "  text-align: right;",
+    "  text-align: left;",
     "  font-variant-numeric: tabular-nums;",
     "  white-space: nowrap;",
     "  min-width: 0;",
@@ -1226,7 +1235,21 @@
       }
     }
 
-    var gPending = appendGridSection(body, "Pending (unsent)", { wide: true });
+    // --- Pending (unsent) ---
+    var pendingCard = document.createElement("div");
+    pendingCard.className = "cscs-svb-card is-wide";
+
+    var pendingH = document.createElement("div");
+    pendingH.className = "cscs-svb-card-title";
+    pendingH.textContent = "Pending (unsent)";
+
+    var gPending = document.createElement("div");
+    gPending.className = "svb-pending-grid";
+
+    pendingCard.appendChild(pendingH);
+    pendingCard.appendChild(gPending);
+    body.appendChild(pendingCard);
+
     appendGridRow(gPending, "status", pendingText);
 
     function fmtDayPair(syncDay, localDay) {
