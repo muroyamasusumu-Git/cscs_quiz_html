@@ -1214,11 +1214,11 @@
 
       var hs = document.createElement("div");
       hs.className = "svb-lastday-v";
-      hs.textContent = "SYNC " + String(headSync);
+      hs.textContent = String(headSync);
 
       var hl = document.createElement("div");
       hl.className = "svb-lastday-v";
-      hl.textContent = "local " + String(headLocal);
+      hl.textContent = String(headLocal);
 
       head.appendChild(hk);
       head.appendChild(hs);
