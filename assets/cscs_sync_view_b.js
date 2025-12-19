@@ -138,7 +138,7 @@
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card {",
-    "  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 28%, rgba(0,0,0,0.36) 60%, rgba(0,0,0,0.48) 100%);",
+    "  background: rgba(0,0,0,0.42);",
     "  border: 1px solid rgba(255,255,255,0.10);",
     "  border-radius: 10px;",
     "  padding: 10px 10px;",
