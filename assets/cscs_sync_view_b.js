@@ -189,6 +189,7 @@
     "",
     "/* --- Pending card only: 縦積み（key→value→...） --- */",
     "#cscs_sync_view_b_body .svb-pending-grid {",
+    "    padding: 5px 10px;",
     "  display: grid;",
     "  grid-template-columns: 1fr;",
     "  row-gap: 4px;",
