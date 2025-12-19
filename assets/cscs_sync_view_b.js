@@ -1220,6 +1220,77 @@
 
     var gPending = appendGridSection(body, "Pending (unsent)", { wide: true });
     appendGridRow(gPending, "status", pendingText);
+
+    function fmtDayPair(syncDay, localDay) {
+      var s = (syncDay == null ? "-" : String(syncDay));
+      var l = (localDay == null ? "-" : String(localDay));
+      return "sync " + s + " / local " + l;
+    }
+
+    function fmtNumPair(syncNum, localNum) {
+      var s = (syncNum == null ? 0 : Number(syncNum));
+      var l = (localNum == null ? 0 : Number(localNum));
+      if (!Number.isFinite(s)) s = 0;
+      if (!Number.isFinite(l)) l = 0;
+      return "sync " + String(s) + " / local " + String(l);
+    }
+
+    function fmtQidsPreview(arr) {
+      if (!Array.isArray(arr) || arr.length === 0) return "-";
+      var head = arr.slice(0, 3).join(", ");
+      if (arr.length <= 3) return String(arr.length) + " [" + head + "]";
+      return String(arr.length) + " [" + head + ", …]";
+    }
+
+    if (model.pending && typeof model.pending === "object") {
+      if (model.pending.pendingStreak3Today) {
+        appendGridRow(
+          gPending,
+          "streak3Today.day",
+          fmtDayPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.day : "-"),
+            (function () { try { return localStorage.getItem("cscs_streak3_today_day") || "-"; } catch (_e) { return "-"; } })()
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3Today.unique",
+          fmtNumPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.unique_count : 0),
+            model.localS3TodayCnt
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3Today.qids",
+          "sync " + fmtQidsPreview(model.s3TodaySyncQids) + " / local " + fmtQidsPreview(model.localS3TodayQids)
+        );
+      }
+
+      if (model.pending.pendingStreak3WrongToday) {
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.day",
+          fmtDayPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.day : "-"),
+            (function () { try { return localStorage.getItem("cscs_streak3_wrong_today_day") || "-"; } catch (_e2) { return "-"; } })()
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.unique",
+          fmtNumPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0),
+            model.localS3WrongTodayCnt
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.qids",
+          "sync " + fmtQidsPreview(model.s3WrongTodaySyncQids) + " / local " + fmtQidsPreview(model.localS3WrongTodayQids)
+        );
+      }
+    }
   }
 
   function fetchState() {
@@ -1406,6 +1477,59 @@
           localS3WrongTodayCnt = parsedLocalWrongCnt;
         }
       } catch(_e2) {}
+
+      // ★ Pending 詳細表示用：Today系 qids（SYNC / local）を取得して model に載せる
+      var s3TodaySyncQids = [];
+      var s3WrongTodaySyncQids = [];
+      try {
+        if (window.__cscs_sync_state &&
+            window.__cscs_sync_state.streak3Today &&
+            Array.isArray(window.__cscs_sync_state.streak3Today.qids)) {
+          s3TodaySyncQids = window.__cscs_sync_state.streak3Today.qids
+            .filter(function (x) { return typeof x === "string" && x; });
+        }
+      } catch (_eS3TodaySyncQids) {
+        s3TodaySyncQids = [];
+      }
+
+      try {
+        if (window.__cscs_sync_state &&
+            window.__cscs_sync_state.streak3WrongToday &&
+            Array.isArray(window.__cscs_sync_state.streak3WrongToday.qids)) {
+          s3WrongTodaySyncQids = window.__cscs_sync_state.streak3WrongToday.qids
+            .filter(function (x) { return typeof x === "string" && x; });
+        }
+      } catch (_eS3WrongTodaySyncQids) {
+        s3WrongTodaySyncQids = [];
+      }
+
+      var localS3TodayQids = [];
+      try {
+        var rawLocalS3TodayQids = localStorage.getItem("cscs_streak3_today_qids");
+        if (rawLocalS3TodayQids) {
+          var parsedLocalS3TodayQids = JSON.parse(rawLocalS3TodayQids);
+          if (Array.isArray(parsedLocalS3TodayQids)) {
+            localS3TodayQids = parsedLocalS3TodayQids
+              .filter(function (x) { return typeof x === "string" && x; });
+          }
+        }
+      } catch (_eLocalS3TodayQids) {
+        localS3TodayQids = [];
+      }
+
+      var localS3WrongTodayQids = [];
+      try {
+        var rawLocalS3WrongTodayQids = localStorage.getItem("cscs_streak3_wrong_today_qids");
+        if (rawLocalS3WrongTodayQids) {
+          var parsedLocalS3WrongTodayQids = JSON.parse(rawLocalS3WrongTodayQids);
+          if (Array.isArray(parsedLocalS3WrongTodayQids)) {
+            localS3WrongTodayQids = parsedLocalS3WrongTodayQids
+              .filter(function (x) { return typeof x === "string" && x; });
+          }
+        }
+      } catch (_eLocalS3WrongTodayQids) {
+        localS3WrongTodayQids = [];
+      }
 
       // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
       var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "（データなし）" : String(s3TodaySyncDay));
@@ -1658,6 +1782,12 @@
         s3WrongTodayDayLabel: s3WrongTodayDayLabel,
         s3WrongTodaySyncCnt: s3WrongTodaySyncCnt,
         localS3WrongTodayCnt: localS3WrongTodayCnt,
+
+        // ★ Pending 詳細表示用：qids（SYNC / local）
+        s3TodaySyncQids: s3TodaySyncQids,
+        localS3TodayQids: localS3TodayQids,
+        s3WrongTodaySyncQids: s3WrongTodaySyncQids,
+        localS3WrongTodayQids: localS3WrongTodayQids,
 
         lastSeenSyncLabel: lastSeenSyncLabel,
         lastCorrectSyncLabel: lastCorrectSyncLabel,
