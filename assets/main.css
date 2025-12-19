@@ -178,7 +178,7 @@ body.mode-b .opts li.is-correct::marker {
 
 
 .answer .opt-small {
-    font-size: 0.65em;
+    font-size: 0.55em;
     line-height: 1.25;
     opacity: 0.95;
     margin-left: 10px;
