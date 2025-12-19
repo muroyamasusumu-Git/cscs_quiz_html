@@ -359,7 +359,7 @@
     "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
     "#cscs_sync_view_b_body .svb-lastday-head {",
     "  display: grid;",
-    "  grid-template-columns: repeat(3, minmax(0, 1fr));",
+    "  grid-template-columns: auto max-content max-content;", // 左は内容幅、右2列は値幅に追従
     "  column-gap: 10px;",
     "  row-gap: 2px;",
     "  align-items: baseline;",
@@ -389,7 +389,7 @@
     "",
     "#cscs_sync_view_b_body .svb-lastday-grid {",
     "  display: grid;",
-    "  grid-template-columns: repeat(3, minmax(0, 1fr));",
+    "  grid-template-columns: auto max-content max-content;", // ラベルは詰める／数値列は最小幅
     "  column-gap: 10px;",
     "  row-gap: 2px;",
     "  opacity: 0.60;",
