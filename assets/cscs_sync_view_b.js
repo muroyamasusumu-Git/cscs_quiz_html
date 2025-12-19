@@ -147,7 +147,7 @@
     "",
     "/* --- wide card: 左右カラム幅を同一に固定（key/value を等幅） --- */",
     "#cscs_sync_view_b_body .cscs-svb-card.is-wide .cscs-svb-card-grid {",
-    "  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);",
+    "  grid-template-columns: minmax(0, 1fr) auto;",
     "}",
     "",
     "#cscs_sync_view_b_body .cscs-svb-card-title {",
