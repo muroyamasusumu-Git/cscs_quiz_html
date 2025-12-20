@@ -2536,14 +2536,6 @@
             </div>
           </div>
 
-          <div class="sync-card sync-span-2 once-card">
-            <div class="sync-title">
-              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode</span>
-              <button type="button" class="once-fold-btn" data-once-fold="1">▶show</button>
-            </div>
-            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
-          </div>
-
           <div class="sync-card sync-span-2">
             <div class="sync-lastday-headline">
               <span class="sync-lastday-summary-type">LastCorrect</span>
@@ -2598,6 +2590,14 @@
                 <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">（データなし）</span></div>
               </div>
             </div>
+          </div>
+
+          <div class="sync-card sync-span-2 once-card">
+            <div class="sync-title">
+              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode</span>
+              <button type="button" class="once-fold-btn" data-once-fold="1">▶show</button>
+            </div>
+            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
           </div>
 
           <div class="sync-card sync-span-2">
