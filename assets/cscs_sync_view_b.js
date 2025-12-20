@@ -113,7 +113,7 @@
     "  padding: 8px;",
     "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
     "  max-width: 46vw;",
-    "  width: 310px;",
+    "  width: 320px;",
     "  opacity: 0.55;",
     "  z-index: 2147483647;",
     "}",
