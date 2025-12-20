@@ -36,39 +36,21 @@
  *       streak3Delta[qid]
  *       streakLenDelta[qid]   // 「増分」ではなく「最新値」を送る
  *
-  function readLocalWrongStreakLenForQid(qid){
-    try{
-      const kL = "cscs_q_wrong_streak_len:" + qid;
-      const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
-      return l;
-    }catch(_){
-      return 0;
-    }
-  }
-
-  // ★ 追加: localStorage から「最高連続不正解数（過去最高）」を読み取る
-  //   - b_judge_record.js が "cscs_q_wrong_streak_max:{qid}" に保存している値をそのまま利用
-  function readLocalWrongStreakMaxForQid(qid){
-    try{
-      const kM = "cscs_q_wrong_streak_max:" + qid;
-      const m  = parseInt(localStorage.getItem(kM) || "0", 10) || 0;
-      return m;
-    }catch(_){
-      return 0;
-    }
-  }
-
-  // ★ 追加: localStorage から「最高連続不正解数を更新した達成日（JST YYYYMMDD）」を読み取る
-  //   - b_judge_record.js が "cscs_q_wrong_streak_max_day:{qid}" に保存している値をそのまま利用
-  function readLocalWrongStreakMaxDayForQid(qid){
-    try{
-      const kD = "cscs_q_wrong_streak_max_day:" + qid;
-      const v = localStorage.getItem(kD);
-      return v || "";
-    }catch(_){
-      return "";
-    }
-  }
+ * ▼ 問題別 3 連続不正解
+ *   - localStorage:
+ *       "cscs_q_wrong_streak3_total:" + qid
+ *       "cscs_q_wrong_streak_len:"    + qid
+ *   - SYNC state:
+ *       state.streak3Wrong[qid]
+ *       state.streakWrongLen[qid]
+ *   - payload(merge):
+ *       streak3WrongDelta[qid]
+ *       streakWrongLenDelta[qid]   // 「増分」ではなく「最新値」を送る
+ *
+ * ▼ 問題別 連続不正解（Local のみで表示する最高値/達成日）
+ *   - localStorage:
+ *       "cscs_q_wrong_streak_max:"     + qid
+ *       "cscs_q_wrong_streak_max_day:" + qid
  *
  * ▼ 今日の⭐️ユニーク数（Streak3Today）
  *   - localStorage:
@@ -183,6 +165,11 @@
   //   - updateMonitor() 内で一度だけ「streak max カードの値が取れてUIに反映された」ことを
   //     コンソールに出すための状態。
   let loggedStreakMaxUiOnce = false;
+
+  // ★ 追加: 不正解 streak max カード（A）初回ログ用フラグ
+  //   - updateMonitor() 内で一度だけ「不正解 streak max カードの値が取れてUIに反映された」ことを
+  //     コンソールに出すための状態。
+  let loggedWrongStreakMaxUiOnce = false;
 
   // 空欄を「（データなし）」などで埋めるための共通ヘルパー
   function toDisplayText(value, emptyLabel){
@@ -302,6 +289,30 @@
       return l;
     }catch(_){
       return 0;
+    }
+  }
+
+  // ★ 追加: localStorage から「最高連続不正解数（過去最高）」を読み取る
+  //   - b_judge_record.js が "cscs_q_wrong_streak_max:{qid}" に保存している値をそのまま利用
+  function readLocalWrongStreakMaxForQid(qid){
+    try{
+      const kM = "cscs_q_wrong_streak_max:" + qid;
+      const m  = parseInt(localStorage.getItem(kM) || "0", 10) || 0;
+      return m;
+    }catch(_){
+      return 0;
+    }
+  }
+
+  // ★ 追加: localStorage から「最高連続不正解数を更新した達成日（JST YYYYMMDD）」を読み取る
+  //   - b_judge_record.js が "cscs_q_wrong_streak_max_day:{qid}" に保存している値をそのまま利用
+  function readLocalWrongStreakMaxDayForQid(qid){
+    try{
+      const kD = "cscs_q_wrong_streak_max_day:" + qid;
+      const v = localStorage.getItem(kD);
+      return v || "";
+    }catch(_){
+      return "";
     }
   }
 
@@ -548,7 +559,7 @@
         const streakMaxValEl    = box.querySelector(".sync-streakmax-max-local");
         const streakMaxDayEl    = box.querySelector(".sync-streakmax-maxday-local");
 
-        // ★ 追加: wrong streak max カード（A）表示用要素
+        // ★ 追加: 不正解 streak max カード（A）表示用要素
         const wrongStreakMaxLenEl = box.querySelector(".sync-wrong-streakmax-len-local");
         const wrongStreakMaxValEl = box.querySelector(".sync-wrong-streakmax-max-local");
         const wrongStreakMaxDayEl = box.querySelector(".sync-wrong-streakmax-maxday-local");
@@ -814,7 +825,7 @@
         if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "（データなし）");
         if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "（データなし）");
 
-        // ★ 追加: wrong streak max カード（A）に localStorage の値を反映
+        // ★ 追加: 不正解 streak max カード（A）に localStorage の値を反映
         //   - len: 現在の連続不正解数（cscs_q_wrong_streak_len:{qid}）
         //   - max: 最高連続不正解数（cscs_q_wrong_streak_max:{qid}）
         //   - day: 最高を更新した日（cscs_q_wrong_streak_max_day:{qid}）
@@ -831,6 +842,17 @@
             streakMaxDay: lMaxDay
           });
           loggedStreakMaxUiOnce = true;
+        }
+
+        // ★ 追加: 初回だけ「不正解 streak max カード反映に成功した」ログを出す（コンソールで確認可能）
+        if (!loggedWrongStreakMaxUiOnce) {
+          console.log("[SYNC-A] wrong-streak-max card updated (localStorage)", {
+            qid: QID,
+            wrongStreakLen: llWrong,
+            wrongStreakMax: lWrongMax,
+            wrongStreakMaxDay: lWrongMaxDay
+          });
+          loggedWrongStreakMaxUiOnce = true;
         }
 
         if (slEl)        slEl.textContent        = String(ll);
