@@ -92,8 +92,6 @@
    *       → "1" のとき Pending (unsent) を折りたたみ表示にする
    *   - localStorage: "cscs_sync_view_b_correct_streak_collapsed"
    *       → "1" のとき Correct Streak を折りたたみ表示にする
-   *   - localStorage: "cscs_sync_view_b_once_odoa_collapsed"
-   *       → "1" のとき OncePerDayToday / O.D.O.A Mode を折りたたみ表示にする（見出し＋1行目のみ）
    */
 
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
@@ -287,44 +285,6 @@
     "}",
     "",
     "#cscs_sync_view_b_body .svb-correct-streak-card.is-collapsed .cscs-svb-card-grid {",
-    "  display: none;",
-    "}",
-    "",
-    "/* --- OncePerDayToday / O.D.O.A fold (collapsible) --- */",
-    "#cscs_sync_view_b_body .svb-once-odoa-head {",
-    "  display: flex;",
-    "  align-items: baseline;",
-    "  justify-content: space-between;",
-    "  gap: 10px;",
-    "  height: 13px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-once-odoa-toggle {",
-    "  appearance: none;",
-    "  -webkit-appearance: none;",
-    "  border: none;",
-    "  background: transparent;",
-    "  color: inherit;",
-    "  padding: 0;",
-    "  margin: 0;",
-    "  font: inherit;",
-    "  cursor: pointer;",
-    "  opacity: 0.80;",
-    "  white-space: nowrap;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-once-odoa-toggle:hover {",
-    "  opacity: 0.95;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-once-odoa-toggle .svb-once-odoa-chev {",
-    "  display: inline-block;",
-    "  width: 1.2em;",
-    "  text-align: center;",
-    "}",
-    "",
-    "/* 折りたたみ時：1行目（最初の2セル）だけ残す */",
-    "#cscs_sync_view_b_body .svb-once-odoa-card.is-collapsed .svb-wide-dual-grid > :nth-child(n+3) {",
     "  display: none;",
     "}",
     "",
@@ -1198,65 +1158,14 @@
       body.appendChild(pair);
     })();
 
-    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード：折りたたみ対応） ---
+    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード） ---
     (function appendOncePerDayAndOdoaWideCard() {
       var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide svb-once-odoa-card";
-
-      // 折りたたみ状態（永続）
-      var onceCollapsed = false;
-      try {
-        onceCollapsed = (localStorage.getItem("cscs_sync_view_b_once_odoa_collapsed") === "1");
-      } catch (_eOnceCollapsed) {
-        onceCollapsed = false;
-      }
-
-      if (onceCollapsed) {
-        card.className += " is-collapsed";
-      }
-
-      // ヘッダー行（タイトル + トグル）
-      var head = document.createElement("div");
-      head.className = "svb-once-odoa-head";
+      card.className = "cscs-svb-card is-wide";
 
       var h = document.createElement("div");
       h.className = "cscs-svb-card-title";
       h.textContent = "OncePerDayToday / O.D.O.A Mode";
-
-      var btn = document.createElement("button");
-      btn.className = "svb-once-odoa-toggle";
-      btn.type = "button";
-      btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
-
-      function updateOnceBtnLabel() {
-        var chev = onceCollapsed ? "▶" : "▼";
-        var label = onceCollapsed ? "show" : "hide";
-        btn.innerHTML = "<span class=\"svb-once-odoa-chev\">" + chev + "</span>" + label;
-        btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
-      }
-
-      updateOnceBtnLabel();
-
-      btn.addEventListener("click", function () {
-        onceCollapsed = !onceCollapsed;
-
-        if (onceCollapsed) {
-          if (card.className.indexOf("is-collapsed") === -1) {
-            card.className += " is-collapsed";
-          }
-        } else {
-          card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
-        }
-
-        try {
-          localStorage.setItem("cscs_sync_view_b_once_odoa_collapsed", onceCollapsed ? "1" : "0");
-        } catch (_eSaveOnce) {}
-
-        updateOnceBtnLabel();
-      });
-
-      head.appendChild(h);
-      head.appendChild(btn);
 
       var grid = document.createElement("div");
       grid.className = "svb-wide-dual-grid";
@@ -1274,15 +1183,12 @@
         grid.appendChild(r);
       }
 
-      // 1行目（折りたたみ時も表示される行）
       addRow(
         "oncePerDayToday   " + String(model.onceStateLabel),
         "計測: " + String(model.onceMeasureOkLabel) + " ｜結果: " + String(model.onceResultLabel),
         true,
         false
       );
-
-      // 2行目以降（折りたたみ時はCSSで非表示）
       addRow(
         "Today             " + String(model.onceTodayDateLabel),
         "qid: " + String(model.onceQidLabel),
@@ -1304,7 +1210,7 @@
         grid.appendChild(line);
       })();
 
-      card.appendChild(head);
+      card.appendChild(h);
       card.appendChild(grid);
       body.appendChild(card);
     })();
