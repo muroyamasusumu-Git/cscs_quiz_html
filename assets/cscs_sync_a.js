@@ -2149,7 +2149,7 @@
 #cscs_sync_monitor_a {
   position: fixed;
   right: 15px;
-  top: 100px;
+  top: 110px;
   color: #eee;
   padding: 0px;
   font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
