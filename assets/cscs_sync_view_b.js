@@ -1065,7 +1065,7 @@
       // 左上：3連続正解（回数）
       quad.appendChild(
         makeCard(
-          "3連続正解回数",
+          "⭐️3連続正解回数",
           "回数(s3)",
           String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
         )
@@ -1074,7 +1074,7 @@
       // 右上：3連続不正解（回数）
       quad.appendChild(
         makeCard(
-          "3連続不正解回数",
+          "💣3連続不正解回数",
           "回数(s3W)",
           String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
         )
