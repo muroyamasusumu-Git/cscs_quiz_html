@@ -122,6 +122,7 @@
     "#cscs_sync_view_b_title {",
     "  text-align: right;",
     "  margin-right: 7px;",
+    "  opacity: 0.60;",
     "  font-size: 10px;",
     "  ont-weight: 400;",
     "}",
