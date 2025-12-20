@@ -81,6 +81,20 @@
  *       ⇔ SYNC state: server.global.totalQuestions
  *       ⇔ delta payload: global.totalQuestions
  *
+ * ▼ グローバル（最大全連続記録）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: server.global.correctStreakMax
+ *       ⇔ delta payload: correctStreakMaxDelta（減算なし：maxで更新）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: server.global.correctStreakMaxDay
+ *       ⇔ delta payload: correctStreakMaxDayDelta（減算なし：maxで更新）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: server.global.wrongStreakMax
+ *       ⇔ delta payload: wrongStreakMaxDelta（減算なし：maxで更新）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: server.global.wrongStreakMaxDay
+ *       ⇔ delta payload: wrongStreakMaxDayDelta（減算なし：maxで更新）
+ *
  * ▼ 整合性ステータス（consistency_status）
  *   - localStorage: （直接保存はしない / SYNC 専用）
  *       ⇔ SYNC state: server.consistency_status[qid]
@@ -160,7 +174,13 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       // お気に入り状態（fav_modal.js からの同期先）
       fav: {},
       // グローバルメタ情報（総問題数など）を保持する領域
-      global: {},
+      global: {
+        totalQuestions: 0,
+        correctStreakMax: 0,
+        correctStreakMaxDay: 0,
+        wrongStreakMax: 0,
+        wrongStreakMaxDay: 0
+      },
       // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
       odoa_mode: "off",
       // ここでは初期値として streak3Today / streak3WrongToday / oncePerDayToday を用意する（「無からの初回保存」を許可）
@@ -194,7 +214,30 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     (server as any).oncePerDayToday = { day: 0, results: {} };
   }
   if (!(server as any).global || typeof (server as any).global !== "object") {
-    (server as any).global = {};
+    (server as any).global = {
+      totalQuestions: 0,
+      correctStreakMax: 0,
+      correctStreakMaxDay: 0,
+      wrongStreakMax: 0,
+      wrongStreakMaxDay: 0
+    };
+  }
+
+  // ★ 既存ユーザーで global 内の各キーが欠けている場合は 0 で補完（減算はしない）
+  if (typeof (server as any).global.totalQuestions !== "number" || !Number.isFinite((server as any).global.totalQuestions)) {
+    (server as any).global.totalQuestions = 0;
+  }
+  if (typeof (server as any).global.correctStreakMax !== "number" || !Number.isFinite((server as any).global.correctStreakMax)) {
+    (server as any).global.correctStreakMax = 0;
+  }
+  if (typeof (server as any).global.correctStreakMaxDay !== "number" || !Number.isFinite((server as any).global.correctStreakMaxDay)) {
+    (server as any).global.correctStreakMaxDay = 0;
+  }
+  if (typeof (server as any).global.wrongStreakMax !== "number" || !Number.isFinite((server as any).global.wrongStreakMax)) {
+    (server as any).global.wrongStreakMax = 0;
+  }
+  if (typeof (server as any).global.wrongStreakMaxDay !== "number" || !Number.isFinite((server as any).global.wrongStreakMaxDay)) {
+    (server as any).global.wrongStreakMaxDay = 0;
   }
 
   // O.D.O.A Mode が存在しない or 不正な場合は "off" で補完しておく
@@ -528,6 +571,91 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     try {
       console.warn("[SYNC/merge] (2-g-err) global.totalQuestions 処理中にエラーが発生しました");
     } catch (_e2) {}
+  }
+
+  // ★ グローバル（最大全連続記録）: correctStreakMax / correctStreakMaxDay / wrongStreakMax / wrongStreakMaxDay
+  // - delta 側は *Delta という名前だが、減算なし・巻き戻しなしのため「maxで更新」する
+  // - day は YYYYMMDD の 8桁数値を期待し、これも max で更新する（新しい日だけ採用）
+  try {
+    const g = (server as any).global;
+
+    const recvCorrectMax = (delta as any).correctStreakMaxDelta;
+    if (recvCorrectMax !== undefined && recvCorrectMax !== null) {
+      const n = Number(recvCorrectMax);
+      if (Number.isFinite(n) && n >= 0) {
+        const prev = typeof g.correctStreakMax === "number" && Number.isFinite(g.correctStreakMax) ? g.correctStreakMax : 0;
+        if (n > prev) {
+          g.correctStreakMax = n;
+          try {
+            console.log("[SYNC/merge] (2-gmax) correctStreakMax 更新:", { prev, next: g.correctStreakMax });
+          } catch (_eLog) {}
+        }
+      } else {
+        try {
+          console.warn("[SYNC/merge] (2-gmax-warn) 不正な correctStreakMaxDelta のため無視:", { raw: recvCorrectMax });
+        } catch (_eWarn) {}
+      }
+    }
+
+    const recvCorrectMaxDay = (delta as any).correctStreakMaxDayDelta;
+    if (recvCorrectMaxDay !== undefined && recvCorrectMaxDay !== null) {
+      const d = Number(recvCorrectMaxDay);
+      const dStr = String(d);
+      if (Number.isFinite(d) && /^\d{8}$/.test(dStr)) {
+        const prevDay = typeof g.correctStreakMaxDay === "number" && Number.isFinite(g.correctStreakMaxDay) ? g.correctStreakMaxDay : 0;
+        if (d > prevDay) {
+          g.correctStreakMaxDay = d;
+          try {
+            console.log("[SYNC/merge] (2-gmax) correctStreakMaxDay 更新:", { prev: prevDay, next: g.correctStreakMaxDay });
+          } catch (_eLog2) {}
+        }
+      } else {
+        try {
+          console.warn("[SYNC/merge] (2-gmax-warn) 不正な correctStreakMaxDayDelta のため無視:", { raw: recvCorrectMaxDay });
+        } catch (_eWarn2) {}
+      }
+    }
+
+    const recvWrongMax = (delta as any).wrongStreakMaxDelta;
+    if (recvWrongMax !== undefined && recvWrongMax !== null) {
+      const n = Number(recvWrongMax);
+      if (Number.isFinite(n) && n >= 0) {
+        const prev = typeof g.wrongStreakMax === "number" && Number.isFinite(g.wrongStreakMax) ? g.wrongStreakMax : 0;
+        if (n > prev) {
+          g.wrongStreakMax = n;
+          try {
+            console.log("[SYNC/merge] (2-gmax) wrongStreakMax 更新:", { prev, next: g.wrongStreakMax });
+          } catch (_eLog3) {}
+        }
+      } else {
+        try {
+          console.warn("[SYNC/merge] (2-gmax-warn) 不正な wrongStreakMaxDelta のため無視:", { raw: recvWrongMax });
+        } catch (_eWarn3) {}
+      }
+    }
+
+    const recvWrongMaxDay = (delta as any).wrongStreakMaxDayDelta;
+    if (recvWrongMaxDay !== undefined && recvWrongMaxDay !== null) {
+      const d = Number(recvWrongMaxDay);
+      const dStr = String(d);
+      if (Number.isFinite(d) && /^\d{8}$/.test(dStr)) {
+        const prevDay = typeof g.wrongStreakMaxDay === "number" && Number.isFinite(g.wrongStreakMaxDay) ? g.wrongStreakMaxDay : 0;
+        if (d > prevDay) {
+          g.wrongStreakMaxDay = d;
+          try {
+            console.log("[SYNC/merge] (2-gmax) wrongStreakMaxDay 更新:", { prev: prevDay, next: g.wrongStreakMaxDay });
+          } catch (_eLog4) {}
+        }
+      } else {
+        try {
+          console.warn("[SYNC/merge] (2-gmax-warn) 不正な wrongStreakMaxDayDelta のため無視:", { raw: recvWrongMaxDay });
+        } catch (_eWarn4) {}
+      }
+    }
+  } catch (_eGmax) {
+    try {
+      console.warn("[SYNC/merge] (2-gmax-err) global max streak 処理中にエラーが発生しました");
+    } catch (_eGmax2) {}
   }
 
   // - streak3TodayDelta が送られてきた場合のみ処理

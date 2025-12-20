@@ -81,6 +81,20 @@
  *       ⇔ SYNC state: global.totalQuestions
  *       ⇔ delta payload: global.totalQuestions
  *
+ * ▼ グローバル（最大全連続記録）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: global.correctStreakMax
+ *       ⇔ delta payload: correctStreakMaxDelta（減算なし：maxで更新）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: global.correctStreakMaxDay
+ *       ⇔ delta payload: correctStreakMaxDayDelta（減算なし：maxで更新）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: global.wrongStreakMax
+ *       ⇔ delta payload: wrongStreakMaxDelta（減算なし：maxで更新）
+ *   - localStorage: （直接保存はしない / 集計表示用）
+ *       ⇔ SYNC state: global.wrongStreakMaxDay
+ *       ⇔ delta payload: wrongStreakMaxDayDelta（減算なし：maxで更新）
+ *
  * ▼ 整合性ステータス（consistency_status）
  *   - localStorage: （直接保存はしない / SYNC 専用）
  *       ⇔ SYNC state: consistency_status[qid]
@@ -156,7 +170,13 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // お気に入り状態（fav_modal.js 用）
     fav: {},
     // グローバルメタ情報（総問題数など）を保持する領域
-    global: {},
+    global: {
+      totalQuestions: 0,
+      correctStreakMax: 0,
+      correctStreakMaxDay: 0,
+      wrongStreakMax: 0,
+      wrongStreakMaxDay: 0
+    },
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
     odoa_mode: "off",
     // ★ここでは streak3Today / streak3WrongToday / oncePerDayToday を追加しない（消失確認のため上書き禁止）
@@ -180,7 +200,32 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.lastWrongDay) out.lastWrongDay = {};
   if (!out.consistency_status) out.consistency_status = {};
   if (!out.fav || typeof out.fav !== "object") out.fav = {};
-  if (!out.global || typeof out.global !== "object") out.global = {};
+  if (!out.global || typeof out.global !== "object") {
+    out.global = {
+      totalQuestions: 0,
+      correctStreakMax: 0,
+      correctStreakMaxDay: 0,
+      wrongStreakMax: 0,
+      wrongStreakMaxDay: 0
+    };
+  }
+
+  // ★ 既存ユーザーで global 内の各キーが欠けている場合は 0 で補完（state.ts は補正/巻き戻しをしない）
+  if (typeof (out.global as any).totalQuestions !== "number" || !Number.isFinite((out.global as any).totalQuestions)) {
+    (out.global as any).totalQuestions = 0;
+  }
+  if (typeof (out.global as any).correctStreakMax !== "number" || !Number.isFinite((out.global as any).correctStreakMax)) {
+    (out.global as any).correctStreakMax = 0;
+  }
+  if (typeof (out.global as any).correctStreakMaxDay !== "number" || !Number.isFinite((out.global as any).correctStreakMaxDay)) {
+    (out.global as any).correctStreakMaxDay = 0;
+  }
+  if (typeof (out.global as any).wrongStreakMax !== "number" || !Number.isFinite((out.global as any).wrongStreakMax)) {
+    (out.global as any).wrongStreakMax = 0;
+  }
+  if (typeof (out.global as any).wrongStreakMaxDay !== "number" || !Number.isFinite((out.global as any).wrongStreakMaxDay)) {
+    (out.global as any).wrongStreakMaxDay = 0;
+  }
 
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
   const hasOdoaMode = Object.prototype.hasOwnProperty.call(out, "odoa_mode");
@@ -395,8 +440,30 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       hasGlobal && typeof (out.global as any).totalQuestions === "number"
         ? (out.global as any).totalQuestions
         : null;
-    console.log("[SYNC/state] hasGlobal            :", hasGlobal);
-    console.log("[SYNC/state] global.totalQuestions:", totalQuestions);
+
+    const correctStreakMax =
+      hasGlobal && typeof (out.global as any).correctStreakMax === "number"
+        ? (out.global as any).correctStreakMax
+        : null;
+    const correctStreakMaxDay =
+      hasGlobal && typeof (out.global as any).correctStreakMaxDay === "number"
+        ? (out.global as any).correctStreakMaxDay
+        : null;
+    const wrongStreakMax =
+      hasGlobal && typeof (out.global as any).wrongStreakMax === "number"
+        ? (out.global as any).wrongStreakMax
+        : null;
+    const wrongStreakMaxDay =
+      hasGlobal && typeof (out.global as any).wrongStreakMaxDay === "number"
+        ? (out.global as any).wrongStreakMaxDay
+        : null;
+
+    console.log("[SYNC/state] hasGlobal             :", hasGlobal);
+    console.log("[SYNC/state] global.totalQuestions :", totalQuestions);
+    console.log("[SYNC/state] global.correctStreakMax    :", correctStreakMax);
+    console.log("[SYNC/state] global.correctStreakMaxDay :", correctStreakMaxDay);
+    console.log("[SYNC/state] global.wrongStreakMax      :", wrongStreakMax);
+    console.log("[SYNC/state] global.wrongStreakMaxDay   :", wrongStreakMaxDay);
 
     // exam_date が SYNC 上に正しく載っているかを簡易チェック
     const examDateRaw = (out as any).exam_date;
