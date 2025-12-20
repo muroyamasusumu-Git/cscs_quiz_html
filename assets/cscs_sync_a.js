@@ -2759,12 +2759,8 @@
           const fetchOn = readLsBool(LS_FETCH_ON, true); // デフォルトON
           syncFetchEnabled = !!fetchOn;
 
-          const fetchStateEl = box.querySelector(".sync-fetch-state");
           const fetchBtn = box.querySelector('button[data-fetch-toggle="1"]');
 
-          if (fetchStateEl) {
-            fetchStateEl.textContent = syncFetchEnabled ? "ON" : "OFF";
-          }
           if (fetchBtn) {
             fetchBtn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
             fetchBtn.addEventListener("click", function(){
