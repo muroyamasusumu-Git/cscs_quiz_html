@@ -37,23 +37,11 @@
    *       ⇔ SYNC state: state.streakWrongLen[qid]
    *   - payload(merge): streak3WrongDelta[qid] / streakWrongLenDelta[qid]
    *
-   * ▼ 問題別 連続正解（ローカル計測：b_judge_record.js → SYNC保存対象に拡張）
-   *   - localStorage: "cscs_q_correct_streak_max:" + qid
-   *       ⇔ SYNC state: state.correctStreakMax[qid]
-   *       （最高連続正解数）
-   *   - localStorage: "cscs_q_correct_streak_max_day:" + qid
-   *       ⇔ SYNC state: state.correctStreakMaxDay[qid]
-   *       （その達成日 JST YYYYMMDD）
-   *   - payload(merge): correctStreakMaxDelta[qid] / correctStreakMaxDayDelta[qid]
-   *
-   * ▼ 問題別 連続不正解（ローカル計測：b_judge_record.js → SYNC保存対象に拡張）
+   * ▼ 問題別 連続不正解（ローカル計測：b_judge_record.js）
    *   - localStorage: "cscs_q_wrong_streak_max:" + qid
-   *       ⇔ SYNC state: state.wrongStreakMax[qid]
    *       （最高連続不正解数）
    *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
-   *       ⇔ SYNC state: state.wrongStreakMaxDay[qid]
    *       （その達成日 JST YYYYMMDD）
-   *   - payload(merge): wrongStreakMaxDelta[qid] / wrongStreakMaxDayDelta[qid]
    *
    * ▼ 今日の⭐️ユニーク数（Streak3Today）
    *   - localStorage: "cscs_streak3_today_day"
@@ -2533,11 +2521,7 @@
         !oncePerDayDelta &&
         !hasLastSeenDayDiff &&
         !hasLastCorrectDayDiff &&
-        !hasLastWrongDayDiff &&
-        !hasCorrectStreakMaxDiff &&
-        !hasCorrectStreakMaxDayDiff &&
-        !hasWrongStreakMaxDiff &&
-        !hasWrongStreakMaxDayDiff) {
+        !hasLastWrongDayDiff) {
 
       var odoaStatusTextForPanel;
       if (odoaModeText === "ON") {
@@ -2598,7 +2582,6 @@
     // ====== ④ 各 delta オブジェクトを作る（送信する差分を構築） ======
     // * diffCorrect, diffWrong, diffStreak3 等は「増分として送る」
     // * streakLenDelta / streakWrongLenDelta / last*DayDelta は「最新値で上書きする」
-    // * correct/wrong の streak_max / streak_max_day は「過去最高更新のみ上書き（減算なし）」で送る
     var correctDeltaObj = {};
     var incorrectDeltaObj = {};
     var streak3DeltaObj = {};
@@ -2608,12 +2591,6 @@
     var lastSeenDayDeltaObj = {};
     var lastCorrectDayDeltaObj = {};
     var lastWrongDayDeltaObj = {};
-
-    // ★ 追加: 最高連続正解/不正解（max / day）をSYNCに保存するための delta
-    var correctStreakMaxDeltaObj = {};
-    var correctStreakMaxDayDeltaObj = {};
-    var wrongStreakMaxDeltaObj = {};
-    var wrongStreakMaxDayDeltaObj = {};
 
     if (diffCorrect > 0) {
       correctDeltaObj[qid] = diffCorrect;
@@ -2631,163 +2608,6 @@
         qid: qid,
         diffStreak3Wrong: diffStreak3Wrong
       });
-    }
-
-    // ★ 追加: 最高連続正解/不正解（max/day）の差分を検出して payload に載せる
-    //   何をしているか:
-    //     - localStorage の確定キーから max/day を読む（フォールバック無し）
-    //     - syncState の state.correctStreakMax/Day, state.wrongStreakMax/Day を参照（存在する場合のみ）
-    //     - 「過去最高更新のみ」送る（local > server のときだけ送信。減算や古い日付更新は送らない）
-    var localCorrectStreakMaxForSync = 0;
-    var localCorrectStreakMaxDayForSync = null;
-    var localWrongStreakMaxForSync = 0;
-    var localWrongStreakMaxDayForSync = null;
-
-    var serverCorrectStreakMaxForSync = null;
-    var serverCorrectStreakMaxDayForSync = null;
-    var serverWrongStreakMaxForSync = null;
-    var serverWrongStreakMaxDayForSync = null;
-
-    var hasCorrectStreakMaxDiff = false;
-    var hasCorrectStreakMaxDayDiff = false;
-    var hasWrongStreakMaxDiff = false;
-    var hasWrongStreakMaxDayDiff = false;
-
-    try {
-      // ---- local（確定キーのみ）----
-      localCorrectStreakMaxForSync = readIntFromLocalStorage("cscs_q_correct_streak_max:" + qid);
-      localCorrectStreakMaxDayForSync = readDayFromLocalStorage("cscs_q_correct_streak_max_day:" + qid);
-
-      localWrongStreakMaxForSync = readIntFromLocalStorage("cscs_q_wrong_streak_max:" + qid);
-      localWrongStreakMaxDayForSync = readDayFromLocalStorage("cscs_q_wrong_streak_max_day:" + qid);
-
-      // ---- server（syncState に存在する場合のみ）----
-      if (syncState) {
-        if (syncState.correctStreakMax &&
-            typeof syncState.correctStreakMax === "object" &&
-            syncState.correctStreakMax[qid] != null) {
-          var scMax = syncState.correctStreakMax[qid];
-          if (typeof scMax === "number" && Number.isFinite(scMax) && scMax >= 0) {
-            serverCorrectStreakMaxForSync = scMax;
-          }
-        }
-        if (syncState.correctStreakMaxDay &&
-            typeof syncState.correctStreakMaxDay === "object" &&
-            syncState.correctStreakMaxDay[qid] != null) {
-          var scDay = syncState.correctStreakMaxDay[qid];
-          if (typeof scDay === "number" && Number.isFinite(scDay) && scDay > 0) {
-            serverCorrectStreakMaxDayForSync = scDay;
-          }
-        }
-
-        if (syncState.wrongStreakMax &&
-            typeof syncState.wrongStreakMax === "object" &&
-            syncState.wrongStreakMax[qid] != null) {
-          var swMax = syncState.wrongStreakMax[qid];
-          if (typeof swMax === "number" && Number.isFinite(swMax) && swMax >= 0) {
-            serverWrongStreakMaxForSync = swMax;
-          }
-        }
-        if (syncState.wrongStreakMaxDay &&
-            typeof syncState.wrongStreakMaxDay === "object" &&
-            syncState.wrongStreakMaxDay[qid] != null) {
-          var swDay = syncState.wrongStreakMaxDay[qid];
-          if (typeof swDay === "number" && Number.isFinite(swDay) && swDay > 0) {
-            serverWrongStreakMaxDayForSync = swDay;
-          }
-        }
-      }
-
-      // ---- diff 判定（過去最高更新のみ送る）----
-      // 何をしているか:
-      //   local が 0 のときは「未計測」扱いとして送らない
-      //   server が無い場合は local>0 なら「初回同期」として送る
-      if (localCorrectStreakMaxForSync > 0) {
-        if (serverCorrectStreakMaxForSync == null || localCorrectStreakMaxForSync > serverCorrectStreakMaxForSync) {
-          hasCorrectStreakMaxDiff = true;
-        }
-      }
-      if (hasCorrectStreakMaxDiff) {
-        // max を送るなら day も「新しければ」送る（古い日付は送らない）
-        if (localCorrectStreakMaxDayForSync !== null) {
-          if (serverCorrectStreakMaxDayForSync == null || localCorrectStreakMaxDayForSync > serverCorrectStreakMaxDayForSync) {
-            hasCorrectStreakMaxDayDiff = true;
-          }
-        }
-      } else {
-        // max を送らない場合は day も送らない（整合崩れ防止）
-        hasCorrectStreakMaxDayDiff = false;
-      }
-
-      if (localWrongStreakMaxForSync > 0) {
-        if (serverWrongStreakMaxForSync == null || localWrongStreakMaxForSync > serverWrongStreakMaxForSync) {
-          hasWrongStreakMaxDiff = true;
-        }
-      }
-      if (hasWrongStreakMaxDiff) {
-        if (localWrongStreakMaxDayForSync !== null) {
-          if (serverWrongStreakMaxDayForSync == null || localWrongStreakMaxDayForSync > serverWrongStreakMaxDayForSync) {
-            hasWrongStreakMaxDayDiff = true;
-          }
-        }
-      } else {
-        hasWrongStreakMaxDayDiff = false;
-      }
-
-      // ---- delta 付与 ----
-      if (hasCorrectStreakMaxDiff) {
-        correctStreakMaxDeltaObj[qid] = localCorrectStreakMaxForSync;
-        console.log("[SYNC-B] correctStreakMaxDelta set:", {
-          qid: qid,
-          local: localCorrectStreakMaxForSync,
-          server: serverCorrectStreakMaxForSync
-        });
-      }
-      if (hasCorrectStreakMaxDayDiff && localCorrectStreakMaxDayForSync !== null) {
-        correctStreakMaxDayDeltaObj[qid] = localCorrectStreakMaxDayForSync;
-        console.log("[SYNC-B] correctStreakMaxDayDelta set:", {
-          qid: qid,
-          local: localCorrectStreakMaxDayForSync,
-          server: serverCorrectStreakMaxDayForSync
-        });
-      }
-
-      if (hasWrongStreakMaxDiff) {
-        wrongStreakMaxDeltaObj[qid] = localWrongStreakMaxForSync;
-        console.log("[SYNC-B] wrongStreakMaxDelta set:", {
-          qid: qid,
-          local: localWrongStreakMaxForSync,
-          server: serverWrongStreakMaxForSync
-        });
-      }
-      if (hasWrongStreakMaxDayDiff && localWrongStreakMaxDayForSync !== null) {
-        wrongStreakMaxDayDeltaObj[qid] = localWrongStreakMaxDayForSync;
-        console.log("[SYNC-B] wrongStreakMaxDayDelta set:", {
-          qid: qid,
-          local: localWrongStreakMaxDayForSync,
-          server: serverWrongStreakMaxDayForSync
-        });
-      }
-
-      // ★ 何をしているか:
-      //   ここまでの判定が「期待通りに動いた」ことを確実に確認できるよう、最終サマリログを出す
-      console.log("[SYNC-B] streak_max diff summary", {
-        qid: qid,
-        localCorrectStreakMax: localCorrectStreakMaxForSync,
-        serverCorrectStreakMax: serverCorrectStreakMaxForSync,
-        hasCorrectStreakMaxDiff: hasCorrectStreakMaxDiff,
-        localCorrectStreakMaxDay: localCorrectStreakMaxDayForSync,
-        serverCorrectStreakMaxDay: serverCorrectStreakMaxDayForSync,
-        hasCorrectStreakMaxDayDiff: hasCorrectStreakMaxDayDiff,
-        localWrongStreakMax: localWrongStreakMaxForSync,
-        serverWrongStreakMax: serverWrongStreakMaxForSync,
-        hasWrongStreakMaxDiff: hasWrongStreakMaxDiff,
-        localWrongStreakMaxDay: localWrongStreakMaxDayForSync,
-        serverWrongStreakMaxDay: serverWrongStreakMaxDayForSync,
-        hasWrongStreakMaxDayDiff: hasWrongStreakMaxDayDiff
-      });
-    } catch (eStreakMaxSync) {
-      console.error("[SYNC-B] streak_max diff build error:", eStreakMaxSync);
     }
 
     // ====== ⑤ streakLenDelta（連続正解長）の扱い ======
@@ -2865,25 +2685,8 @@
       lastSeenDayDelta: lastSeenDayDeltaObj,        // 最終学習日
       lastCorrectDayDelta: lastCorrectDayDeltaObj,  // 最終正解日
       lastWrongDayDelta: lastWrongDayDeltaObj,      // 最終不正解日
-
-      // ★ 追加: 最高連続正解/不正解（過去最高更新のみ、減算なし）
-      correctStreakMaxDelta: correctStreakMaxDeltaObj,
-      correctStreakMaxDayDelta: correctStreakMaxDayDeltaObj,
-      wrongStreakMaxDelta: wrongStreakMaxDeltaObj,
-      wrongStreakMaxDayDelta: wrongStreakMaxDayDeltaObj,
-
       updatedAt: Date.now()                         // クライアント側での更新時刻
     };
-
-    // ★ 何をしているか:
-    //   payload に max/day が乗っているかを確実に目視できるよう、ここでもログを出す
-    console.log("[SYNC-B] payload streak_max attached?", {
-      qid: qid,
-      hasCorrectStreakMaxDelta: Object.prototype.hasOwnProperty.call(correctStreakMaxDeltaObj, qid),
-      hasCorrectStreakMaxDayDelta: Object.prototype.hasOwnProperty.call(correctStreakMaxDayDeltaObj, qid),
-      hasWrongStreakMaxDelta: Object.prototype.hasOwnProperty.call(wrongStreakMaxDeltaObj, qid),
-      hasWrongStreakMaxDayDelta: Object.prototype.hasOwnProperty.call(wrongStreakMaxDayDeltaObj, qid)
-    });
 
     // ★ 追加: 総問題数（cscs_total_questions）を global.totalQuestions として付与
     //   - b_judge_record.js が manifest.json から算出・保存した値を唯一のソースとする
@@ -2917,13 +2720,6 @@
     var hasLastSeenDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastSeenDayDeltaObj, qid);
     var hasLastCorrectDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastCorrectDayDeltaObj, qid);
     var hasLastWrongDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastWrongDayDeltaObj, qid);
-
-    // ★ 追加: max/day delta の有無
-    var hasCorrectStreakMaxDeltaInPayload = Object.prototype.hasOwnProperty.call(correctStreakMaxDeltaObj, qid);
-    var hasCorrectStreakMaxDayDeltaInPayload = Object.prototype.hasOwnProperty.call(correctStreakMaxDayDeltaObj, qid);
-    var hasWrongStreakMaxDeltaInPayload = Object.prototype.hasOwnProperty.call(wrongStreakMaxDeltaObj, qid);
-    var hasWrongStreakMaxDayDeltaInPayload = Object.prototype.hasOwnProperty.call(wrongStreakMaxDayDeltaObj, qid);
-
     var hasOncePerDayDeltaInPayload = !!oncePerDayDelta;
     var hasGlobalTotalQuestionsInPayload =
       !!(payload.global &&
@@ -2940,17 +2736,9 @@
       !hasLastSeenDayDeltaInPayload &&
       !hasLastCorrectDayDeltaInPayload &&
       !hasLastWrongDayDeltaInPayload &&
-      !hasCorrectStreakMaxDeltaInPayload &&
-      !hasCorrectStreakMaxDayDeltaInPayload &&
-      !hasWrongStreakMaxDeltaInPayload &&
-      !hasWrongStreakMaxDayDeltaInPayload &&
       !hasOncePerDayDeltaInPayload &&
       !hasGlobalTotalQuestionsInPayload
     ) {
-      console.log("[SYNC-B] ★送信スキップ（payload に有効な delta が無いため）", {
-        qid: qid,
-        payload: payload
-      });
       console.log("[SYNC-B] ★送信スキップ（payload に有効な delta が無いため）", {
         qid: qid,
         payload: payload
