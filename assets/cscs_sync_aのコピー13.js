@@ -1,22 +1,3 @@
-AパートにてSYNC（計測系のみ）取得しないモード（Fetch OFF）　を追加したい。
-Fetchブロックをステータスパネルの中に追加して、「Fetch：ON/OFF」で切り替えたい。
-
-ステータスパネルのステータスブロックの横に置いて、左右横並び一列になるようにしたい
-
-以下の最新の　「cscs_sync_a.js」　を”必ず”参照し、これに修正を加える形で、
-参照元のコードから
-⚠️「確実に検索できる」ように
-🚨🚨必ず参照元と「同じインデント」で、🚨🚨
-🚨🚨「どっちが置換前／置換後か」を明確にして、🚨🚨
-⚠️「"..."などの省略は絶対無し」の
-⚠️「置換前・置換後の正確なコード」を出して。
-⚠️置換前と置換後はそれぞれ「別のコードブロック」に分けてほしい
-⚠️「フルじゃなくて置換部分のコード」のみ。
-⚠️置換前コードブロック内に「本文に無いコメント」は入れないこと。
-⚠️フォールバックの設定は「基本的に無し」で
-⚠️追加した処理に対して処理ごとに何をしているか説明する補足コメントをいれる。
-コンソール上でその処理が確実に成功したかどうかを確認できるログが出るようにして欲しい。
-
 // assets/cscs_sync_a.js
 /**
  * CSCS SYNC(A) — Aパート用 SYNC モニタ＆送信キュー
@@ -210,6 +191,7 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
   const LS_MON_OPEN        = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN       = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN       = "cscs_sync_a_queue_detail_open";
+  const LS_FETCH_ON        = "cscs_sync_a_fetch_on"; // ★ 追加: AパートのSYNC取得（計測系）Fetch ON/OFF
 
   function readLsBool(key, defaultBool){
     try{
@@ -229,6 +211,44 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
     try{
       localStorage.setItem(key, boolVal ? "1" : "0");
     }catch(_){}
+  }
+
+  // ============================================================
+  // ★ 追加: SYNC Fetch（計測系取得） ON/OFF
+  // ------------------------------------------------------------
+  // 目的:
+  //   - Aパートで /api/sync/state の取得（計測系の取得）を止めるモードを提供する
+  //   - OFF時は initialFetch / fetchServer をブロックし、取得に行かない
+  // 永続:
+  //   - localStorage: LS_FETCH_ON（"1"=ON, "0"=OFF）
+  // 確認ログ:
+  //   - 初期値確定時 / 切替時に console.log を出す
+  // ============================================================
+  let syncFetchEnabled = true;
+
+  function isSyncFetchEnabled(){
+    return !!syncFetchEnabled;
+  }
+
+  function setSyncFetchEnabled(nextEnabled, reason){
+    syncFetchEnabled = !!nextEnabled;
+    writeLsBool(LS_FETCH_ON, syncFetchEnabled);
+
+    // ★ 処理: UI側にも反映（存在すれば）
+    try{
+      const btn = document.querySelector("#cscs_sync_monitor_a button[data-fetch-toggle=\"1\"]");
+      if (btn) {
+        btn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
+      }
+    }catch(_){}
+
+    // ★ 処理: 切替が成功したかをコンソールで確実に確認できるログ
+    console.log("[SYNC-A] Fetch mode updated", {
+      enabled: syncFetchEnabled,
+      reason: reason || "unknown",
+      lsKey: LS_FETCH_ON,
+      lsValue: syncFetchEnabled ? "1" : "0"
+    });
   }
 
   function readLocalTotalsForQid(qid){
@@ -1485,6 +1505,14 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
 
     // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
     async fetchServer(){
+      // ★ 処理: Fetch OFF のときは /api/sync/state を叩かない（計測系取得を完全停止）
+      if (!isSyncFetchEnabled()) {
+        console.log("[SYNC-A] fetchServer blocked (Fetch OFF)", {
+          qid: QID || null
+        });
+        throw new Error("FETCH_OFF");
+      }
+
       const r = await fetch("/api/sync/state");
       if(!r.ok) throw new Error(r.statusText);
       const json = await r.json();
@@ -1509,6 +1537,19 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
 
   async function initialFetch(){
     if (!QID) return;
+
+    // ★ 処理: Fetch OFF の場合は初期取得を行わない（/api/sync/state を叩かない）
+    if (!isSyncFetchEnabled()) {
+      lastSyncStatus = "fetch-off";
+      lastSyncTime   = new Date().toLocaleTimeString();
+      lastSyncError  = "";
+      console.log("[SYNC-A] initialFetch skipped (Fetch OFF)", {
+        qid: QID
+      });
+      updateMonitor();
+      return;
+    }
+
     try{
       const s  = await CSCS_SYNC.fetchServer();
       const c  = (s.correct       && s.correct[QID])       || 0;
@@ -2061,7 +2102,6 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
           st.id = "cscs-sync-a-monitor-style";
           st.textContent = `
 #cscs_sync_monitor_a{
-  margin-top: 8px;
   font-size: 12px;
   line-height: 1.35;
 }
@@ -2073,6 +2113,7 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  opacity: 0.6;
 }
 
 #cscs_sync_monitor_a .sync-toggle-btn{
@@ -2108,12 +2149,12 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
 #cscs_sync_monitor_a {
   position: fixed;
   right: 15px;
-  top: 100px;
+  top: 110px;
   color: #eee;
-  padding: 8px;
+  padding: 0px;
   font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   max-width: 46vw;
-  width: 310px;
+  width: 320px;
   opacity: 0.55;
   z-index: 2147483647;
 }
@@ -2228,11 +2269,48 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
   line-height: 1.25;
 }
 
+/* ★ Status 1行＋操作ボタン横並び */
+#cscs_sync_monitor_a .status-grid.status-grid-1 .status-value{
+  display: flex;
+  align-items: center;
+
+  /* ★ 右寄せ（Statusテキストも右に寄せる） */
+  justify-content: flex-end;
+
+  /* ★ テキストとボタンの間隔を詰める */
+  gap: 4px;
+}
+
+/* ★ Fetchボタンは右端（右寄せの中で最右） */
+#cscs_sync_monitor_a .status-grid.status-grid-1 .sync-fetch-btn{
+  margin-left: 0;
+  opacity: 1.00;
+}
+
+/* ============================================================
+   ★ 追加: Status + Fetch を「左右横並び一列」にする
+   ------------------------------------------------------------
+   - 4カラム（label/value ×2）
+   - value側（2列目/4列目）は右寄せ（既存の text-align: right を尊重）
+   ============================================================ */
+#cscs_sync_monitor_a .status-grid.status-grid-2{
+  grid-template-columns: auto 1fr auto 1fr;
+  column-gap: 10px;
+  row-gap: 0px;
+  align-items: center;
+}
+
+#cscs_sync_monitor_a .sync-fetch-btn{
+  margin-left: 6px;
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
 #cscs_sync_monitor_a .status-label{
   font-weight: 600;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.02em;
-  opacity: 0.80;
+  opacity: 1.00;
   white-space: nowrap;
 }
 
@@ -2653,9 +2731,14 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-body status-grid">
+            <div class="sync-body status-grid status-grid-1">
               <div class="status-label">Status</div>
-              <div class="status-value"><span class="sync-status">pulled (-)</span></div>
+              <div class="status-value">
+                <span class="sync-status">pulled (-)</span>
+                <button type="button"
+                        class="sync-toggle-btn sync-fetch-btn"
+                        data-fetch-toggle="1">Fetch: ON</button>
+              </div>
             </div>
           </div>
         </div>
@@ -2679,6 +2762,40 @@ Fetchブロックをステータスパネルの中に追加して、「Fetch：O
         } else {
           box.classList.add("cscs-compact");
         }
+
+        // ============================================================
+        // ★ 追加: Fetch ON/OFF の復元＆ボタン結線（Aパート: 計測系取得）
+        // ------------------------------------------------------------
+        // ★ 処理:
+        //   - localStorage(LS_FETCH_ON) から復元（デフォルトON）
+        //   - UI（表示/ボタンラベル）に反映
+        //   - クリックで ON/OFF を切替え、永続化
+        // ★ 確認ログ:
+        //   - 復元時に現在状態を console.log
+        // ============================================================
+        try{
+          const fetchOn = readLsBool(LS_FETCH_ON, true); // デフォルトON
+          syncFetchEnabled = !!fetchOn;
+
+          const fetchBtn = box.querySelector('button[data-fetch-toggle="1"]');
+
+          if (fetchBtn) {
+            fetchBtn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
+            fetchBtn.addEventListener("click", function(){
+              // ★ 処理: 反転して保存
+              const next = !syncFetchEnabled;
+              setSyncFetchEnabled(next, "ui-toggle");
+              // ★ 追加: ステータス表示も更新（取得しないだけでUI更新はする）
+              updateMonitor();
+            });
+          }
+
+          console.log("[SYNC-A] Fetch mode restored", {
+            enabled: syncFetchEnabled,
+            lsKey: LS_FETCH_ON,
+            lsValue: syncFetchEnabled ? "1" : "0"
+          });
+        }catch(_){}
 
         const toggleBtn = box.querySelector('button[data-sync-toggle="1"]');
         function refreshToggleBtnLabel(){
