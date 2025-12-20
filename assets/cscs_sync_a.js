@@ -2465,7 +2465,7 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-title">Correct Streak (b_judge_record) <span class="sync-title-en">Local</span></div>
+            <div class="sync-title">Correct Streak<span class="sync-title-en">Local</span></div>
             <div class="sync-body">
               <div class="mini-grid">
                 <div class="mini-label">len</div>
