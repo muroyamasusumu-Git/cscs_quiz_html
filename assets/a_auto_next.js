@@ -182,8 +182,35 @@
   })();
 
   // ログ用ヘルパー（このファイル専用のプレフィックス）
+  // - デフォルトではログを出さない（コンソールを静かに保つ）
+  // - 有効化したい場合:
+  //     localStorage.setItem("cscs_debug_auto_next", "1")
+  //   もしくは URL に ?debug_auto_next=1 を付ける
+  var AUTO_NEXT_DEBUG_KEY = "cscs_debug_auto_next";
+
+  function isAutoNextDebugEnabled() {
+    try {
+      // URL クエリで一時的にON（デバッグしやすい）
+      try {
+        var u = new URL(String(location.href || ""), location.href);
+        if (u.searchParams && u.searchParams.get("debug_auto_next") === "1") {
+          return true;
+        }
+      } catch (_eUrl) {}
+
+      // localStorage で永続ON
+      var v = localStorage.getItem(AUTO_NEXT_DEBUG_KEY);
+      return v === "1";
+    } catch (_e) {
+      return false;
+    }
+  }
+
   function syncLog() {
     try {
+      if (!isAutoNextDebugEnabled()) {
+        return;
+      }
       var args = Array.prototype.slice.call(arguments);
       args.unshift("[A:auto-next]");
       console.log.apply(console, args);
