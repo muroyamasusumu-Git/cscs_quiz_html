@@ -191,7 +191,6 @@
   const LS_MON_OPEN        = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN       = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN       = "cscs_sync_a_queue_detail_open";
-  const LS_FETCH_ON        = "cscs_sync_a_fetch_on"; // ★ 追加: AパートのSYNC取得（計測系）Fetch ON/OFF
 
   function readLsBool(key, defaultBool){
     try{
@@ -211,48 +210,6 @@
     try{
       localStorage.setItem(key, boolVal ? "1" : "0");
     }catch(_){}
-  }
-
-  // ============================================================
-  // ★ 追加: SYNC Fetch（計測系取得） ON/OFF
-  // ------------------------------------------------------------
-  // 目的:
-  //   - Aパートで /api/sync/state の取得（計測系の取得）を止めるモードを提供する
-  //   - OFF時は initialFetch / fetchServer をブロックし、取得に行かない
-  // 永続:
-  //   - localStorage: LS_FETCH_ON（"1"=ON, "0"=OFF）
-  // 確認ログ:
-  //   - 初期値確定時 / 切替時に console.log を出す
-  // ============================================================
-  let syncFetchEnabled = true;
-
-  function isSyncFetchEnabled(){
-    return !!syncFetchEnabled;
-  }
-
-  function setSyncFetchEnabled(nextEnabled, reason){
-    syncFetchEnabled = !!nextEnabled;
-    writeLsBool(LS_FETCH_ON, syncFetchEnabled);
-
-    // ★ 処理: UI側にも反映（存在すれば）
-    try{
-      const el = document.querySelector("#cscs_sync_monitor_a .sync-fetch-state");
-      if (el) {
-        el.textContent = syncFetchEnabled ? "ON" : "OFF";
-      }
-      const btn = document.querySelector("#cscs_sync_monitor_a button[data-fetch-toggle=\"1\"]");
-      if (btn) {
-        btn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
-      }
-    }catch(_){}
-
-    // ★ 処理: 切替が成功したかをコンソールで確実に確認できるログ
-    console.log("[SYNC-A] Fetch mode updated", {
-      enabled: syncFetchEnabled,
-      reason: reason || "unknown",
-      lsKey: LS_FETCH_ON,
-      lsValue: syncFetchEnabled ? "1" : "0"
-    });
   }
 
   function readLocalTotalsForQid(qid){
@@ -1509,14 +1466,6 @@
 
     // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
     async fetchServer(){
-      // ★ 処理: Fetch OFF のときは /api/sync/state を叩かない（計測系取得を完全停止）
-      if (!isSyncFetchEnabled()) {
-        console.log("[SYNC-A] fetchServer blocked (Fetch OFF)", {
-          qid: QID || null
-        });
-        throw new Error("FETCH_OFF");
-      }
-
       const r = await fetch("/api/sync/state");
       if(!r.ok) throw new Error(r.statusText);
       const json = await r.json();
@@ -1541,19 +1490,6 @@
 
   async function initialFetch(){
     if (!QID) return;
-
-    // ★ 処理: Fetch OFF の場合は初期取得を行わない（/api/sync/state を叩かない）
-    if (!isSyncFetchEnabled()) {
-      lastSyncStatus = "fetch-off";
-      lastSyncTime   = new Date().toLocaleTimeString();
-      lastSyncError  = "";
-      console.log("[SYNC-A] initialFetch skipped (Fetch OFF)", {
-        qid: QID
-      });
-      updateMonitor();
-      return;
-    }
-
     try{
       const s  = await CSCS_SYNC.fetchServer();
       const c  = (s.correct       && s.correct[QID])       || 0;
@@ -2273,25 +2209,6 @@
   line-height: 1.25;
 }
 
-/* ============================================================
-   ★ 追加: Status + Fetch を「左右横並び一列」にする
-   ------------------------------------------------------------
-   - 4カラム（label/value ×2）
-   - value側（2列目/4列目）は右寄せ（既存の text-align: right を尊重）
-   ============================================================ */
-#cscs_sync_monitor_a .status-grid.status-grid-2{
-  grid-template-columns: auto 1fr auto 1fr;
-  column-gap: 10px;
-  row-gap: 0px;
-  align-items: center;
-}
-
-#cscs_sync_monitor_a .sync-fetch-btn{
-  margin-left: 6px;
-  padding: 3px 7px;
-  font-size: 10px;
-}
-
 #cscs_sync_monitor_a .status-label{
   font-weight: 600;
   font-size: 10.5px;
@@ -2717,15 +2634,9 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-body status-grid status-grid-2">
+            <div class="sync-body status-grid">
               <div class="status-label">Status</div>
               <div class="status-value"><span class="sync-status">pulled (-)</span></div>
-
-              <div class="status-label">Fetch</div>
-              <div class="status-value">
-                <span class="sync-fetch-state">ON</span>
-                <button type="button" class="sync-toggle-btn sync-fetch-btn" data-fetch-toggle="1">Fetch: ON</button>
-              </div>
             </div>
           </div>
         </div>
@@ -2749,44 +2660,6 @@
         } else {
           box.classList.add("cscs-compact");
         }
-
-        // ============================================================
-        // ★ 追加: Fetch ON/OFF の復元＆ボタン結線（Aパート: 計測系取得）
-        // ------------------------------------------------------------
-        // ★ 処理:
-        //   - localStorage(LS_FETCH_ON) から復元（デフォルトON）
-        //   - UI（表示/ボタンラベル）に反映
-        //   - クリックで ON/OFF を切替え、永続化
-        // ★ 確認ログ:
-        //   - 復元時に現在状態を console.log
-        // ============================================================
-        try{
-          const fetchOn = readLsBool(LS_FETCH_ON, true); // デフォルトON
-          syncFetchEnabled = !!fetchOn;
-
-          const fetchStateEl = box.querySelector(".sync-fetch-state");
-          const fetchBtn = box.querySelector('button[data-fetch-toggle="1"]');
-
-          if (fetchStateEl) {
-            fetchStateEl.textContent = syncFetchEnabled ? "ON" : "OFF";
-          }
-          if (fetchBtn) {
-            fetchBtn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
-            fetchBtn.addEventListener("click", function(){
-              // ★ 処理: 反転して保存
-              const next = !syncFetchEnabled;
-              setSyncFetchEnabled(next, "ui-toggle");
-              // ★ 追加: ステータス表示も更新（取得しないだけでUI更新はする）
-              updateMonitor();
-            });
-          }
-
-          console.log("[SYNC-A] Fetch mode restored", {
-            enabled: syncFetchEnabled,
-            lsKey: LS_FETCH_ON,
-            lsValue: syncFetchEnabled ? "1" : "0"
-          });
-        }catch(_){}
 
         const toggleBtn = box.querySelector('button[data-sync-toggle="1"]');
         function refreshToggleBtnLabel(){
