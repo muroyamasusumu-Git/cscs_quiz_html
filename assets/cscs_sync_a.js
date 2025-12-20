@@ -2308,7 +2308,7 @@
 
 #cscs_sync_monitor_a .status-label{
   font-weight: 600;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.02em;
   opacity: 1.00;
   white-space: nowrap;
