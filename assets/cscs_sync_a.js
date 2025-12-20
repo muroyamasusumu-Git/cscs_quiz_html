@@ -2380,14 +2380,14 @@
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">⭐️3連続正解 回数 <span class="sync-title-en">Count</span></div>
+            <div class="sync-title">⭐️3連続正解数 <span class="sync-title-en">Count</span></div>
             <div class="sync-body sync-streak3">
               SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
             </div>
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">💣3連続不正解 回数 <span class="sync-title-en">Count</span></div>
+            <div class="sync-title">💣3連続不正解数 <span class="sync-title-en">Count</span></div>
             <div class="sync-body sync-wrong-streak3">
               SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
             </div>
