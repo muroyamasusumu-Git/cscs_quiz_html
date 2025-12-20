@@ -243,6 +243,12 @@
       const btn = document.querySelector("#cscs_sync_monitor_a button[data-fetch-toggle=\"1\"]");
       if (btn) {
         btn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
+        btn.style.background = syncFetchEnabled
+          ? "linear-gradient(135deg, rgba(80,160,255,0.85), rgba(40,110,220,0.85))"
+          : "linear-gradient(135deg, rgba(180,80,80,0.85), rgba(120,40,40,0.85))";
+        btn.style.borderColor = syncFetchEnabled
+          ? "rgba(255,255,255,0.35)"
+          : "rgba(255,200,200,0.45)";
       }
     }catch(_){}
 
@@ -2287,9 +2293,30 @@
 }
 
 #cscs_sync_monitor_a .sync-fetch-btn{
-  margin-left: 6px;
-  padding: 3px 7px;
-  font-size: 10px;
+  margin-left: 0px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: linear-gradient(135deg, rgba(80,160,255,0.85), rgba(40,110,220,0.85));
+  color: #fff;
+  cursor: pointer;
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+#cscs_sync_monitor_a .sync-fetch-btn:hover{
+  filter: brightness(1.08);
+}
+
+#cscs_sync_monitor_a .sync-fetch-btn:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 #cscs_sync_monitor_a .status-label{
@@ -2721,9 +2748,8 @@
               <div class="status-label">Status</div>
               <div class="status-value"><span class="sync-status">pulled (-)</span></div>
 
-              <div class="status-label">Fetch</div>
+              <div class="status-label"></div>
               <div class="status-value">
-                <span class="sync-fetch-state">ON</span>
                 <button type="button" class="sync-toggle-btn sync-fetch-btn" data-fetch-toggle="1">Fetch: ON</button>
               </div>
             </div>
