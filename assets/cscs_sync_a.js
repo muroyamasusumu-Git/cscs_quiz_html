@@ -2330,6 +2330,44 @@
 }
 
 /* ============================================================
+   ★ OncePerDayToday / O.D.O.A Mode 折りたたみ（カード単体）
+   ------------------------------------------------------------
+   - 見出し右端に「▶show / ▼hide」テキストボタン
+   - 折りたたみ時は「見出し + 3行目（count対象）」だけ表示
+   ============================================================ */
+#cscs_sync_monitor_a .sync-card.once-card .sync-title{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#cscs_sync_monitor_a .once-fold-btn{
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.86);
+  font-weight: 700;
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.92;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-fold-btn:active{
+  transform: translateY(1px);
+}
+
+/* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
+   once-grid の子要素は 8個（label/val ×4行）
+   3行目は 5番目(label) と 6番目(val) */
+#cscs_sync_monitor_a .sync-card.once-card.once-collapsed .once-grid > :not(:nth-child(5)):not(:nth-child(6)){
+  display: none !important;
+}
+
+/* ============================================================
    ★ 右ブロック（値側）を右寄せに統一
    ------------------------------------------------------------
    - 2カラム系: mini-grid / status-grid / delta-grid / once-grid
@@ -2498,8 +2536,11 @@
             </div>
           </div>
 
-          <div class="sync-card sync-span-2">
-            <div class="sync-title">OncePerDayToday / O.D.O.A Mode</div>
+          <div class="sync-card sync-span-2 once-card">
+            <div class="sync-title">
+              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode</span>
+              <button type="button" class="once-fold-btn" data-once-fold="1">▶show</button>
+            </div>
             <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
           </div>
 
@@ -2645,6 +2686,51 @@
 
         const daysDetails       = box.querySelector('details.sync-fold[data-fold="days"]');
         const queueDetails      = box.querySelector('details.sync-fold[data-fold="queue"]');
+
+        // ============================================================
+        // ★ OncePerDayToday / O.D.O.A Mode：カード単体の折りたたみ
+        // ------------------------------------------------------------
+        // - 見出し右端: 「▶show / ▼hide」
+        // - 折りたたみ時: 見出し + 3行目（count対象）のみ表示
+        // - 状態は localStorage に永続化
+        // ============================================================
+        const LS_ONCE_OPEN = "cscs_sync_a_onceperday_open";
+        const onceCard = box.querySelector(".sync-card.once-card");
+        const onceFoldBtn = box.querySelector('button[data-once-fold="1"]');
+
+        function refreshOnceFoldBtnLabel(){
+          if (!onceFoldBtn) return;
+          const isOpen = !(onceCard && onceCard.classList.contains("once-collapsed"));
+          onceFoldBtn.textContent = isOpen ? "▼hide" : "▶show";
+        }
+
+        try{
+          const onceOpen = readLsBool(LS_ONCE_OPEN, false); // デフォルトは折りたたみ（closed）
+          if (onceCard) {
+            if (onceOpen) {
+              onceCard.classList.remove("once-collapsed");
+            } else {
+              onceCard.classList.add("once-collapsed");
+            }
+          }
+          refreshOnceFoldBtnLabel();
+        }catch(_){}
+
+        if (onceFoldBtn) {
+          onceFoldBtn.addEventListener("click", function(){
+            try{
+              if (!onceCard) return;
+              const nextOpen = onceCard.classList.contains("once-collapsed"); // 今閉じてるなら開く
+              if (nextOpen) {
+                onceCard.classList.remove("once-collapsed");
+              } else {
+                onceCard.classList.add("once-collapsed");
+              }
+              writeLsBool(LS_ONCE_OPEN, nextOpen);
+              refreshOnceFoldBtnLabel();
+            }catch(_){}
+          });
+        }
 
         /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
            - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
