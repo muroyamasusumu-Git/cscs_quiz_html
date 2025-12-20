@@ -296,7 +296,6 @@
     "  align-items: baseline;",
     "  justify-content: space-between;",
     "  gap: 10px;",
-    "  height: 13px;",
     "}",
     "",
     "#cscs_sync_view_b_body .svb-once-odoa-toggle {",
