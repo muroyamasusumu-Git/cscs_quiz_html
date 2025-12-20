@@ -1210,95 +1210,171 @@
       body.appendChild(pair);
     })();
 
-    // --- Correct/Wrong Streak (SYNC/local) : 2列横並び ---
+    // --- Correct/Wrong Streak (SYNC/local/diff) : 2列横並び ---
     (function appendStreakMaxPairCards() {
       // ★ 何をしているか:
-      //   連続正解/連続不正解 を「左右2列」で横並びにし、
-      //   表示を user希望の形式にする：
-      //     - streak_len:  sync / local
-      //     - streak_max:  sync / local
-      //     - max_day(SYNC)
-      //     - max_day(local)
+      //   連続正解ブロックと、連続不正解ブロックを「左右2列」で横並びにする。
+      //   - 既存の .svb-streak-quad（2列グリッド）を再利用
+      //   - 表示はユーザー指定の形式:
+      //       連続正解 (SYNC/local/diff)
+      //       streak_len    sync / local (+diff)
+      //       streak_max    sync / local
+      //       max_day(SYNC)  YYYYMMDD
+      //       max_day(local) YYYYMMDD
       var pair = document.createElement("div");
       pair.className = "svb-streak-quad";
 
-      function makeCard(titleText, rowsBuilderFn) {
+      function fmtLenRow(syncLen, localLen, diffLen) {
+        return String(syncLen) + " / " + String(localLen) + " (+" + String(diffLen) + ")";
+      }
+
+      function fmtPairRow(syncVal, localVal) {
+        return String(syncVal) + " / " + String(localVal);
+      }
+
+      // ==========================
+      // 左：連続正解 (SYNC/local/diff)
+      // ==========================
+      (function buildCorrectCard() {
+        // ★ 何をしているか:
+        //   連続正解カードを「SYNC/local/diff」を含む指定フォーマットで描画する。
         var card = document.createElement("div");
-        card.className = "cscs-svb-card svb-streak-card";
+        card.className = "cscs-svb-card svb-correct-streak-card";
+
+        // ヘッダー（タイトルのみ）
+        var head = document.createElement("div");
+        head.className = "svb-correct-streak-head";
 
         var h = document.createElement("div");
         h.className = "cscs-svb-card-title";
-        h.textContent = titleText;
+        h.textContent = "連続正解 (SYNC/local/diff)";
+
+        head.appendChild(h);
 
         var grid = document.createElement("div");
         grid.className = "cscs-svb-card-grid";
 
-        rowsBuilderFn(grid);
+        // ★ 何をしているか:
+        //   streak_len は “SYNC/local/diff” の3点を1行に圧縮して表示する（(+N) 表記）
+        appendGridRow(
+          grid,
+          "streak_len",
+          fmtLenRow(model.serverStreakLen, model.localStreakLen, model.diffStreakLen)
+        );
 
-        card.appendChild(h);
+        // ★ 何をしているか:
+        //   streak_max は “SYNC/local” を 1行にまとめる（diffは付けない）
+        appendGridRow(
+          grid,
+          "streak_max",
+          fmtPairRow(model.serverCorrectStreakMax, model.localCorrectStreakMax)
+        );
+
+        // ★ 何をしているか:
+        //   max_day は SYNC と local を行分けし、どっちがどっちかを明示する
+        appendGridRow(
+          grid,
+          "max_day(SYNC)",
+          String(model.serverCorrectStreakMaxDayLabel)
+        );
+        appendGridRow(
+          grid,
+          "max_day(local)",
+          String(model.localCorrectStreakMaxDayLabel)
+        );
+
+        card.appendChild(head);
         card.appendChild(grid);
-        return card;
-      }
+        pair.appendChild(card);
+
+        // ★ 何をしているか:
+        //   DOM追加が成功し、値が期待通りに入っているかをコンソールで確認できるようにする
+        console.log("[SYNC-B:view] appended Correct Streak card (SYNC/local/diff)", {
+          qid: (info && info.qid) ? info.qid : "-",
+          serverStreakLen: model.serverStreakLen,
+          localStreakLen: model.localStreakLen,
+          diffStreakLen: model.diffStreakLen,
+          serverCorrectStreakMax: model.serverCorrectStreakMax,
+          localCorrectStreakMax: model.localCorrectStreakMax,
+          serverCorrectStreakMaxDay: model.serverCorrectStreakMaxDayLabel,
+          localCorrectStreakMaxDay: model.localCorrectStreakMaxDayLabel
+        });
+      })();
 
       // ==========================
-      // 左：連続正解 (SYNC/local)
+      // 右：連続不正解 (SYNC/local/diff)
       // ==========================
-      pair.appendChild(
-        makeCard("連続正解 (SYNC/local)", function (grid) {
-          appendGridRow(
-            grid,
-            "streak_len",
-            String(model.serverStreakLen) + " / " + String(model.localStreakLen)
-          );
-          appendGridRow(
-            grid,
-            "streak_max",
-            String(model.serverCorrectStreakMax) + " / " + String(model.localCorrectStreakMax)
-          );
-          appendGridRow(
-            grid,
-            "max_day(SYNC)",
-            String(model.serverCorrectStreakMaxDayLabel)
-          );
-          appendGridRow(
-            grid,
-            "max_day(local)",
-            String(model.localCorrectStreakMaxDayLabel)
-          );
-        })
-      );
+      (function buildWrongCard() {
+        // ★ 何をしているか:
+        //   連続不正解カードを「SYNC/local/diff」を含む指定フォーマットで描画する。
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-wrong-streak-card";
 
-      // ==========================
-      // 右：連続不正解 (SYNC/local)
-      // ==========================
-      pair.appendChild(
-        makeCard("連続不正解 (SYNC/local)", function (grid) {
-          appendGridRow(
-            grid,
-            "streak_len",
-            String(model.serverWrongStreakLen) + " / " + String(model.localWrongStreakLen)
-          );
-          appendGridRow(
-            grid,
-            "streak_max",
-            String(model.serverWrongStreakMax) + " / " + String(model.localWrongStreakMax)
-          );
-          appendGridRow(
-            grid,
-            "max_day(SYNC)",
-            String(model.serverWrongStreakMaxDayLabel)
-          );
-          appendGridRow(
-            grid,
-            "max_day(local)",
-            String(model.localWrongStreakMaxDayLabel)
-          );
-        })
-      );
+        // ヘッダー（タイトルのみ）
+        var head = document.createElement("div");
+        head.className = "svb-correct-streak-head";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = "連続不正解 (SYNC/local/diff)";
+
+        head.appendChild(h);
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        // ★ 何をしているか:
+        //   streak_len は “SYNC/local/diff” の3点を1行に圧縮して表示する（(+N) 表記）
+        appendGridRow(
+          grid,
+          "streak_len",
+          fmtLenRow(model.serverWrongStreakLen, model.localWrongStreakLen, model.diffWrongStreakLen)
+        );
+
+        // ★ 何をしているか:
+        //   streak_max は “SYNC/local” を 1行にまとめる（diffは付けない）
+        appendGridRow(
+          grid,
+          "streak_max",
+          fmtPairRow(model.serverWrongStreakMax, model.localWrongStreakMax)
+        );
+
+        // ★ 何をしているか:
+        //   max_day は SYNC と local を行分けし、どっちがどっちかを明示する
+        appendGridRow(
+          grid,
+          "max_day(SYNC)",
+          String(model.serverWrongStreakMaxDayLabel)
+        );
+        appendGridRow(
+          grid,
+          "max_day(local)",
+          String(model.localWrongStreakMaxDayLabel)
+        );
+
+        card.appendChild(head);
+        card.appendChild(grid);
+        pair.appendChild(card);
+
+        // ★ 何をしているか:
+        //   DOM追加が成功し、値が期待通りに入っているかをコンソールで確認できるようにする
+        console.log("[SYNC-B:view] appended Wrong Streak card (SYNC/local/diff)", {
+          qid: (info && info.qid) ? info.qid : "-",
+          serverWrongStreakLen: model.serverWrongStreakLen,
+          localWrongStreakLen: model.localWrongStreakLen,
+          diffWrongStreakLen: model.diffWrongStreakLen,
+          serverWrongStreakMax: model.serverWrongStreakMax,
+          localWrongStreakMax: model.localWrongStreakMax,
+          serverWrongStreakMaxDay: model.serverWrongStreakMaxDayLabel,
+          localWrongStreakMaxDay: model.localWrongStreakMaxDayLabel
+        });
+      })();
 
       body.appendChild(pair);
 
-      console.log("[SYNC-B:view] appended Streak cards (SYNC/local)", {
+      // ★ 何をしているか:
+      //   2列ペア全体の追加が完了したことをログで確認できるようにする
+      console.log("[SYNC-B:view] appended Streak Max pair (correct/wrong) as SYNC/local/diff format", {
         qid: (info && info.qid) ? info.qid : "-"
       });
     })();
@@ -1822,7 +1898,7 @@
       var diffStreakLen = payload.diffStreakLen || 0;
 
       // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続正解数 / 更新日）を読み出す
-      //   何をしているか: localStorage の確定キーから「現在/最高/達成日」を取得し、HUD model に載せる
+      //   何をしているか: localStorage の確定キーから「最高/達成日」を取得し、HUD model に載せる
       //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
       var localCorrectStreakMax = 0;
       var localCorrectStreakMaxDayLabel = "（データなし）";
@@ -1865,63 +1941,83 @@
         console.error("[SYNC-B:view] wrong-streak max read error:", eWrongStreakMax);
       }
 
-      // ★ 追加: SYNC側（server）の streak_max / max_day を HUD 用に取得
+      // ★ 追加: SYNC 側の streak_max / max_day を読み出す（HUD表示用）
       //   何をしているか:
-      //     - window.__cscs_sync_state の確定キー(correctStreakMax/Day, wrongStreakMax/Day)だけを見る
-      //     - 無ければ "（データなし）"
+      //     - window.__cscs_sync_state の確定キー（correctStreakMax / correctStreakMaxDay / wrongStreakMax / wrongStreakMaxDay）だけを見る
+      //     - 取れない場合は “（データなし）” にする（別ルートのフォールバックはしない）
+      //     - diff は local - sync の 0以上だけを (+N) で表示できるように数値で持つ
       var serverCorrectStreakMax = 0;
       var serverCorrectStreakMaxDayLabel = "（データなし）";
+      var diffCorrectStreakMax = 0;
+
       var serverWrongStreakMax = 0;
       var serverWrongStreakMaxDayLabel = "（データなし）";
+      var diffWrongStreakMax = 0;
+
       try {
         var stStreakMax = null;
-        try { stStreakMax = window.__cscs_sync_state || null; } catch (_eStreakMaxState) { stStreakMax = null; }
+        try { stStreakMax = window.__cscs_sync_state || null; } catch (_eStStreakMax) { stStreakMax = null; }
 
         if (stStreakMax && info && info.qid) {
+          // ---- correct max ----
           if (stStreakMax.correctStreakMax &&
               typeof stStreakMax.correctStreakMax === "object" &&
               stStreakMax.correctStreakMax[info.qid] != null) {
-            var cmax = stStreakMax.correctStreakMax[info.qid];
-            if (typeof cmax === "number" && Number.isFinite(cmax) && cmax >= 0) {
-              serverCorrectStreakMax = cmax;
-            }
-          }
-          if (stStreakMax.correctStreakMaxDay &&
-              typeof stStreakMax.correctStreakMaxDay === "object" &&
-              stStreakMax.correctStreakMaxDay[info.qid] != null) {
-            var cday = stStreakMax.correctStreakMaxDay[info.qid];
-            if (typeof cday === "number" && Number.isFinite(cday) && cday > 0) {
-              serverCorrectStreakMaxDayLabel = String(cday);
+            var sMaxC = stStreakMax.correctStreakMax[info.qid];
+            if (typeof sMaxC === "number" && Number.isFinite(sMaxC) && sMaxC >= 0) {
+              serverCorrectStreakMax = sMaxC;
             }
           }
 
+          // ---- correct max day ----
+          if (stStreakMax.correctStreakMaxDay &&
+              typeof stStreakMax.correctStreakMaxDay === "object" &&
+              stStreakMax.correctStreakMaxDay[info.qid] != null) {
+            var sDayC = stStreakMax.correctStreakMaxDay[info.qid];
+            if (typeof sDayC === "number" && Number.isFinite(sDayC) && sDayC > 0) {
+              serverCorrectStreakMaxDayLabel = String(sDayC);
+            }
+          }
+
+          // ---- wrong max ----
           if (stStreakMax.wrongStreakMax &&
               typeof stStreakMax.wrongStreakMax === "object" &&
               stStreakMax.wrongStreakMax[info.qid] != null) {
-            var wmax = stStreakMax.wrongStreakMax[info.qid];
-            if (typeof wmax === "number" && Number.isFinite(wmax) && wmax >= 0) {
-              serverWrongStreakMax = wmax;
+            var sMaxW = stStreakMax.wrongStreakMax[info.qid];
+            if (typeof sMaxW === "number" && Number.isFinite(sMaxW) && sMaxW >= 0) {
+              serverWrongStreakMax = sMaxW;
             }
           }
+
+          // ---- wrong max day ----
           if (stStreakMax.wrongStreakMaxDay &&
               typeof stStreakMax.wrongStreakMaxDay === "object" &&
               stStreakMax.wrongStreakMaxDay[info.qid] != null) {
-            var wday = stStreakMax.wrongStreakMaxDay[info.qid];
-            if (typeof wday === "number" && Number.isFinite(wday) && wday > 0) {
-              serverWrongStreakMaxDayLabel = String(wday);
+            var sDayW = stStreakMax.wrongStreakMaxDay[info.qid];
+            if (typeof sDayW === "number" && Number.isFinite(sDayW) && sDayW > 0) {
+              serverWrongStreakMaxDayLabel = String(sDayW);
             }
           }
         }
 
-        console.log("[SYNC-B:view] streak_max (server) picked from sync_state", {
+        diffCorrectStreakMax = Math.max(0, localCorrectStreakMax - serverCorrectStreakMax);
+        diffWrongStreakMax = Math.max(0, localWrongStreakMax - serverWrongStreakMax);
+
+        console.log("[SYNC-B:view] streak_max from SYNC state (for HUD)", {
           qid: (info && info.qid) ? info.qid : "-",
           serverCorrectStreakMax: serverCorrectStreakMax,
           serverCorrectStreakMaxDay: serverCorrectStreakMaxDayLabel,
+          localCorrectStreakMax: localCorrectStreakMax,
+          localCorrectStreakMaxDay: localCorrectStreakMaxDayLabel,
+          diffCorrectStreakMax: diffCorrectStreakMax,
           serverWrongStreakMax: serverWrongStreakMax,
-          serverWrongStreakMaxDay: serverWrongStreakMaxDayLabel
+          serverWrongStreakMaxDay: serverWrongStreakMaxDayLabel,
+          localWrongStreakMax: localWrongStreakMax,
+          localWrongStreakMaxDay: localWrongStreakMaxDayLabel,
+          diffWrongStreakMax: diffWrongStreakMax
         });
-      } catch (eStreakMaxServer) {
-        console.error("[SYNC-B:view] server streak_max read error:", eStreakMaxServer);
+      } catch (eStreakMaxHud) {
+        console.error("[SYNC-B:view] streak_max HUD read error:", eStreakMaxHud);
       }
 
       // statusText は内部状態としてログだけに使う
@@ -2377,13 +2473,17 @@
 
         // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続不正解数 / 達成日）
         localWrongStreakMax: localWrongStreakMax,
-        localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel
+        localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel,
 
-        // ★ 追加: SYNC（server）側の streak_max / max_day
+        // ★ 追加: SYNC 側（server）の streak_max / max_day（HUD表示用）
+        //   何をしているか: window.__cscs_sync_state から拾った値をそのまま model に渡す（別ルート参照はしない）
         serverCorrectStreakMax: serverCorrectStreakMax,
         serverCorrectStreakMaxDayLabel: serverCorrectStreakMaxDayLabel,
+        diffCorrectStreakMax: diffCorrectStreakMax,
+
         serverWrongStreakMax: serverWrongStreakMax,
-        serverWrongStreakMaxDayLabel: serverWrongStreakMaxDayLabel
+        serverWrongStreakMaxDayLabel: serverWrongStreakMaxDayLabel,
+        diffWrongStreakMax: diffWrongStreakMax
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
