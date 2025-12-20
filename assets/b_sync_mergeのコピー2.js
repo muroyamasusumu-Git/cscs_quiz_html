@@ -143,30 +143,6 @@
       return;
     }
 
-    // ------------------------------------------------------------
-    // Send OFF ガード（POSTしない）
-    // ------------------------------------------------------------
-    // 目的:
-    //   UI側の「Send OFF」状態のときに、B→SYNC の POST を一切行わない。
-    //   ※フォールバック無し：localStorage のフラグのみを唯一の判定ソースにする。
-    // 仕様:
-    //   - localStorage["cscs_sync_send_off"] === "1" → Send OFF とみなす
-    // ログ:
-    //   - Send OFF でスキップしたことが確実に分かるログを出す
-    const sendOff = (localStorage.getItem("cscs_sync_send_off") === "1");
-    if (sendOff) {
-      console.log("[SYNC/B] ★Send OFF: merge POST をスキップしました", {
-        qid: info.qid,
-        dc,
-        dw,
-        ds3,
-        ds3Wrong,
-        streakLenNow,
-        streakWrongLenNow
-      });
-      return;
-    }
-
     // 4) /api/sync/merge へ「差分だけ」を送信
     const payload = {
       correctDelta:         dc       > 0 ? { [info.qid]: dc       } : {},
@@ -232,23 +208,6 @@
   }
 
   function showStreakStatus(){
-    // ------------------------------------------------------------
-    // Send OFF 時は showStreakStatus() を静かにする
-    // ------------------------------------------------------------
-    // 目的:
-    //   Send OFF のときに大量ログでコンソールを埋めない（状態だけ確実に分かるようにする）
-    // 仕様:
-    //   - localStorage["cscs_sync_send_off"] === "1" → 抑制モード
-    // ログ:
-    //   - 抑制したことが確実に分かる 1 行ログだけ出す
-    const sendOff = (localStorage.getItem("cscs_sync_send_off") === "1");
-    if (sendOff) {
-      console.log("[SYNC/B] Send OFF: showStreakStatus を抑制しました", {
-        qid: info.qid
-      });
-      return;
-    }
-
     const localTotalCorrect  = loadInt(KEY_S3);
     const syncedTotalCorrect = loadInt(KEY_LAST_S3);
     const localTotalWrong    = loadInt(KEY_S3_WRONG);
