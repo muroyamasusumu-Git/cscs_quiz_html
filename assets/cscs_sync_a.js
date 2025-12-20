@@ -2536,30 +2536,6 @@
             </div>
           </div>
 
-          <div class="sync-card sync-span-2">
-            <div class="sync-lastday-headline">
-              <span class="sync-lastday-summary-type">LastCorrect</span>
-              <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
-              <span class="sync-lastday-summary-local">local （データなし）</span>
-            </div>
-
-            <div class="sync-body sync-lastday">
-              <div class="lastday-grid">
-                <div class="ld-label ld-row-lastseen">lastSeen</div>
-                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">（データなし）</span></div>
-                <div class="ld-row-lastseen"><span class="sync-last-seen-local">（データなし）</span></div>
-
-                <div class="ld-label ld-row-lastcorrect">lastCorrect</div>
-                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">（データなし）</span></div>
-                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">（データなし）</span></div>
-
-                <div class="ld-label ld-row-lastwrong">lastWrong</div>
-                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
-                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
-              </div>
-            </div>
-          </div>
-
           <div class="sync-card">
             <div class="sync-title">連続正解 (Local)</div>
             <div class="sync-body">
@@ -2598,6 +2574,30 @@
               <button type="button" class="once-fold-btn" data-once-fold="1">▶show</button>
             </div>
             <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-lastday-headline">
+              <span class="sync-lastday-summary-type">LastCorrect</span>
+              <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
+              <span class="sync-lastday-summary-local">local （データなし）</span>
+            </div>
+
+            <div class="sync-body sync-lastday">
+              <div class="lastday-grid">
+                <div class="ld-label ld-row-lastseen">lastSeen</div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-local">（データなし）</span></div>
+
+                <div class="ld-label ld-row-lastcorrect">lastCorrect</div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">（データなし）</span></div>
+
+                <div class="ld-label ld-row-lastwrong">lastWrong</div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
+              </div>
+            </div>
           </div>
 
           <div class="sync-card sync-span-2">
