@@ -156,6 +156,11 @@
   //   - updateMonitor() 内で一度だけ true にして以降はログを出さない。
   let loggedWrongStreakUiPolicy = false;
 
+  // ★ 追加: streak max カード（A）初回ログ用フラグ
+  //   - updateMonitor() 内で一度だけ「streak max カードの値が取れてUIに反映された」ことを
+  //     コンソールに出すための状態。
+  let loggedStreakMaxUiOnce = false;
+
   // 空欄を「（データなし）」などで埋めるための共通ヘルパー
   function toDisplayText(value, emptyLabel){
     const fallback = emptyLabel != null ? String(emptyLabel) : "（データなし）";
@@ -226,6 +231,30 @@
       return l;
     }catch(_){
       return 0;
+    }
+  }
+
+  // ★ 追加: localStorage から「最高連続正解数（過去最高）」を読み取る
+  //   - b_judge_record.js が "cscs_q_correct_streak_max:{qid}" に保存している値をそのまま利用
+  function readLocalStreakMaxForQid(qid){
+    try{
+      const kM = "cscs_q_correct_streak_max:" + qid;
+      const m  = parseInt(localStorage.getItem(kM) || "0", 10) || 0;
+      return m;
+    }catch(_){
+      return 0;
+    }
+  }
+
+  // ★ 追加: localStorage から「最高連続正解数を更新した達成日（JST YYYYMMDD）」を読み取る
+  //   - b_judge_record.js が "cscs_q_correct_streak_max_day:{qid}" に保存している値をそのまま利用
+  function readLocalStreakMaxDayForQid(qid){
+    try{
+      const kD = "cscs_q_correct_streak_max_day:" + qid;
+      const v = localStorage.getItem(kD);
+      return v || "";
+    }catch(_){
+      return "";
     }
   }
 
@@ -315,6 +344,11 @@
 
       const ls = readLocalStreak3ForQid(QID);
       const ll = readLocalStreakLenForQid(QID);
+
+      // ★ 追加: 正解ストリークの「過去最高」と「達成日」を localStorage から取得
+      //   - フォールバック無し：b_judge_record.js の localStorage を唯一の参照元として表示する
+      const lMax    = readLocalStreakMaxForQid(QID);
+      const lMaxDay = readLocalStreakMaxDayForQid(QID);
 
       // ★ 不正解ストリーク（localStorage）の読み取り
       //   - b_judge_record.js が書き込んでいる
@@ -480,6 +514,11 @@
         const onceDaySyncEl     = box.querySelector(".sync-onceperday-day-sync");
         const onceDayLocalEl    = box.querySelector(".sync-onceperday-day-local");
         const onceDayIsTodayEl  = box.querySelector(".sync-onceperday-day-istoday");
+
+        // ★ 追加: streak max カード（A）表示用要素
+        const streakMaxLenEl    = box.querySelector(".sync-streakmax-len-local");
+        const streakMaxValEl    = box.querySelector(".sync-streakmax-max-local");
+        const streakMaxDayEl    = box.querySelector(".sync-streakmax-maxday-local");
 
         // ★ 追加: キュー（+Δ）詳細（B）
         const qdCwEl     = box.querySelector(".sync-queue-cw");
@@ -733,6 +772,25 @@
         if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
         if (s3El)  s3El.textContent = String(ls);
         if (s3sEl) s3sEl.textContent = String(ss);
+
+        // ★ 追加: streak max カード（A）に localStorage の値を反映
+        //   - len: 現在の連続正解数（cscs_q_correct_streak_len:{qid}）
+        //   - max: 最高連続正解数（cscs_q_correct_streak_max:{qid}）
+        //   - day: 最高を更新した日（cscs_q_correct_streak_max_day:{qid}）
+        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? ll : "", "（データなし）");
+        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "（データなし）");
+        if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "（データなし）");
+
+        // ★ 追加: 初回だけ「UI反映に成功した」ログを出す（コンソールで確認可能）
+        if (!loggedStreakMaxUiOnce) {
+          console.log("[SYNC-A] streak-max card updated (localStorage)", {
+            qid: QID,
+            streakLen: ll,
+            streakMax: lMax,
+            streakMaxDay: lMaxDay
+          });
+          loggedStreakMaxUiOnce = true;
+        }
 
         if (slEl)        slEl.textContent        = String(ll);
         if (slsEl)       slsEl.textContent       = String(sl);
@@ -2402,6 +2460,22 @@
                 <div class="ld-label ld-row-lastwrong">lastWrong</div>
                 <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
                 <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-title">Correct Streak (b_judge_record) <span class="sync-title-en">Local</span></div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">len</div>
+                <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
+
+                <div class="mini-label">max</div>
+                <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
+
+                <div class="mini-label">max_day</div>
+                <div class="mini-val"><span class="sync-streakmax-maxday-local">（データなし）</span></div>
               </div>
             </div>
           </div>
