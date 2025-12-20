@@ -194,7 +194,7 @@
     "#cscs_sync_view_b_body .cscs-svb-card-grid {",
     "  display: grid;",
     "  grid-template-columns: minmax(0, 1fr) auto;",
-    "  column-gap: 10px;",
+    "  column-gap: 0px;",
     "  row-gap: 3px;",
     "  opacity: 0.60;",
     "}",
