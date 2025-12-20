@@ -2310,7 +2310,7 @@
   font-weight: 600;
   font-size: 10.5px;
   letter-spacing: 0.02em;
-  opacity: 0.80;
+  opacity: 1.00;
   white-space: nowrap;
 }
 
