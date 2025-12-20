@@ -94,6 +94,8 @@
    *       → "1" のとき Correct Streak を折りたたみ表示にする
    *   - localStorage: "cscs_sync_view_b_once_odoa_collapsed"
    *       → "1" のとき OncePerDayToday / O.D.O.A Mode を折りたたみ表示にする（見出し＋1行目のみ）
+   *   - localStorage: "cscs_sync_view_b_send_enabled"
+   *       → "1" のとき Send:ON（/api/sync/merge に送信する） / "0" のとき Send:OFF（送信しない）
    */
 
   // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
@@ -108,12 +110,12 @@
     "#cscs_sync_monitor_b {",
     "  position: fixed;",
     "  right: 10px;",
-    "  top: 110px;",
+    "  top: 120px;",
     "  color: #eee;",
-    "  padding: 8px;",
+    "  padding: 0px;",
     "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
     "  max-width: 46vw;",
-    "  width: 310px;",
+    "  width: 320px;",
     "  opacity: 0.55;",
     "  z-index: 2147483647;",
     "}",
@@ -224,6 +226,37 @@
     "  justify-content: space-between;",
     "  gap: 10px;",
     "  height: 13px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-actions {",
+    "  display: inline-flex;",
+    "  align-items: baseline;",
+    "  justify-content: flex-end;",
+    "  gap: 10px;",
+    "  margin-left: auto;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-send-toggle {",
+    "  appearance: none;",
+    "  -webkit-appearance: none;",
+    "  border: none;",
+    "  background: transparent;",
+    "  color: inherit;",
+    "  padding: 0;",
+    "  margin: 0;",
+    "  font: inherit;",
+    "  cursor: pointer;",
+    "  opacity: 0.85;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-send-toggle:hover {",
+    "  opacity: 0.98;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-send-toggle.is-off {",
+    "  opacity: 0.55;",
     "}",
     "",
     "#cscs_sync_view_b_body .svb-pending-toggle {",
@@ -1621,8 +1654,61 @@
       updatePendingBtnLabel();
     });
 
+    // ★ 何をしているか:
+    //   Pending 見出し右端に「折りたたみボタン + Send:ON/OFF」を横一列で並べる（右寄せ）
+    var pendingActions = document.createElement("div");
+    pendingActions.className = "svb-pending-actions";
+
+    // ★ 何をしているか:
+    //   Send ON/OFF の永続状態を localStorage から読み、ボタン表示に反映する（フォールバックは持たない）
+    var sendEnabled = true;
+    try {
+      sendEnabled = (localStorage.getItem("cscs_sync_view_b_send_enabled") !== "0");
+    } catch (_eSendEnabledLoad) {
+      sendEnabled = true;
+    }
+
+    var sendBtn = document.createElement("button");
+    sendBtn.className = "svb-send-toggle";
+    sendBtn.type = "button";
+
+    function updateSendBtnLabel() {
+      var t = sendEnabled ? "Send: ON" : "Send: OFF";
+      sendBtn.textContent = t;
+
+      if (sendEnabled) {
+        sendBtn.className = "svb-send-toggle";
+      } else {
+        sendBtn.className = "svb-send-toggle is-off";
+      }
+    }
+
+    updateSendBtnLabel();
+
+    sendBtn.addEventListener("click", function () {
+      // ★ 何をしているか:
+      //   Send ON/OFF を切り替え、localStorage に永続化する
+      sendEnabled = !sendEnabled;
+
+      try {
+        localStorage.setItem("cscs_sync_view_b_send_enabled", sendEnabled ? "1" : "0");
+      } catch (_eSendEnabledSave) {}
+
+      updateSendBtnLabel();
+
+      // ★ 何をしているか:
+      //   コンソールで確実に切替成功を判別できるログを出す
+      console.log("[SYNC-B:view] Send toggle changed", {
+        qid: (info && info.qid) ? info.qid : "-",
+        sendEnabled: sendEnabled
+      });
+    });
+
+    pendingActions.appendChild(pendingBtn);
+    pendingActions.appendChild(sendBtn);
+
     pendingHead.appendChild(pendingH);
-    pendingHead.appendChild(pendingBtn);
+    pendingHead.appendChild(pendingActions);
 
     var gPending = document.createElement("div");
     gPending.className = "svb-pending-grid";
@@ -2397,6 +2483,45 @@
 
   async function sendDiffToServer(box, params) {
     var qid = info.qid;
+
+    // ★ 何をしているか:
+    //   Bパートの「Send:ON/OFF」を参照し、OFF のときは /api/sync/merge を一切叩かずに終了する
+    //   （フォールバック無し：localStorage の確定キーのみ）
+    var sendEnabled = true;
+    try {
+      sendEnabled = (localStorage.getItem("cscs_sync_view_b_send_enabled") !== "0");
+    } catch (_eSendEnabledLoad2) {
+      sendEnabled = true;
+    }
+
+    if (!sendEnabled) {
+      console.log("[SYNC-B] sendDiffToServer skipped (Send:OFF)", {
+        qid: qid
+      });
+
+      // ★ 何をしているか:
+      //   送信をスキップしたことが HUD からも分かるように statusText を残す（見た目は既存表示のまま）
+      try {
+        renderPanel(box, {
+          serverCorrect: params.serverCorrect || 0,
+          serverWrong: params.serverWrong || 0,
+          localCorrect: params.localCorrect || 0,
+          localWrong: params.localWrong || 0,
+          diffCorrect: params.diffCorrect || 0,
+          diffWrong: params.diffWrong || 0,
+          serverStreak3: params.serverStreak3 || 0,
+          localStreak3: params.localStreak3 || 0,
+          diffStreak3: params.diffStreak3 || 0,
+          serverStreakLen: params.serverStreakLen || 0,
+          localStreakLen: params.localStreakLen || 0,
+          diffStreakLen: params.diffStreakLen || 0,
+          statusText: "Send:OFF (送信スキップ)",
+          odoaStatusText: "__keep__"
+        });
+      } catch (_eRenderSkip) {}
+
+      return;
+    }
 
     // ====== ① 各種 diff / local / server 値を受け取る ======
     // params は refreshAndSend() 側で作られた「同期前の状態比較」結果
