@@ -108,7 +108,7 @@
     "#cscs_sync_monitor_b {",
     "  position: fixed;",
     "  right: 10px;",
-    "  top: 110px;",
+    "  top: 120px;",
     "  color: #eee;",
     "  padding: 0px;",
     "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",

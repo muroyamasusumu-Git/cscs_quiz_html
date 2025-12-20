@@ -2102,7 +2102,6 @@
           st.id = "cscs-sync-a-monitor-style";
           st.textContent = `
 #cscs_sync_monitor_a{
-  margin-top: 8px;
   font-size: 12px;
   line-height: 1.35;
 }
