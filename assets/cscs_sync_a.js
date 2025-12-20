@@ -1168,6 +1168,27 @@
               '</div>' +
 
             '</div>';
+
+          // ★ 処理: OncePerDayToday / ODOA ブロックが実際に更新できたことをコンソールで確認できるようにする
+          console.log("[SYNC-A] oncePerDay block updated", {
+            qid: QID,
+            isTodayOnce: isTodayOnce,
+            lastRecordedDayIso: lastRecordedDayIso,
+            onceDayIso: onceDayIso,
+            measuredResult: measuredResult,
+            odoaText: odoaText,
+            rendered: {
+              line1: line1,
+              line2: line2,
+              line3: line3,
+              line4: line4
+            }
+          });
+        } else {
+          // ★ 処理: DOMが見つからず更新できない場合も、確実に気づけるようにログを出す
+          console.warn("[SYNC-A] oncePerDay block NOT FOUND (.sync-onceperday)", {
+            qid: QID
+          });
         }
       }
     }catch(_){
