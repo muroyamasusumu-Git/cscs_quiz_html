@@ -62,8 +62,6 @@
 // │             │ cscs_wrong_streak3_total              │ 3連不正解達成回数の累計                                   │
 // │             │ cscc_wrong_streak3_log                │ 3連不正解達成履歴。{ts,qid,day,choice} の配列              │
 // │             │ cscs_q_wrong_streak_len:{qid}         │ その問題における現在の連続不正解数                         │
-// │             │ cscs_q_wrong_streak_max:{qid}         │ その問題における最高連続不正解数（過去最高を更新した瞬間に保存） │
-// │             │ cscs_q_wrong_streak_max_day:{qid}     │ 上記「最高連続不正解数」を最後に更新した達成日（JST YYYYMMDD）   │
 // │             │ cscs_q_wrong_streak3_total:{qid}      │ その問題における3連不正解達成回数の累計                   │
 // │             │ cscs_q_wrong_streak3_log:{qid}        │ その問題で3連不正解を達成した履歴。{ts,qid,day,choice} の配列 │
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
@@ -192,13 +190,6 @@
 //     cscs_q_correct_streak_max:{qid}       … その問題の最高連続正解数（現ストリークが過去最高を上回った瞬間に更新）。
 //     cscs_q_correct_streak_max_day:{qid}   … 上記の最高連続正解数を最後に更新した達成日（JST YYYYMMDD）。
 // ・注意：問題別の現ストリーク cscs_q_correct_streak_len:{qid} は「3到達で0にリセットする非重複カウント方式」だが、
-//   最高値はリセット前の値（例: 3）を確実に記録するため、ストリーク加算直後に最大値更新判定を行う。
-// 🆕 2025-12-20 追加
-// ・各問題ごとの「最高連続不正解数」と「その達成日（JST YYYYMMDD）」を記録する per-problem ストリーク最大値情報を追加。
-// ・localStorage 上で以下のキーを管理：
-//     cscs_q_wrong_streak_max:{qid}         … その問題の最高連続不正解数（現ストリークが過去最高を上回った瞬間に更新）。
-//     cscs_q_wrong_streak_max_day:{qid}     … 上記の最高連続不正解数を最後に更新した達成日（JST YYYYMMDD）。
-// ・注意：問題別の現ストリーク cscs_q_wrong_streak_len:{qid} は「3到達で0にリセットする非重複カウント方式」だが、
 //   最高値はリセット前の値（例: 3）を確実に記録するため、ストリーク加算直後に最大値更新判定を行う。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
@@ -933,41 +924,6 @@
           });
 
           wLenQ += 1;
-
-          // ★ 追加: 「その問題の最高連続不正解数」と「達成日（JST YYYYMMDD）」を記録する
-          //   - 最高値は、現ストリークが過去最高を上回った瞬間にのみ更新する（同値は更新しない）
-          //   - 3連到達時はこの時点で wLenQ=3 になっているため、リセット前に確実に 3 を記録できる
-          //   - コンソールで更新の成否（UPDATED / NO CHANGE）を必ず確認できるようにする
-          var wMaxKeyQ = "cscs_q_wrong_streak_max:" + qid;
-          var wMaxDayKeyQ = "cscs_q_wrong_streak_max_day:" + qid;
-
-          var beforeWrongMaxQ = getIntLS(wMaxKeyQ);
-          var beforeWrongMaxDayQ = null;
-          try{ beforeWrongMaxDayQ = localStorage.getItem(wMaxDayKeyQ); }catch(_){ beforeWrongMaxDayQ = null; }
-
-          if(wLenQ > beforeWrongMaxQ){
-            setIntLS(wMaxKeyQ, wLenQ);
-            try{ localStorage.setItem(wMaxDayKeyQ, String(dayPlay)); }catch(_){}
-
-            console.log("[B:streakMax_wrong/q] UPDATED", {
-              qid: qid,
-              day: dayPlay,
-              wrong_streak_len_q_now: wLenQ,
-              max_before: beforeWrongMaxQ,
-              max_after: getIntLS(wMaxKeyQ),
-              max_day_before: beforeWrongMaxDayQ,
-              max_day_after: (function(){ try{ return localStorage.getItem(wMaxDayKeyQ); }catch(_){ return null; } })()
-            });
-          }else{
-            console.log("[B:streakMax_wrong/q] NO CHANGE", {
-              qid: qid,
-              day: dayPlay,
-              wrong_streak_len_q_now: wLenQ,
-              max_current: beforeWrongMaxQ,
-              max_day_current: beforeWrongMaxDayQ
-            });
-          }
-
           if(wLenQ >= 3){
             incIntLS(wrongStreak3KeyQ, 1);
 
