@@ -1,3733 +1,2631 @@
-// assets/cscs_sync_view_b.js
-(function () {
-  "use strict";
+// assets/cscs_sync_a.js
+/**
+ * CSCS SYNC(A) — Aパート用 SYNC モニタ＆送信キュー
+ *
+ * このファイルで使用する LocalStorage / SYNC(JSON) / payload の
+ * キー対応表をここに一覧する。
+ *
+ * 【重要：開発ルール（恒久）】
+ *   📌 このファイル内で LocalStorage / SYNC / payload のキー名に
+ *       「変更」または「新規追加」が発生した場合は、
+ *       必ず **このキー対応表コメントを更新すること**。
+ *
+ *   - b_judge_record.js・SYNC Worker（merge/state.ts）側と
+ *     キー仕様の不整合が生じることを防ぐ目的。
+ *   - ここに書かれていないキーは原則として使用禁止。
+ *
+ * ▼ 問題別累計（正解 / 不正解）
+ *   - localStorage:
+ *       "cscs_q_correct_total:" + qid
+ *       "cscs_q_wrong_total:"   + qid
+ *   - SYNC state:
+ *       state.correct[qid]
+ *       state.incorrect[qid]
+ *   - payload(merge):
+ *       correctDelta[qid]
+ *       incorrectDelta[qid]
+ *
+ * ▼ 問題別 3 連続正解（⭐️用）
+ *   - localStorage:
+ *       "cscs_q_correct_streak3_total:" + qid
+ *       "cscs_q_correct_streak_len:"    + qid
+ *   - SYNC state:
+ *       state.streak3[qid]
+ *       state.streakLen[qid]
+ *   - payload(merge):
+ *       streak3Delta[qid]
+ *       streakLenDelta[qid]   // 「増分」ではなく「最新値」を送る
+ *
+ * ▼ 問題別 3 連続不正解
+ *   - localStorage:
+ *       "cscs_q_wrong_streak3_total:" + qid
+ *       "cscs_q_wrong_streak_len:"    + qid
+ *   - SYNC state:
+ *       state.streak3Wrong[qid]
+ *       state.streakWrongLen[qid]
+ *   - payload(merge):
+ *       streak3WrongDelta[qid]
+ *       streakWrongLenDelta[qid]   // 「増分」ではなく「最新値」を送る
+ *
+ * ▼ 今日の⭐️ユニーク数（Streak3Today）
+ *   - localStorage:
+ *       "cscs_streak3_today_day"
+ *       "cscs_streak3_today_unique_count"
+ *       "cscs_streak3_today_qids"
+ *   - SYNC state:
+ *       state.streak3Today.day
+ *       state.streak3Today.unique_count
+ *       state.streak3Today.qids
+ *   - payload(merge):
+ *       streak3TodayDelta { day, qids }
+ *
+ * ▼ 今日の3連続不正解ユニーク数（Streak3WrongToday）
+ *   - localStorage:
+ *       "cscs_streak3_wrong_today_day"
+ *       "cscs_streak3_wrong_today_qids"
+ *       "cscs_streak3_wrong_today_unique_count"
+ *   - SYNC state:
+ *       state.streak3WrongToday.day
+ *       state.streak3WrongToday.qids
+ *       state.streak3WrongToday.unique_count
+ *   - payload(merge):
+ *       streak3WrongTodayDelta { day, qids }
+ *
+ * ▼ 1 日 1 回計測モード（oncePerDayToday）
+ *   - localStorage:
+ *       "cscs_once_per_day_today_day"
+ *       "cscs_once_per_day_today_results"
+ *   - SYNC state:
+ *       state.oncePerDayToday.day
+ *       state.oncePerDayToday.results[qid]
+ *
+ * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
+ *   - localStorage:
+ *       "cscs_q_last_seen_day:"    + qid
+ *       "cscs_q_last_correct_day:" + qid
+ *       "cscs_q_last_wrong_day:"   + qid
+ *   - SYNC state:
+ *       state.lastSeenDay[qid]
+ *       state.lastCorrectDay[qid]
+ *       state.lastWrongDay[qid]
+ *   - payload(merge):
+ *       lastSeenDayDelta[qid]
+ *       lastCorrectDayDelta[qid]
+ *       lastWrongDayDelta[qid]
+ *
+ * ▼ デバッグ用ローカルログ
+ *   - localStorage:
+ *       "cscs_sync_last_c:"  + qid
+ *       "cscs_sync_last_w:"  + qid
+ *       "cscs_sync_last_s3:" + qid
+ *       "cscs_correct_streak3_log"
+ *
+ * ▼ 使用する主な API エンドポイント
+ *   - GET  /api/sync/state
+ *   - POST /api/sync/merge
+ *   - POST /api/sync/reset_qid
+ *   - POST /api/sync/reset_streak3_qid
+ *   - POST /api/sync/reset_streak3_today
+ *   - POST /api/sync/reset_once_per_day_today
+ *   - POST /api/sync/reset_all_qid
+ */
+(function(){
+  // === ① QID検出（Aパート） ===
+  function detectQidFromLocationA() {
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+    if (!m) return null;
+    const day  = m[1];   // 例: "20250926"
+    const num3 = m[2];   // 例: "001"
+    // qid 形式を「YYYYMMDD-NNN」に統一
+    return day + "-" + num3;
+  }
+  const QID = detectQidFromLocationA();
 
-  var SYNC_STATE_ENDPOINT = "/api/sync/state";
-  var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
+  // === ② 差分キュー（Aパート専用） ===
+  //   - correctDelta / incorrectDelta: 正解・不正解の累計差分
+  //   - streak3Delta / streakLenDelta: 3連続「正解」回数と現在の連続正解長
+  //   - streak3WrongDelta / streakWrongLenDelta: 3連続「不正解」回数と現在の連続不正解長
+  //   - lastSeenDayDelta / lastCorrectDayDelta / lastWrongDayDelta:
+  //       問題別の「最終日情報」を SYNC 側へ渡すための最新値
+  const queue = {
+    correctDelta: {},
+    incorrectDelta: {},
+    streak3Delta: {},
+    streakLenDelta: {},
+    streak3WrongDelta: {},
+    streakWrongLenDelta: {},
+    lastSeenDayDelta: {},
+    lastCorrectDayDelta: {},
+    lastWrongDayDelta: {}
+  };
+  let sendTimer = null;
 
-  /**
-   * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
-   * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
-   *
-   * 【重要：開発ルール（恒久）】
-   *   📌 このファイルで使用する LocalStorage / SYNC キー名に
-   *       「変更」または「新規追加」が発生した場合は、
-   *       必ず **本キー対応表コメントに追記すること**。
-   *   - b_judge_record.js・SYNC Worker（merge/state.ts）側と
-   *     キー仕様の不整合が生じることを防ぐ目的。
-   *   - ここに書かれていないキーは原則として使用禁止。
-   *
-   * ▼ 問題別累計
-   *   - localStorage: "cscs_q_correct_total:" + qid
-   *       ⇔ SYNC state: state.correct[qid]
-   *   - localStorage: "cscs_q_wrong_total:" + qid
-   *       ⇔ SYNC state: state.incorrect[qid]
-   *
-   * ▼ 問題別 3 連続正解（⭐️用）
-   *   - localStorage: "cscs_q_correct_streak3_total:" + qid
-   *       ⇔ SYNC state: state.streak3[qid]
-   *   - localStorage: "cscs_q_correct_streak_len:" + qid
-   *       ⇔ SYNC state: state.streakLen[qid]
-   *   - payload(merge): streak3Delta[qid] / streakLenDelta[qid]
-   *
-   * ▼ 問題別 3 連続不正解
-   *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
-   *       ⇔ SYNC state: state.streak3Wrong[qid]
-   *   - localStorage: "cscs_q_wrong_streak_len:" + qid
-   *       ⇔ SYNC state: state.streakWrongLen[qid]
-   *   - payload(merge): streak3WrongDelta[qid] / streakWrongLenDelta[qid]
-   *
-   * ▼ 問題別 連続不正解（ローカル計測：b_judge_record.js）
-   *   - localStorage: "cscs_q_wrong_streak_max:" + qid
-   *       （最高連続不正解数）
-   *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
-   *       （その達成日 JST YYYYMMDD）
-   *
-   * ▼ 今日の⭐️ユニーク数（Streak3Today）
-   *   - localStorage: "cscs_streak3_today_day"
-   *       ⇔ SYNC state: state.streak3Today.day
-   *   - localStorage: "cscs_streak3_today_qids"
-   *       ⇔ SYNC state: state.streak3Today.qids
-   *   - localStorage: "cscs_streak3_today_unique_count"
-   *       ⇔ SYNC state: state.streak3Today.unique_count
-   *   - payload(merge): streak3TodayDelta { day, qids }
-   *
-   * ▼ 今日の3連続不正解ユニーク数（Streak3WrongToday）
-   *   - localStorage: "cscs_streak3_wrong_today_day"
-   *       ⇔ SYNC state: state.streak3WrongToday.day
-   *   - localStorage: "cscs_streak3_wrong_today_qids"
-   *       ⇔ SYNC state: state.streak3WrongToday.qids
-   *   - localStorage: "cscs_streak3_wrong_today_unique_count"
-   *       ⇔ SYNC state: state.streak3WrongToday.unique_count
-   *   - payload(merge): streak3WrongTodayDelta { day, qids }
-   *
-   * ▼ 1 日 1 回計測モード（oncePerDayToday）
-   *   - localStorage: "cscs_once_per_day_today_day"
-   *       ⇔ SYNC state: state.oncePerDayToday.day
-   *   - localStorage: "cscs_once_per_day_today_results"
-   *       ⇔ SYNC state: state.oncePerDayToday.results[qid]
-   *   - payload(merge): oncePerDayTodayDelta { day, results }
-   *
-   * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
-   *   - localStorage: "cscs_q_last_seen_day:" + qid
-   *       ⇔ SYNC state: state.lastSeenDay[qid]
-   *   - localStorage: "cscs_q_last_correct_day:" + qid
-   *       ⇔ SYNC state: state.lastCorrectDay[qid]
-   *   - localStorage: "cscs_q_last_wrong_day:" + qid
-   *       ⇔ SYNC state: state.lastWrongDay[qid]
-   *   - payload(merge): lastSeenDayDelta[qid] / lastCorrectDayDelta[qid] / lastWrongDayDelta[qid]
-   *
-   * ▼ グローバル情報
-   *   - localStorage: "cscs_total_questions"
-   *       ⇔ payload(merge): global.totalQuestions
-   *
-   * ▼ O.D.O.A / 検証モード関連
-   *   - SYNC state: state.odoaMode / state.odoa_mode / state.ODOA_MODE
-   *   - SYNC state: state.debug.odoaMode / state.debug.odoa_mode / state.debug.ODOA_MODE
-   *   - SYNC state: state.navGuard.odoaMode / state.navGuard.odoa_mode
-   *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
-   *
-   * ▼ HUD(Bビュー) 表示状態
-   *   - localStorage: "cscs_sync_view_b_pending_collapsed"
-   *       → "1" のとき Pending (unsent) を折りたたみ表示にする
-   *   - localStorage: "cscs_sync_view_b_correct_streak_collapsed"
-   *       → "1" のとき Correct Streak を折りたたみ表示にする
-   */
+  // SYNCモニタ用ステータス
+  let lastSyncStatus = "idle";   // "idle" | "sending" | "ok" | "error" | "offline"
+  let lastSyncTime   = null;     // "HH:MM:SS"
+  let lastSyncError  = "";
 
-  // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
-  var LAST_ODOA_STATUS = "";
+  // ★ 不正解ストリーク表示の初回ログ用フラグ
+  //   - updateMonitor() 内で一度だけ「不正解ストリーク UI が有効になっている」ことを
+  //     コンソールに出すための状態。
+  let loggedWrongStreakUiOnce = false;
 
-  // ★ このファイル内で管理する CSS（ここにどんどん追記していく）
-  //   - #cscs_sync_view_b が現行のパネルID
-  //   - 将来 #cscs_sync_monitor_b に変えても同じCSSが効くよう、両方を対象にしている
-  var CSCS_SYNC_VIEW_B_CSS = [
-    "/* cscs_sync_view_b.js injected CSS */",
-    "#cscs_sync_view_b,",
-    "#cscs_sync_monitor_b {",
-    "  position: fixed;",
-    "  right: 10px;",
-    "  top: 110px;",
-    "  color: #eee;",
-    "  padding: 8px;",
-    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
-    "  max-width: 46vw;",
-    "  width: 310px;",
-    "  opacity: 0.55;",
-    "  z-index: 2147483647;",
-    "}",
-    "",
-    "/* --- card layout for status body --- */",
-    "#cscs_sync_view_b_title {",
-    "  text-align: right;",
-    "  margin-right: 7px;",
-    "  font-size: 10px;",
-    "  ont-weight: 400;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body {",
-    "  display: grid;",
-    "  grid-template-columns: 1fr;",
-    "  gap: 1px;",
-    "  margin-top: 6px;",
-    "  padding-top: 0px;",
-    "  border-top: none;",
-    "}",
-    "",
-    "/* --- 3連続（正解/不正解）4枚を 2列×2段で固定配置 --- */",
-    "#cscs_sync_view_b_body .svb-streak-quad {",
-    "  display: grid;",
-    "  grid-template-columns: 1fr 1fr;",
-    "  gap: 1px 1px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-streak-quad .svb-streak-card {",
-    "  width: 100%;",
-    "  box-sizing: border-box;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-card {",
-    "    background: rgba(0,0,0,0.52);",
-    "    border: 1px solid rgba(255,255,255,0.14);",
-    "    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);",
-    "    border-radius: 10px;",
-    "    padding: 10px 10px;",
-    "    width: 100%;",
-    "    box-sizing: border-box;",
-    "    line-height: 1;",
-    "}",
-    "",
-    "/* --- Counts card only: tighter padding --- */",
-    "#cscs_sync_view_b_body .cscs-svb-card.svb-counts {",
-    "  padding: 5px 10px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-card.is-wide {",
-    "  grid-column: 1 / -1;",
-    "  font-weight: 350;",
-    "}",
-    "",
-    "/* --- wide card: 左右カラム幅を同一に固定（key/value を等幅） --- */",
-    "#cscs_sync_view_b_body .cscs-svb-card.is-wide .cscs-svb-card-grid {",
-    "  grid-template-columns: minmax(0, 1fr) auto;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-card-title {",
-    "  font-weight: 500;",
-    "  opacity: 0.90;",
-    "  margin-bottom: 5px;",
-    "  letter-spacing: 0.2px;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-title-suffix {",
-    "  font-size: 9px;",
-    "  font-weight: 600;",
-    "  opacity: 0.55;",
-    "  margin-left: 6px;",
-    "  white-space: nowrap;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-card-grid {",
-    "  display: grid;",
-    "  grid-template-columns: minmax(0, 1fr) auto;",
-    "  column-gap: 10px;",
-    "  row-gap: 3px;",
-    "  opacity: 0.60;",
-    "}",
-    "",
-    "/* --- Pending card only: 縦積み（key→value→...） --- */",
-    "#cscs_sync_view_b_body .svb-pending-grid {",
-    "  display: grid;",
-    "  grid-template-columns: 1fr;",
-    "  row-gap: 4px;",
-    "  opacity: 0.60;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-k {",
-    "  opacity: 0.85;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-v {",
-    "  text-align: left;",
-    "  white-space: pre-line;",
-    "}",
-    "",
-    "/* --- Pending fold (collapsible) --- */",
-    "#cscs_sync_view_b_body .svb-pending-head {",
-    "  display: flex;",
-    "  align-items: baseline;",
-    "  justify-content: space-between;",
-    "  gap: 10px;",
-    "  height: 13px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-toggle {",
-    "  appearance: none;",
-    "  -webkit-appearance: none;",
-    "  border: none;",
-    "  background: transparent;",
-    "  color: inherit;",
-    "  padding: 0;",
-    "  margin: 0;",
-    "  font: inherit;",
-    "  cursor: pointer;",
-    "  opacity: 0.80;",
-    "  white-space: nowrap;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-toggle:hover {",
-    "  opacity: 0.95;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-toggle .svb-pending-chev {",
-    "  display: inline-block;",
-    "  width: 1.2em;",
-    "  text-align: center;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-pending-card.is-collapsed .svb-pending-grid {",
-    "  display: none;",
-    "}",
-    "",
-    "/* --- Correct Streak fold (collapsible) --- */",
-    "#cscs_sync_view_b_body .svb-correct-streak-head {",
-    "  display: flex;",
-    "  align-items: baseline;",
-    "  justify-content: space-between;",
-    "  gap: 10px;",
-    "  height: 13px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-correct-streak-toggle {",
-    "  appearance: none;",
-    "  -webkit-appearance: none;",
-    "  border: none;",
-    "  background: transparent;",
-    "  color: inherit;",
-    "  padding: 0;",
-    "  margin: 0;",
-    "  font: inherit;",
-    "  cursor: pointer;",
-    "  opacity: 0.80;",
-    "  white-space: nowrap;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-correct-streak-toggle:hover {",
-    "  opacity: 0.95;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-correct-streak-toggle .svb-correct-streak-chev {",
-    "  display: inline-block;",
-    "  width: 1.2em;",
-    "  text-align: center;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-correct-streak-card.is-collapsed .cscs-svb-card-grid {",
-    "  display: none;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-k {",
-    "  opacity: 0.85;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-v {",
-    "  text-align: right;",
-    "  font-variant-numeric: tabular-nums;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "  min-width: 0;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .cscs-svb-muted {",
-    "  opacity: 0.70;",
-    "}",
-    "",
-    "/* --- Counts: 1行（Counts + SYNC/local/diff を横一列） --- */",
-    "#cscs_sync_view_b_body .svb-counts-inline {",
-    "  display: flex;",
-    "  align-items: baseline;",
-    "  gap: 10px;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-head {",
-    "  font-weight: 800;",
-    "  opacity: 0.90;",
-    "  min-width: 0;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-head {",
-    "  font-weight: 800;",
-    "  opacity: 0.90;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part {",
-    "  display: inline-flex;",
-    "  align-items: baseline;",
-    "  justify-content: center;",
-    "  gap: 6px;",
-    "  flex: 1 1 0;",
-    "  min-width: 0;",
-    "  text-align: center;",
-    "  box-shadow: none;",
-    "  background: transparent;",
-    "  border: none;",
-    "  padding: 0;",
-    "  overflow: hidden;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part.is-muted {",
-    "  opacity: 0.78;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-k {",
-    "  opacity: 0.85;",
-    "  white-space: nowrap;",
-    "  min-width: 0;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-v {",
-    "  text-align: left;",
-    "  font-variant-numeric: tabular-nums;",
-    "  white-space: nowrap;",
-    "  min-width: 0;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "/* --- Wide card: dual-column text rows (OncePerDayToday / O.D.O.A) --- */",
-    "#cscs_sync_view_b_body .svb-wide-dual-grid {",
-    "  display: grid;",
-    "  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);",
-    "  column-gap: 10px;",
-    "  row-gap: 3px;",
-    "  opacity: 0.60;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-wide-dual-cell {",
-    "  min-width: 0;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-wide-dual-cell.is-right {",
-    "  text-align: right;",
-    "  font-variant-numeric: tabular-nums;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-wide-dual-strong {",
-    "  opacity: 0.70;",
-    "  font-weight: 500;",
-    "}",
-    "",
-    "/* --- Wide card: single full-width row (ODOA line) --- */",
-    "#cscs_sync_view_b_body .svb-wide-single {",
-    "  grid-column: 1 / -1;",
-    "  min-width: 0;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
-    "#cscs_sync_view_b_body {",
-    "  /* 何をしているか: LastDayの列幅ルールをCSS変数として1箇所に集約し、見出し/本文のズレ要因を排除する */",
-    "  --svb-lastday-col-1: minmax(0, 1fr);",
-    "  --svb-lastday-col-2: minmax(0, 14ch);",
-    "  --svb-lastday-col-3: minmax(0, 14ch);",
-    "  /* 何をしているか: 見出し/本文で同一の列間ギャップを“共有”し、微妙なズレを防ぐ */",
-    "  --svb-lastday-col-gap: 10px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-lastday-head {",
-    "  display: grid;",
-    "  /* 何をしているか: 見出し/本文で同一の列定義(変数)を使い、列幅を完全一致させる */",
-    "  grid-template-columns: var(--svb-lastday-col-1) var(--svb-lastday-col-2) var(--svb-lastday-col-3);",
-    "  /* 何をしているか: グリッドがカード幅いっぱいに伸びるように明示し、左端起点を揃える */",
-    "  width: 100%;",
-    "  box-sizing: border-box;",
-    "  /* 何をしているか: 3列ブロック内の“開始位置”を固定する（縮小時のズレ抑制） */",
-    "  justify-items: stretch;",
-    "  column-gap: var(--svb-lastday-col-gap);",
-    "  row-gap: 3px;",
-    "  align-items: baseline;",
-    "  opacity: 0.90;",
-    "  font-weight: 500;",
-    "  margin-bottom: 5px;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-k {",
-    "  min-width: 0;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-v {",
-    "  /* 何をしているか: 見出し側も本文側と同様に縮小耐性(min-width:0)を持たせ、列幅計算の差を消す */",
-    "  min-width: 0;",
-    "  text-align: right;",
-    "  justify-self: end;",
-    "  font-variant-numeric: tabular-nums;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "/* --- LastDay: 見出しの真ん中列（SYNC列）だけ“センター寄り”に固定 --- */",
-    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-v.svb-lastday-mid {",
-    "  text-align: center;",
-    "  justify-self: center;",
-    "}",
-    "",
-    "/* --- LastDay: 真ん中列（SYNC）だけ中央揃え（nth-child依存をやめてclass指定にする） --- */",
-    "/* 何をしているか: LastDayの真ん中列に付与する .svb-lastday-mid を中央寄せに固定する */",
-    "#cscs_sync_view_b_body .svb-lastday-mid {",
-    "  text-align: center;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-lastday-grid {",
-    "  display: grid;",
-    "  /* 何をしているか: 見出しと同一の列定義(変数)を使い、本文の3列ブロック位置を完全一致させる */",
-    "  grid-template-columns: var(--svb-lastday-col-1) var(--svb-lastday-col-2) var(--svb-lastday-col-3);",
-    "  /* 何をしているか: 本文側もカード幅いっぱいに伸ばし、列幅計算の起点を一致させる */",
-    "  width: 100%;",
-    "  box-sizing: border-box;",
-    "  /* 何をしているか: 見出しと同一の“列間ギャップ(変数)”を使い、横位置を揃える */",
-    "  column-gap: var(--svb-lastday-col-gap);",
-    "  row-gap: 3px;",
-    "  opacity: 0.60;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-k {",
-    "  opacity: 0.85;",
-    "  min-width: 0;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "}",
-    "",
-    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-v {",
-    "  text-align: right;",
-    "  justify-self: end;",
-    "  font-variant-numeric: tabular-nums;",
-    "  white-space: nowrap;",
-    "  overflow: hidden;",
-    "  text-overflow: ellipsis;",
-    "  min-width: 0;",
-    "}",
-    "",
-    "/* --- LastDay: 本文の真ん中列（SYNC列）だけ“センター寄り”に固定 --- */",
-    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-v.svb-lastday-mid {",
-    "  text-align: center;",
-    "  justify-self: center;",
-    "}",
-    "",
-    "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
-    "#cscs_sync_view_b_status {",
-    "  display: none !important;",
-    "}",
-    ""
-  ].join("\n");
+  // ★ デバッグUI方針ログ用フラグ
+  //   - 「不正解ストリークはまだモニタに出していない」ポリシーを
+  //     コンソールに一度だけ明示するための状態。
+  //   - updateMonitor() 内で一度だけ true にして以降はログを出さない。
+  let loggedWrongStreakUiPolicy = false;
 
-  // ★ styleタグを1回だけ注入（同じidがあれば中身を更新して上書き）
-  function upsertStyleTag(styleId, cssText) {
-    try {
-      var head = document.head || document.getElementsByTagName("head")[0] || null;
-      if (!head) {
-        return;
-      }
+  // ★ 追加: streak max カード（A）初回ログ用フラグ
+  //   - updateMonitor() 内で一度だけ「streak max カードの値が取れてUIに反映された」ことを
+  //     コンソールに出すための状態。
+  let loggedStreakMaxUiOnce = false;
 
-      var el = document.getElementById(styleId);
-      if (!el) {
-        el = document.createElement("style");
-        el.id = styleId;
-        el.type = "text/css";
-        head.appendChild(el);
-      }
+  // 空欄を「（データなし）」などで埋めるための共通ヘルパー
+  function toDisplayText(value, emptyLabel){
+    const fallback = emptyLabel != null ? String(emptyLabel) : "（データなし）";
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+    const s = String(value);
+    if (s.trim() === "") {
+      return fallback;
+    }
+    return s;
+  }
 
-      if (el.textContent !== cssText) {
-        el.textContent = cssText;
-      }
-    } catch (e) {
-      console.error("[SYNC-B:view] upsertStyleTag failed:", e);
+  // === ③ モニタUIの折りたたみ（永続化） ===
+  // 方針:
+  //   - デフォルトは閉じ（collapsed）
+  //   - ユーザーが開いた状態/閉じた状態を localStorage に保存し、リロード/遷移後も維持
+  const LS_MON_OPEN        = "cscs_sync_a_monitor_open";
+  const LS_DAYS_OPEN       = "cscs_sync_a_days_open";
+  const LS_QDEL_OPEN       = "cscs_sync_a_queue_detail_open";
+  const LS_STREAKMAX_OPEN  = "cscs_sync_a_streakmax_open";
+
+  function readLsBool(key, defaultBool){
+    try{
+      const v = localStorage.getItem(key);
+      if (v === null || v === undefined) return !!defaultBool;
+      if (v === "1") return true;
+      if (v === "0") return false;
+      if (v === "true") return true;
+      if (v === "false") return false;
+      return !!defaultBool;
+    }catch(_){
+      return !!defaultBool;
     }
   }
 
-  function ensureSyncViewBStyles() {
-    upsertStyleTag("cscs_sync_view_b_inline_css", CSCS_SYNC_VIEW_B_CSS);
+  function writeLsBool(key, boolVal){
+    try{
+      localStorage.setItem(key, boolVal ? "1" : "0");
+    }catch(_){}
   }
 
-  function detectInfo() {
-    var path = window.location.pathname || "";
-    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
-    if (!m) return null;
-    var day = m[1];
-    var num3 = m[2];
-    var qid = day + "-" + num3;
-    return { day: day, num3: num3, qid: qid };
+  function readLocalTotalsForQid(qid){
+    try{
+      const kC = "cscs_q_correct_total:" + qid;
+      const kW = "cscs_q_wrong_total:"   + qid;
+      const c  = parseInt(localStorage.getItem(kC) || "0", 10) || 0;
+      const w  = parseInt(localStorage.getItem(kW) || "0", 10) || 0;
+      return { c, w };
+    }catch(_){
+      return { c:0, w:0 };
+    }
   }
 
-  var info = detectInfo();
-  if (!info) {
-    return;
-  }
-
-  function readIntFromLocalStorage(key) {
-    try {
-      var raw = window.localStorage.getItem(key);
-      if (raw === null || raw === undefined) {
-        return 0;
-      }
-      var n = parseInt(raw, 10);
-      if (!Number.isFinite(n) || n < 0) {
-        return 0;
-      }
-      return n;
-    } catch (e) {
-      console.error("[SYNC-B:view] failed to read int from localStorage:", key, e);
+  function readLocalStreak3ForQid(qid){
+    try{
+      const kS = "cscs_q_correct_streak3_total:" + qid;
+      const s  = parseInt(localStorage.getItem(kS) || "0", 10) || 0;
+      return s;
+    }catch(_){
       return 0;
     }
   }
 
-  // ★ JST 日付(YYYYMMDD) を localStorage から安全に読み出すヘルパー
-  //   - 正規の "YYYYMMDD" でなければ null を返し、SYNC には載せない
-  function readDayFromLocalStorage(key) {
-    try {
-      var raw = window.localStorage.getItem(key);
-      if (raw === null || raw === undefined || raw === "") {
-        return null;
-      }
-      if (!/^\d{8}$/.test(raw)) {
-        return null;
-      }
-      var n = parseInt(raw, 10);
-      if (!Number.isFinite(n) || n <= 0) {
-        return null;
-      }
-      return n;
-    } catch (e) {
-      console.error("[SYNC-B:view] failed to read day from localStorage:", key, e);
-      return null;
+  function readLocalStreakLenForQid(qid){
+    try{
+      const kL = "cscs_q_correct_streak_len:" + qid;
+      const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
+      return l;
+    }catch(_){
+      return 0;
     }
   }
 
-  // ★ 総問題数 cscs_total_questions を安全に読み出す専用ヘルパー
-  //   - 正の整数として保存されていなければ null を返し、送信しない
-  function readTotalQuestionsFromLocalStorage() {
-    var key = "cscs_total_questions";
-    try {
-      var raw = window.localStorage.getItem(key);
-      if (raw === null || raw === undefined) {
-        return null;
-      }
-      var n = parseInt(raw, 10);
-      if (!Number.isFinite(n) || n <= 0) {
-        return null;
-      }
-      return n;
-    } catch (e) {
-      console.error("[SYNC-B:view] failed to read cscs_total_questions:", e);
-      return null;
+  // ★ 追加: localStorage から「最高連続正解数（過去最高）」を読み取る
+  //   - b_judge_record.js が "cscs_q_correct_streak_max:{qid}" に保存している値をそのまま利用
+  function readLocalStreakMaxForQid(qid){
+    try{
+      const kM = "cscs_q_correct_streak_max:" + qid;
+      const m  = parseInt(localStorage.getItem(kM) || "0", 10) || 0;
+      return m;
+    }catch(_){
+      return 0;
     }
   }
 
-  // ★ oncePerDay ローカル状態を読み出す
-  //   - day: number | null（YYYYMMDD）
-  //   - results: { qid: "correct" | "wrong" }
-  function readOncePerDayTodayFromLocal() {
-    var dayStr = null;
-    try {
-      dayStr = window.localStorage.getItem("cscs_once_per_day_today_day");
-    } catch (_e) {
-      dayStr = null;
+  // ★ 追加: localStorage から「最高連続正解数を更新した達成日（JST YYYYMMDD）」を読み取る
+  //   - b_judge_record.js が "cscs_q_correct_streak_max_day:{qid}" に保存している値をそのまま利用
+  function readLocalStreakMaxDayForQid(qid){
+    try{
+      const kD = "cscs_q_correct_streak_max_day:" + qid;
+      const v = localStorage.getItem(kD);
+      return v || "";
+    }catch(_){
+      return "";
     }
+  }
 
-    var results = {};
-    try {
-      var raw = window.localStorage.getItem("cscs_once_per_day_today_results") || "{}";
-      results = JSON.parse(raw);
-    } catch (_e2) {
-      results = {};
+  // ★ 不正解側: localStorage から「3連続不正解回数」を読み取る
+  //   - b_judge_record.js が "cscs_q_wrong_streak3_total:{qid}" に加算した値をそのまま利用
+  function readLocalWrongStreak3ForQid(qid){
+    try{
+      const kS = "cscs_q_wrong_streak3_total:" + qid;
+      const s  = parseInt(localStorage.getItem(kS) || "0", 10) || 0;
+      return s;
+    }catch(_){
+      return 0;
     }
-    if (!results || typeof results !== "object") {
-      results = {};
-    }
+  }
 
-    var dayNum = null;
-    if (dayStr && /^\d{8}$/.test(dayStr)) {
-      var n = parseInt(dayStr, 10);
-      if (Number.isFinite(n)) {
-        dayNum = n;
+  // ★ 不正解側: localStorage から「現在の連続不正解長」を読み取る
+  //   - b_judge_record.js が "cscs_q_wrong_streak_len:{qid}" に保存している最新値
+  function readLocalWrongStreakLenForQid(qid){
+    try{
+      const kL = "cscs_q_wrong_streak_len:" + qid;
+      const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
+      return l;
+    }catch(_){
+      return 0;
+    }
+  }
+
+  // ★ 問題別 最終日情報: localStorage から「最終閲覧日」を読み取る
+  function readLocalLastSeenDayForQid(qid){
+    try{
+      const k = "cscs_q_last_seen_day:" + qid;
+      const v = localStorage.getItem(k);
+      return v || "";
+    }catch(_){
+      return "";
+    }
+  }
+
+  // ★ 問題別 最終日情報: localStorage から「最終正解日」を読み取る
+  function readLocalLastCorrectDayForQid(qid){
+    try{
+      const k = "cscs_q_last_correct_day:" + qid;
+      const v = localStorage.getItem(k);
+      return v || "";
+    }catch(_){
+      return "";
+    }
+  }
+
+  // ★ 問題別 最終日情報: localStorage から「最終不正解日」を読み取る
+  function readLocalLastWrongDayForQid(qid){
+    try{
+      const k = "cscs_q_last_wrong_day:" + qid;
+      const v = localStorage.getItem(k);
+      return v || "";
+    }catch(_){
+      return "";
+    }
+  }
+
+  function setServerTotalsForQid(c, i, s3, sLen){
+    const el = document.getElementById("cscs_sync_totals");
+    if (el) {
+      el.dataset.serverC = String(c);
+      el.dataset.serverI = String(i);
+      if (typeof s3 === "number") {
+        el.dataset.serverS3 = String(s3);
+      }
+      if (typeof sLen === "number") {
+        el.dataset.serverSL = String(sLen);
       }
     }
-
-    return {
-      day: dayNum,
-      results: results
-    };
   }
-  
-    // ★ HUD用：送信待機（SYNC未反映っぽいもの）を判定して返す
-  //   - ローカルと SYNC(state) を比較して「未反映の可能性」を拾う
-  //   - フォールバックで別ソースを見ない（localStorage と window.__cscs_sync_state のみ）
-  function computePendingFlags(syncState, qid) {
-    var flags = {
-      pendingDiffCounts: false,
-      pendingOncePerDayToday: false,
-      pendingLastSeenDay: false,
-      pendingLastCorrectDay: false,
-      pendingLastWrongDay: false,
-      pendingStreak3Today: false,
-      pendingStreak3WrongToday: false,
-      details: []
-    };
 
-    try {
-      // ---- oncePerDayToday（このqidがSYNCに入ってるか）----
-      try {
-        var localOnce = readOncePerDayTodayFromLocal();
-        if (localOnce && typeof localOnce.day === "number" && localOnce.results && typeof localOnce.results === "object") {
-          var localOnceVal = localOnce.results[qid];
-          if (localOnceVal === "correct" || localOnceVal === "wrong") {
-            var serverOnceVal = null;
-            if (syncState &&
-                syncState.oncePerDayToday &&
-                typeof syncState.oncePerDayToday === "object" &&
-                typeof syncState.oncePerDayToday.day === "number" &&
-                syncState.oncePerDayToday.results &&
-                typeof syncState.oncePerDayToday.results === "object") {
-              if (syncState.oncePerDayToday.day === localOnce.day) {
-                if (Object.prototype.hasOwnProperty.call(syncState.oncePerDayToday.results, qid)) {
-                  serverOnceVal = syncState.oncePerDayToday.results[qid];
+  function updateMonitor(){
+    try{
+      if (!QID) return;
+      const box = document.getElementById("cscs_sync_monitor_a");
+      const totalsEl = document.getElementById("cscs_sync_totals");
+
+      const dC = queue.correctDelta[QID]   || 0;
+      const dI = queue.incorrectDelta[QID] || 0;
+
+      const local = readLocalTotalsForQid(QID);
+      const lc = local.c;
+      const li = local.w;
+
+      const ls = readLocalStreak3ForQid(QID);
+      const ll = readLocalStreakLenForQid(QID);
+
+      // ★ 追加: 正解ストリークの「過去最高」と「達成日」を localStorage から取得
+      //   - フォールバック無し：b_judge_record.js の localStorage を唯一の参照元として表示する
+      const lMax    = readLocalStreakMaxForQid(QID);
+      const lMaxDay = readLocalStreakMaxDayForQid(QID);
+
+      // ★ 不正解ストリーク（localStorage）の読み取り
+      //   - b_judge_record.js が書き込んでいる
+      //     "cscs_q_wrong_streak3_total:{qid}"
+      //     "cscs_q_wrong_streak_len:{qid}"
+      //     をそのまま UI に出す。
+      const lsWrong = readLocalWrongStreak3ForQid(QID);
+      const llWrong = readLocalWrongStreakLenForQid(QID);
+
+      let sc = 0, si = 0, ss = 0, sl = 0;
+      if (totalsEl) {
+        sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+        si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+        ss = parseInt(totalsEl.dataset.serverS3 || "0", 10) || 0;
+        sl = parseInt(totalsEl.dataset.serverSL || "0", 10) || 0;
+
+        const serverTextEl = totalsEl.querySelector(".sync-server-text");
+        if (serverTextEl) {
+          serverTextEl.textContent = "SYNC " + sc + " / " + si;
+        }
+      }
+
+      const serverProgress = sl % 3;
+      const localProgress  = ll % 3;
+
+      // ★ 不正解ストリーク（SYNC 側）の最新値を __cscs_sync_state から取得
+      let ssWrong = 0;
+      let slWrong = 0;
+      try{
+        const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+        if (state && state.streak3Wrong && typeof state.streak3Wrong === "object") {
+          const v = state.streak3Wrong[QID];
+          if (typeof v === "number" && v >= 0) {
+            ssWrong = v;
+          }
+        }
+        if (state && state.streakWrongLen && typeof state.streakWrongLen === "object") {
+          const v2 = state.streakWrongLen[QID];
+          if (typeof v2 === "number" && v2 >= 0) {
+            slWrong = v2;
+          }
+        }
+      }catch(_){}
+
+      const serverWrongProgress = slWrong % 3;
+      const localWrongProgress  = llWrong % 3;
+
+      // ★ 初回だけ、不正解ストリーク UI の値をコンソールにログ出し
+      if (!loggedWrongStreakUiOnce) {
+        console.log("[SYNC-A] wrong-streak monitor enabled", {
+          qid: QID,
+          localWrongStreak3Total: lsWrong,
+          localWrongStreakLen: llWrong,
+          serverWrongStreak3Total: ssWrong,
+          serverWrongStreakLen: slWrong
+        });
+        loggedWrongStreakUiOnce = true;
+      }
+
+      const streak3Today = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today)
+        ? window.__cscs_sync_state.streak3Today
+        : { day: "", unique_count: 0 };
+
+      let localStreakDay = "";
+      let localStreakCount = 0;
+      try{
+        localStreakDay = localStorage.getItem("cscs_streak3_today_day") || "";
+        const rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_count");
+        const parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
+        if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
+          localStreakCount = parsedLocalCnt;
+        }
+      }catch(_){}
+
+      // ★ 今日の3連続不正解ユニーク数（Streak3WrongToday）を SYNC state と localStorage から読み込む
+      //   - SYNC 側: state.streak3WrongToday.{day, unique_count, qids}
+      //   - local 側: cscs_streak3_wrong_today_day / _unique_count をそのまま表示に使う
+      const streak3WrongToday = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday)
+        ? window.__cscs_sync_state.streak3WrongToday
+        : { day: "", unique_count: 0 };
+
+      let localWrongStreakDay = "";
+      let localWrongStreakCount = 0;
+      try{
+        localWrongStreakDay = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+        const rawLocalWrongCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
+        const parsedLocalWrongCnt = rawLocalWrongCnt == null ? NaN : parseInt(rawLocalWrongCnt, 10);
+        if (Number.isFinite(parsedLocalWrongCnt) && parsedLocalWrongCnt >= 0) {
+          localWrongStreakCount = parsedLocalWrongCnt;
+        }
+      }catch(_){}
+
+      // ★ 問題別 最終日情報（LastSeen / LastCorrect / LastWrong）の取得
+      //   - local: localStorage に保存された最終日
+      //   - sync : window.__cscs_sync_state.lastSeenDay などに保存された最終日
+      let lastSeenLocal = "";
+      let lastCorrectLocal = "";
+      let lastWrongLocal = "";
+      try{
+        lastSeenLocal = readLocalLastSeenDayForQid(QID);
+        lastCorrectLocal = readLocalLastCorrectDayForQid(QID);
+        lastWrongLocal = readLocalLastWrongDayForQid(QID);
+      }catch(_){}
+
+      let lastSeenSync = "";
+      let lastCorrectSync = "";
+      let lastWrongSync = "";
+      try{
+        const stateForLast = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+
+        if (stateForLast && stateForLast.lastSeenDay && typeof stateForLast.lastSeenDay === "object") {
+          const v = stateForLast.lastSeenDay[QID];
+          // ★ 最終閲覧日の SYNC 値は string / number のどちらでも来る想定
+          //   - "20251211" / 20251211 の両方を許容し、表示用には文字列に統一する
+          if (typeof v === "string" && v) {
+            lastSeenSync = v;
+          } else if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+            lastSeenSync = String(v);
+          }
+        }
+
+        if (stateForLast && stateForLast.lastCorrectDay && typeof stateForLast.lastCorrectDay === "object") {
+          const v2 = stateForLast.lastCorrectDay[QID];
+          // ★ 最終正解日の SYNC 値も string / number 両対応で文字列化して扱う
+          if (typeof v2 === "string" && v2) {
+            lastCorrectSync = v2;
+          } else if (typeof v2 === "number" && Number.isFinite(v2) && v2 > 0) {
+            lastCorrectSync = String(v2);
+          }
+        }
+
+        if (stateForLast && stateForLast.lastWrongDay && typeof stateForLast.lastWrongDay === "object") {
+          const v3 = stateForLast.lastWrongDay[QID];
+          // ★ 最終不正解日の SYNC 値も同様に string / number 両対応
+          if (typeof v3 === "string" && v3) {
+            lastWrongSync = v3;
+          } else if (typeof v3 === "number" && Number.isFinite(v3) && v3 > 0) {
+            lastWrongSync = String(v3);
+          }
+        }
+      }catch(_){}
+
+      if (box) {
+        const qEl  = box.querySelector(".sync-qid");
+
+        const s3tDayEl   = box.querySelector(".sync-streak3today-day");
+        const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
+        const s3tLocalEl = box.querySelector(".sync-streak3today-local");
+
+        // ★ 追加: 日付の「SYNC day / local day / 今日一致」を見える化する要素（A）
+        const s3tDaySyncEl      = box.querySelector(".sync-streak3today-day-sync");
+        const s3tDayLocalEl     = box.querySelector(".sync-streak3today-day-local");
+        const s3tDayIsTodayEl   = box.querySelector(".sync-streak3today-day-istoday");
+
+        const s3wtDaySyncEl     = box.querySelector(".sync-streak3wrongtoday-day-sync");
+        const s3wtDayLocalEl    = box.querySelector(".sync-streak3wrongtoday-day-local");
+        const s3wtDayIsTodayEl  = box.querySelector(".sync-streak3wrongtoday-day-istoday");
+
+        const onceDaySyncEl     = box.querySelector(".sync-onceperday-day-sync");
+        const onceDayLocalEl    = box.querySelector(".sync-onceperday-day-local");
+        const onceDayIsTodayEl  = box.querySelector(".sync-onceperday-day-istoday");
+
+        // ★ 追加: streak max カード（A）表示用要素
+        const streakMaxLenEl    = box.querySelector(".sync-streakmax-len-local");
+        const streakMaxValEl    = box.querySelector(".sync-streakmax-max-local");
+        const streakMaxDayEl    = box.querySelector(".sync-streakmax-maxday-local");
+
+        // ★ 追加: キュー（+Δ）詳細（B）
+        const qdCwEl     = box.querySelector(".sync-queue-cw");
+        const qdS3El     = box.querySelector(".sync-queue-s3");
+        const qdSLel     = box.querySelector(".sync-queue-sl");
+        const qdS3wEl    = box.querySelector(".sync-queue-s3w");
+        const qdSLwEl    = box.querySelector(".sync-queue-slw");
+        const qdSeenEl   = box.querySelector(".sync-queue-lastseen");
+        const qdCorEl    = box.querySelector(".sync-queue-lastcorrect");
+        const qdWrgEl    = box.querySelector(".sync-queue-lastwrong");
+
+        // ★ 問題別 最終日情報表示用要素（詳細テーブル）
+        const lastSeenSyncEl     = box.querySelector(".sync-last-seen-sync");
+        const lastCorrectSyncEl  = box.querySelector(".sync-last-correct-sync");
+        const lastWrongSyncEl    = box.querySelector(".sync-last-wrong-sync");
+        const lastSeenLocalEl    = box.querySelector(".sync-last-seen-local");
+        const lastCorrectLocalEl = box.querySelector(".sync-last-correct-local");
+        const lastWrongLocalEl   = box.querySelector(".sync-last-wrong-local");
+
+        // ★ 追加: lastday サマリー（summary 1行）
+        const lastdaySummaryTypeEl  = box.querySelector(".sync-lastday-summary-type");
+        const lastdaySummarySyncEl  = box.querySelector(".sync-lastday-summary-sync");
+        const lastdaySummaryLocalEl = box.querySelector(".sync-lastday-summary-local");
+
+        if (s3tDayEl) {
+          s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
+        }
+        if (s3tSyncEl) {
+          // unique_count 自体が欠損している場合のみ「（データなし）」を表示
+          s3tSyncEl.textContent = toDisplayText(
+            typeof streak3Today.unique_count === "number" ? streak3Today.unique_count : "",
+            "（データなし）"
+          );
+        }
+        if (s3tLocalEl) {
+          s3tLocalEl.textContent = toDisplayText(
+            Number.isFinite(localStreakCount) ? localStreakCount : "",
+            "（データなし）"
+          );
+        }
+
+        // ★ 今日の3連続不正解ユニーク数をモニタUIに反映する
+        //   - day: state.streak3WrongToday.day
+        //   - unique: sync 側 unique_count と localStorage 側の値を並列表記
+        const s3wtDayEl   = box.querySelector(".sync-streak3wrongtoday-day");
+        const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
+        const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
+        if (s3wtDayEl) {
+          s3wtDayEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
+        }
+        if (s3wtSyncEl) {
+          s3wtSyncEl.textContent = toDisplayText(
+            typeof streak3WrongToday.unique_count === "number" ? streak3WrongToday.unique_count : "",
+            "（データなし）"
+          );
+        }
+        if (s3wtLocalEl) {
+          s3wtLocalEl.textContent = toDisplayText(
+            Number.isFinite(localWrongStreakCount) ? localWrongStreakCount : "",
+            "（データなし）"
+          );
+        }
+
+        // ★ 追加: localStorage 側の「day」も読み取って表示に出す（A）
+        let localStreakDayRaw = "";
+        let localWrongStreakDayRaw = "";
+        try{
+          localStreakDayRaw = localStorage.getItem("cscs_streak3_today_day") || "";
+          localWrongStreakDayRaw = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+        }catch(_){}
+
+        // ★ 追加: oncePerDayToday の day（SYNC/local）も見える化（A）
+        let syncOnceDayRaw = "";
+        let localOnceDayRaw = "";
+        try{
+          const stateForOnceDay = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+          const onceObj = stateForOnceDay && stateForOnceDay.oncePerDayToday && typeof stateForOnceDay.oncePerDayToday === "object"
+            ? stateForOnceDay.oncePerDayToday
+            : null;
+          if (onceObj && typeof onceObj.day === "number" && Number.isFinite(onceObj.day) && onceObj.day > 0) {
+            syncOnceDayRaw = String(onceObj.day);
+          } else if (onceObj && typeof onceObj.day === "string" && onceObj.day.trim() !== "") {
+            syncOnceDayRaw = onceObj.day.trim();
+          } else {
+            syncOnceDayRaw = "";
+          }
+        }catch(_){}
+
+        try{
+          localOnceDayRaw = localStorage.getItem("cscs_once_per_day_today_day") || "";
+        }catch(_){}
+
+        // ★ 追加: “そのdayが今日なのか” を明示（A）
+        //   - ここでは「YYYYMMDD（数値化できる場合）」で今日比較する
+        function isTodayYmdString(ymdStr){
+          try{
+            const s = String(ymdStr || "").trim();
+            if (!/^\d{8}$/.test(s)) return "unknown";
+            const now = new Date();
+            const yy = now.getFullYear();
+            const mm = now.getMonth() + 1;
+            const dd = now.getDate();
+            const today = String(yy * 10000 + mm * 100 + dd);
+            return s === today ? "YES" : "NO";
+          }catch(_){
+            return "unknown";
+          }
+        }
+
+        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3Today.day, "（データなし）");
+        if (s3tDayLocalEl)   s3tDayLocalEl.textContent = toDisplayText(localStreakDayRaw, "（データなし）");
+        if (s3tDayIsTodayEl) s3tDayIsTodayEl.textContent = isTodayYmdString(streak3Today.day);
+
+        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
+        if (s3wtDayLocalEl)  s3wtDayLocalEl.textContent = toDisplayText(localWrongStreakDayRaw, "（データなし）");
+        if (s3wtDayIsTodayEl) s3wtDayIsTodayEl.textContent = isTodayYmdString(streak3WrongToday.day);
+
+        if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "（データなし）");
+        if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "（データなし）");
+        if (onceDayIsTodayEl) onceDayIsTodayEl.textContent = isTodayYmdString(syncOnceDayRaw);
+
+        // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映（詳細テーブル）
+        if (lastSeenSyncEl) {
+          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "（データなし）");
+        }
+        if (lastCorrectSyncEl) {
+          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "（データなし）");
+        }
+        if (lastWrongSyncEl) {
+          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "（データなし）");
+        }
+        if (lastSeenLocalEl) {
+          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "（データなし）");
+        }
+        if (lastCorrectLocalEl) {
+          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "（データなし）");
+        }
+        if (lastWrongLocalEl) {
+          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "（データなし）");
+        }
+
+        // ★ 追加: lastday の「最新正誤記録」を 1行サマリーに反映
+        //   - lastCorrect と lastWrong のうち、日付が新しい方を「最新」として採用
+        //   - 表示は「ラベル + SYNC値 + local値」の1行にする
+        //   - フォールバックで別ソースから推測しない（取れている値だけで判定）
+        function ymdToNum8(v){
+          const s = String(v || "").trim();
+          if (!/^\d{8}$/.test(s)) return null;
+          const n = parseInt(s, 10);
+          if (!Number.isFinite(n) || n <= 0) return null;
+          return n;
+        }
+
+        function pickLatestType(){
+          const cS = ymdToNum8(lastCorrectSync);
+          const wS = ymdToNum8(lastWrongSync);
+          const cL = ymdToNum8(lastCorrectLocal);
+          const wL = ymdToNum8(lastWrongLocal);
+
+          let bestType = "lastCorrect";
+          let bestNum = null;
+
+          function consider(type, n){
+            if (n === null) return;
+
+            // ★ 処理1: まだ候補が無い or より新しい日付なら更新
+            if (bestNum === null || n > bestNum) {
+              bestNum = n;
+              bestType = type;
+              return;
+            }
+
+            // ★ 処理2: 同日タイなら correct 優先（lastWrong が勝っていたら lastCorrect に戻す）
+            if (bestNum !== null && n === bestNum) {
+              if (type === "lastCorrect" && bestType === "lastWrong") {
+                bestType = "lastCorrect";
+              }
+            }
+          }
+
+          consider("lastCorrect", cS);
+          consider("lastWrong",  wS);
+          consider("lastCorrect", cL);
+          consider("lastWrong",  wL);
+
+          return bestType;
+        }
+
+        const latestType = pickLatestType();
+        const latestSyncVal  = (latestType === "lastWrong") ? lastWrongSync  : lastCorrectSync;
+        const latestLocalVal = (latestType === "lastWrong") ? lastWrongLocal : lastCorrectLocal;
+
+        if (lastdaySummaryTypeEl) {
+          // ★ summary の種別表示は 1行で読みやすい “LastWrong / LastCorrect” に統一
+          lastdaySummaryTypeEl.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
+        }
+        if (lastdaySummarySyncEl) {
+          // ★ summary の SYNC 値（8桁日付 or データなし）
+          //   - 表示は「SYNC 20251210」のようにラベル込みにする
+          lastdaySummarySyncEl.textContent = "SYNC " + toDisplayText(latestSyncVal, "（データなし）");
+        }
+        if (lastdaySummaryLocalEl) {
+          // ★ summary の local 値（8桁日付 or データなし）
+          //   - 表示は「local 20251210」のようにラベル込みにする
+          lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
+        }
+
+        // ★ 追加: 見出しと下の詳細が “同じ情報で二重表示” にならないように調整する
+        // ★ 処理1: 見出しが LastCorrect の場合 → 下の lastCorrect 行を非表示
+        // ★ 処理2: 見出しが LastWrong   の場合 → 下の lastWrong 行を非表示
+        // ★ 処理3: 見出しがどちらでもない/未判定の場合 → 両方表示（ここではフォールバック推測はしない）
+        try{
+          const hideCorrect = (latestType === "lastCorrect");
+          const hideWrong   = (latestType === "lastWrong");
+
+          const correctRows = box.querySelectorAll(".lastday-grid .ld-row-lastcorrect");
+          const wrongRows   = box.querySelectorAll(".lastday-grid .ld-row-lastwrong");
+
+          correctRows.forEach(function(el){
+            el.style.display = hideCorrect ? "none" : "";
+          });
+          wrongRows.forEach(function(el){
+            el.style.display = hideWrong ? "none" : "";
+          });
+        }catch(_){}
+
+        // ★ lastday は折りたたみ無し：見出し差し替え（open判定）は不要
+
+        const lEl  = box.querySelector(".sync-local");
+        const qdEl = box.querySelector(".sync-queue");
+        const stEl = box.querySelector(".sync-status");
+        const s3El = box.querySelector(".sync-streak3-val");
+        const s3sEl = box.querySelector(".sync-streak3-server");
+        const slEl = box.querySelector(".sync-streaklen-val");
+        const slsEl = box.querySelector(".sync-streaklen-server");
+        const slsProgEl = box.querySelector(".sync-streaklen-server-progress");
+        const sllProgEl = box.querySelector(".sync-streaklen-local-progress");
+
+        // ★ 不正解ストリーク用 DOM 取得
+        const s3wEl  = box.querySelector(".sync-wrong-streak3-val");
+        const s3wsEl = box.querySelector(".sync-wrong-streak3-server");
+        const slwEl  = box.querySelector(".sync-wrong-streaklen-val");
+        const slwsEl = box.querySelector(".sync-wrong-streaklen-server");
+        const slwsProgEl = box.querySelector(".sync-wrong-streaklen-server-progress");
+        const sllwProgEl = box.querySelector(".sync-wrong-streaklen-local-progress");
+
+        if (qEl)   qEl.textContent  = QID ? QID : "（データなし）";
+        if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
+        if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
+        if (s3El)  s3El.textContent = String(ls);
+        if (s3sEl) s3sEl.textContent = String(ss);
+
+        // ★ 追加: streak max カード（A）に localStorage の値を反映
+        //   - len: 現在の連続正解数（cscs_q_correct_streak_len:{qid}）
+        //   - max: 最高連続正解数（cscs_q_correct_streak_max:{qid}）
+        //   - day: 最高を更新した日（cscs_q_correct_streak_max_day:{qid}）
+        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? ll : "", "（データなし）");
+        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "（データなし）");
+        if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "（データなし）");
+
+        // ★ 追加: 初回だけ「UI反映に成功した」ログを出す（コンソールで確認可能）
+        if (!loggedStreakMaxUiOnce) {
+          console.log("[SYNC-A] streak-max card updated (localStorage)", {
+            qid: QID,
+            streakLen: ll,
+            streakMax: lMax,
+            streakMaxDay: lMaxDay
+          });
+          loggedStreakMaxUiOnce = true;
+        }
+
+        if (slEl)        slEl.textContent        = String(ll);
+        if (slsEl)       slsEl.textContent       = String(sl);
+        if (slsProgEl)   slsProgEl.textContent   = String(serverProgress);
+        if (sllProgEl)   sllProgEl.textContent   = String(localProgress);
+
+        // ★ 不正解ストリークの値を UI に反映
+        if (s3wEl)  s3wEl.textContent  = String(lsWrong);
+        if (s3wsEl) s3wsEl.textContent = String(ssWrong);
+        if (slwEl)  slwEl.textContent  = String(llWrong);
+        if (slwsEl) slwsEl.textContent = String(slWrong);
+        if (slwsProgEl) slwsProgEl.textContent = String(serverWrongProgress);
+        if (sllwProgEl) sllwProgEl.textContent  = String(localWrongProgress);
+
+        // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（B）
+        //   - streakLenDelta / streakWrongLenDelta は「増分」ではなく「最新値」なので、そのまま表示する
+        //   - last*DayDelta も「最新値」なので、そのまま表示する
+        const qdS3  = queue.streak3Delta[QID] || 0;
+        const qdSL  = Object.prototype.hasOwnProperty.call(queue.streakLenDelta, QID) ? queue.streakLenDelta[QID] : null;
+
+        const qdS3W = queue.streak3WrongDelta[QID] || 0;
+        const qdSLW = Object.prototype.hasOwnProperty.call(queue.streakWrongLenDelta, QID) ? queue.streakWrongLenDelta[QID] : null;
+
+        const qdSeen = Object.prototype.hasOwnProperty.call(queue.lastSeenDayDelta, QID) ? queue.lastSeenDayDelta[QID] : "";
+        const qdCor  = Object.prototype.hasOwnProperty.call(queue.lastCorrectDayDelta, QID) ? queue.lastCorrectDayDelta[QID] : "";
+        const qdWrg  = Object.prototype.hasOwnProperty.call(queue.lastWrongDayDelta, QID) ? queue.lastWrongDayDelta[QID] : "";
+
+        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "0") + " / " + toDisplayText(dI, "0");
+        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "0");
+        if (qdSLel)   qdSLel.textContent   = toDisplayText(qdSL !== null && qdSL !== undefined ? qdSL : "", "（なし）");
+        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "0");
+        if (qdSLwEl)  qdSLwEl.textContent  = toDisplayText(qdSLW !== null && qdSLW !== undefined ? qdSLW : "", "（なし）");
+
+        if (qdSeenEl) qdSeenEl.textContent = toDisplayText(qdSeen, "（なし）");
+        if (qdCorEl)  qdCorEl.textContent  = toDisplayText(qdCor, "（なし）");
+        if (qdWrgEl)  qdWrgEl.textContent  = toDisplayText(qdWrg, "（なし）");
+
+        const time = lastSyncTime ? lastSyncTime : "-";
+        const err  = lastSyncError ? (" err:" + lastSyncError) : "";
+
+        // oncePerDayToday の計測状況を別行として表示するためのラベル文字列を作成
+        // ★ 追加: ODOA: ON/OFF / count対象 / 理由 を同じ行に付加して表示する
+        let onceLabel = "";
+        let odoaLabel = "ODOA: unknown";
+        let countLabel = "count対象: unknown";
+        let reasonLabel = "理由: unknown";
+
+        try{
+          const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+
+          let todayYmd = null;
+          try{
+            const now = new Date();
+            const yy = now.getFullYear();
+            const mm = now.getMonth() + 1;
+            const dd = now.getDate();
+            todayYmd = yy * 10000 + mm * 100 + dd;
+          }catch(_eDate){
+            todayYmd = null;
+          }
+
+          const once = state && state.oncePerDayToday && typeof state.oncePerDayToday === "object"
+            ? state.oncePerDayToday
+            : null;
+
+          if (
+            once &&
+            typeof once.day === "number" &&
+            todayYmd !== null &&
+            once.day === todayYmd &&
+            once.results &&
+            typeof once.results === "object"
+          ) {
+            const r = once.results[QID];
+            if (r === "correct" || r === "wrong") {
+              // 計測済（correct / wrong）
+              onceLabel = "計測済(" + r + ")";
+            } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+              // 何かしら値はあるが unknown の場合
+              onceLabel = "計測済(unknown)";
+            } else {
+              // 今日の日付だがこの QID は未計測
+              onceLabel = "未計測";
+            }
+          } else {
+            // oncePerDayToday 自体が今日ではない or データなし
+            onceLabel = "未計測";
+          }
+        }catch(_eOnce){
+          // oncePerDayToday 表示に失敗してもステータス自体は出す
+          onceLabel = "";
+        }
+
+        // ★ 変更: ODOA の状態と count対象判定は「唯一の参照元」を固定する
+        //   参照元:
+        //     (1) window.CSCS_ODOA_MODE            … "on" / "off"
+        //     (2) window.__cscs_sync_state.oncePerDayToday … { day, results }
+        //     (3) window.CSCS_VERIFY_MODE         … "on" の場合は常に計測対象外
+        //   方針:
+        //     - localStorage 等へのフォールバックは行わない（取れなければ unknown 表示）
+        try{
+          // (1) ODOA モード表示：window.CSCS_ODOA_MODE をそのまま正とする
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          if (odoaMode === "on") {
+            odoaLabel = "ODOA: ON";
+          } else if (odoaMode === "off") {
+            odoaLabel = "ODOA: OFF";
+          } else {
+            odoaLabel = "ODOA: unknown";
+          }
+
+          // (2) VERIFY モード：ON の場合は常に「count対象: NO」
+          const verifyModeOn =
+            (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
+
+          if (verifyModeOn) {
+            countLabel = "count対象: NO";
+            reasonLabel = "理由: VERIFY_MODE";
+          } else {
+            // (3) oncePerDayToday を __cscs_sync_state から取得（ここ以外からは取らない）
+            const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+              ? window.__cscs_sync_state
+              : null;
+
+            const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+              ? state.oncePerDayToday
+              : null;
+
+            // (4) 今日 YYYYMMDD（数値）を作る（once.day が number の想定に合わせる）
+            let todayYmd = null;
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              todayYmd = yy * 10000 + mm * 100 + dd;
+            }catch(_eDate){
+              todayYmd = null;
+            }
+
+            // (5) count対象判定
+            //   - ODOA: OFF → count対象: YES（ODOA制限が無い）
+            //   - ODOA: ON  → 今日すでに oncePerDayToday.results[QID] があれば count対象: NO
+            //   - 情報が取れない場合は unknown
+            if (odoaMode === "off") {
+              countLabel = "count対象: YES";
+              reasonLabel = "理由: ODOA_OFF";
+            } else if (odoaMode === "on") {
+              if (
+                once &&
+                typeof once.day === "number" &&
+                todayYmd !== null &&
+                once.day === todayYmd &&
+                once.results &&
+                typeof once.results === "object"
+              ) {
+                const hasEntry = Object.prototype.hasOwnProperty.call(once.results, QID);
+                if (hasEntry) {
+                  countLabel = "count対象: NO";
+                  reasonLabel = "理由: ALREADY_MEASURED_TODAY";
+                } else {
+                  countLabel = "count対象: YES";
+                  reasonLabel = "理由: NOT_MEASURED_TODAY";
                 }
+              } else {
+                countLabel = "count対象: unknown";
+                reasonLabel = "理由: ONCEPERDAY_STATE_UNAVAILABLE";
+              }
+            } else {
+              countLabel = "count対象: unknown";
+              reasonLabel = "理由: ODOA_MODE_UNKNOWN";
+            }
+          }
+        }catch(_eOdoa){
+          // ★ 補足: 参照元が壊れていた/例外になった場合は unknown 表示に倒す（フォールバック取得はしない）
+          odoaLabel = "ODOA: unknown";
+          countLabel = "count対象: unknown";
+          reasonLabel = "理由: unknown";
+        }
+
+        if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
+
+        const onceEl = box.querySelector(".sync-onceperday");
+        if (onceEl) {
+          // ★ 表示方針:
+          //   - oncePerDayToday と ODOA を「同じ枠で一気に読める」4行構成にする
+          //   - 未開始（今日の状態が未生成/未到達）でも「count対象: 判定可能」と出す（判定不可にしない）
+          //   - フォールバックで別ソースから埋め合わせない（取れなければ取れない表示）
+
+          function ymdNumToIso(ymdNum){
+            try{
+              const s = String(ymdNum);
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function ymdStrToIso(ymdStr){
+            try{
+              const s = String(ymdStr || "").trim();
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function getTodayYmdNum(){
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              return yy * 10000 + mm * 100 + dd;
+            }catch(_){
+              return null;
+            }
+          }
+
+          // ---- 参照元を固定（フォールバックしない） ----
+          const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+
+          const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+            ? state.oncePerDayToday
+            : null;
+
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          const odoaText = (odoaMode === "on") ? "ON" : (odoaMode === "off") ? "OFF" : "unknown";
+
+          const todayYmd = getTodayYmdNum();
+
+          // ---- oncePerDayToday の状態判定 ----
+          let isTodayOnce = false;
+          let onceDayIso = "";
+          let lastRecordedDayIso = "";
+          let measuredResult = null; // "correct" | "wrong" | null
+
+          try{
+            // day は number or string(8桁) の両方が来うる想定だが、今日判定は「8桁化」して行う
+            let onceDayNum = null;
+
+            if (once && typeof once.day === "number" && Number.isFinite(once.day) && once.day > 0) {
+              onceDayNum = once.day;
+              const iso = ymdNumToIso(onceDayNum);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+            } else if (once && typeof once.day === "string") {
+              const iso = ymdStrToIso(once.day);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+              if (/^\d{8}$/.test(String(once.day || "").trim())) {
+                onceDayNum = parseInt(String(once.day).trim(), 10);
               }
             }
-            if (serverOnceVal !== localOnceVal) {
-              flags.pendingOncePerDayToday = true;
-              flags.details.push("oncePerDayToday");
-            }
-          }
-        }
-      } catch (_eOnce) {}
 
-      // ---- lastDay（localに値があり、SYNCと違う）----
-      try {
-        var locSeen = readDayFromLocalStorage("cscs_q_last_seen_day:" + qid);
-        var locCor  = readDayFromLocalStorage("cscs_q_last_correct_day:" + qid);
-        var locWro  = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qid);
+            if (todayYmd !== null && onceDayNum !== null && onceDayNum === todayYmd) {
+              isTodayOnce = true;
+              onceDayIso = ymdNumToIso(todayYmd);
 
-        var srvSeen = null;
-        var srvCor  = null;
-        var srvWro  = null;
-
-        if (syncState) {
-          if (syncState.lastSeenDay && typeof syncState.lastSeenDay === "object" && syncState.lastSeenDay[qid] != null) {
-            if (typeof syncState.lastSeenDay[qid] === "number" && Number.isFinite(syncState.lastSeenDay[qid]) && syncState.lastSeenDay[qid] > 0) {
-              srvSeen = syncState.lastSeenDay[qid];
+              if (once && once.results && typeof once.results === "object") {
+                const r = once.results[QID];
+                if (r === "correct" || r === "wrong") {
+                  measuredResult = r;
+                } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+                  // 値があるが想定外 → 計測済として扱う（表示は unknown）
+                  measuredResult = "unknown";
+                } else {
+                  measuredResult = null;
+                }
+              } else {
+                measuredResult = null;
+              }
             }
-          }
-          if (syncState.lastCorrectDay && typeof syncState.lastCorrectDay === "object" && syncState.lastCorrectDay[qid] != null) {
-            if (typeof syncState.lastCorrectDay[qid] === "number" && Number.isFinite(syncState.lastCorrectDay[qid]) && syncState.lastCorrectDay[qid] > 0) {
-              srvCor = syncState.lastCorrectDay[qid];
-            }
-          }
-          if (syncState.lastWrongDay && typeof syncState.lastWrongDay === "object" && syncState.lastWrongDay[qid] != null) {
-            if (typeof syncState.lastWrongDay[qid] === "number" && Number.isFinite(syncState.lastWrongDay[qid]) && syncState.lastWrongDay[qid] > 0) {
-              srvWro = syncState.lastWrongDay[qid];
-            }
-          }
-        }
-
-        if (locSeen !== null && locSeen !== srvSeen) {
-          flags.pendingLastSeenDay = true;
-          flags.details.push("lastSeenDay");
-        }
-        if (locCor !== null && locCor !== srvCor) {
-          flags.pendingLastCorrectDay = true;
-          flags.details.push("lastCorrectDay");
-        }
-        if (locWro !== null && locWro !== srvWro) {
-          flags.pendingLastWrongDay = true;
-          flags.details.push("lastWrongDay");
-        }
-      } catch (_eLast) {}
-
-      // ---- streak3Today（local qidsがあるのにSYNC側に反映されてなさそう）----
-      try {
-        var localDay = "";
-        var localQids = [];
-        try {
-          localDay = localStorage.getItem("cscs_streak3_today_day") || "";
-          var raw = localStorage.getItem("cscs_streak3_today_qids");
-          if (raw) {
-            var parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              localQids = parsed.filter(function (x) { return typeof x === "string" && x; });
-            }
-          }
-        } catch (_eS3t) {
-          localDay = "";
-          localQids = [];
-        }
-
-        if (localDay && localQids.length > 0) {
-          var syncDay = "";
-          var syncQids = [];
-          if (syncState && syncState.streak3Today && typeof syncState.streak3Today === "object") {
-            if (typeof syncState.streak3Today.day === "number" && Number.isFinite(syncState.streak3Today.day)) {
-              syncDay = String(syncState.streak3Today.day);
-            }
-            if (Array.isArray(syncState.streak3Today.qids)) {
-              syncQids = syncState.streak3Today.qids.filter(function (x) { return typeof x === "string" && x; });
-            }
+          }catch(_){
+            isTodayOnce = false;
+            measuredResult = null;
           }
 
-          var missing = false;
-          if (syncDay !== localDay) {
-            missing = true;
+          // ---- 表示文の組み立て（指定フォーマット） ----
+          let line1 = "";
+          let line2 = "";
+          let line3 = "";
+          let line4 = "";
+
+          if (!isTodayOnce) {
+            // oncePerDayToday: 未開始
+            line1 = "oncePerDayToday: 未開始";
+            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "（データなし）");
+            line3 = "count対象: 判定可能";
+
+            // 未開始状態では累計加算は「Yes」と表示（この行は ODOA 側に寄せる）
+            line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
           } else {
-            var set = Object.create(null);
-            for (var i = 0; i < syncQids.length; i++) {
-              set[syncQids[i]] = 1;
+            // oncePerDayToday: 計測中
+            line1 = "oncePerDayToday: 計測中";
+            line2 = "Today: " + (onceDayIso ? onceDayIso : "（データなし）");
+
+            if (measuredResult === "correct" || measuredResult === "wrong") {
+              line3 = "count対象: No 計測済(" + measuredResult + ")";
+            } else if (measuredResult === "unknown") {
+              line3 = "count対象: No 計測済(unknown)";
+            } else {
+              line3 = "count対象: Yes 未計測";
             }
-            for (var j = 0; j < localQids.length; j++) {
-              if (!set[localQids[j]]) {
-                missing = true;
-                break;
-              }
+
+            // ODOA 側の「累計加算: Yes/No」
+            //   - ODOA: OFF は常に Yes
+            //   - ODOA: ON は count対象が No（計測済）なら No、それ以外は Yes
+            let addYesNo = "Yes";
+            if (odoaMode === "off") {
+              addYesNo = "Yes";
+            } else if (odoaMode === "on") {
+              const counted = (measuredResult === "correct" || measuredResult === "wrong" || measuredResult === "unknown");
+              addYesNo = counted ? "No" : "Yes";
+            } else {
+              addYesNo = "unknown";
             }
+            line4 = "ODOA: " + odoaText + " (累計加算: " + addYesNo + ")";
           }
 
-          if (missing) {
-            flags.pendingStreak3Today = true;
-            flags.details.push("streak3Today");
-          }
-        }
-      } catch (_eS3t2) {}
+          onceEl.innerHTML =
+            '<div class="once-grid">' +
 
-      // ---- streak3WrongToday（local qidsがあるのにSYNC側に反映されてなさそう）----
-      try {
-        var localDayW = "";
-        var localQidsW = [];
-        try {
-          localDayW = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
-          var rawW = localStorage.getItem("cscs_streak3_wrong_today_qids");
-          if (rawW) {
-            var parsedW = JSON.parse(rawW);
-            if (Array.isArray(parsedW)) {
-              localQidsW = parsedW.filter(function (x) { return typeof x === "string" && x; });
-            }
-          }
-        } catch (_eS3w) {
-          localDayW = "";
-          localQidsW = [];
-        }
+              '<div class="once-label">oncePerDayToday</div>' +
+              '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
 
-        if (localDayW && localQidsW.length > 0) {
-          var syncDayW = "";
-          var syncQidsW = [];
-          if (syncState && syncState.streak3WrongToday && typeof syncState.streak3WrongToday === "object") {
-            if (typeof syncState.streak3WrongToday.day === "number" && Number.isFinite(syncState.streak3WrongToday.day)) {
-              syncDayW = String(syncState.streak3WrongToday.day);
-            }
-            if (Array.isArray(syncState.streak3WrongToday.qids)) {
-              syncQidsW = syncState.streak3WrongToday.qids.filter(function (x) { return typeof x === "string" && x; });
-            }
-          }
+              '<div class="once-label">' +
+                (isTodayOnce ? 'Today' : 'lastRecordedDay') +
+              '</div>' +
+              '<div class="once-val">' +
+                (isTodayOnce
+                  ? line2.replace(/^Today:\s*/, "")
+                  : line2.replace(/^lastRecordedDay:\s*/, "")
+                ) +
+              '</div>' +
 
-          var missingW = false;
-          if (syncDayW !== localDayW) {
-            missingW = true;
-          } else {
-            var setW = Object.create(null);
-            for (var k = 0; k < syncQidsW.length; k++) {
-              setW[syncQidsW[k]] = 1;
-            }
-            for (var t = 0; t < localQidsW.length; t++) {
-              if (!setW[localQidsW[t]]) {
-                missingW = true;
-                break;
-              }
-            }
-          }
+              '<div class="once-label">count対象</div>' +
+              '<div class="once-val">' +
+                line3.replace(/^count対象:\s*/, "") +
+              '</div>' +
 
-          if (missingW) {
-            flags.pendingStreak3WrongToday = true;
-            flags.details.push("streak3WrongToday");
-          }
-        }
-      } catch (_eS3w2) {}
+              '<div class="once-label">ODOA</div>' +
+              '<div class="once-val">' +
+                line4.replace(/^ODOA:\s*/, "") +
+              '</div>' +
 
-    } catch (_eAll) {}
-
-    return flags;
-  }
-
-  // ★ サーバ state.oncePerDayToday と比較して delta を作る
-  //   - 差分が無ければ null を返す
-  //   - 何かしら差分があれば { day, results } を返す
-  function buildOncePerDayTodayDelta(syncState) {
-    try {
-      var local = readOncePerDayTodayFromLocal();
-      if (!local.day) {
-        console.log("[SYNC-B:oncePerDay] local has no valid day → deltaなし", {
-          local: local
-        });
-        return null;
-      }
-
-      var server = null;
-      if (
-        syncState &&
-        syncState.oncePerDayToday &&
-        typeof syncState.oncePerDayToday === "object"
-      ) {
-        server = syncState.oncePerDayToday;
-      }
-
-      var deltaResults = {};
-      if (!server || typeof server.day !== "number" || server.day !== local.day) {
-        // サーバ側にデータが無い or 別日 → 当日ローカルを丸ごと送る
-        deltaResults = local.results;
-      } else {
-        // 同じ日付 → 値が違うものだけ送る
-        var serverResults = server.results || {};
-        for (var qid in local.results) {
-          if (!Object.prototype.hasOwnProperty.call(local.results, qid)) continue;
-          var localVal = local.results[qid];
-          var serverVal = serverResults[qid];
-          if (localVal !== serverVal) {
-            deltaResults[qid] = localVal;
-          }
+            '</div>';
         }
       }
-
-      var keys = Object.keys(deltaResults);
-      if (!keys.length) {
-        console.log("[SYNC-B:oncePerDay] server と local で差分なし → delta送信不要", {
-          day: local.day
-        });
-        return null;
-      }
-
-      var delta = {
-        day: local.day,
-        results: deltaResults
-      };
-
-      console.log("[SYNC-B:oncePerDay] buildOncePerDayTodayDelta", {
-        local: local,
-        server: server,
-        delta: delta
-      });
-
-      return delta;
-    } catch (e) {
-      console.error("[SYNC-B:oncePerDay] buildOncePerDayTodayDelta error:", e);
-      return null;
+    }catch(_){
+      // UI更新失敗は握りつぶし
     }
   }
 
-  function clearSyncBody() {
-    var body = document.getElementById("cscs_sync_view_b_body");
-    if (!body) return null;
-
-    while (body.firstChild) {
-      body.removeChild(body.firstChild);
+  function scheduleSend(){
+    if (!navigator.onLine) {
+      lastSyncStatus = "offline";
+      updateMonitor();
+      return;
     }
-    return body;
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(sendDelta, 1000);
+    updateMonitor();
   }
 
-  function updateSyncBodyText(text) {
-    var body = clearSyncBody();
-    if (!body) return;
+  async function sendDelta(){
+    const hasC   = Object.keys(queue.correctDelta).length>0;
+    const hasI   = Object.keys(queue.incorrectDelta).length>0;
+    const hasS3  = Object.keys(queue.streak3Delta).length>0;
+    const hasSL  = Object.keys(queue.streakLenDelta).length>0;
+    const hasS3W = Object.keys(queue.streak3WrongDelta).length>0;
+    const hasSLW = Object.keys(queue.streakWrongLenDelta).length>0;
+    const hasLastSeen    = Object.keys(queue.lastSeenDayDelta).length>0;
+    const hasLastCorrect = Object.keys(queue.lastCorrectDayDelta).length>0;
+    const hasLastWrong   = Object.keys(queue.lastWrongDayDelta).length>0;
 
-    // エラー時など：カード1枚で表示（狭い/広い両方で崩れにくい）
-    var card = document.createElement("div");
-    card.className = "cscs-svb-card is-wide";
-
-    var title = document.createElement("div");
-    title.className = "cscs-svb-card-title";
-    title.textContent = "Status";
-
-    var grid = document.createElement("div");
-    grid.className = "cscs-svb-card-grid";
-
-    var k = document.createElement("div");
-    k.className = "cscs-svb-k cscs-svb-muted";
-    k.textContent = "message";
-
-    var v = document.createElement("div");
-    v.className = "cscs-svb-v";
-    v.textContent = String(text);
-
-    grid.appendChild(k);
-    grid.appendChild(v);
-
-    card.appendChild(title);
-    card.appendChild(grid);
-    body.appendChild(card);
-  }
-
-  function appendGridRow(gridEl, key, value, keyClass, valClass) {
-    var k = document.createElement("div");
-    k.className = "cscs-svb-k" + (keyClass ? " " + keyClass : "");
-    k.textContent = key;
-
-    var v = document.createElement("div");
-    v.className = "cscs-svb-v" + (valClass ? " " + valClass : "");
-    v.textContent = value;
-
-    gridEl.appendChild(k);
-    gridEl.appendChild(v);
-  }
-
-  function appendGridSection(body, title, options) {
-    options = options || {};
-    var wide = !!options.wide;
-
-    var card = document.createElement("div");
-    card.className = "cscs-svb-card" + (wide ? " is-wide" : "");
-
-    var h = document.createElement("div");
-    h.className = "cscs-svb-card-title";
-    h.textContent = title;
-
-    var grid = document.createElement("div");
-    grid.className = "cscs-svb-card-grid";
-
-    card.appendChild(h);
-    card.appendChild(grid);
-    body.appendChild(card);
-
-    return grid;
-  }
-
-  function updateSyncBodyGrid(model) {
-    var body = clearSyncBody();
-    if (!body) return;
-
-    if (!model || typeof model !== "object") {
-      updateSyncBodyText("HUD model error");
+    // ★ いずれの delta も空なら、送信する意味がないので終了
+    if (
+      !hasC &&
+      !hasI &&
+      !hasS3 &&
+      !hasSL &&
+      !hasS3W &&
+      !hasSLW &&
+      !hasLastSeen &&
+      !hasLastCorrect &&
+      !hasLastWrong
+    ) {
       return;
     }
 
-    // --- Counts（1行表示：Counts + SYNC/local/diff を横一列） ---
-    (function appendCountsSectionInline() {
-      // ① ワイドカード（Counts行を収めるコンテナ）
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide svb-counts";
-
-      // ② 1行の横並びコンテナ（折り返しなし）
-      var line = document.createElement("div");
-      line.className = "svb-counts-inline";
-
-      // ③ 行の先頭に "Counts" を入れる（見出しも同じ行にまとめる）
-      var head = document.createElement("span");
-      head.className = "svb-counts-head";
-      head.textContent = "Totals (c/w)";
-      line.appendChild(head);
-
-      // ④ 各パート（label + value）を横に連結していく
-      function addPart(label, valueText, isMuted) {
-        var part = document.createElement("span");
-        part.className = "svb-counts-part" + (isMuted ? " is-muted" : "");
-
-        var k = document.createElement("span");
-        k.className = "svb-counts-k";
-        k.textContent = label;
-
-        var v = document.createElement("span");
-        v.className = "svb-counts-v";
-        v.textContent = valueText;
-
-        part.appendChild(k);
-        part.appendChild(v);
-        line.appendChild(part);
-      }
-
-      addPart(
-        "SYNC",
-        String(model.serverCorrect) + " / " + String(model.serverWrong),
-        false
-      );
-      addPart(
-        "local",
-        String(model.localCorrect) + " / " + String(model.localWrong),
-        false
-      );
-      addPart(
-        "diff",
-        String(model.diffCorrect) + " / " + String(model.diffWrong),
-        true
-      );
-
-      // ⑤ カードに1行を入れて body に追加
-      card.appendChild(line);
-      body.appendChild(card);
-    })();
-
-    // --- 3連続（正解/不正解）：2列×2段（左=正解 / 右=不正解、上=回数 / 下=進捗） ---
-    (function appendStreakQuad4WideCards() {
-      var quad = document.createElement("div");
-      quad.className = "svb-streak-quad";
-
-      function makeCard(titleText, rowKey, valueText) {
-        var card = document.createElement("div");
-        card.className = "cscs-svb-card svb-streak-card";
-
-        var h = document.createElement("div");
-        h.className = "cscs-svb-card-title";
-        h.textContent = titleText;
-
-        var suf = document.createElement("span");
-        suf.className = "svb-title-suffix";
-        suf.textContent = "Syc/Lcl/Df";
-        h.appendChild(suf);
-
-        var grid = document.createElement("div");
-        grid.className = "cscs-svb-card-grid";
-
-        appendGridRow(grid, rowKey, valueText);
-
-        card.appendChild(h);
-        card.appendChild(grid);
-        return card;
-      }
-
-      // 左上：3連続正解（回数）
-      quad.appendChild(
-        makeCard(
-          "⭐️3連続正解数",
-          "回数(s3)",
-          String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
-        )
-      );
-
-      // 右上：3連続不正解（回数）
-      quad.appendChild(
-        makeCard(
-          "💣3連続不正解",
-          "回数(s3W)",
-          String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
-        )
-      );
-
-      // 左下：3連続正解（進捗）
-      quad.appendChild(
-        makeCard(
-          "3連続正解進捗",
-          "進捗(progress)",
-          String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
-        )
-      );
-
-      // 右下：3連続不正解（進捗）
-      quad.appendChild(
-        makeCard(
-          "3連続不正解進捗",
-          "進捗(progress)",
-          String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
-        )
-      );
-
-      body.appendChild(quad);
-    })();
-
-    // --- Today Unique（左右2列：左=Streak3TodayUnique / 右=Streak3WrongTodayUq） ---
-    (function appendTodayUniquePair() {
-      var pair = document.createElement("div");
-      pair.className = "svb-streak-quad";
-
-      function makeTodayCard(titleText, dayLabel, syncCnt, localCnt) {
-        var card = document.createElement("div");
-        card.className = "cscs-svb-card svb-streak-card";
-
-        var h = document.createElement("div");
-        h.className = "cscs-svb-card-title";
-        h.textContent = titleText;
-
-        var grid = document.createElement("div");
-        grid.className = "cscs-svb-card-grid";
-
-        appendGridRow(grid, "day", String(dayLabel));
-        appendGridRow(
-          grid,
-          "unique",
-          "sync " + String(syncCnt) + " / local " + String(localCnt)
-        );
-
-        card.appendChild(h);
-        card.appendChild(grid);
-        return card;
-      }
-
-      // 左：Streak3TodayUnique
-      pair.appendChild(
-        makeTodayCard(
-          "Streak3TodayUnique",
-          model.s3TodayDayLabel,
-          model.s3TodaySyncCnt,
-          model.localS3TodayCnt
-        )
-      );
-
-      // 右：Streak3WrongTodayUq
-      pair.appendChild(
-        makeTodayCard(
-          "Streak3WrongTodayUq",
-          model.s3WrongTodayDayLabel,
-          model.s3WrongTodaySyncCnt,
-          model.localS3WrongTodayCnt
-        )
-      );
-
-      body.appendChild(pair);
-    })();
-
-    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード） ---
-    (function appendOncePerDayAndOdoaWideCard() {
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide";
-
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "OncePerDayToday / O.D.O.A Mode";
-
-      var grid = document.createElement("div");
-      grid.className = "svb-wide-dual-grid";
-
-      function addRow(leftText, rightText, strongLeft, strongRight) {
-        var l = document.createElement("div");
-        l.className = "svb-wide-dual-cell" + (strongLeft ? " svb-wide-dual-strong" : "");
-        l.textContent = leftText;
-
-        var r = document.createElement("div");
-        r.className = "svb-wide-dual-cell is-right" + (strongRight ? " svb-wide-dual-strong" : "");
-        r.textContent = rightText;
-
-        grid.appendChild(l);
-        grid.appendChild(r);
-      }
-
-      addRow(
-        "oncePerDayToday   " + String(model.onceStateLabel),
-        "計測: " + String(model.onceMeasureOkLabel) + " ｜結果: " + String(model.onceResultLabel),
-        true,
-        false
-      );
-      addRow(
-        "Today             " + String(model.onceTodayDateLabel),
-        "qid: " + String(model.onceQidLabel),
-        false,
-        false
-      );
-      addRow(
-        "count対象         " + String(model.onceCountableLabel),
-        "記録: " + String(model.onceRecordLabel),
-        false,
-        false
-      );
-
-      // ODOA 行は「右カラム無し」で全幅1行にする（右側ブロック削除）
-      (function addOdoaSingleRow() {
-        var line = document.createElement("div");
-        line.className = "svb-wide-single";
-        line.textContent = "ODOA              " + String(model.onceOdoaLabel);
-        grid.appendChild(line);
-      })();
-
-      card.appendChild(h);
-      card.appendChild(grid);
-      body.appendChild(card);
-    })();
-
-    // --- LastDay（ヘッダー=最新レコード / 3列=項目・SYNC・local） ---
-    (function appendLastDayCard() {
-      function asDayNum(s) {
-        if (s == null) return null;
-        var t = String(s);
-        if (!/^\d{8}$/.test(t)) return null;
-        var n = parseInt(t, 10);
-        if (!Number.isFinite(n) || n <= 0) return null;
-        return n;
-      }
-
-      function max2(a, b) {
-        if (a == null && b == null) return null;
-        if (a == null) return b;
-        if (b == null) return a;
-        return a > b ? a : b;
-      }
-
-      var seenS = asDayNum(model.lastSeenSyncLabel);
-      var seenL = asDayNum(model.lastSeenLocalLabel);
-      var corS  = asDayNum(model.lastCorrectSyncLabel);
-      var corL  = asDayNum(model.lastCorrectLocalLabel);
-      var wroS  = asDayNum(model.lastWrongSyncLabel);
-      var wroL  = asDayNum(model.lastWrongLocalLabel);
-
-      var seenMax = max2(seenS, seenL);
-      var corMax  = max2(corS, corL);
-      var wroMax  = max2(wroS, wroL);
-
-      var headKey = "LastDay";
-      var best = null;
-
-      if (seenMax != null) {
-        headKey = "lastSeen";
-        best = seenMax;
-      }
-      if (corMax != null && (best == null || corMax > best)) {
-        headKey = "lastCorrect";
-        best = corMax;
-      }
-      if (wroMax != null && (best == null || wroMax > best)) {
-        headKey = "lastWrong";
-        best = wroMax;
-      }
-
-      function showLabel(n, fallback) {
-        if (n == null) return fallback;
-        return String(n);
-      }
-
-      var headSync = "-";
-      var headLocal = "-";
-
-      if (headKey === "lastSeen") {
-        headSync = showLabel(seenS, "-");
-        headLocal = showLabel(seenL, "-");
-      } else if (headKey === "lastCorrect") {
-        headSync = showLabel(corS, "-");
-        headLocal = showLabel(corL, "-");
-      } else if (headKey === "lastWrong") {
-        headSync = showLabel(wroS, "-");
-        headLocal = showLabel(wroL, "-");
-      }
-
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide";
-
-      // ヘッダー（最新レコード行：横3列）
-      var head = document.createElement("div");
-      head.className = "svb-lastday-head";
-
-      var hk = document.createElement("div");
-      hk.className = "svb-lastday-k";
-      hk.textContent = headKey;
-
-      var hs = document.createElement("div");
-      // 何をしているか: LastDayの真ん中列（SYNC列）だと明示するclassを付与する（CSSで中央寄せ固定）
-      hs.className = "svb-lastday-v svb-lastday-mid";
-      hs.textContent = "SYNC " + String(headSync);
-
-      var hl = document.createElement("div");
-      // 何をしているか: 右列（local列）として通常の右寄せスタイルを維持する
-      hl.className = "svb-lastday-v";
-      hl.textContent = "local " + String(headLocal);
-
-      head.appendChild(hk);
-      head.appendChild(hs);
-      head.appendChild(hl);
-      card.appendChild(head);
-
-      // 本体（見出しと同じ項目は表示しない）
-      var grid = document.createElement("div");
-      grid.className = "svb-lastday-grid";
-
-      function addRow(kText, syncText, localText) {
-        if (kText === headKey) return;
-
-        var k = document.createElement("div");
-        k.className = "svb-lastday-k";
-        k.textContent = kText;
-
-        var s = document.createElement("div");
-        // 何をしているか: LastDayの真ん中列（SYNC列）だと明示するclassを付与する（CSSで中央寄せ固定）
-        s.className = "svb-lastday-v svb-lastday-mid";
-        s.textContent = showLabel(asDayNum(syncText), "-");
-
-        var l = document.createElement("div");
-        // 何をしているか: 右列（local列）は従来通り右寄せのまま
-        l.className = "svb-lastday-v";
-        l.textContent = showLabel(asDayNum(localText), "-");
-
-        grid.appendChild(k);
-        grid.appendChild(s);
-        grid.appendChild(l);
-      }
-
-      addRow("lastCorrect", model.lastCorrectSyncLabel, model.lastCorrectLocalLabel);
-      addRow("lastSeen", model.lastSeenSyncLabel, model.lastSeenLocalLabel);
-      addRow("lastWrong", model.lastWrongSyncLabel, model.lastWrongLocalLabel);
-
-      if (grid.childNodes.length > 0) {
-        card.appendChild(grid);
-      }
-
-      body.appendChild(card);
-    })();
-
-    // --- Correct/Wrong Streak (local / b_judge_record.js) : 2列横並び ---
-    (function appendStreakMaxPairCards() {
-      // ★ 何をしているか:
-      //   連続正解ブロックと、連続不正解ブロックを「左右2列」で横並びにする。
-      //   - 既存の .svb-streak-quad を再利用（2列グリッド）
-      //   - 両カードとも、同じUI（タイトル＋折りたたみ＋3行）で統一する
-      var pair = document.createElement("div");
-      pair.className = "svb-streak-quad";
-
-      // ==========================
-      // 左：連続正解 (local)
-      // ==========================
-      (function buildCorrectCard() {
-        // ★ 何をしているか:
-        //   「連続正解」カードの折りたたみ状態を復元する（フォールバック無し：読めなければ false）
-        var correctStreakCollapsed = false;
-        try {
-          correctStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_correct_streak_collapsed") === "1");
-        } catch (_eCorrectStreakCollapsed) {
-          correctStreakCollapsed = false;
-        }
-
-        var card = document.createElement("div");
-        card.className = "cscs-svb-card svb-correct-streak-card";
-        if (correctStreakCollapsed) {
-          card.className += " is-collapsed";
-        }
-
-        // ★ 何をしているか:
-        //   ヘッダー（タイトル＋トグル）を作る
-        var head = document.createElement("div");
-        head.className = "svb-correct-streak-head";
-
-        var h = document.createElement("div");
-        h.className = "cscs-svb-card-title";
-        h.textContent = "連続正解 (local)";
-
-        var btn = document.createElement("button");
-        btn.className = "svb-correct-streak-toggle";
-        btn.type = "button";
-        btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
-
-        // ★ 何をしているか:
-        //   ボタン表示を現在状態から確定する（▼hide / ▶show）
-        function updateCorrectStreakBtnLabel() {
-          var chev = correctStreakCollapsed ? "▶" : "▼";
-          var label = correctStreakCollapsed ? "show" : "hide";
-          btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
-          btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
-        }
-
-        updateCorrectStreakBtnLabel();
-
-        // ★ 何をしているか:
-        //   クリックで折りたたみ状態を反転し、class と localStorage を更新する（成功ログあり）
-        btn.addEventListener("click", function () {
-          correctStreakCollapsed = !correctStreakCollapsed;
-
-          if (correctStreakCollapsed) {
-            if (card.className.indexOf("is-collapsed") === -1) {
-              card.className += " is-collapsed";
-            }
-          } else {
-            card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
-          }
-
-          try {
-            localStorage.setItem("cscs_sync_view_b_correct_streak_collapsed", correctStreakCollapsed ? "1" : "0");
-          } catch (_eSaveCorrectStreak) {}
-
-          updateCorrectStreakBtnLabel();
-
-          console.log("[SYNC-B:view] Correct Streak toggle", {
-            qid: (info && info.qid) ? info.qid : "-",
-            collapsed: correctStreakCollapsed
-          });
-        });
-
-        head.appendChild(h);
-        head.appendChild(btn);
-
-        var grid = document.createElement("div");
-        grid.className = "cscs-svb-card-grid";
-
-        appendGridRow(grid, "streak_len", String(model.localStreakLen));
-        appendGridRow(grid, "streak_max", String(model.localCorrectStreakMax));
-        appendGridRow(grid, "max_day", String(model.localCorrectStreakMaxDayLabel));
-
-        card.appendChild(head);
-        card.appendChild(grid);
-        pair.appendChild(card);
-
-        // ★ 何をしているか:
-        //   初期描画が完了したことをログで確認できるようにする
-        console.log("[SYNC-B:view] appended Correct Streak card (pair)", {
-          qid: (info && info.qid) ? info.qid : "-",
-          collapsed: correctStreakCollapsed,
-          streak_len: model.localStreakLen,
-          streak_max: model.localCorrectStreakMax,
-          max_day: model.localCorrectStreakMaxDayLabel
-        });
-      })();
-
-      // ==========================
-      // 右：連続不正解 (local)
-      // ==========================
-      (function buildWrongCard() {
-        // ★ 何をしているか:
-        //   「連続不正解」カードの折りたたみ状態を復元する（フォールバック無し：読めなければ false）
-        var wrongStreakCollapsed = false;
-        try {
-          wrongStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_wrong_streak_collapsed") === "1");
-        } catch (_eWrongStreakCollapsed) {
-          wrongStreakCollapsed = false;
-        }
-
-        var card = document.createElement("div");
-        card.className = "cscs-svb-card svb-wrong-streak-card";
-        if (wrongStreakCollapsed) {
-          card.className += " is-collapsed";
-        }
-
-        // ★ 何をしているか:
-        //   ヘッダー（タイトル＋トグル）を作る（UIは連続正解と統一）
-        var head = document.createElement("div");
-        head.className = "svb-correct-streak-head";
-
-        var h = document.createElement("div");
-        h.className = "cscs-svb-card-title";
-        h.textContent = "連続不正解 (local)";
-
-        var btn = document.createElement("button");
-        btn.className = "svb-correct-streak-toggle";
-        btn.type = "button";
-        btn.setAttribute("aria-expanded", wrongStreakCollapsed ? "false" : "true");
-
-        // ★ 何をしているか:
-        //   ボタン表示を現在状態から確定する（▼hide / ▶show）
-        function updateWrongStreakBtnLabel() {
-          var chev = wrongStreakCollapsed ? "▶" : "▼";
-          var label = wrongStreakCollapsed ? "show" : "hide";
-          btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
-          btn.setAttribute("aria-expanded", wrongStreakCollapsed ? "false" : "true");
-        }
-
-        updateWrongStreakBtnLabel();
-
-        // ★ 何をしているか:
-        //   クリックで折りたたみ状態を反転し、class と localStorage を更新する（成功ログあり）
-        btn.addEventListener("click", function () {
-          wrongStreakCollapsed = !wrongStreakCollapsed;
-
-          if (wrongStreakCollapsed) {
-            if (card.className.indexOf("is-collapsed") === -1) {
-              card.className += " is-collapsed";
-            }
-          } else {
-            card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
-          }
-
-          try {
-            localStorage.setItem("cscs_sync_view_b_wrong_streak_collapsed", wrongStreakCollapsed ? "1" : "0");
-          } catch (_eSaveWrongStreak) {}
-
-          updateWrongStreakBtnLabel();
-
-          console.log("[SYNC-B:view] Wrong Streak toggle", {
-            qid: (info && info.qid) ? info.qid : "-",
-            collapsed: wrongStreakCollapsed
-          });
-        });
-
-        head.appendChild(h);
-        head.appendChild(btn);
-
-        var grid = document.createElement("div");
-        grid.className = "cscs-svb-card-grid";
-
-        appendGridRow(grid, "streak_len", String(model.localWrongStreakLen));
-        appendGridRow(grid, "streak_max", String(model.localWrongStreakMax));
-        appendGridRow(grid, "max_day", String(model.localWrongStreakMaxDayLabel));
-
-        card.appendChild(head);
-        card.appendChild(grid);
-        pair.appendChild(card);
-
-        // ★ 何をしているか:
-        //   初期描画が完了したことをログで確認できるようにする
-        console.log("[SYNC-B:view] appended Wrong Streak card (pair)", {
-          qid: (info && info.qid) ? info.qid : "-",
-          collapsed: wrongStreakCollapsed,
-          streak_len: model.localWrongStreakLen,
-          streak_max: model.localWrongStreakMax,
-          max_day: model.localWrongStreakMaxDayLabel
-        });
-      })();
-
-      body.appendChild(pair);
-
-      // ★ 何をしているか:
-      //   2列ペア全体の追加が完了したことをログで確認できるようにする
-      console.log("[SYNC-B:view] appended Streak Max pair (correct/wrong)", {
-        qid: (info && info.qid) ? info.qid : "-"
-      });
-    })();
-
-    // --- Pending (unsent) ---
-    var pendingText = "none";
-    if (model.pending && typeof model.pending === "object") {
-      var bits = [];
-
-      if (model.pending.pendingDiffCounts) bits.push("diffCounts");
-      if (model.pending.pendingOncePerDayToday) bits.push("oncePerDayToday");
-      if (model.pending.pendingLastSeenDay) bits.push("lastSeenDay");
-      if (model.pending.pendingLastCorrectDay) bits.push("lastCorrectDay");
-      if (model.pending.pendingLastWrongDay) bits.push("lastWrongDay");
-      if (model.pending.pendingStreak3Today) bits.push("streak3Today");
-      if (model.pending.pendingStreak3WrongToday) bits.push("streak3WrongToday");
-
-      if (bits.length > 0) {
-        pendingText = bits.join(", ");
-      }
-    }
-
-    // --- Pending (unsent) ---
-    var pendingCard = document.createElement("div");
-    pendingCard.className = "cscs-svb-card is-wide svb-pending-card";
-
-    // 折りたたみ状態（永続）
-    var pendingCollapsed = false;
-    try {
-      pendingCollapsed = (localStorage.getItem("cscs_sync_view_b_pending_collapsed") === "1");
-    } catch (_ePendingCollapsed) {
-      pendingCollapsed = false;
-    }
-
-    if (pendingCollapsed) {
-      pendingCard.className += " is-collapsed";
-    }
-
-    // ヘッダー行（タイトル + トグル）
-    var pendingHead = document.createElement("div");
-    pendingHead.className = "svb-pending-head";
-
-    var pendingH = document.createElement("div");
-    pendingH.className = "cscs-svb-card-title";
-    pendingH.textContent = "Pending (unsent)";
-
-    var pendingBtn = document.createElement("button");
-    pendingBtn.className = "svb-pending-toggle";
-    pendingBtn.type = "button";
-    pendingBtn.setAttribute("aria-expanded", pendingCollapsed ? "false" : "true");
-
-    function updatePendingBtnLabel() {
-      var chev = pendingCollapsed ? "▶" : "▼";
-      var label = pendingCollapsed ? "show" : "hide";
-      pendingBtn.innerHTML = "<span class=\"svb-pending-chev\">" + chev + "</span>" + label;
-      pendingBtn.setAttribute("aria-expanded", pendingCollapsed ? "false" : "true");
-    }
-
-    updatePendingBtnLabel();
-
-    pendingBtn.addEventListener("click", function () {
-      pendingCollapsed = !pendingCollapsed;
-
-      if (pendingCollapsed) {
-        if (pendingCard.className.indexOf("is-collapsed") === -1) {
-          pendingCard.className += " is-collapsed";
-        }
-      } else {
-        pendingCard.className = pendingCard.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
-      }
-
-      try {
-        localStorage.setItem("cscs_sync_view_b_pending_collapsed", pendingCollapsed ? "1" : "0");
-      } catch (_eSavePending) {}
-
-      updatePendingBtnLabel();
+    const payload = {
+      qid: QID || null,
+      correctDelta: queue.correctDelta,
+      incorrectDelta: queue.incorrectDelta,
+      streak3Delta: queue.streak3Delta,
+      streakLenDelta: queue.streakLenDelta,
+      // ★ 追加: 不正解側ストリークの delta も Workers へ送る
+      streak3WrongDelta: queue.streak3WrongDelta,
+      streakWrongLenDelta: queue.streakWrongLenDelta,
+      // ★ 追加: 問題別 最終日情報の delta（最新値）を Workers へ送る
+      lastSeenDayDelta: queue.lastSeenDayDelta,
+      lastCorrectDayDelta: queue.lastCorrectDayDelta,
+      lastWrongDayDelta: queue.lastWrongDayDelta,
+      updatedAt: Date.now()
+    };
+
+    // 送信前に、今回送る delta の中身をコンソールで確認できるようにする
+    console.log("[SYNC-A] sendDelta payload(prepare)", {
+      qid: QID,
+      hasCorrectDelta: hasC,
+      hasIncorrectDelta: hasI,
+      hasStreak3Delta: hasS3,
+      hasStreakLenDelta: hasSL,
+      hasStreak3WrongDelta: hasS3W,
+      hasStreakWrongLenDelta: hasSLW,
+      hasLastSeenDayDelta: hasLastSeen,
+      hasLastCorrectDayDelta: hasLastCorrect,
+      hasLastWrongDayDelta: hasLastWrong,
+      payload: payload
     });
 
-    pendingHead.appendChild(pendingH);
-    pendingHead.appendChild(pendingBtn);
+    lastSyncStatus = "sending";
+    lastSyncError  = "";
+    updateMonitor();
 
-    var gPending = document.createElement("div");
-    gPending.className = "svb-pending-grid";
+    try{
+      const res = await fetch("/api/sync/merge", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(String(res.status));
 
-    pendingCard.appendChild(pendingHead);
-    pendingCard.appendChild(gPending);
-    body.appendChild(pendingCard);
+      queue.correctDelta        = {};
+      queue.incorrectDelta      = {};
+      queue.streak3Delta        = {};
+      queue.streakLenDelta      = {};
+      queue.streak3WrongDelta   = {};
+      queue.streakWrongLenDelta = {};
+      queue.lastSeenDayDelta    = {};
+      queue.lastCorrectDayDelta = {};
+      queue.lastWrongDayDelta   = {};
 
-    appendGridRow(gPending, "status", pendingText);
+      const latest = await res.json();
 
-    function fmtDayPair(syncDay, localDay) {
-      var s = (syncDay == null ? "-" : String(syncDay));
-      var l = (localDay == null ? "-" : String(localDay));
-      return "sync " + s + " / local " + l;
+      // SYNC 全体状態を常に最新に保つ（streak3Today も含めて反映）
+      try{
+        window.__cscs_sync_state = latest;
+      }catch(_){}
+
+      if (QID){
+        const c   = (latest.correct       && latest.correct[QID])       || 0;
+        const i   = (latest.incorrect     && latest.incorrect[QID])     || 0;
+        const s3  = (latest.streak3       && latest.streak3[QID])       || 0;
+        const sl  = (latest.streakLen     && latest.streakLen[QID])     || 0;
+        const s3W = (latest.streak3Wrong  && latest.streak3Wrong[QID])  || 0;
+        const slW = (latest.streakWrongLen && latest.streakWrongLen[QID]) || 0;
+
+        setServerTotalsForQid(c, i, s3, sl);
+
+        // ★ 不正解ストリークのサーバー側最新値もコンソールに出しておく
+        console.log("[SYNC-A] sendDelta merged server snapshot for this QID", {
+          qid: QID,
+          correctTotal: c,
+          wrongTotal: i,
+          streak3Correct: s3,
+          streakLenCorrect: sl,
+          streak3Wrong: s3W,
+          streakLenWrong: slW
+        });
+      }
+      lastSyncStatus = "ok";
+      lastSyncTime   = new Date().toLocaleTimeString();
+      lastSyncError  = "";
+    }catch(e){
+      lastSyncStatus = "error";
+      lastSyncError  = String(e && e.message || e);
+    }finally{
+      updateMonitor();
     }
+  }
 
-    function fmtNumPair(syncNum, localNum) {
-      var s = (syncNum == null ? 0 : Number(syncNum));
-      var l = (localNum == null ? 0 : Number(localNum));
-      if (!Number.isFinite(s)) s = 0;
-      if (!Number.isFinite(l)) l = 0;
-      return "sync " + String(s) + " / local " + String(l);
-    }
+  window.CSCS_SYNC = {
+    // ★ 正解1回分の計測を SYNC キューに積む（累計 correctDelta）
+    //   あわせて「最終閲覧日」「最終正解日」も localStorage から読み取り、
+    //   それぞれ lastSeenDayDelta / lastCorrectDayDelta に最新値として積む。
+    recordCorrect(){
+      if (!QID) return;
+      queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
 
-    function fmtQidsPreview(arr) {
-      if (!Array.isArray(arr) || arr.length === 0) return "-";
-      var head = arr.slice(0, 3).join(", ");
-      if (arr.length <= 3) return String(arr.length) + " [" + head + "]";
-      return String(arr.length) + " [" + head + ", …]";
-    }
-
-    // ★ 何をしているか:
-    //   local に居て sync に居ない qid を抽出して「未反映の差分(qids)」として可視化する
-    //   （フォールバック無し：引数で渡された配列だけを使う）
-    function pickLocalOnlyQids(syncArr, localArr) {
-      if (!Array.isArray(localArr) || localArr.length === 0) return [];
-      var set = Object.create(null);
-      if (Array.isArray(syncArr) && syncArr.length > 0) {
-        for (var i = 0; i < syncArr.length; i++) {
-          var s = syncArr[i];
-          if (typeof s === "string" && s) set[s] = 1;
+      try{
+        const seenDay = readLocalLastSeenDayForQid(QID);
+        if (seenDay) {
+          queue.lastSeenDayDelta[QID] = seenDay;
         }
-      }
-      var out = [];
-      for (var j = 0; j < localArr.length; j++) {
-        var l = localArr[j];
-        if (typeof l !== "string" || !l) continue;
-        if (!set[l]) out.push(l);
-      }
-      return out;
+        const correctDay = readLocalLastCorrectDayForQid(QID);
+        if (correctDay) {
+          queue.lastCorrectDayDelta[QID] = correctDay;
+        }
+      }catch(_){}
+
+      console.log("[SYNC-A] recordCorrect queued", {
+        qid: QID,
+        delta: queue.correctDelta[QID],
+        lastSeenDay: queue.lastSeenDayDelta[QID] || null,
+        lastCorrectDay: queue.lastCorrectDayDelta[QID] || null
+      });
+      scheduleSend();
+    },
+
+    // ★ 不正解1回分の計測を SYNC キューに積む（累計 incorrectDelta）
+    //   あわせて「最終閲覧日」「最終不正解日」も localStorage から読み取り、
+    //   それぞれ lastSeenDayDelta / lastWrongDayDelta に最新値として積む。
+    recordIncorrect(){
+      if (!QID) return;
+      queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
+
+      try{
+        const seenDay = readLocalLastSeenDayForQid(QID);
+        if (seenDay) {
+          queue.lastSeenDayDelta[QID] = seenDay;
+        }
+        const wrongDay = readLocalLastWrongDayForQid(QID);
+        if (wrongDay) {
+          queue.lastWrongDayDelta[QID] = wrongDay;
+        }
+      }catch(_){}
+
+      console.log("[SYNC-A] recordIncorrect queued", {
+        qid: QID,
+        delta: queue.incorrectDelta[QID],
+        lastSeenDay: queue.lastSeenDayDelta[QID] || null,
+        lastWrongDay: queue.lastWrongDayDelta[QID] || null
+      });
+      scheduleSend();
+    },
+
+    // ★ 3連続「正解」達成回数を 1 回分キューに積む
+    recordStreak3(){
+      if (!QID) return;
+      queue.streak3Delta[QID] = (queue.streak3Delta[QID] || 0) + 1;
+      try{
+        var ev = new CustomEvent("cscs:streak3-earned", {
+          detail: {
+            qid: QID,
+            ts: Date.now()
+          }
+        });
+        window.dispatchEvent(ev);
+      }catch(_){}
+      console.log("[SYNC-A] recordStreak3 queued", {
+        qid: QID,
+        delta: queue.streak3Delta[QID]
+      });
+      scheduleSend();
+    },
+
+    // ★ 3連続「不正解」達成回数を 1 回分キューに積む
+    recordWrongStreak3(){
+      if (!QID) return;
+      queue.streak3WrongDelta[QID] = (queue.streak3WrongDelta[QID] || 0) + 1;
+      try{
+        var ev = new CustomEvent("cscs:wrong-streak3-earned", {
+          detail: {
+            qid: QID,
+            ts: Date.now()
+          }
+        });
+        window.dispatchEvent(ev);
+      }catch(_){}
+      console.log("[SYNC-A] recordWrongStreak3 queued", {
+        qid: QID,
+        delta: queue.streak3WrongDelta[QID]
+      });
+      scheduleSend();
+    },
+
+    // ★ 現在の「連続正解長」を SYNC 側 streakLen[qid] に同期するための値としてキューに積む
+    recordStreakLen(){
+      if (!QID) return;
+      const currentLen = readLocalStreakLenForQid(QID);
+      queue.streakLenDelta[QID] = currentLen;
+      console.log("[SYNC-A] recordStreakLen queued", {
+        qid: QID,
+        streakLen: currentLen
+      });
+      scheduleSend();
+    },
+
+    // ★ 現在の「連続不正解長」を SYNC 側 streakWrongLen[qid] に同期するための値としてキューに積む
+    recordWrongStreakLen(){
+      if (!QID) return;
+      const currentLenWrong = readLocalWrongStreakLenForQid(QID);
+      queue.streakWrongLenDelta[QID] = currentLenWrong;
+      console.log("[SYNC-A] recordWrongStreakLen queued", {
+        qid: QID,
+        streakWrongLen: currentLenWrong
+      });
+      scheduleSend();
+    },
+
+    // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
+    async fetchServer(){
+      const r = await fetch("/api/sync/state");
+      if(!r.ok) throw new Error(r.statusText);
+      const json = await r.json();
+      // ★ 取得した SYNC state が、3連正解系 / 3連不正解系 / 今日の3連ユニーク系を
+      //   すべて持っているかどうかをデバッグログに出す
+      console.log("[SYNC-A] fetchServer state fetched", {
+        hasCorrect: !!(json && json.correct),
+        hasIncorrect: !!(json && json.incorrect),
+        hasStreak3: !!(json && json.streak3),
+        hasStreakLen: !!(json && json.streakLen),
+        hasStreak3Wrong: !!(json && json.streak3Wrong),
+        hasStreakWrongLen: !!(json && json.streakWrongLen),
+        hasStreak3Today: !!(json && json.streak3Today),
+        hasStreak3WrongToday: !!(json && json.streak3WrongToday),
+        hasLastSeenDay: !!(json && json.lastSeenDay),
+        hasLastCorrectDay: !!(json && json.lastCorrectDay),
+        hasLastWrongDay: !!(json && json.lastWrongDay)
+      });
+      return json;
     }
+  };
 
-    if (model.pending && typeof model.pending === "object") {
-      if (model.pending.pendingStreak3Today) {
-        appendGridRow(
-          gPending,
-          "streak3Today.day",
-          fmtDayPair(
-            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.day : "-"),
-            (function () { try { return localStorage.getItem("cscs_streak3_today_day") || "-"; } catch (_e) { return "-"; } })()
-          )
-        );
-        appendGridRow(
-          gPending,
-          "streak3Today.unique",
-          fmtNumPair(
-            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.unique_count : 0),
-            model.localS3TodayCnt
-          )
-        );
-        appendGridRow(
-          gPending,
-          "streak3Today.qids",
-          "sync " + fmtQidsPreview(model.s3TodaySyncQids) + " / local " + fmtQidsPreview(model.localS3TodayQids)
-        );
+  async function initialFetch(){
+    if (!QID) return;
+    try{
+      const s  = await CSCS_SYNC.fetchServer();
+      const c  = (s.correct       && s.correct[QID])       || 0;
+      const i  = (s.incorrect     && s.incorrect[QID])     || 0;
+      const s3 = (s.streak3       && s.streak3[QID])       || 0;
+      const sl = (s.streakLen     && s.streakLen[QID])     || 0;
+      const s3W = (s.streak3Wrong && s.streak3Wrong[QID])  || 0;
+      const slW = (s.streakWrongLen && s.streakWrongLen[QID]) || 0;
 
-        // ★ 何をしているか:
-        //   「local-only（sync未反映）」の qids を行として追加して、差分が即わかるようにする
-        var s3TodayMissing = pickLocalOnlyQids(model.s3TodaySyncQids, model.localS3TodayQids);
-        appendGridRow(
-          gPending,
-          "streak3Today.missing",
-          "local-only " + fmtQidsPreview(s3TodayMissing)
-        );
+      window.__cscs_sync_state = s;
+
+      // oncePerDayToday 情報を参照して、
+      // 「今日この QID が oncePerDay 計測済みかどうか」をコンソールに出す
+      try{
+        var once = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+          ? s.oncePerDayToday
+          : null;
+
+        var todayYmd = null;
+        try{
+          var now = new Date();
+          var yy = now.getFullYear();
+          var mm = now.getMonth() + 1;
+          var dd = now.getDate();
+          todayYmd = yy * 10000 + mm * 100 + dd;  // 例: 20251203
+        }catch(_eDate){
+          todayYmd = null;
+        }
+
+        var onceLogPayload = {
+          qid: QID,
+          todayYmd: todayYmd,
+          onceDay: once && typeof once.day === "number" ? once.day : null,
+          onceResult: null,
+          measuredToday: false
+        };
+
+        if (
+          once &&
+          typeof once.day === "number" &&
+          todayYmd !== null &&
+          once.day === todayYmd &&
+          once.results &&
+          typeof once.results === "object"
+        ) {
+          var r = once.results[QID];
+          if (r === "correct" || r === "wrong") {
+            onceLogPayload.onceResult = r;
+            onceLogPayload.measuredToday = true;
+          } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+            // 値が "correct"/"wrong" 以外でも「何らかの計測済み」として扱う
+            onceLogPayload.onceResult = String(r);
+            onceLogPayload.measuredToday = true;
+          }
+        }
+
+        if (onceLogPayload.measuredToday) {
+          console.log("[SYNC-A:oncePerDay] this qid is ALREADY measured today", onceLogPayload);
+        } else {
+          console.log("[SYNC-A:oncePerDay] this qid is NOT measured today (or oncePerDayToday.day != today)", onceLogPayload);
+        }
+      }catch(_eOnce){
+        console.log("[SYNC-A:oncePerDay] oncePerDayToday check skipped (error)", _eOnce);
       }
 
-      if (model.pending.pendingStreak3WrongToday) {
-        appendGridRow(
-          gPending,
-          "streak3WrongToday.day",
-          fmtDayPair(
-            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.day : "-"),
-            (function () { try { return localStorage.getItem("cscs_streak3_wrong_today_day") || "-"; } catch (_e2) { return "-"; } })()
-          )
-        );
-        appendGridRow(
-          gPending,
-          "streak3WrongToday.unique",
-          fmtNumPair(
-            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0),
-            model.localS3WrongTodayCnt
-          )
-        );
-        appendGridRow(
-          gPending,
-          "streak3WrongToday.qids",
-          "sync " + fmtQidsPreview(model.s3WrongTodaySyncQids) + " / local " + fmtQidsPreview(model.localS3WrongTodayQids)
-        );
+      // ★ 追加: SYNC 側 oncePerDayToday を正として localStorage 側も同期する（欠けていた上書き）
+      //   - A の役割として「SYNC state を正」に localStorage を整流化する。
+      //   - フォールバックは増やさず、SYNC に無ければ removeItem で「無い」を正として反映する。
+      const oncePerDayToday = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+        ? s.oncePerDayToday
+        : null;
 
-        // ★ 何をしているか:
-        //   「local-only（sync未反映）」の qids を行として追加して、差分が即わかるようにする
-        var s3WrongTodayMissing = pickLocalOnlyQids(model.s3WrongTodaySyncQids, model.localS3WrongTodayQids);
-        appendGridRow(
-          gPending,
-          "streak3WrongToday.missing",
-          "local-only " + fmtQidsPreview(s3WrongTodayMissing)
+      try{
+        // (1) day: number なら String(day) で保存。それ以外（欠損/非number）は removeItem
+        if (oncePerDayToday && typeof oncePerDayToday.day === "number") {
+          localStorage.setItem("cscs_once_per_day_today_day", String(oncePerDayToday.day));
+        } else {
+          localStorage.removeItem("cscs_once_per_day_today_day");
+        }
+
+        // (2) results: object なら JSON.stringify して保存。それ以外（欠損/非object）は removeItem
+        if (oncePerDayToday && oncePerDayToday.results && typeof oncePerDayToday.results === "object") {
+          localStorage.setItem(
+            "cscs_once_per_day_today_results",
+            JSON.stringify(oncePerDayToday.results)
+          );
+        } else {
+          localStorage.removeItem("cscs_once_per_day_today_results");
+        }
+
+        console.log("[SYNC-A] initialFetch synced oncePerDayToday from server to localStorage", {
+          day: oncePerDayToday && typeof oncePerDayToday.day === "number" ? oncePerDayToday.day : null,
+          hasResults: !!(oncePerDayToday && oncePerDayToday.results && typeof oncePerDayToday.results === "object")
+        });
+      }catch(_){}
+
+      // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
+      //   - state.streak3Today を唯一のソースとして、
+      //     「今日の⭐️ユニーク数」関連の localStorage を上書きする。
+      const streak3Today = (s && s.streak3Today)
+        ? s.streak3Today
+        : { day: "", unique_count: 0, qids: [] };
+
+      try{
+        if (streak3Today.day) {
+          localStorage.setItem("cscs_streak3_today_day", String(streak3Today.day));
+        } else {
+          localStorage.removeItem("cscs_streak3_today_day");
+        }
+        localStorage.setItem(
+          "cscs_streak3_today_unique_count",
+          String(streak3Today.unique_count || 0)
         );
+        if (Array.isArray(streak3Today.qids)) {
+          localStorage.setItem(
+            "cscs_streak3_today_qids",
+            JSON.stringify(streak3Today.qids)
+          );
+        } else {
+          localStorage.removeItem("cscs_streak3_today_qids");
+        }
+      }catch(_){}
+
+      // ★ 追加: SYNC 側 streak3WrongToday を正として localStorage 側も同期する
+      //   - state.streak3WrongToday を唯一のソースとして、
+      //     「今日の3連続不正解ユニーク数」関連の localStorage を上書きする。
+      //   - フォールバックは行わず、state.streak3WrongToday が無ければ
+      //     「day: 空 / unique_count: 0 / qids: 空配列」とみなす。
+      const streak3WrongToday = (s && s.streak3WrongToday)
+        ? s.streak3WrongToday
+        : { day: "", unique_count: 0, qids: [] };
+
+      try{
+        if (streak3WrongToday.day) {
+          localStorage.setItem("cscs_streak3_wrong_today_day", String(streak3WrongToday.day));
+        } else {
+          localStorage.removeItem("cscs_streak3_wrong_today_day");
+        }
+        localStorage.setItem(
+          "cscs_streak3_wrong_today_unique_count",
+          String(streak3WrongToday.unique_count || 0)
+        );
+        if (Array.isArray(streak3WrongToday.qids)) {
+          localStorage.setItem(
+            "cscs_streak3_wrong_today_qids",
+            JSON.stringify(streak3WrongToday.qids)
+          );
+        } else {
+          localStorage.removeItem("cscs_streak3_wrong_today_qids");
+        }
+      }catch(_){}
+
+      // ★ 追加: 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を
+      //   SYNC state を唯一の正として localStorage に同期（このQID分だけ）。
+      //   - state 側は string/number 混在があり得るため、保存は常に String(v) に統一する。
+      //   - 値が無い/空（null/undefined/""/空白のみ）の場合は removeItem して「ない」を正として反映する。
+      try{
+        const kSeen = "cscs_q_last_seen_day:" + QID;
+        const kCor  = "cscs_q_last_correct_day:" + QID;
+        const kWrg  = "cscs_q_last_wrong_day:" + QID;
+
+        let vSeen = "";
+        let vCor  = "";
+        let vWrg  = "";
+
+        if (s && s.lastSeenDay && typeof s.lastSeenDay === "object") {
+          const rawSeen = s.lastSeenDay[QID];
+          if (rawSeen !== null && rawSeen !== undefined) {
+            vSeen = String(rawSeen);
+          }
+        }
+        if (s && s.lastCorrectDay && typeof s.lastCorrectDay === "object") {
+          const rawCor = s.lastCorrectDay[QID];
+          if (rawCor !== null && rawCor !== undefined) {
+            vCor = String(rawCor);
+          }
+        }
+        if (s && s.lastWrongDay && typeof s.lastWrongDay === "object") {
+          const rawWrg = s.lastWrongDay[QID];
+          if (rawWrg !== null && rawWrg !== undefined) {
+            vWrg = String(rawWrg);
+          }
+        }
+
+        if (vSeen.trim() !== "") {
+          localStorage.setItem(kSeen, vSeen);
+        } else {
+          localStorage.removeItem(kSeen);
+        }
+
+        if (vCor.trim() !== "") {
+          localStorage.setItem(kCor, vCor);
+        } else {
+          localStorage.removeItem(kCor);
+        }
+
+        if (vWrg.trim() !== "") {
+          localStorage.setItem(kWrg, vWrg);
+        } else {
+          localStorage.removeItem(kWrg);
+        }
+
+        console.log("[SYNC-A] initialFetch synced last-day fields from server to localStorage", {
+          qid: QID,
+          lastSeenDay: vSeen.trim() !== "" ? vSeen : null,
+          lastCorrectDay: vCor.trim() !== "" ? vCor : null,
+          lastWrongDay: vWrg.trim() !== "" ? vWrg : null
+        });
+      }catch(_){}
+
+      setServerTotalsForQid(c, i, s3, sl);
+
+      try{
+        localStorage.setItem("cscs_q_correct_total:" + QID, String(c));
+        localStorage.setItem("cscs_q_wrong_total:"   + QID, String(i));
+        localStorage.setItem("cscs_q_correct_streak3_total:" + QID, String(s3));
+        localStorage.setItem("cscs_q_correct_streak_len:" + QID, String(sl));
+        // ★ 不正解ストリークも SYNC 側を正として localStorage に初期同期する
+        localStorage.setItem("cscs_q_wrong_streak3_total:" + QID, String(s3W));
+        localStorage.setItem("cscs_q_wrong_streak_len:" + QID, String(slW));
+        console.log("[SYNC-A] initialFetch synced streak values from server to localStorage", {
+          qid: QID,
+          correctTotal: c,
+          wrongTotal: i,
+          streak3Correct: s3,
+          streakLenCorrect: sl,
+          streak3Wrong: s3W,
+          streakLenWrong: slW
+        });
+      }catch(_){}
+
+      lastSyncStatus = "pulled";
+      lastSyncTime   = new Date().toLocaleTimeString();
+      lastSyncError  = "";
+    }catch(e){
+      lastSyncStatus = "error";
+      lastSyncError  = String(e && e.message || e);
+    }finally{
+      updateMonitor();
+    }
+  }
+
+  async function resetSyncForThisQid(showAlert, doFetch){
+    if (showAlert === undefined) showAlert = true;
+    if (doFetch === undefined) doFetch = true;
+    if (!QID) return;
+    try{
+      await fetch("/api/sync/reset_qid", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ qid: QID })
+      });
+
+      try{
+        const kCorNow  = "cscs_q_correct_total:" + QID;
+        const kWrgNow  = "cscs_q_wrong_total:"   + QID;
+        const kCorLast = "cscs_sync_last_c:"     + QID;
+        const kWrgLast = "cscs_sync_last_w:"     + QID;
+
+        localStorage.setItem(kCorNow,  "0");
+        localStorage.setItem(kWrgNow,  "0");
+        localStorage.setItem(kCorLast, "0");
+        localStorage.setItem(kWrgLast, "0");
+      }catch(_){}
+
+      if (doFetch) {
+        await initialFetch();
+      }
+      if (showAlert) {
+        alert("この問題のSYNCカウンタをリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("reset 失敗: " + e);
+      } else {
+        console.warn("reset_qid 失敗:", e);
       }
     }
   }
 
-  function fetchState() {
-    return fetch(SYNC_STATE_ENDPOINT, { method: "GET" }).then(function (res) {
+  async function resetStarForThisQid(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    if (!QID) return;
+    try{
+      try{
+        await fetch("/api/sync/reset_streak3_qid", {
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify({ qid: QID })
+        });
+      }catch(_){}
+
+      const kStreakLen    = "cscs_q_correct_streak_len:" + QID;
+      const kStreakTotal  = "cscs_q_correct_streak3_total:" + QID;
+      const kStreakLastS3 = "cscs_sync_last_s3:" + QID;
+      try{
+        localStorage.removeItem(kStreakLen);
+        localStorage.removeItem(kStreakTotal);
+        localStorage.setItem(kStreakLastS3, "0");
+      }catch(_){}
+
+      const logKey = "cscs_correct_streak3_log";
+      try{
+        const raw = localStorage.getItem(logKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(function(entry){
+              if (!entry || typeof entry !== "object") return true;
+              if (!("qid" in entry)) return true;
+              return entry.qid !== QID;
+            });
+            localStorage.setItem(logKey, JSON.stringify(filtered));
+          }
+        }
+      }catch(_){}
+
+      try{
+        const totalsEl = document.getElementById("cscs_sync_totals");
+        if (totalsEl) {
+          const sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
+          const si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+          setServerTotalsForQid(sc, si, 0);
+        }
+      }catch(_){}
+
+      try{
+        const stars = document.querySelectorAll(".correct_star");
+        stars.forEach(function(el){
+          el.style.display = "none";
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert("この問題の星データをリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("星データのリセットに失敗しました: " + e);
+      } else {
+        console.warn("reset_streak3_qid 失敗:", e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch("/api/sync/reset_streak3_today", {
+        method:"POST",
+        headers:{ "content-type":"application/json" }
+      });
+
+      // 1) localStorage 側の今日の 3連続正解ユニーク数を削除
+      try{
+        localStorage.removeItem("cscs_streak3_today_day");
+        localStorage.removeItem("cscs_streak3_today_unique_count");
+        localStorage.removeItem("cscs_streak3_today_qids");
+      }catch(_){}
+
+      // 2) クライアント側の SYNC スナップショットも「streak3Today を空」に更新（デバッグ専用）
+      try{
+        if (!window.__cscs_sync_state || typeof window.__cscs_sync_state !== "object") {
+          window.__cscs_sync_state = {};
+        }
+        window.__cscs_sync_state.streak3Today = {
+          day: "",
+          unique_count: 0,
+          qids: []
+        };
+      }catch(_){}
+
+      // 3) サーバー側の最新状態を /api/sync/state から取り直して上書き（streak3Today も含めて確認）
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 4) モニタ表示を最新状態で再描画
+      updateMonitor();
+
+      if (showAlert) {
+        alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("reset_streak3_today 失敗: " + e);
+      } else {
+        console.warn("reset_streak3_today 失敗:", e);
+      }
+    }
+  }
+
+  // oncePerDayToday（1日1問カウント）用の SYNC + local リセット（デバッグ専用）
+  async function resetOncePerDayTodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      console.log("[SYNC-A:oncePerDay] reset_once_per_day_today START");
+
+      // 1) Workers 側の oncePerDayToday をリセット（デバッグ用エンドポイント想定）
+      const res = await fetch("/api/sync/reset_once_per_day_today", {
+        method: "POST",
+        headers: { "content-type": "application/json" }
+      });
       if (!res.ok) {
         throw new Error(String(res.status));
       }
-      return res.json();
-    });
-  }
 
-  function createPanel() {
-    var box = document.createElement("div");
-    box.id = "cscs_sync_view_b";
+      // 2) localStorage 側の oncePerDayToday 情報を削除
+      try{
+        localStorage.removeItem("cscs_once_per_day_today_day");
+        localStorage.removeItem("cscs_once_per_day_today_results");
+      }catch(_){}
 
-    var title = document.createElement("div");
-    title.id = "cscs_sync_view_b_title";
-    title.textContent = "SYNC(B): " + info.qid;
-
-    var body = document.createElement("div");
-    body.id = "cscs_sync_view_b_body";
-    body.textContent = "読み込み中…";
-
-    var statusDiv = document.createElement("div");
-    statusDiv.id = "cscs_sync_view_b_status";
-
-    // ★【超重要仕様：この非表示ボタンは「削除禁止」】
-    //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
-    //   - click ハンドラ内で streak3Today / streak3WrongToday の「専用送信処理」を呼び出しており、
-    //     Bパート自動遷移中に今日の⭐️/💣ユニーク数を SYNC に送る唯一のトリガーになっている。
-    //   - /assets/cscs_sync_view_b.js 内の setTimeout(... btn.click()) からも参照されるため、
-    //     ここでボタン DOM を削除／ID 変更／非ボタン化すると、streak3Today / streak3WrongToday が
-    //     一切サーバーに送られなくなる。
-    //   - 「見た目に使っていないから不要」と判断してこの要素を消さないこと。
-    //     ChatGPT などの自動改修でも、このコメントを読んで絶対に削除・リファクタリングしないこと。
-    var btn = document.createElement("button");
-    btn.id = "cscs_sync_view_b_send_btn";
-    btn.type = "button";
-    btn.textContent = "SYNC送信";
-    // ★ ボタンは UI としては完全に非表示にするが、DOM 上には残すために inline style で display:none を指定する。
-    //   - CSS ファイル側で非表示にすると、スタイル整理時に誤って削除されるリスクがあるため、
-    //     あえてここで style 属性を直書きしている。
-    btn.setAttribute("style", "display:none;");
-
-    box.appendChild(title);
-    box.appendChild(body);
-    box.appendChild(statusDiv);
-    // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
-    box.appendChild(btn);
-
-    return box;
-  }
-
-  function renderPanel(box, payload) {
-    try {
-      var serverCorrect = payload.serverCorrect || 0;
-      var serverWrong = payload.serverWrong || 0;
-      var localCorrect = payload.localCorrect || 0;
-      var localWrong = payload.localWrong || 0;
-      var diffCorrect = payload.diffCorrect || 0;
-      var diffWrong = payload.diffWrong || 0;
-
-      var serverStreak3 = payload.serverStreak3 || 0;
-      var localStreak3 = payload.localStreak3 || 0;
-      var diffStreak3 = payload.diffStreak3 || 0;
-
-      var serverStreakLen = payload.serverStreakLen || 0;
-      var localStreakLen = payload.localStreakLen || 0;
-      var diffStreakLen = payload.diffStreakLen || 0;
-
-      // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続正解数 / 更新日）を読み出す
-      //   何をしているか: localStorage の確定キーから「現在/最高/達成日」を取得し、HUD model に載せる
-      //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
-      var localCorrectStreakMax = 0;
-      var localCorrectStreakMaxDayLabel = "（データなし）";
-      try {
-        localCorrectStreakMax = readIntFromLocalStorage("cscs_q_correct_streak_max:" + info.qid);
-        var maxDayNum = readDayFromLocalStorage("cscs_q_correct_streak_max_day:" + info.qid);
-        if (maxDayNum !== null) {
-          localCorrectStreakMaxDayLabel = String(maxDayNum);
+      // 3) クライアント側 snapshot の oncePerDayToday を一旦クリア
+      try{
+        if (!window.__cscs_sync_state || typeof window.__cscs_sync_state !== "object") {
+          window.__cscs_sync_state = {};
         }
+        window.__cscs_sync_state.oncePerDayToday = {
+          day: null,
+          results: {}
+        };
+      }catch(_){}
 
-        console.log("[SYNC-B:view] correct-streak max from localStorage", {
-          qid: info.qid,
-          localCorrectStreakLen: localStreakLen,
-          localCorrectStreakMax: localCorrectStreakMax,
-          localCorrectStreakMaxDay: localCorrectStreakMaxDayLabel
-        });
-      } catch (eStreakMax) {
-        console.error("[SYNC-B:view] correct-streak max read error:", eStreakMax);
+      // 4) サーバー側の最新状態を取り直して、oncePerDayToday も含めて上書き
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 5) モニタを最新状態で再描画
+      updateMonitor();
+
+      console.log("[SYNC-A:oncePerDay] reset_once_per_day_today completed (SYNC + local cleared)");
+      if (showAlert) {
+        alert("oncePerDayToday（SYNC と local の両方）をリセットしました。");
       }
-
-      // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続不正解数 / 達成日）を読み出す
-      //   何をしているか: localStorage の確定キーから「最高/達成日」を取得し、HUD model に載せる
-      //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
-      var localWrongStreakMax = 0;
-      var localWrongStreakMaxDayLabel = "（データなし）";
-      try {
-        localWrongStreakMax = readIntFromLocalStorage("cscs_q_wrong_streak_max:" + info.qid);
-        var maxWrongDayNum = readDayFromLocalStorage("cscs_q_wrong_streak_max_day:" + info.qid);
-        if (maxWrongDayNum !== null) {
-          localWrongStreakMaxDayLabel = String(maxWrongDayNum);
-        }
-
-        console.log("[SYNC-B:view] wrong-streak max from localStorage", {
-          qid: info.qid,
-          localWrongStreakLen: localWrongStreakLen,
-          localWrongStreakMax: localWrongStreakMax,
-          localWrongStreakMaxDay: localWrongStreakMaxDayLabel
-        });
-      } catch (eWrongStreakMax) {
-        console.error("[SYNC-B:view] wrong-streak max read error:", eWrongStreakMax);
+    }catch(e){
+      console.warn("[SYNC-A:oncePerDay] reset_once_per_day_today failed:", e);
+      if (showAlert) {
+        alert("reset_once_per_day_today 失敗: " + e);
       }
-
-      // statusText は内部状態としてログだけに使う
-      var statusText = payload.statusText || "";
-
-      var serverProgress = serverStreakLen % 3;
-      var localProgress = localStreakLen % 3;
-      var diffProgress = Math.max(0, localProgress - serverProgress);
-
-      // ★ 3連続不正解用のサマリを server / local / diff から計算して HUD に追加表示する
-      //   - server 側: window.__cscs_sync_state.streak3Wrong / streakWrongLen（存在すれば使用）
-      //   - local 側: localStorage の cscs_q_wrong_streak3_total:{qid}, cscs_q_wrong_streak_len:{qid}
-      var qidForStreakWrong = info && info.qid ? info.qid : null;
-      var serverStreak3Wrong = 0;
-      var localStreak3Wrong = 0;
-      var diffStreak3Wrong = 0;
-      var serverWrongStreakLen = 0;
-      var localWrongStreakLen = 0;
-      var diffWrongStreakLen = 0;
-      var serverWrongProgress = 0;
-      var localWrongProgress = 0;
-      var diffWrongProgress = 0;
-
-      try {
-        if (qidForStreakWrong) {
-          var stateForWrong = null;
-          try {
-            stateForWrong = window.__cscs_sync_state || null;
-          } catch (_eStateWrong) {
-            stateForWrong = null;
-          }
-
-          // サーバ側の 3連続不正解回数（存在する場合のみ採用）
-          if (
-            stateForWrong &&
-            stateForWrong.streak3Wrong &&
-            typeof stateForWrong.streak3Wrong === "object" &&
-            stateForWrong.streak3Wrong[qidForStreakWrong] != null
-          ) {
-            var s3w = stateForWrong.streak3Wrong[qidForStreakWrong];
-            if (typeof s3w === "number" && Number.isFinite(s3w) && s3w >= 0) {
-              serverStreak3Wrong = s3w;
-            }
-          }
-
-          // サーバ側の「現在の連続不正解長」（存在する場合のみ採用）
-          if (
-            stateForWrong &&
-            stateForWrong.streakWrongLen &&
-            typeof stateForWrong.streakWrongLen === "object" &&
-            stateForWrong.streakWrongLen[qidForStreakWrong] != null
-          ) {
-            var slw = stateForWrong.streakWrongLen[qidForStreakWrong];
-            if (typeof slw === "number" && Number.isFinite(slw) && slw >= 0) {
-              serverWrongStreakLen = slw;
-            }
-          }
-
-          // localStorage 側の 3連続不正解回数 / 現在の連続不正解長
-          localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + qidForStreakWrong);
-          localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + qidForStreakWrong);
-
-          // SYNC と local の diff と 3回に対する進捗（0〜2/3）を計算
-          diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
-          diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
-
-          serverWrongProgress = serverWrongStreakLen % 3;
-          localWrongProgress = localWrongStreakLen % 3;
-          diffWrongProgress = Math.max(0, localWrongProgress - serverWrongProgress);
-
-          console.log("[SYNC-B:view] wrong-streak status", {
-            qid: qidForStreakWrong,
-            serverStreak3Wrong: serverStreak3Wrong,
-            localStreak3Wrong: localStreak3Wrong,
-            diffStreak3Wrong: diffStreak3Wrong,
-            serverWrongStreakLen: serverWrongStreakLen,
-            localWrongStreakLen: localWrongStreakLen,
-            diffWrongStreakLen: diffWrongStreakLen,
-            serverWrongProgress: serverWrongProgress,
-            localWrongProgress: localWrongProgress
-          });
-        }
-      } catch (eWrong) {
-        console.error("[SYNC-B:view] wrong-streak status error:", eWrong);
-      }
-
-      var s3TodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.day) 
-        ? window.__cscs_sync_state.streak3Today.day : "-";
-      var s3TodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today && window.__cscs_sync_state.streak3Today.unique_count) 
-        ? window.__cscs_sync_state.streak3Today.unique_count : 0;
-
-      var localS3TodayDay = "";
-      var localS3TodayCnt = 0;
-      try {
-        localS3TodayDay = localStorage.getItem("cscs_streak3_today_day") || "-";
-        var rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_count");
-        var parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
-        if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
-          localS3TodayCnt = parsedLocalCnt;
-        }
-      } catch(_e) {}
-
-      // ★ 3連続不正解（Streak3WrongToday）の SYNC / local 状態も取得
-      var s3WrongTodaySyncDay = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.day) 
-        ? window.__cscs_sync_state.streak3WrongToday.day : "-";
-      var s3WrongTodaySyncCnt = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday && window.__cscs_sync_state.streak3WrongToday.unique_count) 
-        ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0;
-
-      var localS3WrongTodayDay = "";
-      var localS3WrongTodayCnt = 0;
-      try {
-        localS3WrongTodayDay = localStorage.getItem("cscs_streak3_wrong_today_day") || "-";
-        var rawLocalWrongCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
-        var parsedLocalWrongCnt = rawLocalWrongCnt == null ? NaN : parseInt(rawLocalWrongCnt, 10);
-        if (Number.isFinite(parsedLocalWrongCnt) && parsedLocalWrongCnt >= 0) {
-          localS3WrongTodayCnt = parsedLocalWrongCnt;
-        }
-      } catch(_e2) {}
-
-      // ★ Pending 詳細表示用：Today系 qids（SYNC / local）を取得して model に載せる
-      var s3TodaySyncQids = [];
-      var s3WrongTodaySyncQids = [];
-      try {
-        if (window.__cscs_sync_state &&
-            window.__cscs_sync_state.streak3Today &&
-            Array.isArray(window.__cscs_sync_state.streak3Today.qids)) {
-          s3TodaySyncQids = window.__cscs_sync_state.streak3Today.qids
-            .filter(function (x) { return typeof x === "string" && x; });
-        }
-      } catch (_eS3TodaySyncQids) {
-        s3TodaySyncQids = [];
-      }
-
-      try {
-        if (window.__cscs_sync_state &&
-            window.__cscs_sync_state.streak3WrongToday &&
-            Array.isArray(window.__cscs_sync_state.streak3WrongToday.qids)) {
-          s3WrongTodaySyncQids = window.__cscs_sync_state.streak3WrongToday.qids
-            .filter(function (x) { return typeof x === "string" && x; });
-        }
-      } catch (_eS3WrongTodaySyncQids) {
-        s3WrongTodaySyncQids = [];
-      }
-
-      var localS3TodayQids = [];
-      try {
-        var rawLocalS3TodayQids = localStorage.getItem("cscs_streak3_today_qids");
-        if (rawLocalS3TodayQids) {
-          var parsedLocalS3TodayQids = JSON.parse(rawLocalS3TodayQids);
-          if (Array.isArray(parsedLocalS3TodayQids)) {
-            localS3TodayQids = parsedLocalS3TodayQids
-              .filter(function (x) { return typeof x === "string" && x; });
-          }
-        }
-      } catch (_eLocalS3TodayQids) {
-        localS3TodayQids = [];
-      }
-
-      var localS3WrongTodayQids = [];
-      try {
-        var rawLocalS3WrongTodayQids = localStorage.getItem("cscs_streak3_wrong_today_qids");
-        if (rawLocalS3WrongTodayQids) {
-          var parsedLocalS3WrongTodayQids = JSON.parse(rawLocalS3WrongTodayQids);
-          if (Array.isArray(parsedLocalS3WrongTodayQids)) {
-            localS3WrongTodayQids = parsedLocalS3WrongTodayQids
-              .filter(function (x) { return typeof x === "string" && x; });
-          }
-        }
-      } catch (_eLocalS3WrongTodayQids) {
-        localS3WrongTodayQids = [];
-      }
-
-      // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
-      var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "（データなし）" : String(s3TodaySyncDay));
-      var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "（データなし）" : String(s3WrongTodaySyncDay));
-
-      // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を HUD に追加
-      var lastSeenSyncLabel = "（データなし）";
-      var lastCorrectSyncLabel = "（データなし）";
-      var lastWrongSyncLabel = "（データなし）";
-
-      var lastSeenLocalLabel = "（データなし）";
-      var lastCorrectLocalLabel = "（データなし）";
-      var lastWrongLocalLabel = "（データなし）";
-
-      try {
-        var qidForLastDay = info && info.qid ? info.qid : null;
-
-        // ---- SYNC 側の lastSeen / lastCorrect / lastWrong 読み取り ----
-        var st = null;
-        try { st = window.__cscs_sync_state || null; } catch (_e) { st = null; }
-
-        if (qidForLastDay && st) {
-          // lastSeen
-          if (st.lastSeenDay &&
-              typeof st.lastSeenDay === "object" &&
-              st.lastSeenDay[qidForLastDay] != null) {
-            var v1 = st.lastSeenDay[qidForLastDay];
-            if (typeof v1 === "number" && Number.isFinite(v1) && v1 > 0) {
-              lastSeenSyncLabel = String(v1);
-            }
-          }
-          // lastCorrect
-          if (st.lastCorrectDay &&
-              typeof st.lastCorrectDay === "object" &&
-              st.lastCorrectDay[qidForLastDay] != null) {
-            var v2 = st.lastCorrectDay[qidForLastDay];
-            if (typeof v2 === "number" && Number.isFinite(v2) && v2 > 0) {
-              lastCorrectSyncLabel = String(v2);
-            }
-          }
-          // lastWrong
-          if (st.lastWrongDay &&
-              typeof st.lastWrongDay === "object" &&
-              st.lastWrongDay[qidForLastDay] != null) {
-            var v3 = st.lastWrongDay[qidForLastDay];
-            if (typeof v3 === "number" && Number.isFinite(v3) && v3 > 0) {
-              lastWrongSyncLabel = String(v3);
-            }
-          }
-        }
-
-        // ---- localStorage 側の lastSeen / lastCorrect / lastWrong 読み取り ----
-        if (qidForLastDay) {
-          var loc1 = readDayFromLocalStorage("cscs_q_last_seen_day:" + qidForLastDay);
-          var loc2 = readDayFromLocalStorage("cscs_q_last_correct_day:" + qidForLastDay);
-          var loc3 = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qidForLastDay);
-
-          if (loc1 !== null) lastSeenLocalLabel = String(loc1);
-          if (loc2 !== null) lastCorrectLocalLabel = String(loc2);
-          if (loc3 !== null) lastWrongLocalLabel = String(loc3);
-        }
-
-      } catch (eLast) {
-        console.error("[SYNC-B:view] lastDay HUD build error:", eLast);
-      }
-
-      // ★ OncePerDayToday / O.D.O.A 表示用の値を localStorage + window.__cscs_sync_state から組み立て
-      var onceStateLabel = "未開始";
-      var onceMeasureOkLabel = "-";
-      var onceResultLabel = "-";
-      var onceTodayDateLabel = "-";
-      var onceQidLabel = (info && info.qid) ? info.qid : "-";
-      var onceCountableLabel = "-";
-      var onceRecordLabel = "-";
-      var onceOdoaLabel = "-";
-
-      try {
-        // 今日(YYYY-MM-DD) は JST の「日付だけ」表示
-        try {
-          var now = new Date();
-          var y = now.getFullYear();
-          var m = String(now.getMonth() + 1).padStart(2, "0");
-          var d = String(now.getDate()).padStart(2, "0");
-          onceTodayDateLabel = String(y) + "-" + String(m) + "-" + String(d);
-        } catch (_eDate) {
-          onceTodayDateLabel = "-";
-        }
-
-        var stOnce = null;
-        try { stOnce = window.__cscs_sync_state || null; } catch (_eSt) { stOnce = null; }
-
-        // --- 何をしているか:
-        //   今日の「計測済み判定」は唯一の参照元として window.__cscs_sync_state.oncePerDayToday だけを見る
-        //   （localStorage の oncePerDayToday は HUD 判定に一切使わない）
-        var serverOnceVal = null;
-        var serverOnceDay = null;
-
-        if (stOnce && stOnce.oncePerDayToday && typeof stOnce.oncePerDayToday === "object") {
-          var s = stOnce.oncePerDayToday;
-          if (typeof s.day === "number" && Number.isFinite(s.day)) {
-            serverOnceDay = s.day;
-          }
-          if (s.results && typeof s.results === "object" && Object.prototype.hasOwnProperty.call(s.results, onceQidLabel)) {
-            serverOnceVal = s.results[onceQidLabel];
-          }
-        }
-
-        // --- 何をしているか:
-        //   HUD 表示用の状態文字列を serverOnceVal だけで作る（フォールバックしない）
-        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
-          onceStateLabel = "計測済";
-        } else {
-          onceStateLabel = "未開始";
-        }
-
-        // --- 何をしているか:
-        //   localの記録表示は “today 判定” の参照元から外すため、HUDでは常に "-" に固定
-        onceRecordLabel = "-";
-
-        // --- 何をしているか:
-        //   結果表示も serverOnceVal のみ（フォールバックしない）
-        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
-          onceResultLabel = String(serverOnceVal);
-        } else {
-          onceResultLabel = "-";
-        }
-
-        // --- 何をしているか:
-        //   計測OKは「serverOnceVal が存在するか」だけで決める（ローカル照合はしない）
-        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
-          onceMeasureOkLabel = "OK";
-        } else {
-          onceMeasureOkLabel = "NG";
-        }
-
-        // --- 何をしているか:
-        //   すでに計測済みかどうかも唯一の参照元（serverOnceVal）だけで判定
-        var alreadyCounted = false;
-        if (serverOnceVal === "correct" || serverOnceVal === "wrong") {
-          alreadyCounted = true;
-        }
-
-        // --- 何をしているか:
-        //   VERIFYモードは常に count対象 NO（ガード）
-        var verifyModeOn =
-          typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
-
-        // --- 何をしているか:
-        //   ODOAモードは唯一の参照元 window.CSCS_ODOA_MODE（"on"/"off"）のみを見る
-        var odoaRaw = null;
-        try {
-          if (typeof window.CSCS_ODOA_MODE === "string") {
-            odoaRaw = window.CSCS_ODOA_MODE;
-          }
-        } catch (_eOdoaPick) {
-          odoaRaw = null;
-        }
-
-        var odoaLower = "";
-        try {
-          odoaLower = (odoaRaw == null ? "" : String(odoaRaw)).trim().toLowerCase();
-        } catch (_eOdoaLower) {
-          odoaLower = "";
-        }
-
-        // --- 何をしているか:
-        //   "on"/"off" 以外は未知扱いにせず OFF に寄せる（参照元は変えない）
-        var odoaIsOn = (odoaLower === "on");
-
-        // --- 何をしているか:
-        //   count対象は「計測済」「VERIFY」「ODOA」で No、それ以外のみ Yes
-        if (alreadyCounted) {
-          onceCountableLabel = "No（計測済）";
-        } else if (verifyModeOn) {
-          onceCountableLabel = "No（ガード）";
-        } else if (odoaIsOn) {
-          onceCountableLabel = "No（ガード）";
-        } else {
-          onceCountableLabel = "Yes（未計測）";
-        }
-
-        // --- 何をしているか:
-        //   ODOA行の末尾ステータスは「oncePerDayToday の結果」だけを採用（フォールバックしない）
-        var odoaResultSuffix = "nocount";
-        if (serverOnceVal === "correct") {
-          odoaResultSuffix = "Correct";
-        } else if (serverOnceVal === "wrong") {
-          odoaResultSuffix = "Wrong";
-        }
-
-        // --- 何をしているか:
-        //   VERIFY/ODOA は累計加算 No として表示する（ガード理由の明示）
-        var addNo = false;
-        if (verifyModeOn) addNo = true;
-        if (odoaIsOn) addNo = true;
-
-        if (odoaIsOn) {
-          onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
-        } else {
-          onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
-        }
-      } catch (_eOnceAll) {
-        onceStateLabel = "未開始";
-        onceMeasureOkLabel = "-";
-        onceResultLabel = "-";
-        onceTodayDateLabel = "-";
-        onceQidLabel = (info && info.qid) ? info.qid : "-";
-        onceCountableLabel = "-";
-        onceRecordLabel = "-";
-        onceOdoaLabel = "-";
-      }
-
-      // ★ グリッド描画用モデル（2列：label / value）
-      updateSyncBodyGrid({
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
-
-        serverProgress: serverProgress,
-        localProgress: localProgress,
-        diffProgress: diffProgress,
-
-        serverStreak3Wrong: serverStreak3Wrong,
-        localStreak3Wrong: localStreak3Wrong,
-        diffStreak3Wrong: diffStreak3Wrong,
-
-        serverWrongStreakLen: serverWrongStreakLen,
-        localWrongStreakLen: localWrongStreakLen,
-        diffWrongStreakLen: diffWrongStreakLen,
-
-        serverWrongProgress: serverWrongProgress,
-        localWrongProgress: localWrongProgress,
-        diffWrongProgress: diffWrongProgress,
-
-        s3TodayDayLabel: s3TodayDayLabel,
-        s3TodaySyncCnt: s3TodaySyncCnt,
-        localS3TodayCnt: localS3TodayCnt,
-
-        s3WrongTodayDayLabel: s3WrongTodayDayLabel,
-        s3WrongTodaySyncCnt: s3WrongTodaySyncCnt,
-        localS3WrongTodayCnt: localS3WrongTodayCnt,
-
-        // ★ Pending 詳細表示用：qids（SYNC / local）
-        s3TodaySyncQids: s3TodaySyncQids,
-        localS3TodayQids: localS3TodayQids,
-        s3WrongTodaySyncQids: s3WrongTodaySyncQids,
-        localS3WrongTodayQids: localS3WrongTodayQids,
-
-        lastSeenSyncLabel: lastSeenSyncLabel,
-        lastCorrectSyncLabel: lastCorrectSyncLabel,
-        lastWrongSyncLabel: lastWrongSyncLabel,
-
-        lastSeenLocalLabel: lastSeenLocalLabel,
-        lastCorrectLocalLabel: lastCorrectLocalLabel,
-        lastWrongLocalLabel: lastWrongLocalLabel,
-
-        pending: (payload && payload.pending) ? payload.pending : null,
-
-        onceStateLabel: onceStateLabel,
-        onceMeasureOkLabel: onceMeasureOkLabel,
-        onceResultLabel: onceResultLabel,
-        onceTodayDateLabel: onceTodayDateLabel,
-        onceQidLabel: onceQidLabel,
-        onceCountableLabel: onceCountableLabel,
-        onceRecordLabel: onceRecordLabel,
-        onceOdoaLabel: onceOdoaLabel,
-
-        // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続正解数 / 更新日）
-        localCorrectStreakMax: localCorrectStreakMax,
-        localCorrectStreakMaxDayLabel: localCorrectStreakMaxDayLabel,
-
-        // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続不正解数 / 達成日）
-        localWrongStreakMax: localWrongStreakMax,
-        localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel
-      });
-
-      // ★ ここから O.D.O.A Mode 表示専用ロジック
-
-      // デフォルトは OFF とし、/api/sync/state の otoa_mode を参照して上書き
-      var odoaModeText = "OFF";
-      try {
-        var state = window.__cscs_sync_state || null;
-        var rawMode = null;
-
-        // 1) payload 経由の odoaModeText があれば優先
-        if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
-          rawMode = payload.odoaModeText;
-        } else if (state && typeof state.odoa_mode === "string") {
-          // 2) SYNC state のトップレベルキー odoa_mode
-          rawMode = state.odoa_mode;
-        }
-
-        if (rawMode === "ON" || rawMode === "on") {
-          odoaModeText = "ON";
-        } else if (rawMode === "OFF" || rawMode === "off") {
-          odoaModeText = "OFF";
-        } else if (rawMode === "on ") {
-          odoaModeText = "ON";
-        }
-      } catch (_ignore) {
-        odoaModeText = "OFF";
-      }
-
-      // ★ パネルに出す最終文字列（「O.D.O.A Mode : ON correct」など）
-      //   - payload.odoaStatusText が "__keep__" のときは前回表示を維持
-      //   - それ以外の文字列のときはその文字列で更新
-      //   - 空や未指定のときはモードからデフォルト文字列を組み立てる
-      var odoaStatusText = "";
-      var rawStatusFromPayload = "";
-      if (payload && typeof payload.odoaStatusText === "string") {
-        rawStatusFromPayload = payload.odoaStatusText;
-      }
-
-      if (rawStatusFromPayload === "__keep__") {
-        // 前回の HUD 表示をそのまま使う
-        if (LAST_ODOA_STATUS) {
-          odoaStatusText = LAST_ODOA_STATUS;
-          console.log("[SYNC-B] ODOA HUD status kept as-is:", odoaStatusText);
-        } else {
-          // まだ一度も表示していない場合はモードから初期値を作る
-          odoaStatusText = "O.D.O.A Mode : " + odoaModeText;
-          LAST_ODOA_STATUS = odoaStatusText;
-          console.log("[SYNC-B] ODOA HUD status initialized (no previous):", odoaStatusText);
-        }
-      } else if (rawStatusFromPayload) {
-        // 新しいステータス文字列に更新
-        odoaStatusText = rawStatusFromPayload;
-        LAST_ODOA_STATUS = odoaStatusText;
-        console.log("[SYNC-B] ODOA HUD status updated from payload:", odoaStatusText);
-      } else {
-        // 明示指定なし → モードからデフォルトを生成して保存
-        odoaStatusText = "O.D.O.A Mode : " + odoaModeText;
-        LAST_ODOA_STATUS = odoaStatusText;
-        console.log("[SYNC-B] ODOA HUD status set from mode:", odoaStatusText);
-      }
-
-      var statusDiv = document.getElementById("cscs_sync_view_b_status");
-      if (statusDiv) {
-        statusDiv.textContent = odoaStatusText;
-      }
-
-      // 内部用の statusText はログとして残すだけ
-      if (statusText) {
-        console.log("[SYNC-B] statusText (internal):", statusText);
-      }
-    } catch (e) {
-      var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
-      updateSyncBodyText(errorText);
-
-      var statusDiv = document.getElementById("cscs_sync_view_b_status");
-      if (statusDiv) {
-        // エラー時もフォーマットは崩さず OFF として出す
-        statusDiv.textContent = "O.D.O.A Mode : OFF";
-      }
-
-      console.error("[SYNC-B] renderPanel error:", e);
     }
   }
 
-  async function sendDiffToServer(box, params) {
-    var qid = info.qid;
+  // ★ デバッグ専用: 全ての qid の計測系 SYNC + local 記録を一括リセットする
+  //   - 本仕様のユーザー機能ではなく、開発・検証用のみに使用することを想定
+  async function resetAllQidSyncAndLocal(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      console.log("[SYNC-A:debug] reset_all_qid START");
 
-    // ====== ① 各種 diff / local / server 値を受け取る ======
-    // params は refreshAndSend() 側で作られた「同期前の状態比較」結果
-    var diffCorrect = params.diffCorrect;      // local - server の「正解」増分
-    var diffWrong = params.diffWrong;          // local - server の「不正解」増分
-    var diffStreak3 = params.diffStreak3 || 0; // local streak3 達成の増分（3連続正解の+1）
-    var diffStreakLen = params.diffStreakLen || 0;
-    // ★ 不正解側: 3連続不正解の増分と、連続不正解長の差分（0 以上の増分）
-    var diffStreak3Wrong = params.diffStreak3Wrong || 0;
-    var diffWrongStreakLen = params.diffWrongStreakLen || 0;
-
-    var localCorrect = params.localCorrect;    // localStorage 側の正解累計値
-    var localWrong = params.localWrong;        // localStorage 側の不正解累計値
-    var localStreak3 = params.localStreak3 || 0;
-    var localStreakLen = params.localStreakLen || 0;
-    // ★ 不正解側: localStorage の 3連続不正解回数 / 連続不正解長
-    var localStreak3Wrong = params.localStreak3Wrong || 0;
-    var localWrongStreakLen = params.localWrongStreakLen || 0;
-
-    var serverCorrect = params.serverCorrect;  // サーバー側 snapshot の正解累計
-    var serverWrong = params.serverWrong;
-    var serverStreak3 = params.serverStreak3 || 0;
-    var serverStreakLen = params.serverStreakLen || 0;
-    // ★ 不正解側: サーバー側 snapshot の 3連続不正解回数 / 連続不正解長
-    var serverStreak3Wrong = params.serverStreak3Wrong || 0;
-    var serverWrongStreakLen = params.serverWrongStreakLen || 0;
-
-    // ★ コンソールで送信前の不正解ストリーク状態を確認できるようにログ出力
-    console.log("[SYNC-B] sendDiffToServer: wrong-streak params", {
-      qid: qid,
-      diffStreak3Wrong: diffStreak3Wrong,
-      diffWrongStreakLen: diffWrongStreakLen,
-      localStreak3Wrong: localStreak3Wrong,
-      localWrongStreakLen: localWrongStreakLen,
-      serverStreak3Wrong: serverStreak3Wrong,
-      serverWrongStreakLen: serverWrongStreakLen
-    });
-
-    // ★ 何をしているか:
-    //   ODOAモードは唯一の参照元 window.CSCS_ODOA_MODE（"on"/"off"）のみを見る（params には依存しない）
-    var odoaModeText = "OFF";
-    try {
-      var t = (typeof window.CSCS_ODOA_MODE === "string" ? window.CSCS_ODOA_MODE : "").trim().toLowerCase();
-      if (t === "on") {
-        odoaModeText = "ON";
-      } else if (t === "off") {
-        odoaModeText = "OFF";
-      }
-    } catch (_eOdoaModeText) {
-      odoaModeText = "OFF";
-    }
-
-    // ★ 追加: /api/sync/state の snapshot を受け取り、
-    //    そこから oncePerDayTodayDelta / 最終日 Delta を構築するために利用する
-    var syncState = params.syncState || null;
-
-    // ★ 追加: oncePerDayTodayDelta を事前に構築しておく
-    //   - 差分が無ければ null
-    //   - 何かあれば { day, results } を返す
-    var oncePerDayDelta = buildOncePerDayTodayDelta(syncState);
-
-    // ★ 追加: 最終学習日・最終正解日・最終不正解日の local / server を取得し、差分の有無を判定
-    var localLastSeenDay = readDayFromLocalStorage("cscs_q_last_seen_day:" + qid);
-    var localLastCorrectDay = readDayFromLocalStorage("cscs_q_last_correct_day:" + qid);
-    var localLastWrongDay = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qid);
-
-    var serverLastSeenDay = null;
-    var serverLastCorrectDay = null;
-    var serverLastWrongDay = null;
-
-    if (syncState) {
-      if (syncState.lastSeenDay && typeof syncState.lastSeenDay === "object" && syncState.lastSeenDay[qid] != null) {
-        var sSeen = syncState.lastSeenDay[qid];
-        if (typeof sSeen === "number" && Number.isFinite(sSeen) && sSeen > 0) {
-          serverLastSeenDay = sSeen;
-        }
-      }
-      if (syncState.lastCorrectDay && typeof syncState.lastCorrectDay === "object" && syncState.lastCorrectDay[qid] != null) {
-        var sCor = syncState.lastCorrectDay[qid];
-        if (typeof sCor === "number" && Number.isFinite(sCor) && sCor > 0) {
-          serverLastCorrectDay = sCor;
-        }
-      }
-      if (syncState.lastWrongDay && typeof syncState.lastWrongDay === "object" && syncState.lastWrongDay[qid] != null) {
-        var sWrong = syncState.lastWrongDay[qid];
-        if (typeof sWrong === "number" && Number.isFinite(sWrong) && sWrong > 0) {
-          serverLastWrongDay = sWrong;
-        }
-      }
-    }
-
-    var hasLastSeenDayDiff = localLastSeenDay !== null && localLastSeenDay !== serverLastSeenDay;
-    var hasLastCorrectDayDiff = localLastCorrectDay !== null && localLastCorrectDay !== serverLastCorrectDay;
-    var hasLastWrongDayDiff = localLastWrongDay !== null && localLastWrongDay !== serverLastWrongDay;
-
-    if (hasLastSeenDayDiff || hasLastCorrectDayDiff || hasLastWrongDayDiff) {
-      console.log("[SYNC-B] lastDay diff detected", {
-        qid: qid,
-        localLastSeenDay: localLastSeenDay,
-        serverLastSeenDay: serverLastSeenDay,
-        localLastCorrectDay: localLastCorrectDay,
-        serverLastCorrectDay: serverLastCorrectDay,
-        localLastWrongDay: localLastWrongDay,
-        serverLastWrongDay: serverLastWrongDay
-      });
-    }
-
-    // ====== ② diff が存在しない場合は SYNC を送らず終了 ======
-    // ・diffCorrect / diffWrong / diffStreak3 / diffStreak3Wrong が 0 以下
-    // ・かつ streakLen / streakWrongLen が server と同じ
-    // ・かつ oncePerDayDelta が null
-    // ・かつ lastSeen / lastCorrect / lastWrong に差分が無い
-    //
-    // → 「今回は送るべき更新が何もない」ので、
-    //    HUD パネルの表示だけ更新して return する。
-    if (diffCorrect <= 0 &&
-        diffWrong <= 0 &&
-        diffStreak3 <= 0 &&
-        diffStreak3Wrong <= 0 &&
-        localStreakLen === serverStreakLen &&
-        localWrongStreakLen === serverWrongStreakLen &&
-        !oncePerDayDelta &&
-        !hasLastSeenDayDiff &&
-        !hasLastCorrectDayDiff &&
-        !hasLastWrongDayDiff) {
-
-      var odoaStatusTextForPanel;
-      if (odoaModeText === "ON") {
-        odoaStatusTextForPanel = "O.D.O.A Mode : ON nocount";
-      } else {
-        odoaStatusTextForPanel = "O.D.O.A Mode : OFF";
-      }
-
-      renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
-        statusText: "no diff (送信なし) / oncePerDayToday: 計測なし",
-        odoaModeText: odoaModeText,
-        odoaStatusText: odoaStatusTextForPanel
-      });
-      return;
-    }
-
-    // ====== ③ オフライン時は送れないため「未送信」ステータスで終了 ======
-    if (!navigator.onLine) {
-      var offlineOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
-      var odoaStatusTextForPanelOffline;
-      if (odoaModeText === "ON") {
-        odoaStatusTextForPanelOffline = "O.D.O.A Mode : ON nocount";
-      } else {
-        odoaStatusTextForPanelOffline = "O.D.O.A Mode : OFF";
-      }
-      renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
-        statusText: "offline (未送信) / " + offlineOncePerDayStatus,
-        odoaModeText: odoaModeText,
-        odoaStatusText: odoaStatusTextForPanelOffline
-      });
-      return;
-    }
-
-    // ====== ④ 各 delta オブジェクトを作る（送信する差分を構築） ======
-    // * diffCorrect, diffWrong, diffStreak3 等は「増分として送る」
-    // * streakLenDelta / streakWrongLenDelta / last*DayDelta は「最新値で上書きする」
-    var correctDeltaObj = {};
-    var incorrectDeltaObj = {};
-    var streak3DeltaObj = {};
-    var streakLenDeltaObj = {};
-    var streak3WrongDeltaObj = {};
-    var streakWrongLenDeltaObj = {};
-    var lastSeenDayDeltaObj = {};
-    var lastCorrectDayDeltaObj = {};
-    var lastWrongDayDeltaObj = {};
-
-    if (diffCorrect > 0) {
-      correctDeltaObj[qid] = diffCorrect;
-    }
-    if (diffWrong > 0) {
-      incorrectDeltaObj[qid] = diffWrong;
-    }
-    if (diffStreak3 > 0) {
-      streak3DeltaObj[qid] = diffStreak3;
-    }
-    // ★ 不正解側: 3連続不正解の増分があれば delta として送信
-    if (diffStreak3Wrong > 0) {
-      streak3WrongDeltaObj[qid] = diffStreak3Wrong;
-      console.log("[SYNC-B] streak3WrongDelta set:", {
-        qid: qid,
-        diffStreak3Wrong: diffStreak3Wrong
-      });
-    }
-
-    // ====== ⑤ streakLenDelta（連続正解長）の扱い ======
-    // ★ local と server が同じ連続正解長なら送らない（ノイズ防止）
-    // ★ local と server が違う場合のみ「値そのもの」を送る
-    //
-    // ※ streakLenDelta は「増分」ではなく「セットする最新値」
-    if (localStreakLen !== serverStreakLen) {
-      streakLenDeltaObj[qid] = localStreakLen;
-      console.log("[SYNC-B] streakLenDelta set (local != server):", {
-        qid: qid,
-        localStreakLen: localStreakLen,
-        serverStreakLen: serverStreakLen
-      });
-    } else {
-      console.log("[SYNC-B] streakLenDelta not set (local == server):", {
-        qid: qid,
-        localStreakLen: localStreakLen,
-        serverStreakLen: serverStreakLen
-      });
-    }
-
-    // ★ 不正解側: streakWrongLenDelta（連続不正解長）の扱い
-    //   - local と server が同じ連続不正解長なら送らない
-    //   - 違う場合のみ「最新値」として送る
-    if (localWrongStreakLen !== serverWrongStreakLen) {
-      streakWrongLenDeltaObj[qid] = localWrongStreakLen;
-      console.log("[SYNC-B] streakWrongLenDelta set (local != server):", {
-        qid: qid,
-        localWrongStreakLen: localWrongStreakLen,
-        serverWrongStreakLen: serverWrongStreakLen
-      });
-    } else {
-      console.log("[SYNC-B] streakWrongLenDelta not set (local == server):", {
-        qid: qid,
-        localWrongStreakLen: localWrongStreakLen,
-        serverWrongStreakLen: serverWrongStreakLen
-      });
-    }
-
-    // ★ 最終日情報: local と server が異なる場合のみ「最新日付」で上書きする Delta を付与
-    if (hasLastSeenDayDiff && localLastSeenDay !== null) {
-      lastSeenDayDeltaObj[qid] = localLastSeenDay;
-      console.log("[SYNC-B] lastSeenDayDelta set:", {
-        qid: qid,
-        localLastSeenDay: localLastSeenDay,
-        serverLastSeenDay: serverLastSeenDay
-      });
-    }
-    if (hasLastCorrectDayDiff && localLastCorrectDay !== null) {
-      lastCorrectDayDeltaObj[qid] = localLastCorrectDay;
-      console.log("[SYNC-B] lastCorrectDayDelta set:", {
-        qid: qid,
-        localLastCorrectDay: localLastCorrectDay,
-        serverLastCorrectDay: serverLastCorrectDay
-      });
-    }
-    if (hasLastWrongDayDiff && localLastWrongDay !== null) {
-      lastWrongDayDeltaObj[qid] = localLastWrongDay;
-      console.log("[SYNC-B] lastWrongDayDelta set:", {
-        qid: qid,
-        localLastWrongDay: localLastWrongDay,
-        serverLastWrongDay: serverLastWrongDay
-      });
-    }
-
-    // ====== ⑥ 上記 delta 群をまとめて payload を構築 ======
-    var payload = {
-      correctDelta:  correctDeltaObj,
-      incorrectDelta: incorrectDeltaObj,
-      streak3Delta:  streak3DeltaObj,
-      streakLenDelta: streakLenDeltaObj,            // streakLen は上書き
-      streak3WrongDelta: streak3WrongDeltaObj,      // 不正解側 3連続の増分
-      streakWrongLenDelta: streakWrongLenDeltaObj,  // 不正解側 連続長の最新値
-      lastSeenDayDelta: lastSeenDayDeltaObj,        // 最終学習日
-      lastCorrectDayDelta: lastCorrectDayDeltaObj,  // 最終正解日
-      lastWrongDayDelta: lastWrongDayDeltaObj,      // 最終不正解日
-      updatedAt: Date.now()                         // クライアント側での更新時刻
-    };
-
-    // ★ 追加: 総問題数（cscs_total_questions）を global.totalQuestions として付与
-    //   - b_judge_record.js が manifest.json から算出・保存した値を唯一のソースとする
-    //   - 正の整数が得られた場合のみ payload に含める
-    var totalQuestions = readTotalQuestionsFromLocalStorage();
-    if (totalQuestions !== null) {
-      if (!payload.global || typeof payload.global !== "object") {
-        payload.global = {};
-      }
-      payload.global.totalQuestions = totalQuestions;
-      console.log("[SYNC-B] attach global.totalQuestions to payload:", {
-        totalQuestions: totalQuestions
-      });
-    }
-
-    // ★ 追加: oncePerDayTodayDelta がある場合は payload に付与
-    if (oncePerDayDelta) {
-      payload.oncePerDayTodayDelta = oncePerDayDelta;
-      console.log("[SYNC-B] oncePerDayTodayDelta attached to payload:", oncePerDayDelta);
-    }
-
-    // ★ payload に有効な delta が 1つも無い場合は、
-    //    「2回目 save 由来のノイズ送信」とみなして fetch 自体を行わないガード
-    //    （ここを通らなかった＝実際に送信された、というのがログで確認できる）
-    var hasCorrectDeltaInPayload = Object.prototype.hasOwnProperty.call(correctDeltaObj, qid);
-    var hasIncorrectDeltaInPayload = Object.prototype.hasOwnProperty.call(incorrectDeltaObj, qid);
-    var hasStreak3DeltaInPayload = Object.prototype.hasOwnProperty.call(streak3DeltaObj, qid);
-    var hasStreakLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakLenDeltaObj, qid);
-    var hasStreak3WrongDeltaInPayload = Object.prototype.hasOwnProperty.call(streak3WrongDeltaObj, qid);
-    var hasStreakWrongLenDeltaInPayload = Object.prototype.hasOwnProperty.call(streakWrongLenDeltaObj, qid);
-    var hasLastSeenDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastSeenDayDeltaObj, qid);
-    var hasLastCorrectDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastCorrectDayDeltaObj, qid);
-    var hasLastWrongDayDeltaInPayload = Object.prototype.hasOwnProperty.call(lastWrongDayDeltaObj, qid);
-    var hasOncePerDayDeltaInPayload = !!oncePerDayDelta;
-    var hasGlobalTotalQuestionsInPayload =
-      !!(payload.global &&
-         typeof payload.global === "object" &&
-         Object.prototype.hasOwnProperty.call(payload.global, "totalQuestions"));
-
-    if (
-      !hasCorrectDeltaInPayload &&
-      !hasIncorrectDeltaInPayload &&
-      !hasStreak3DeltaInPayload &&
-      !hasStreakLenDeltaInPayload &&
-      !hasStreak3WrongDeltaInPayload &&
-      !hasStreakWrongLenDeltaInPayload &&
-      !hasLastSeenDayDeltaInPayload &&
-      !hasLastCorrectDayDeltaInPayload &&
-      !hasLastWrongDayDeltaInPayload &&
-      !hasOncePerDayDeltaInPayload &&
-      !hasGlobalTotalQuestionsInPayload
-    ) {
-      console.log("[SYNC-B] ★送信スキップ（payload に有効な delta が無いため）", {
-        qid: qid,
-        payload: payload
-      });
-
-      // oncePerDayToday 用の delta も payload に含まれていないため「oncePerDayToday: 計測なし」として扱う
-      // パネル側にも「送信していない」ことが分かるようステータスを反映
-      renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
-        statusText: "no delta in payload (送信スキップ) / oncePerDayToday: 計測なし",
-        odoaModeText: odoaModeText
-      });
-      return;
-    }
-
-    console.log("[SYNC-B] sending diff payload:", payload);
-
-    try {
-      var response = await fetch(SYNC_MERGE_ENDPOINT, {
+      // 1) Workers 側で全qidの計測系データをリセットする（デバッグ用エンドポイント想定）
+      const res = await fetch("/api/sync/reset_all_qid", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-        keepalive: true
+        headers: { "content-type": "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(String(res.status));
+      }
+
+      // 2) localStorage 側の計測系キーを全て削除
+      let removedKeys = 0;
+      try{
+        const prefixes = [
+          "cscs_q_correct_total:",
+          "cscs_q_wrong_total:",
+          "cscs_q_correct_streak3_total:",
+          "cscs_q_correct_streak_len:",
+          "cscs_q_wrong_streak3_total:",
+          "cscs_q_wrong_streak_len:",
+          "cscs_sync_last_c:",
+          "cscs_sync_last_w:",
+          "cscs_sync_last_s3:"
+        ];
+
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          for (let j = 0; j < prefixes.length; j++) {
+            if (key.indexOf(prefixes[j]) === 0) {
+              localStorage.removeItem(key);
+              removedKeys++;
+              break;
+            }
+          }
+        }
+
+        const globalKeys = [
+          "cscs_streak3_today_day",
+          "cscs_streak3_today_unique_count",
+          "cscs_streak3_today_qids",
+          // ★ 今日の3連続不正解ユニーク数（Streak3WrongToday）関連キーも一括削除対象に含める
+          //   - reset_all_qid 実行時に「今日の3連続不正解ユニーク数」のローカル状態も完全リセットする。
+          "cscs_streak3_wrong_today_day",
+          "cscs_streak3_wrong_today_unique_count",
+          "cscs_streak3_wrong_today_qids",
+          "cscs_once_per_day_today_day",
+          "cscs_once_per_day_today_results",
+          "cscs_correct_streak3_log"
+        ];
+        for (let g = 0; g < globalKeys.length; g++) {
+          try{
+            if (localStorage.getItem(globalKeys[g]) !== null) {
+              localStorage.removeItem(globalKeys[g]);
+              removedKeys++;
+            }
+          }catch(_){}
+        }
+      }catch(_){}
+
+      // 3) クライアント側 snapshot を一旦クリアしてから /api/sync/state を取り直す
+      try{
+        window.__cscs_sync_state = {};
+      }catch(_){}
+
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 4) モニタを最新状態で再描画
+      updateMonitor();
+
+      console.log("[SYNC-A:debug] reset_all_qid COMPLETED", {
+        removedLocalKeys: removedKeys
       });
 
-      // サーバーまで届かなかった／保存に失敗した可能性
-      if (!response.ok) {
-        console.error("[SYNC-B] server returned non-ok status:", response.status);
-        var mergeErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
-        var odoaStatusTextForPanelMergeError;
-        if (odoaModeText === "ON") {
-          odoaStatusTextForPanelMergeError = "O.D.O.A Mode : ON nocount";
-        } else {
-          odoaStatusTextForPanelMergeError = "O.D.O.A Mode : OFF";
-        }
-        renderPanel(box, {
-          serverCorrect: serverCorrect,
-          serverWrong: serverWrong,
-          localCorrect: localCorrect,
-          localWrong: localWrong,
-          diffCorrect: diffCorrect,
-          diffWrong: diffWrong,
-          serverStreak3: serverStreak3,
-          localStreak3: localStreak3,
-          diffStreak3: diffStreak3,
-          serverStreakLen: serverStreakLen,
-          localStreakLen: localStreakLen,
-          diffStreakLen: diffStreakLen,
-          statusText: "merge " + String(response.status) + " (サーバー保存エラーの可能性) / " + mergeErrorOncePerDayStatus,
-          odoaModeText: odoaModeText,
-          odoaStatusText: odoaStatusTextForPanelMergeError
-        });
-        return;
+      if (showAlert) {
+        alert("全ての問題(qid)の計測系 SYNC と local 記録をリセットしました（デバッグ専用）。");
       }
-
-      var data = null;
-      try {
-        data = await response.json();
-      } catch (e) {
-        data = null;
+    }catch(e){
+      console.warn("[SYNC-A:debug] reset_all_qid FAILED:", e);
+      if (showAlert) {
+        alert("reset_all_qid 失敗: " + e);
       }
-
-      console.log("[SYNC-B] sync success:", data);
-
-      // merge のレスポンスから「サーバーに保存された値」を拾う
-      var newServerCorrect = serverCorrect;
-      var newServerWrong = serverWrong;
-      var newServerStreak3 = serverStreak3;
-      var newServerStreakLen = serverStreakLen;
-      var newServerStreak3Wrong = serverStreak3Wrong;
-      var newServerWrongStreakLen = serverWrongStreakLen;
-
-      if (data && data.correct && typeof data.correct === "object" && data.correct !== null) {
-        if (Object.prototype.hasOwnProperty.call(data.correct, qid)) {
-          var cVal = data.correct[qid];
-          if (typeof cVal === "number" && Number.isFinite(cVal) && cVal >= 0) {
-            newServerCorrect = cVal;
-          }
-        }
-      }
-
-      if (data && data.incorrect && typeof data.incorrect === "object" && data.incorrect !== null) {
-        if (Object.prototype.hasOwnProperty.call(data.incorrect, qid)) {
-          var wVal = data.incorrect[qid];
-          if (typeof wVal === "number" && Number.isFinite(wVal) && wVal >= 0) {
-            newServerWrong = wVal;
-          }
-        }
-      }
-
-      if (data && data.streak3 && typeof data.streak3 === "object" && data.streak3 !== null) {
-        if (Object.prototype.hasOwnProperty.call(data.streak3, qid)) {
-          var sVal = data.streak3[qid];
-          if (typeof sVal === "number" && Number.isFinite(sVal) && sVal >= 0) {
-            newServerStreak3 = sVal;
-          }
-        }
-      }
-
-      if (data && data.streakLen && typeof data.streakLen === "object" && data.streakLen !== null) {
-        if (Object.prototype.hasOwnProperty.call(data.streakLen, qid)) {
-          var slVal = data.streakLen[qid];
-          if (typeof slVal === "number" && Number.isFinite(slVal) && slVal >= 0) {
-            newServerStreakLen = slVal;
-          }
-        }
-      }
-
-      // ★ 不正解側: merge レスポンスの streak3Wrong / streakWrongLen も拾う
-      if (data && data.streak3Wrong && typeof data.streak3Wrong === "object" && data.streak3Wrong !== null) {
-        if (Object.prototype.hasOwnProperty.call(data.streak3Wrong, qid)) {
-          var s3wVal = data.streak3Wrong[qid];
-          if (typeof s3wVal === "number" && Number.isFinite(s3wVal) && s3wVal >= 0) {
-            newServerStreak3Wrong = s3wVal;
-          }
-        }
-      }
-
-      if (data && data.streakWrongLen && typeof data.streakWrongLen === "object" && data.streakWrongLen !== null) {
-        if (Object.prototype.hasOwnProperty.call(data.streakWrongLen, qid)) {
-          var slwVal = data.streakWrongLen[qid];
-          if (typeof slwVal === "number" && Number.isFinite(slwVal) && slwVal >= 0) {
-            newServerWrongStreakLen = slwVal;
-          }
-        }
-      }
-
-      var newDiffCorrect = Math.max(0, localCorrect - newServerCorrect);
-      var newDiffWrong = Math.max(0, localWrong - newServerWrong);
-      var newDiffStreak3 = Math.max(0, localStreak3 - newServerStreak3);
-      var newDiffStreakLen = Math.max(0, localStreakLen - newServerStreakLen);
-      var newDiffStreak3Wrong = Math.max(0, localStreak3Wrong - newServerStreak3Wrong);
-      var newDiffWrongStreakLen = Math.max(0, localWrongStreakLen - newServerWrongStreakLen);
-
-      // ★ merge 成功後に /api/sync/state を再取得して、
-      //    「保存されたか」「state に反映されたか」を diff ベースで確認する
-      try {
-        var stateAfter = await fetchState();
-        try {
-          window.__cscs_sync_state = stateAfter;
-        } catch (_e2) {}
-
-        var refreshedServerCorrect = newServerCorrect;
-        var refreshedServerWrong = newServerWrong;
-        var refreshedServerStreak3 = newServerStreak3;
-        var refreshedServerStreakLen = newServerStreakLen;
-        var refreshedServerStreak3Wrong = newServerStreak3Wrong;
-        var refreshedServerWrongStreakLen = newServerWrongStreakLen;
-
-        if (stateAfter && stateAfter.correct && stateAfter.correct[qid] != null) {
-          refreshedServerCorrect = stateAfter.correct[qid];
-        }
-        if (stateAfter && stateAfter.incorrect && stateAfter.incorrect[qid] != null) {
-          refreshedServerWrong = stateAfter.incorrect[qid];
-        }
-        if (stateAfter && stateAfter.streak3 && stateAfter.streak3[qid] != null) {
-          refreshedServerStreak3 = stateAfter.streak3[qid];
-        }
-        if (stateAfter && stateAfter.streakLen && stateAfter.streakLen[qid] != null) {
-          refreshedServerStreakLen = stateAfter.streakLen[qid];
-        }
-        // ★ 不正解側: stateAfter.streak3Wrong / streakWrongLen も確認
-        if (stateAfter && stateAfter.streak3Wrong && stateAfter.streak3Wrong[qid] != null) {
-          refreshedServerStreak3Wrong = stateAfter.streak3Wrong[qid];
-        }
-        if (stateAfter && stateAfter.streakWrongLen && stateAfter.streakWrongLen[qid] != null) {
-          refreshedServerWrongStreakLen = stateAfter.streakWrongLen[qid];
-        }
-
-        var refreshedDiffCorrect = Math.max(0, localCorrect - refreshedServerCorrect);
-        var refreshedDiffWrong = Math.max(0, localWrong - refreshedServerWrong);
-        var refreshedDiffStreak3 = Math.max(0, localStreak3 - refreshedServerStreak3);
-        var refreshedDiffStreakLen = Math.max(0, localStreakLen - refreshedServerStreakLen);
-        var refreshedDiffStreak3Wrong = Math.max(0, localStreak3Wrong - refreshedServerStreak3Wrong);
-        var refreshedDiffWrongStreakLen = Math.max(0, localWrongStreakLen - refreshedServerWrongStreakLen);
-
-        // ★ console から不正解ストリークの同期状況を確認しやすくするログ
-        console.log("[SYNC-B] wrong-streak after merge+state:", {
-          qid: qid,
-          refreshedServerStreak3Wrong: refreshedServerStreak3Wrong,
-          localStreak3Wrong: localStreak3Wrong,
-          refreshedDiffStreak3Wrong: refreshedDiffStreak3Wrong,
-          refreshedServerWrongStreakLen: refreshedServerWrongStreakLen,
-          localWrongStreakLen: localWrongStreakLen,
-          refreshedDiffWrongStreakLen: refreshedDiffWrongStreakLen
-        });
-
-        var statusMsg = "merge ok / state synced (保存・反映完了)";
-        if (
-          refreshedDiffCorrect > 0 ||
-          refreshedDiffWrong > 0 ||
-          refreshedDiffStreak3 > 0 ||
-          refreshedDiffStreakLen > 0 ||
-          refreshedDiffStreak3Wrong > 0 ||
-          refreshedDiffWrongStreakLen > 0
-        ) {
-          statusMsg = "merge ok / state に未反映の差分あり";
-        }
-
-        // oncePerDayToday の状態（before / after）を見て、
-        // ・first time correct  → ON correct
-        // ・first time wrong    → ON wrong
-        // ・それ以外（すでに回答済み）→ ON nocount
-        var oncePerDayStatus = "oncePerDayToday: 計測なし";
-        var prevOnceVal = null;
-        var newOnceVal = null;
-        var localOnceDay = null;
-
-        try {
-          var localOnce = readOncePerDayTodayFromLocal();
-          localOnceDay = localOnce && typeof localOnce.day === "number" ? localOnce.day : null;
-
-          if (oncePerDayDelta) {
-            var syncedOncePerDay = false;
-            if (stateAfter && stateAfter.oncePerDayToday && typeof stateAfter.oncePerDayToday === "object") {
-              var sOnceAfter = stateAfter.oncePerDayToday;
-              if (typeof sOnceAfter.day === "number" && (!localOnceDay || sOnceAfter.day === localOnceDay)) {
-                syncedOncePerDay = true;
-                var sResultsAfter = sOnceAfter.results || {};
-                if (sResultsAfter && typeof sResultsAfter === "object" && Object.prototype.hasOwnProperty.call(sResultsAfter, qid)) {
-                  newOnceVal = sResultsAfter[qid];
-                }
-              }
-            }
-            if (syncedOncePerDay) {
-              oncePerDayStatus = "oncePerDayToday: 計測済";
-            } else {
-              oncePerDayStatus = "oncePerDayToday: 計測エラー";
-            }
-          } else {
-            oncePerDayStatus = "oncePerDayToday: 計測なし";
-          }
-
-          if (syncState && syncState.oncePerDayToday && typeof syncState.oncePerDayToday === "object") {
-            var sOnceBefore = syncState.oncePerDayToday;
-            if (typeof sOnceBefore.day === "number" && (!localOnceDay || sOnceBefore.day === localOnceDay)) {
-              var sResultsBefore = sOnceBefore.results || {};
-              if (sResultsBefore && typeof sResultsBefore === "object" && Object.prototype.hasOwnProperty.call(sResultsBefore, qid)) {
-                prevOnceVal = sResultsBefore[qid];
-              }
-            }
-          }
-        } catch (_eOnce) {
-          oncePerDayStatus = "oncePerDayToday: 計測エラー";
-        }
-
-        statusMsg += " / " + oncePerDayStatus;
-
-        // ★ O.D.O.A Mode ステータス文字列を確定
-        //   - O.D.O.A Mode : ON correct
-        //   - O.D.O.A Mode : ON wrong
-        //   - O.D.O.A Mode : ON nocount
-        //   - O.D.O.A Mode : OFF
-        var odoaStatusTextForPanelAfter = "O.D.O.A Mode : OFF";
-        if (odoaModeText === "ON") {
-          var suffix = "nocount";
-          if (prevOnceVal == null && (newOnceVal === "correct" || newOnceVal === "wrong")) {
-            suffix = newOnceVal;
-          }
-          odoaStatusTextForPanelAfter = "O.D.O.A Mode : ON " + suffix;
-        }
-
-        renderPanel(box, {
-          serverCorrect: refreshedServerCorrect,
-          serverWrong: refreshedServerWrong,
-          localCorrect: localCorrect,
-          localWrong: localWrong,
-          diffCorrect: refreshedDiffCorrect,
-          diffWrong: refreshedDiffWrong,
-          serverStreak3: refreshedServerStreak3,
-          localStreak3: localStreak3,
-          diffStreak3: refreshedDiffStreak3,
-          serverStreakLen: refreshedServerStreakLen,
-          localStreakLen: localStreakLen,
-          diffStreakLen: refreshedDiffStreakLen,
-          statusText: statusMsg,
-          odoaModeText: odoaModeText,
-          odoaStatusText: odoaStatusTextForPanelAfter
-        });
-      } catch (e2) {
-        console.error("[SYNC-B] state refresh error after merge:", e2);
-
-        var stateErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
-        var odoaStatusTextForPanelStateError;
-        if (odoaModeText === "ON") {
-          odoaStatusTextForPanelStateError = "O.D.O.A Mode : ON nocount";
-        } else {
-          odoaStatusTextForPanelStateError = "O.D.O.A Mode : OFF";
-        }
-        renderPanel(box, {
-          serverCorrect: newServerCorrect,
-          serverWrong: newServerWrong,
-          localCorrect: localCorrect,
-          localWrong: localWrong,
-          diffCorrect: newDiffCorrect,
-          diffWrong: newDiffWrong,
-          serverStreak3: newServerStreak3,
-          localStreak3: localStreak3,
-          diffStreak3: newDiffStreak3,
-          serverStreakLen: newServerStreakLen,
-          localStreakLen: localStreakLen,
-          diffStreakLen: newDiffStreakLen,
-          statusText: "merge ok / state 再取得エラー(保存は成功している可能性) / " + stateErrorOncePerDayStatus,
-          odoaModeText: odoaModeText,
-          odoaStatusText: odoaStatusTextForPanelStateError
-        });
-      }
-    } catch (e) {
-      console.error("[SYNC-B] fetch failed:", e);
-      var networkErrorOncePerDayStatus = oncePerDayDelta ? "oncePerDayToday: 計測エラー" : "oncePerDayToday: 計測なし";
-      var odoaStatusTextForPanelNetworkError;
-      if (odoaModeText === "ON") {
-        odoaStatusTextForPanelNetworkError = "O.D.O.A Mode : ON nocount";
-      } else {
-        odoaStatusTextForPanelNetworkError = "O.D.O.A Mode : OFF";
-      }
-      renderPanel(box, {
-        serverCorrect: serverCorrect,
-        serverWrong: serverWrong,
-        localCorrect: localCorrect,
-        localWrong: localWrong,
-        diffCorrect: diffCorrect,
-        diffWrong: diffWrong,
-        serverStreak3: serverStreak3,
-        localStreak3: localStreak3,
-        diffStreak3: diffStreak3,
-        serverStreakLen: serverStreakLen,
-        localStreakLen: localStreakLen,
-        diffStreakLen: diffStreakLen,
-        statusText: "network error (送信失敗) / " + networkErrorOncePerDayStatus,
-        odoaModeText: odoaModeText,
-        odoaStatusText: odoaStatusTextForPanelNetworkError
-      });
     }
   }
 
-  function refreshAndSend(box, options) {
-    // ★ options.suppressDiffSend === true のときは、
-    //    sendDiffToServer() を呼ばずに HUD の表示更新だけ行うモード
-    options = options || {};
-    var suppressDiffSend = !!options.suppressDiffSend;
+  window.addEventListener("DOMContentLoaded", function(){
+    if (!QID) return;
+    try{
+      // SYNC(A) monitor の見た目（グリッド/カード）用CSSを一度だけ注入
+      try{
+        if (!document.getElementById("cscs-sync-a-monitor-style")) {
+          const st = document.createElement("style");
+          st.id = "cscs-sync-a-monitor-style";
+          st.textContent = `
+#cscs_sync_monitor_a{
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+#cscs_sync_monitor_a .sync-header{
+  font-weight: 400;
+  margin: 0 3px 6px 0;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
-    fetchState()
-      .then(function (state) {
-        // ★ /api/sync/state の結果をグローバルへ保存して、
-        //    renderPanel から streak3Today を正しく取得できるようにする
-        try {
-          window.__cscs_sync_state = state;
-        } catch (_e) {}
+#cscs_sync_monitor_a .sync-toggle-btn{
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.45);
+  color: #eee;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.9;
+}
+#cscs_sync_monitor_a .sync-toggle-btn:active{
+  transform: translateY(1px);
+}
 
-        var serverCorrect = 0;
-        var serverWrong = 0;
-        var serverStreak3 = 0;
-        var serverStreakLen = 0;
-        var serverStreak3Wrong = 0;
-        var serverWrongStreakLen = 0;
+/* ★ OPEN/CLOSE で「オプション項目（指定4つ）」だけを隠す
+   - パネル自体（ヘッダ/他カード）は常時表示
+   - .sync-optional を付けたカードだけ非表示にする */
+#cscs_sync_monitor_a.cscs-compact .sync-optional{
+  display: none !important;
+}
 
-        if (state && state.correct && state.correct[info.qid] != null) {
-          serverCorrect = state.correct[info.qid];
-        }
-        if (state && state.incorrect && state.incorrect[info.qid] != null) {
-          serverWrong = state.incorrect[info.qid];
-        }
-        if (state && state.streak3 && state.streak3[info.qid] != null) {
-          serverStreak3 = state.streak3[info.qid];
-        }
-        if (state && state.streakLen && state.streakLen[info.qid] != null) {
-          serverStreakLen = state.streakLen[info.qid];
-        }
-        // ★ 不正解側: サーバーの 3連続不正解回数と現在の連続不正解長を取得
-        if (state && state.streak3Wrong && state.streak3Wrong[info.qid] != null) {
-          serverStreak3Wrong = state.streak3Wrong[info.qid];
-        }
-        if (state && state.streakWrongLen && state.streakWrongLen[info.qid] != null) {
-          serverWrongStreakLen = state.streakWrongLen[info.qid];
-        }
+#cscs_sync_monitor_a .sync-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  width: auto;
+}
 
-        var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
-        var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
-        var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
-        var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
-        // ★ 不正解側: localStorage の 3連続不正解回数と現在の連続不正解長を取得
-        var localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + info.qid);
-        var localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + info.qid);
+#cscs_sync_monitor_a {
+  position: fixed;
+  right: 15px;
+  top: 100px;
+  color: #eee;
+  padding: 8px;
+  font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  max-width: 46vw;
+  width: 310px;
+  opacity: 0.55;
+  z-index: 2147483647;
+}
 
-        var diffCorrect = Math.max(0, localCorrect - serverCorrect);
-        var diffWrong = Math.max(0, localWrong - serverWrong);
-        var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
-        var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
-        // ★ 不正解側: SYNC と local の差分（0 以上の増分）を計算
-        var diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
-        var diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
+#cscs_sync_monitor_a details.sync-fold{
+  margin: 0;
+}
+#cscs_sync_monitor_a details.sync-fold > summary{
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+#cscs_sync_monitor_a details.sync-fold > summary::-webkit-details-marker{
+  display: none;
+}
+#cscs_sync_monitor_a details.sync-fold > summary::before{
+  content: "▶";
+  display: inline-block;
+  width: 14px;
+  opacity: 0.85;
+}
+#cscs_sync_monitor_a details.sync-fold[open] > summary::before{
+  content: "▼";
+}
 
-        // ★ コンソールで不正解ストリーク同期対象を確認できるようにログ出力
-        console.log("[SYNC-B] wrong-streak diff (local vs server):", {
-          qid: info.qid,
-          serverStreak3Wrong: serverStreak3Wrong,
-          localStreak3Wrong: localStreak3Wrong,
-          diffStreak3Wrong: diffStreak3Wrong,
-          serverWrongStreakLen: serverWrongStreakLen,
-          localWrongStreakLen: localWrongStreakLen,
-          diffWrongStreakLen: diffWrongStreakLen
-        });
-
-        // ★ 何をしているか:
-        //   ODOAモードは唯一の参照元 window.CSCS_ODOA_MODE（"on"/"off"）のみを見る
-        var odoaModeRaw = null;
-        try {
-          if (typeof window.CSCS_ODOA_MODE === "string") {
-            odoaModeRaw = window.CSCS_ODOA_MODE;
-          }
-        } catch (_eOdoaModeRaw) {
-          odoaModeRaw = null;
-        }
-
-        // ★ 何をしているか:
-        //   HUDで使う表記を "ON"/"OFF" に正規化（他ソースへはフォールバックしない）
-        var odoaModeText = "OFF";
-        try {
-          var t = (odoaModeRaw == null ? "" : String(odoaModeRaw)).trim().toLowerCase();
-          if (t === "on") {
-            odoaModeText = "ON";
-          } else if (t === "off") {
-            odoaModeText = "OFF";
-          }
-        } catch (_eOdoaModeText) {
-          odoaModeText = "OFF";
-        }
-
-        console.log("[SYNC-B] detected O.D.O.A from window.CSCS_ODOA_MODE:", {
-          odoaModeRaw: odoaModeRaw,
-          odoaModeText: odoaModeText
-        });
-
-        var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
-
-        // ★ 自動検証モード（CSCS_VERIFY_MODE=on）のときは、
-        //   b_judge_record.js と同じく「計測ガード中」であることが分かるように
-        //   statusText に明示しておく（diff の送信自体は後段でブロックする）
-        var verifyModeOn =
-          typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
-        if (!suppressDiffSend && verifyModeOn) {
-          statusTextForRender = "state ok / verify-mode: 計測ガード中(diff送信なし)";
-        }
-
-        // 初期表示や diff 送信前の HUD:
-        //   - suppressDiffSend===true のときは "__keep__" を渡し、既存表示を維持
-        //   - 通常モードでは「ON nocount」/「OFF」で初期表示を行う
-        var odoaStatusTextForPanelInit;
-        if (suppressDiffSend) {
-          odoaStatusTextForPanelInit = "__keep__";
-          console.log("[SYNC-B] ODOA HUD: suppressDiffSend=true → '__keep__' で再描画要求");
-        } else {
-          if (odoaModeText === "ON") {
-            odoaStatusTextForPanelInit = "O.D.O.A Mode : ON nocount";
-          } else {
-            odoaStatusTextForPanelInit = "O.D.O.A Mode : OFF";
-          }
-          console.log("[SYNC-B] ODOA HUD: initial status set from mode:", odoaStatusTextForPanelInit);
-        }
-
-        var pending = computePendingFlags(state, info.qid);
-        pending.pendingDiffCounts = (diffCorrect > 0 || diffWrong > 0 || diffStreak3 > 0 || diffStreakLen > 0 || diffStreak3Wrong > 0 || diffWrongStreakLen > 0);
-
-        renderPanel(box, {
-          serverCorrect: serverCorrect,
-          serverWrong: serverWrong,
-          localCorrect: localCorrect,
-          localWrong: localWrong,
-          diffCorrect: diffCorrect,
-          diffWrong: diffWrong,
-          serverStreak3: serverStreak3,
-          localStreak3: localStreak3,
-          diffStreak3: diffStreak3,
-          serverStreakLen: serverStreakLen,
-          localStreakLen: localStreakLen,
-          diffStreakLen: diffStreakLen,
-          statusText: statusTextForRender,
-          odoaModeText: odoaModeText,
-          odoaStatusText: odoaStatusTextForPanelInit,
-          pending: pending
-        });
-
-        // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
-        //    HUD 表示のみ更新した状態で終了する（手動 streak3Today テスト用）
-        if (suppressDiffSend) {
-          console.log("[SYNC-B] refreshAndSend: suppressDiffSend=true → diff POST を実行せず HUD 表示のみ更新", {
-            qid: info.qid,
-            serverCorrect: serverCorrect,
-            serverWrong: serverWrong,
-            localCorrect: localCorrect,
-            localWrong: localWrong,
-            diffCorrect: diffCorrect,
-            diffWrong: diffWrong,
-            diffStreak3: diffStreak3,
-            diffStreakLen: diffStreakLen,
-            odoaModeText: odoaModeText
-          });
-          return;
-        }
-
-        // ★ 自動検証モード中（CSCS_VERIFY_MODE=on）は、
-        //    b_judge_record.js と同様「計測ガード」として diff POST を完全にブロックする。
-        //    これにより、verify モードで流した A→B 自動遷移では
-        //    localStorage 側の計測を行わないだけでなく、
-        //    SYNC 側の累計・streak3・oncePerDayToday も一切更新されない。
-        if (verifyModeOn) {
-          console.log("[SYNC-B] refreshAndSend: verify-mode ON → diff POST を実行せず HUD 表示のみ更新（計測ガード）", {
-            qid: info.qid,
-            serverCorrect: serverCorrect,
-            serverWrong: serverWrong,
-            localCorrect: localCorrect,
-            localWrong: localWrong,
-            diffCorrect: diffCorrect,
-            diffWrong: diffWrong,
-            diffStreak3: diffStreak3,
-            diffStreakLen: diffStreakLen,
-            odoaModeText: odoaModeText
-          });
-          return;
-        }
-
-        return sendDiffToServer(box, {
-          serverCorrect: serverCorrect,
-          serverWrong: serverWrong,
-          serverStreak3: serverStreak3,
-          serverStreakLen: serverStreakLen,
-          serverStreak3Wrong: serverStreak3Wrong,
-          serverWrongStreakLen: serverWrongStreakLen,
-          localCorrect: localCorrect,
-          localWrong: localWrong,
-          localStreak3: localStreak3,
-          localStreakLen: localStreakLen,
-          localStreak3Wrong: localStreak3Wrong,
-          localWrongStreakLen: localWrongStreakLen,
-          diffCorrect: diffCorrect,
-          diffWrong: diffWrong,
-          diffStreak3: diffStreak3,
-          diffStreakLen: diffStreakLen,
-          diffStreak3Wrong: diffStreak3Wrong,
-          diffWrongStreakLen: diffWrongStreakLen,
-          // ★ oncePerDayTodayDelta を作るために /api/sync/state の snapshot を渡す
-          syncState: state,
-          // ★ O.D.O.A Mode 表示用テキストも sendDiffToServer に引き継ぎ
-          odoaModeText: odoaModeText
-        });
-      })
-      .catch(function (e) {
-        console.error("[SYNC-B] state fetch error:", e);
-        var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + info.qid);
-        var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + info.qid);
-        var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + info.qid);
-        var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + info.qid);
-
-        var odoaModeText = "不明(state error)";
-        var odoaStatusTextForPanelStateError;
-        odoaStatusTextForPanelStateError = "O.D.O.A Mode : OFF";
-
-        renderPanel(box, {
-          serverCorrect: 0,
-          serverWrong: 0,
-          localCorrect: localCorrect,
-          localWrong: localWrong,
-          diffCorrect: 0,
-          diffWrong: 0,
-          serverStreak3: 0,
-          localStreak3: localStreak3,
-          diffStreak3: 0,
-          serverStreakLen: 0,
-          localStreakLen: localStreakLen,
-          diffStreakLen: 0,
-          statusText: "state error",
-          odoaModeText: odoaModeText,
-          odoaStatusText: odoaStatusTextForPanelStateError
-        });
-      });
+@media (max-width: 520px){
+  #cscs_sync_monitor_a .sync-grid{
+    grid-template-columns: 1fr;
   }
+}
+#cscs_sync_monitor_a .sync-card{
+  border-radius: 10px;
+  padding: 8px 10px;
 
-  function init() {
-    // ★ パネル生成より先にCSSを注入（初回表示から確実に適用）
-    ensureSyncViewBStyles();
+  /* ガラス感：少し透けた黒 */
+  background: rgba(0,0,0,0.52);
 
-    var box = createPanel();
 
-    function append() {
-      var wrap = document.querySelector("div.wrap");
+  /* エッジの光：薄い白枠 + ほんの少し内側のハイライト */
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+
+  line-height: 1;
+}
+#cscs_sync_monitor_a .sync-card .sync-title{
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-bottom: 5px;
+
+  /* ★ 見出しは基本的に改行しない（入り切らない時は…） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ★ 英語ラベルだけ少し薄く・軽く */
+#cscs_sync_monitor_a .sync-card .sync-title .sync-title-en{
+  opacity: 0.58;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#cscs_sync_monitor_a .sync-card .sync-body{
+  /* ★ グリッドのマス内では改行させない（必要なら行をグリッドで分ける） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+
+  /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
+  word-break: normal;
+  font-weight: 400;
+  opacity: 0.52;
+  font-size: 10.25px;
+  letter-spacing: 0.01em;
+}
+
+/* ★ “複数行” に見せたいものは <br> ではなく「小グリッド」で行を分ける */
+#cscs_sync_monitor_a .mini-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .mini-label{
+  font-weight: 600;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .mini-val{
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cscs_sync_monitor_a .status-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .status-label{
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .status-value{
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+#cscs_sync_monitor_a .totals-row{
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .sync-totals-label{
+  font-weight: 850;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  opacity: 0.96;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .sync-totals,
+#cscs_sync_monitor_a .sync-local,
+#cscs_sync_monitor_a .sync-queue{
+  white-space: nowrap;
+}
+#cscs_sync_monitor_a .sync-card.sync-span-2{
+  grid-column: 1 / -1;
+}
+
+#cscs_sync_monitor_a .lastday-grid{
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .lastday-grid .ld-head{
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+#cscs_sync_monitor_a .lastday-grid .ld-label{
+  opacity: 0.75;
+}
+
+#cscs_sync_monitor_a .days-grid{
+  display: grid;
+  grid-template-columns: 150px 1fr 1fr 60px;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .days-head{
+  font-weight: 700;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .days-label{
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .days-val{
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .delta-grid{
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .delta-label{
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .delta-val{
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .once-label{
+  font-weight: 600;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-val{
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   ★ 右ブロック（値側）を右寄せに統一
+   ------------------------------------------------------------
+   - 2カラム系: mini-grid / status-grid / delta-grid / once-grid
+   - Totals(c/w) 行: 2〜4列を右寄せ
+   - lastday-grid / days-grid: 「ラベル以外」を右寄せ
+   ============================================================ */
+#cscs_sync_monitor_a .mini-val,
+#cscs_sync_monitor_a .status-value,
+#cscs_sync_monitor_a .delta-val,
+#cscs_sync_monitor_a .once-val{
+  text-align: right;
+}
+
+/* Totals(c/w) の行は 4カラムなので、値側(2〜4列)を右寄せ */
+#cscs_sync_monitor_a .totals-row > :nth-child(2),
+#cscs_sync_monitor_a .totals-row > :nth-child(3),
+#cscs_sync_monitor_a .totals-row > :nth-child(4){
+  text-align: right;
+}
+
+/* lastday-grid は 3カラム（label / SYNC / local）
+   ★ 2列目（真ん中=SYNC列）だけセンター寄せ
+   ★ 3列目（local列）は右寄せ */
+#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+2){
+  text-align: center;
+}
+#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+3){
+  text-align: right;
+}
+
+/* ★ lastday 見出し（type / SYNC / local）の寄せ方：真ん中だけセンター */
+#cscs_sync_monitor_a .sync-lastday-headline > :nth-child(2){
+  text-align: center;
+}
+#cscs_sync_monitor_a .sync-lastday-headline > :nth-child(3){
+  text-align: right;
+}
+
+/* days-grid は 4カラム（label / sync / local / isToday） */
+#cscs_sync_monitor_a .days-grid > :nth-child(4n+2),
+#cscs_sync_monitor_a .days-grid > :nth-child(4n+3),
+#cscs_sync_monitor_a .days-grid > :nth-child(4n+4){
+  text-align: right;
+}
+
+/* ★ lastday は折りたたみ無し：常時表示の1行ヘッダー */
+#cscs_sync_monitor_a .sync-lastday-headline{
+  display: grid;
+
+  /* ★ lastday-grid と列幅を完全一致させる（label=80px / SYNC / local） */
+  grid-template-columns: 80px minmax(0,1fr) minmax(0,1fr);
+
+  column-gap: 10px;
+  align-items: baseline;
+  white-space: nowrap;
+  overflow: hidden;
+  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* ★ type */
+#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-type{
+  font-weight: 700;
+  opacity: 0.90;
+}
+
+/* ★ SYNC/local は「縮む列」に入れ、入り切らない時は … で省略する */
+#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-sync{
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+  font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-local{
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+  font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+          `.trim();
+          (document.head || document.documentElement).appendChild(st);
+        }
+      }catch(_){}
+
+      const box = document.createElement("div");
+      box.id = "cscs_sync_monitor_a";
+      box.innerHTML = `
+        <div class="sync-header">
+          <span>SYNC(A): <span class="sync-qid"></span></span>
+          <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
+        </div>
+
+        <div class="sync-grid">
+          <div class="sync-card sync-span-2">
+            <div class="sync-body totals-row">
+              <div class="sync-totals-label">Totals(c/w)</div>
+
+              <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">
+                <span class="sync-server-text">SYNC 0 / 0</span>
+              </div>
+
+              <div class="sync-local">local  0 / 0</div>
+              <div class="sync-queue">+Δ    0 / 0</div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">⭐️3連続正解数 <span class="sync-title-en">Count</span></div>
+            <div class="sync-body sync-streak3">
+              SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">💣3連続不正解 <span class="sync-title-en">Count</span></div>
+            <div class="sync-body sync-wrong-streak3">
+              SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">3連続正解 進捗 <span class="sync-title-en">Progress</span></div>
+            <div class="sync-body sync-streaklen">
+              SYNC (<span class="sync-streaklen-server-progress">0</span>/3) /
+              local (<span class="sync-streaklen-local-progress">0</span>/3)
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">3連続不正解 進捗 <span class="sync-title-en">Progress</span></div>
+            <div class="sync-body sync-wrong-streaklen">
+              SYNC (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
+              local (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">Streak3TodayUnique</div>
+            <div class="sync-body sync-streak3today">
+              <div class="mini-grid">
+                <div class="mini-label">day</div>
+                <div class="mini-val"><span class="sync-streak3today-day">-</span></div>
+
+                <div class="mini-label">unique</div>
+                <div class="mini-val">sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">Streak3WrongTodayUq</div>
+            <div class="sync-body sync-streak3wrongtoday">
+              <div class="mini-grid">
+                <div class="mini-label">day</div>
+                <div class="mini-val"><span class="sync-streak3wrongtoday-day">-</span></div>
+
+                <div class="mini-label">unique</div>
+                <div class="mini-val">sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-title">OncePerDayToday / O.D.O.A Mode</div>
+            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-lastday-headline">
+              <span class="sync-lastday-summary-type">LastCorrect</span>
+              <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
+              <span class="sync-lastday-summary-local">local （データなし）</span>
+            </div>
+
+            <div class="sync-body sync-lastday">
+              <div class="lastday-grid">
+                <div class="ld-label ld-row-lastseen">lastSeen</div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-local">（データなし）</span></div>
+
+                <div class="ld-label ld-row-lastcorrect">lastCorrect</div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">（データなし）</span></div>
+
+                <div class="ld-label ld-row-lastwrong">lastWrong</div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <details class="sync-fold" data-fold="streakmax">
+              <summary>連続正解 (Local)</summary>
+              <div class="sync-body">
+                <div class="mini-grid">
+                  <div class="mini-label">streak_len</div>
+                  <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
+
+                  <div class="mini-label">streak_max</div>
+                  <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
+
+                  <div class="mini-label">max_day</div>
+                  <div class="mini-val"><span class="sync-streakmax-maxday-local">（データなし）</span></div>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <details class="sync-fold" data-fold="queue">
+              <summary>Queue Δ detail（送信待ち）</summary>
+              <div class="sync-body">
+                <div class="delta-grid">
+                  <div class="delta-label">Totals(c/w)</div>
+                  <div class="delta-val"><span class="sync-queue-cw">0 / 0</span></div>
+
+                  <div class="delta-label">streak3Delta</div>
+                  <div class="delta-val"><span class="sync-queue-s3">0</span></div>
+
+                  <div class="delta-label">streakLenDelta</div>
+                  <div class="delta-val"><span class="sync-queue-sl">（なし）</span></div>
+
+                  <div class="delta-label">streak3WrongDelta</div>
+                  <div class="delta-val"><span class="sync-queue-s3w">0</span></div>
+
+                  <div class="delta-label">streakWrongLenDelta</div>
+                  <div class="delta-val"><span class="sync-queue-slw">（なし）</span></div>
+
+                  <div class="delta-label">lastSeenDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastseen">（なし）</span></div>
+
+                  <div class="delta-label">lastCorrectDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastcorrect">（なし）</span></div>
+
+                  <div class="delta-label">lastWrongDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastwrong">（なし）</span></div>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-body status-grid">
+              <div class="status-label">Status</div>
+              <div class="status-value"><span class="sync-status">pulled (-)</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+      const wrap = document.querySelector("div.wrap");
       if (wrap) {
-        if (!wrap.contains(box)) {
-          wrap.appendChild(box);
-        }
+        wrap.appendChild(box);
       } else {
-        if (!document.body.contains(box)) {
-          document.body.appendChild(box);
-        }
+        document.body.appendChild(box);
       }
-      var btn = document.getElementById("cscs_sync_view_b_send_btn");
-      if (btn) {
-        btn.addEventListener("click", function (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
 
-          // ① 手動テスト時は HUD の表示だけ更新し、diff のサーバー送信は抑制する
-          //    → 最初の refreshAndSend では「現在の state」に基づく HUD を表示するだけ
-          refreshAndSend(box, { suppressDiffSend: true });
+      // === ④ 折りたたみ状態の復元＆永続化（モニタ全体 / Days / Queue） ===
+      try{
+        /* ★ OPEN/CLOSE は「パネル全体」ではなく「指定4項目（sync-optional）だけ」を出し入れする
+           - cscs-compact: オプション項目を隠す（デフォルト）
+           - compact 解除: オプション項目を表示（＝OPEN状態）
+           - 状態は LS_MON_OPEN に保存し、リロード後も維持 */
+        const monitorOpen = readLsBool(LS_MON_OPEN, false);  // デフォルトはCLOSE（オプション非表示）
+        if (monitorOpen) {
+          box.classList.remove("cscs-compact");
+        } else {
+          box.classList.add("cscs-compact");
+        }
 
-          // ② Local streak3Today / streak3WrongToday 情報を「手動送信」するテスト用トリガー
-          //    - それぞれの merge 完了後にもう一度 HUD を更新して、
-          //      /api/sync/state に反映された最新の streak3Today / streak3WrongToday を HUD に出す
-          var promises = [];
+        const toggleBtn = box.querySelector('button[data-sync-toggle="1"]');
+        function refreshToggleBtnLabel(){
+          if (!toggleBtn) return;
+          const isOpen = !box.classList.contains("cscs-compact"); // compact解除＝OPEN
+          toggleBtn.textContent = isOpen ? "CLOSE" : "OPEN";
+        }
+        refreshToggleBtnLabel();
 
-          if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
-            console.log("[SYNC-B:HUD] manual streak3Today SEND requested from button (diff POST suppressed)");
-            var pToday = window.CSCS_SYNC.recordStreak3TodayUnique();
-            if (pToday && typeof pToday.then === "function") {
-              promises.push(pToday);
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", function(){
+            // ★ クリックで「オプション項目」だけをトグル（他の項目は常時表示）
+            const nextOpen = box.classList.contains("cscs-compact"); // 今CLOSE(=compact)ならOPENへ
+            if (nextOpen) {
+              box.classList.remove("cscs-compact");
+            } else {
+              box.classList.add("cscs-compact");
             }
-          } else {
-            console.warn("[SYNC-B:HUD] recordStreak3TodayUnique is not available (手動送信不可)");
-          }
+            // ★ 永続化：OPEN状態（true/false）を保存
+            writeLsBool(LS_MON_OPEN, nextOpen);
+            refreshToggleBtnLabel();
+          });
+        }
 
-          if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3WrongTodayUnique === "function") {
-            console.log("[SYNC-B:HUD] manual streak3WrongToday SEND requested from button (diff POST suppressed)");
-            var pWrongToday = window.CSCS_SYNC.recordStreak3WrongTodayUnique();
-            if (pWrongToday && typeof pWrongToday.then === "function") {
-              promises.push(pWrongToday);
+        const daysDetails       = box.querySelector('details.sync-fold[data-fold="days"]');
+        const queueDetails      = box.querySelector('details.sync-fold[data-fold="queue"]');
+        const streakMaxDetails  = box.querySelector('details.sync-fold[data-fold="streakmax"]');
+
+        /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
+           - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
+           - それぞれの親 .sync-card に sync-optional を付ける（CLOSE時に消える対象） */
+        function markOptional(detailsEl){
+          try{
+            if (!detailsEl) return;
+            const card = detailsEl.closest(".sync-card");
+            if (card) {
+              card.classList.add("sync-optional");
             }
-          } else {
-            console.warn("[SYNC-B:HUD] recordStreak3WrongTodayUnique is not available (手動送信不可)");
-          }
-
-          if (promises.length > 0) {
-            Promise.all(promises).then(function () {
-              console.log("[SYNC-B:HUD] streak3Today / streak3WrongToday merge completed → HUD 再取得＋再描画（diff POST 抑制）");
-              refreshAndSend(box, { suppressDiffSend: true });
-            }).catch(function (e) {
-              console.error("[SYNC-B:HUD] streak3Today / streak3WrongToday manual send error:", e);
-            });
-          }
-        });
-      }
-      // ③ 初期表示時の HUD 更新（diff 送信ありの通常モード）
-      refreshAndSend(box);
-
-      // ★【超重要仕様：この自動クリックも「削除禁止」】
-      //   - 下の setTimeout で呼ばれる btn.click() は、単なるデバッグ用ではなく、
-      //     「streak3Today / streak3WrongToday を Bパートから SYNC に送信するための正式な起動トリガー」。
-      //   - click ハンドラ内では diff POST を抑制した上で
-      //       window.CSCS_SYNC.recordStreak3TodayUnique()
-      //       window.CSCS_SYNC.recordStreak3WrongTodayUnique()
-      //     を呼び出し、/api/sync/merge に streak3TodayDelta / streak3WrongTodayDelta を送っている。
-      //   - つまり、ここを削除・コメントアウト・条件分岐で無効化すると、
-      //     「localStorage 側では計測されているのに、SYNC 側の今日の⭐️/💣ユニーク数が一切増えない」
-      //     という不可視な不具合が発生する。
-      //   - ChatGPT などが「テスト用の自動クリックだから不要」と誤認して消さないよう、
-      //     このコメントで意図を明示している。
-      //
-      // ④ 追加: ページロード後約1.0秒で「SYNC送信ボタン」を自動クリックして、
-      //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta / streak3WrongTodayDelta 送信）を一度だけ実行する
-      if (btn) {
-        setTimeout(function () {
-          console.log("[SYNC-B:auto] 1.0秒後に SYNC 送信ボタンを自動クリックします");
-          btn.click();
-        }, 1000);
-      } else {
-        console.log("[SYNC-B:auto] SYNC 送信ボタンが見つからないため、自動クリックを行いません");
-      }
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", append);
-    } else {
-      append();
-    }
-  }
-
-  if (typeof window.CSCS_SYNC === "undefined" || window.CSCS_SYNC === null) {
-    window.CSCS_SYNC = {};
-  }
-
-  window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
-    try {
-      // ★ 追加ガード: O.D.O.A が nocount のときは streak3Today を一切送らない
-      var state = null;
-      try {
-        state = window.__cscs_sync_state || null;
-      } catch(_e) {
-        state = null;
-      }
-      if (state && (state.odoaMode === "on_nocount" || state.odoa_mode === "on_nocount")) {
-        // 補足: nocount 中に streak3Today が送信されると「正誤を計測していないのに★だけ増える事故」が発生するため、
-        //       ここで必ずブロックする。
-        console.log("[SYNC-B:streak3Today] skip because O.D.O.A = on_nocount");
-        return;
-      }
-
-      // 1) オフラインならそもそも送信しない（Bパートからの streak3TodayDelta は「オンライン時だけ」）
-      if (!navigator.onLine) {
-        console.warn("[SYNC-B:streak3Today] offline → 送信スキップ");
-        return;
-      }
-
-      // 2) localStorage に溜まっている「今日の⭐️情報」を読み出すための一時変数
-      var day = "";
-      var qids = [];
-      var localCount = 0;
-
-      try {
-        // 2-1) 「今日が何日か」を表す文字列（例: "20251201"）
-        day = localStorage.getItem("cscs_streak3_today_day") || "";
-        // 2-2) 今日⭐️を新規獲得した qid の配列をシリアライズした文字列
-        var rawQids = localStorage.getItem("cscs_streak3_today_qids");
-        // 2-3) 今日の⭐️ユニーク数（local 側カウンタ）
-        var rawCnt = localStorage.getItem("cscs_streak3_today_unique_count");
-
-        // 2-4) qids の JSON をパースして「妥当な文字列だけ」の配列にクリーンアップ
-        if (rawQids) {
-          var parsed = JSON.parse(rawQids);
-          if (Array.isArray(parsed)) {
-            qids = parsed.filter(function (x) {
-              return typeof x === "string" && x;
-            });
-          }
+          }catch(_){}
         }
+        markOptional(daysDetails);
+        markOptional(queueDetails);
 
-        // 2-5) ユニーク数を数値にパース（不正値や負数は 0 扱い）
-        var cnt = parseInt(rawCnt || "0", 10);
-        if (Number.isFinite(cnt) && cnt >= 0) {
-          localCount = cnt;
+        const daysOpen        = readLsBool(LS_DAYS_OPEN, false);        // デフォルト閉じ
+        const queueOpen       = readLsBool(LS_QDEL_OPEN, false);        // デフォルト閉じ
+        const streakMaxOpen   = readLsBool(LS_STREAKMAX_OPEN, false);   // デフォルト閉じ
+
+        if (daysDetails)        daysDetails.open        = !!daysOpen;
+        if (queueDetails)       queueDetails.open       = !!queueOpen;
+        if (streakMaxDetails)   streakMaxDetails.open   = !!streakMaxOpen;
+
+        if (daysDetails) {
+          daysDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_DAYS_OPEN, !!daysDetails.open);
+          });
         }
-      } catch (_e) {
-        // localStorage / JSON パースのどこかで失敗した場合は「空データ」として扱う
-        day = "";
-        qids = [];
-        localCount = 0;
-      }
-
-      // 3) 読み出したローカル状態をコンソールにフル出力（デバッグ用）
-      console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
-      console.log("local.day =", day);
-      console.log("local.qids =", qids);
-      console.log("local.unique_count =", localCount);
-      console.groupEnd();
-
-      // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
-      //    - 初回起動直後など「まだ streak3Today 情報が無い」ケースは正常なスキップとして扱う
-      if (!day || qids.length === 0) {
-        console.log("[SYNC-B:streak3Today] day 又は qids が空 → 正常スキップ（まだ送るべきデータがない）", {
-          day: day,
-          qidsLength: qids.length
-        });
-        return;
-      }
-
-      // 5) Workers 側の merge.ts に渡す streak3TodayDelta のペイロードを組み立て
-      //    - day: "YYYYMMDD" 形式
-      //    - qids: その日に⭐️を初めて取った問題の qid 配列
-      var payload = {
-        streak3TodayDelta: {
-          day: day,
-          qids: qids
-        },
-        updatedAt: Date.now()
-      };
-
-      // 6) 送信直前の payload を丸ごとログに出しておく
-      console.group("[SYNC-B:streak3Today] SEND payload");
-      console.log(payload);
-      console.groupEnd();
-
-      // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
-      var res = await fetch(SYNC_MERGE_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-        keepalive: true
-      });
-
-      // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
-      if (!res.ok) {
-        console.error("[SYNC-B:streak3Today] merge FAILED:", res.status);
-        return;
-      }
-
-      // 9) merge.ts が返してきた最新の SYNC スナップショットを取得（失敗しても致命的ではない）
-      var merged = null;
-      try {
-        merged = await res.json();
-      } catch (_e2) {
-        merged = null;
-      }
-
-      // 10) merge のレスポンスをログに残しておく（Workers 側でどう保存されたかの確認用）
-      console.group("[SYNC-B:streak3Today] MERGE result");
-      console.log("mergeResponse =", merged);
-      console.groupEnd();
-
-      // 11) さらに /api/sync/state を叩いて、KV に反映された最終形の streak3Today を確認する
-      try {
-        var stateAfter = await fetchState();
-        try {
-          // 11-1) 取得した state 全体をグローバルに保持して、
-          //       Bパート HUD や他のビューからも streak3Today を参照できるようにする
-          window.__cscs_sync_state = stateAfter;
-        } catch (_e3) {}
-
-        // 11-2) stateAfter.streak3Today の中身をそのままログに出して、
-        //       「day / unique_count / qids がどのように保存されたか」を確認できるようにする
-        console.group("[SYNC-B:streak3Today] UPDATED state.streak3Today");
-        console.log(stateAfter && stateAfter.streak3Today);
-        console.groupEnd();
-
-      } catch (e4) {
-        // state の再取得自体が失敗したケース（merge 自体は成功している可能性あり）
-        console.error("[SYNC-B:streak3Today] state refresh ERROR:", e4);
-      }
-
-    } catch (e) {
-      // 想定外の例外が起きた場合も握りつぶさずログに出す
-      console.error("[SYNC-B:streak3Today] fatal error:", e);
-    }
-  };
-
-  // ★ 不正解版: 今日の3連続不正解ユニーク（Streak3WrongToday）を SYNC 側に送信する
-  window.CSCS_SYNC.recordStreak3WrongTodayUnique = async function () {
-    try {
-      // ★ 追加ガード: O.D.O.A が nocount のときは streak3WrongToday を一切送らない
-      var state = null;
-      try {
-        state = window.__cscs_sync_state || null;
-      } catch(_e) {
-        state = null;
-      }
-      if (state && (state.odoaMode === "on_nocount" || state.odoa_mode === "on_nocount")) {
-        // 補足: nocount 中に streak3WrongToday が送信されると
-        //       「正誤を計測していないのに💣だけ増える事故」が発生するため、ここで必ずブロックする。
-        console.log("[SYNC-B:streak3WrongToday] skip because O.D.O.A = on_nocount");
-        return;
-      }
-
-      // 1) オフラインならそもそも送信しない（Bパートからの streak3WrongTodayDelta は「オンライン時だけ」）
-      if (!navigator.onLine) {
-        console.warn("[SYNC-B:streak3WrongToday] offline → 送信スキップ");
-        return;
-      }
-
-      // 2) localStorage に溜まっている「今日の3連続不正解情報」を読み出すための一時変数
-      var day = "";
-      var qids = [];
-      var localCount = 0;
-
-      try {
-        // 2-1) 「今日が何日か」を表す文字列（例: "20251201"）
-        day = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
-        // 2-2) 今日💣を新規獲得した qid の配列をシリアライズした文字列
-        var rawQids = localStorage.getItem("cscs_streak3_wrong_today_qids");
-        // 2-3) 今日の3連続不正解ユニーク数（local 側カウンタ）
-        var rawCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
-
-        // 2-4) qids の JSON をパースして「妥当な文字列だけ」の配列にクリーンアップ
-        if (rawQids) {
-          var parsed = JSON.parse(rawQids);
-          if (Array.isArray(parsed)) {
-            qids = parsed.filter(function (x) {
-              return typeof x === "string" && x;
-            });
-          }
+        if (queueDetails) {
+          queueDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
+          });
         }
-
-        // 2-5) ユニーク数を数値にパース（不正値や負数は 0 扱い）
-        var cnt = parseInt(rawCnt || "0", 10);
-        if (Number.isFinite(cnt) && cnt >= 0) {
-          localCount = cnt;
+        if (streakMaxDetails) {
+          streakMaxDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_STREAKMAX_OPEN, !!streakMaxDetails.open);
+          });
         }
-      } catch (_e2) {
-        // localStorage / JSON パースのどこかで失敗した場合は「空データ」として扱う
-        day = "";
-        qids = [];
-        localCount = 0;
-      }
+      }catch(_){}
 
-      // 3) 読み出したローカル状態をコンソールにフル出力（デバッグ用）
-      console.group("[SYNC-B:streak3WrongToday] recordStreak3WrongTodayUnique CALLED");
-      console.log("local.day =", day);
-      console.log("local.qids =", qids);
-      console.log("local.unique_count =", localCount);
-      console.groupEnd();
+      const btnOk   = document.getElementById("cscs_sync_test_ok");
+      const btnNg   = document.getElementById("cscs_sync_test_ng");
 
-      // 4) 日付か qid 配列が空なら、サーバー側を壊さないために送信しない
-      //    - 初回起動直後など「まだ streak3WrongToday 情報が無い」ケースは正常なスキップとして扱う
-      if (!day || qids.length === 0) {
-        console.log("[SYNC-B:streak3WrongToday] day 又は qids が空 → 正常スキップ（まだ送るべきデータがない）", {
-          day: day,
-          qidsLength: qids.length
-        });
-        return;
-      }
-
-      // 5) Workers 側の merge.ts に渡す streak3WrongTodayDelta のペイロードを組み立て
-      //    - day: "YYYYMMDD" 形式
-      //    - qids: その日に💣を初めて取った問題の qid 配列
-      var payload = {
-        streak3WrongTodayDelta: {
-          day: day,
-          qids: qids
-        },
-        updatedAt: Date.now()
-      };
-
-      // 6) 送信直前の payload を丸ごとログに出しておく
-      console.group("[SYNC-B:streak3WrongToday] SEND payload");
-      console.log(payload);
-      console.groupEnd();
-
-      // 7) /api/sync/merge に対して streak3WrongTodayDelta 専用のリクエストを送信
-      var res = await fetch(SYNC_MERGE_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-        keepalive: true
-      });
-
-      // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
-      if (!res.ok) {
-        console.error("[SYNC-B:streak3WrongToday] merge FAILED:", res.status);
-        return;
-      }
-
-      // 9) merge.ts が返してきた最新の SYNC スナップショットを取得（失敗しても致命的ではない）
-      var merged = null;
-      try {
-        merged = await res.json();
-      } catch (_e3) {
-        merged = null;
-      }
-
-      // 10) merge のレスポンスをログに残しておく（Workers 側でどう保存されたかの確認用）
-      console.group("[SYNC-B:streak3WrongToday] MERGE result");
-      console.log("mergeResponse =", merged);
-      console.groupEnd();
-
-      // 11) さらに /api/sync/state を叩いて、KV に反映された最終形の streak3WrongToday を確認する
-      try {
-        var stateAfter = await fetchState();
-        try {
-          // 11-1) 取得した state 全体をグローバルに保持して、
-          //       Bパート HUD や他のビューからも streak3WrongToday を参照できるようにする
-          window.__cscs_sync_state = stateAfter;
-        } catch (_e4) {}
-
-        // 11-2) stateAfter.streak3WrongToday の中身をそのままログに出して、
-        //       「day / unique_count / qids がどのように保存されたか」を確認できるようにする
-        console.group("[SYNC-B:streak3WrongToday] UPDATED state.streak3WrongToday");
-        console.log(stateAfter && stateAfter.streak3WrongToday);
-        console.groupEnd();
-
-      } catch (e5) {
-        // state の再取得自体が失敗したケース（merge 自体は成功している可能性あり）
-        console.error("[SYNC-B:streak3WrongToday] state refresh ERROR:", e5);
-      }
-
-    } catch (e) {
-      // 想定外の例外が起きた場合も握りつぶさずログに出す
-      console.error("[SYNC-B:streak3WrongToday] fatal error:", e);
-    }
-  };
-
-  window.addEventListener("online", function () {
-    var box = document.getElementById("cscs_sync_view_b");
-    if (!box) return;
-    refreshAndSend(box);
+      if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
+      if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
+    }catch(_){}
+    initialFetch();
   });
 
-  init();
+  window.addEventListener("online", function(){
+    lastSyncStatus = "idle";
+    sendDelta();
+  });
+  window.addEventListener("offline", function(){
+    lastSyncStatus = "offline";
+    updateMonitor();
+  });
 })();
