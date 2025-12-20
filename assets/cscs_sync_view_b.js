@@ -110,7 +110,7 @@
     "  right: 10px;",
     "  top: 110px;",
     "  color: #eee;",
-    "  padding: 8px;",
+    "  padding: 0px;",
     "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
     "  max-width: 46vw;",
     "  width: 320px;",
