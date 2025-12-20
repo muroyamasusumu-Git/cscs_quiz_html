@@ -2276,6 +2276,12 @@
   gap: 8px;
 }
 
+/* ★ Fetchボタンは右端に固定 */
+#cscs_sync_monitor_a .status-grid.status-grid-1 .sync-fetch-btn{
+  margin-left: auto;
+  opacity: 1.00;
+}
+
 /* ============================================================
    ★ 追加: Status + Fetch を「左右横並び一列」にする
    ------------------------------------------------------------
