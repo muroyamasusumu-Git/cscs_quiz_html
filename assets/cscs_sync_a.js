@@ -2467,13 +2467,13 @@
 
           <div class="sync-card sync-span-2">
             <details class="sync-fold" data-fold="streakmax">
-              <summary>連続正解 Correct Streak (Local)</summary>
+              <summary>連続正解(Local)</summary>
               <div class="sync-body">
                 <div class="mini-grid">
-                  <div class="mini-label">len</div>
+                  <div class="mini-label">streak_len</div>
                   <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
 
-                  <div class="mini-label">max</div>
+                  <div class="mini-label">streak_max</div>
                   <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
 
                   <div class="mini-label">max_day</div>
