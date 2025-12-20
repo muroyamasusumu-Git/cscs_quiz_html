@@ -1356,22 +1356,12 @@
       // ==========================
       (function buildCorrectCard() {
         // ★ 何をしているか:
-        //   「連続正解」カードの折りたたみ状態を復元する（フォールバック無し：読めなければ false）
-        var correctStreakCollapsed = false;
-        try {
-          correctStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_correct_streak_collapsed") === "1");
-        } catch (_eCorrectStreakCollapsed) {
-          correctStreakCollapsed = false;
-        }
-
+        //   「連続正解」カードは折りたたみ機能を持たず、常に内容を表示する。
+        //   localStorage の collapsed 状態は参照/更新しない。
         var card = document.createElement("div");
         card.className = "cscs-svb-card svb-correct-streak-card";
-        if (correctStreakCollapsed) {
-          card.className += " is-collapsed";
-        }
 
-        // ★ 何をしているか:
-        //   ヘッダー（タイトル＋トグル）を作る
+        // ヘッダー（タイトルのみ）
         var head = document.createElement("div");
         head.className = "svb-correct-streak-head";
 
@@ -1379,49 +1369,7 @@
         h.className = "cscs-svb-card-title";
         h.textContent = "連続正解 (local)";
 
-        var btn = document.createElement("button");
-        btn.className = "svb-correct-streak-toggle";
-        btn.type = "button";
-        btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
-
-        // ★ 何をしているか:
-        //   ボタン表示を現在状態から確定する（▼hide / ▶show）
-        function updateCorrectStreakBtnLabel() {
-          var chev = correctStreakCollapsed ? "▶" : "▼";
-          var label = correctStreakCollapsed ? "show" : "hide";
-          btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
-          btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
-        }
-
-        updateCorrectStreakBtnLabel();
-
-        // ★ 何をしているか:
-        //   クリックで折りたたみ状態を反転し、class と localStorage を更新する（成功ログあり）
-        btn.addEventListener("click", function () {
-          correctStreakCollapsed = !correctStreakCollapsed;
-
-          if (correctStreakCollapsed) {
-            if (card.className.indexOf("is-collapsed") === -1) {
-              card.className += " is-collapsed";
-            }
-          } else {
-            card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
-          }
-
-          try {
-            localStorage.setItem("cscs_sync_view_b_correct_streak_collapsed", correctStreakCollapsed ? "1" : "0");
-          } catch (_eSaveCorrectStreak) {}
-
-          updateCorrectStreakBtnLabel();
-
-          console.log("[SYNC-B:view] Correct Streak toggle", {
-            qid: (info && info.qid) ? info.qid : "-",
-            collapsed: correctStreakCollapsed
-          });
-        });
-
         head.appendChild(h);
-        head.appendChild(btn);
 
         var grid = document.createElement("div");
         grid.className = "cscs-svb-card-grid";
@@ -1434,11 +1382,8 @@
         card.appendChild(grid);
         pair.appendChild(card);
 
-        // ★ 何をしているか:
-        //   初期描画が完了したことをログで確認できるようにする
         console.log("[SYNC-B:view] appended Correct Streak card (pair)", {
           qid: (info && info.qid) ? info.qid : "-",
-          collapsed: correctStreakCollapsed,
           streak_len: model.localStreakLen,
           streak_max: model.localCorrectStreakMax,
           max_day: model.localCorrectStreakMaxDayLabel
@@ -1450,22 +1395,12 @@
       // ==========================
       (function buildWrongCard() {
         // ★ 何をしているか:
-        //   「連続不正解」カードの折りたたみ状態を復元する（フォールバック無し：読めなければ false）
-        var wrongStreakCollapsed = false;
-        try {
-          wrongStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_wrong_streak_collapsed") === "1");
-        } catch (_eWrongStreakCollapsed) {
-          wrongStreakCollapsed = false;
-        }
-
+        //   「連続不正解」カードは折りたたみ機能を持たず、常に内容を表示する。
+        //   localStorage の collapsed 状態は参照/更新しない。
         var card = document.createElement("div");
         card.className = "cscs-svb-card svb-wrong-streak-card";
-        if (wrongStreakCollapsed) {
-          card.className += " is-collapsed";
-        }
 
-        // ★ 何をしているか:
-        //   ヘッダー（タイトル＋トグル）を作る（UIは連続正解と統一）
+        // ヘッダー（タイトルのみ）
         var head = document.createElement("div");
         head.className = "svb-correct-streak-head";
 
@@ -1473,49 +1408,7 @@
         h.className = "cscs-svb-card-title";
         h.textContent = "連続不正解 (local)";
 
-        var btn = document.createElement("button");
-        btn.className = "svb-correct-streak-toggle";
-        btn.type = "button";
-        btn.setAttribute("aria-expanded", wrongStreakCollapsed ? "false" : "true");
-
-        // ★ 何をしているか:
-        //   ボタン表示を現在状態から確定する（▼hide / ▶show）
-        function updateWrongStreakBtnLabel() {
-          var chev = wrongStreakCollapsed ? "▶" : "▼";
-          var label = wrongStreakCollapsed ? "show" : "hide";
-          btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
-          btn.setAttribute("aria-expanded", wrongStreakCollapsed ? "false" : "true");
-        }
-
-        updateWrongStreakBtnLabel();
-
-        // ★ 何をしているか:
-        //   クリックで折りたたみ状態を反転し、class と localStorage を更新する（成功ログあり）
-        btn.addEventListener("click", function () {
-          wrongStreakCollapsed = !wrongStreakCollapsed;
-
-          if (wrongStreakCollapsed) {
-            if (card.className.indexOf("is-collapsed") === -1) {
-              card.className += " is-collapsed";
-            }
-          } else {
-            card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
-          }
-
-          try {
-            localStorage.setItem("cscs_sync_view_b_wrong_streak_collapsed", wrongStreakCollapsed ? "1" : "0");
-          } catch (_eSaveWrongStreak) {}
-
-          updateWrongStreakBtnLabel();
-
-          console.log("[SYNC-B:view] Wrong Streak toggle", {
-            qid: (info && info.qid) ? info.qid : "-",
-            collapsed: wrongStreakCollapsed
-          });
-        });
-
         head.appendChild(h);
-        head.appendChild(btn);
 
         var grid = document.createElement("div");
         grid.className = "cscs-svb-card-grid";
@@ -1528,11 +1421,8 @@
         card.appendChild(grid);
         pair.appendChild(card);
 
-        // ★ 何をしているか:
-        //   初期描画が完了したことをログで確認できるようにする
         console.log("[SYNC-B:view] appended Wrong Streak card (pair)", {
           qid: (info && info.qid) ? info.qid : "-",
-          collapsed: wrongStreakCollapsed,
           streak_len: model.localWrongStreakLen,
           streak_max: model.localWrongStreakMax,
           max_day: model.localWrongStreakMaxDayLabel
