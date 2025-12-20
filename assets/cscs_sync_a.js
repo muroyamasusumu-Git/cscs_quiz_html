@@ -2114,6 +2114,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  opacity: 0.6;
 }
 
 #cscs_sync_monitor_a .sync-toggle-btn{
