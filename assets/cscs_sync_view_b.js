@@ -1365,7 +1365,7 @@
 
       var h = document.createElement("div");
       h.className = "cscs-svb-card-title";
-      h.textContent = "Correct Streak (this q / local)";
+      h.textContent = "連続正解 Correct Streak (local)";
 
       var btn = document.createElement("button");
       btn.className = "svb-correct-streak-toggle";

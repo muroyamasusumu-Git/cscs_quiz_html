@@ -2467,7 +2467,7 @@
 
           <div class="sync-card sync-span-2">
             <details class="sync-fold" data-fold="streakmax">
-              <summary>Correct Streak Local</summary>
+              <summary>連続正解 Correct Streak (Local)</summary>
               <div class="sync-body">
                 <div class="mini-grid">
                   <div class="mini-label">len</div>
