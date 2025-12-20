@@ -539,34 +539,6 @@
     "#cscs_sync_view_b_status {",
     "  display: none !important;",
     "}",
-    "",
-    "/* --- UI送信ボタン（見える方） --- */",
-    "#cscs_sync_view_b_send_btn_ui {",
-    "  display: inline-block;",
-    "  margin-left: auto;",
-    "  margin-top: 6px;",
-    "  padding: 6px 10px;",
-    "  border-radius: 9px;",
-    "  border: 1px solid rgba(255,255,255,0.16);",
-    "  background: rgba(0,0,0,0.45);",
-    "  color: #eee;",
-    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
-    "  cursor: pointer;",
-    "  opacity: 0.85;",
-    "}",
-    "",
-    "#cscs_sync_view_b_send_btn_ui:hover {",
-    "  opacity: 0.95;",
-    "}",
-    "",
-    "#cscs_sync_view_b_send_btn_ui:active {",
-    "  opacity: 1;",
-    "}",
-    "",
-    "#cscs_sync_view_b_send_btn_ui[disabled] {",
-    "  opacity: 0.55;",
-    "  cursor: default;",
-    "}",
     ""
   ].join("\n");
 
@@ -1814,24 +1786,7 @@
     //     あえてここで style 属性を直書きしている。
     btn.setAttribute("style", "display:none;");
 
-    // ★ UI用：見える送信ボタン（中身は「非表示ボタン」を click() するだけ）
-    var uiBtn = document.createElement("button");
-    uiBtn.id = "cscs_sync_view_b_send_btn_ui";
-    uiBtn.type = "button";
-    uiBtn.textContent = "SYNC送信";
-    uiBtn.addEventListener("click", function () {
-      try {
-        var hidden = document.getElementById("cscs_sync_view_b_send_btn");
-        if (hidden) {
-          hidden.click();
-        }
-      } catch (e) {
-        console.error("[SYNC-B:view] ui send button click failed:", e);
-      }
-    });
-
     box.appendChild(title);
-    box.appendChild(uiBtn);
     box.appendChild(body);
     box.appendChild(statusDiv);
     // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
