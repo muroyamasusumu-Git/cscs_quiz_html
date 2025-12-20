@@ -181,7 +181,6 @@
   const LS_MON_OPEN        = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN       = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN       = "cscs_sync_a_queue_detail_open";
-  const LS_STREAKMAX_OPEN  = "cscs_sync_a_streakmax_open";
 
   function readLsBool(key, defaultBool){
     try{
@@ -2466,21 +2465,19 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <details class="sync-fold" data-fold="streakmax">
-              <summary>連続正解 (Local)</summary>
-              <div class="sync-body">
-                <div class="mini-grid">
-                  <div class="mini-label">streak_len</div>
-                  <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
+            <div class="sync-title">連続正解 (Local)</div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">streak_len</div>
+                <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
 
-                  <div class="mini-label">streak_max</div>
-                  <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
+                <div class="mini-label">streak_max</div>
+                <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
 
-                  <div class="mini-label">max_day</div>
-                  <div class="mini-val"><span class="sync-streakmax-maxday-local">（データなし）</span></div>
-                </div>
+                <div class="mini-label">max_day</div>
+                <div class="mini-val"><span class="sync-streakmax-maxday-local">（データなし）</span></div>
               </div>
-            </details>
+            </div>
           </div>
 
           <div class="sync-card sync-span-2">
@@ -2569,7 +2566,6 @@
 
         const daysDetails       = box.querySelector('details.sync-fold[data-fold="days"]');
         const queueDetails      = box.querySelector('details.sync-fold[data-fold="queue"]');
-        const streakMaxDetails  = box.querySelector('details.sync-fold[data-fold="streakmax"]');
 
         /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
            - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
@@ -2588,11 +2584,9 @@
 
         const daysOpen        = readLsBool(LS_DAYS_OPEN, false);        // デフォルト閉じ
         const queueOpen       = readLsBool(LS_QDEL_OPEN, false);        // デフォルト閉じ
-        const streakMaxOpen   = readLsBool(LS_STREAKMAX_OPEN, false);   // デフォルト閉じ
 
         if (daysDetails)        daysDetails.open        = !!daysOpen;
         if (queueDetails)       queueDetails.open       = !!queueOpen;
-        if (streakMaxDetails)   streakMaxDetails.open   = !!streakMaxOpen;
 
         if (daysDetails) {
           daysDetails.addEventListener("toggle", function(){
@@ -2602,11 +2596,6 @@
         if (queueDetails) {
           queueDetails.addEventListener("toggle", function(){
             writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
-          });
-        }
-        if (streakMaxDetails) {
-          streakMaxDetails.addEventListener("toggle", function(){
-            writeLsBool(LS_STREAKMAX_OPEN, !!streakMaxDetails.open);
           });
         }
       }catch(_){}
