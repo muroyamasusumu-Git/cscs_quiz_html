@@ -2288,6 +2288,14 @@
   white-space: nowrap;
 }
 
+/* ★ oncePerDay ブロックだけは “中身が複数行グリッド” なので
+   親(.sync-body)の overflow:hidden / nowrap を無効化して表示を保証する */
+#cscs_sync_monitor_a .sync-body.sync-onceperday{
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 /* ============================================================
    ★ 右ブロック（値側）を右寄せに統一
    ------------------------------------------------------------
