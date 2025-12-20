@@ -2715,9 +2715,7 @@
           <div class="sync-card sync-span-2">
             <div class="sync-body status-grid status-grid-2">
               <div class="status-label">Status</div>
-              <div class="status-value"><span class="sync-status">pulled (-)</span></div>
-
-              <div class="status-label">Fetch</div>
+              <div class="status-value"><span class="sync-status">pulled (-)</span></div>             
               <div class="status-value">
                 <button type="button" class="sync-toggle-btn sync-fetch-btn" data-fetch-toggle="1">Fetch: ON</button>
               </div>
