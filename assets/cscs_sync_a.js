@@ -2269,6 +2269,13 @@
   line-height: 1.25;
 }
 
+/* ★ Status 1行＋操作ボタン横並び */
+#cscs_sync_monitor_a .status-grid.status-grid-1 .status-value{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ============================================================
    ★ 追加: Status + Fetch を「左右横並び一列」にする
    ------------------------------------------------------------
@@ -2713,11 +2720,13 @@
           </div>
 
           <div class="sync-card sync-span-2">
-            <div class="sync-body status-grid status-grid-2">
+            <div class="sync-body status-grid status-grid-1">
               <div class="status-label">Status</div>
-              <div class="status-value"><span class="sync-status">pulled (-)</span></div>             
               <div class="status-value">
-                <button type="button" class="sync-toggle-btn sync-fetch-btn" data-fetch-toggle="1">Fetch: ON</button>
+                <span class="sync-status">pulled (-)</span>
+                <button type="button"
+                        class="sync-toggle-btn sync-fetch-btn"
+                        data-fetch-toggle="1">Fetch: ON</button>
               </div>
             </div>
           </div>
