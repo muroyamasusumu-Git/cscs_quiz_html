@@ -37,6 +37,12 @@
    *       ⇔ SYNC state: state.streakWrongLen[qid]
    *   - payload(merge): streak3WrongDelta[qid] / streakWrongLenDelta[qid]
    *
+   * ▼ 問題別 連続不正解（ローカル計測：b_judge_record.js）
+   *   - localStorage: "cscs_q_wrong_streak_max:" + qid
+   *       （最高連続不正解数）
+   *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
+   *       （その達成日 JST YYYYMMDD）
+   *
    * ▼ 今日の⭐️ユニーク数（Streak3Today）
    *   - localStorage: "cscs_streak3_today_day"
    *       ⇔ SYNC state: state.streak3Today.day
@@ -1336,102 +1342,209 @@
       body.appendChild(card);
     })();
 
-    // --- Correct Streak (local / b_judge_record.js) ---
-    (function appendCorrectStreakMaxCard() {
+    // --- Correct/Wrong Streak (local / b_judge_record.js) : 2列横並び ---
+    (function appendStreakMaxPairCards() {
       // ★ 何をしているか:
-      //   Pending と同じ方式で「Correct Streak」を折りたたみ可能にする（localStorageで永続化）。
-      //   - 折りたたみ時は .cscs-svb-card-grid を非表示（DOMは残す）
-      //   - 状態キー: cscs_sync_view_b_correct_streak_collapsed
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide svb-correct-streak-card";
+      //   連続正解ブロックと、連続不正解ブロックを「左右2列」で横並びにする。
+      //   - 既存の .svb-streak-quad を再利用（2列グリッド）
+      //   - 両カードとも、同じUI（タイトル＋折りたたみ＋3行）で統一する
+      var pair = document.createElement("div");
+      pair.className = "svb-streak-quad";
 
-      // ★ 何をしているか:
-      //   折りたたみ状態を localStorage から復元する（フォールバック無し：読めなければ false）
-      var correctStreakCollapsed = false;
-      try {
-        correctStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_correct_streak_collapsed") === "1");
-      } catch (_eCorrectStreakCollapsed) {
-        correctStreakCollapsed = false;
-      }
-
-      if (correctStreakCollapsed) {
-        card.className += " is-collapsed";
-      }
-
-      // ★ 何をしているか:
-      //   ヘッダー行（タイトル + トグル）を作り、折りたたみの操作UIにする
-      var head = document.createElement("div");
-      head.className = "svb-correct-streak-head";
-
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "連続正解 (local)";
-
-      var btn = document.createElement("button");
-      btn.className = "svb-correct-streak-toggle";
-      btn.type = "button";
-      btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
-
-      // ★ 何をしているか:
-      //   ボタンの表示（▼hide / ▶show）を現在状態から確定する
-      function updateCorrectStreakBtnLabel() {
-        var chev = correctStreakCollapsed ? "▶" : "▼";
-        var label = correctStreakCollapsed ? "show" : "hide";
-        btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
-        btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
-      }
-
-      updateCorrectStreakBtnLabel();
-
-      // ★ 何をしているか:
-      //   クリックで折りたたみ状態を反転し、class と localStorage を更新する
-      btn.addEventListener("click", function () {
-        correctStreakCollapsed = !correctStreakCollapsed;
-
-        if (correctStreakCollapsed) {
-          if (card.className.indexOf("is-collapsed") === -1) {
-            card.className += " is-collapsed";
-          }
-        } else {
-          card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+      // ==========================
+      // 左：連続正解 (local)
+      // ==========================
+      (function buildCorrectCard() {
+        // ★ 何をしているか:
+        //   「連続正解」カードの折りたたみ状態を復元する（フォールバック無し：読めなければ false）
+        var correctStreakCollapsed = false;
+        try {
+          correctStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_correct_streak_collapsed") === "1");
+        } catch (_eCorrectStreakCollapsed) {
+          correctStreakCollapsed = false;
         }
 
-        try {
-          localStorage.setItem("cscs_sync_view_b_correct_streak_collapsed", correctStreakCollapsed ? "1" : "0");
-        } catch (_eSaveCorrectStreak) {}
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-correct-streak-card";
+        if (correctStreakCollapsed) {
+          card.className += " is-collapsed";
+        }
+
+        // ★ 何をしているか:
+        //   ヘッダー（タイトル＋トグル）を作る
+        var head = document.createElement("div");
+        head.className = "svb-correct-streak-head";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = "連続正解 (local)";
+
+        var btn = document.createElement("button");
+        btn.className = "svb-correct-streak-toggle";
+        btn.type = "button";
+        btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
+
+        // ★ 何をしているか:
+        //   ボタン表示を現在状態から確定する（▼hide / ▶show）
+        function updateCorrectStreakBtnLabel() {
+          var chev = correctStreakCollapsed ? "▶" : "▼";
+          var label = correctStreakCollapsed ? "show" : "hide";
+          btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
+          btn.setAttribute("aria-expanded", correctStreakCollapsed ? "false" : "true");
+        }
 
         updateCorrectStreakBtnLabel();
 
         // ★ 何をしているか:
-        //   操作が成功したか（状態が切り替わったか）をコンソールで確実に追えるようにログを出す
-        console.log("[SYNC-B:view] Correct Streak toggle", {
-          qid: (info && info.qid) ? info.qid : "-",
-          collapsed: correctStreakCollapsed
+        //   クリックで折りたたみ状態を反転し、class と localStorage を更新する（成功ログあり）
+        btn.addEventListener("click", function () {
+          correctStreakCollapsed = !correctStreakCollapsed;
+
+          if (correctStreakCollapsed) {
+            if (card.className.indexOf("is-collapsed") === -1) {
+              card.className += " is-collapsed";
+            }
+          } else {
+            card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+          }
+
+          try {
+            localStorage.setItem("cscs_sync_view_b_correct_streak_collapsed", correctStreakCollapsed ? "1" : "0");
+          } catch (_eSaveCorrectStreak) {}
+
+          updateCorrectStreakBtnLabel();
+
+          console.log("[SYNC-B:view] Correct Streak toggle", {
+            qid: (info && info.qid) ? info.qid : "-",
+            collapsed: correctStreakCollapsed
+          });
         });
-      });
 
-      head.appendChild(h);
-      head.appendChild(btn);
+        head.appendChild(h);
+        head.appendChild(btn);
 
-      var grid = document.createElement("div");
-      grid.className = "cscs-svb-card-grid";
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
 
-      appendGridRow(grid, "streak_len", String(model.localStreakLen));
-      appendGridRow(grid, "streak_max", String(model.localCorrectStreakMax));
-      appendGridRow(grid, "max_day", String(model.localCorrectStreakMaxDayLabel));
+        appendGridRow(grid, "streak_len", String(model.localStreakLen));
+        appendGridRow(grid, "streak_max", String(model.localCorrectStreakMax));
+        appendGridRow(grid, "max_day", String(model.localCorrectStreakMaxDayLabel));
 
-      card.appendChild(head);
-      card.appendChild(grid);
-      body.appendChild(card);
+        card.appendChild(head);
+        card.appendChild(grid);
+        pair.appendChild(card);
+
+        // ★ 何をしているか:
+        //   初期描画が完了したことをログで確認できるようにする
+        console.log("[SYNC-B:view] appended Correct Streak card (pair)", {
+          qid: (info && info.qid) ? info.qid : "-",
+          collapsed: correctStreakCollapsed,
+          streak_len: model.localStreakLen,
+          streak_max: model.localCorrectStreakMax,
+          max_day: model.localCorrectStreakMaxDayLabel
+        });
+      })();
+
+      // ==========================
+      // 右：連続不正解 (local)
+      // ==========================
+      (function buildWrongCard() {
+        // ★ 何をしているか:
+        //   「連続不正解」カードの折りたたみ状態を復元する（フォールバック無し：読めなければ false）
+        var wrongStreakCollapsed = false;
+        try {
+          wrongStreakCollapsed = (localStorage.getItem("cscs_sync_view_b_wrong_streak_collapsed") === "1");
+        } catch (_eWrongStreakCollapsed) {
+          wrongStreakCollapsed = false;
+        }
+
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-wrong-streak-card";
+        if (wrongStreakCollapsed) {
+          card.className += " is-collapsed";
+        }
+
+        // ★ 何をしているか:
+        //   ヘッダー（タイトル＋トグル）を作る（UIは連続正解と統一）
+        var head = document.createElement("div");
+        head.className = "svb-correct-streak-head";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = "連続不正解 (local)";
+
+        var btn = document.createElement("button");
+        btn.className = "svb-correct-streak-toggle";
+        btn.type = "button";
+        btn.setAttribute("aria-expanded", wrongStreakCollapsed ? "false" : "true");
+
+        // ★ 何をしているか:
+        //   ボタン表示を現在状態から確定する（▼hide / ▶show）
+        function updateWrongStreakBtnLabel() {
+          var chev = wrongStreakCollapsed ? "▶" : "▼";
+          var label = wrongStreakCollapsed ? "show" : "hide";
+          btn.innerHTML = "<span class=\"svb-correct-streak-chev\">" + chev + "</span>" + label;
+          btn.setAttribute("aria-expanded", wrongStreakCollapsed ? "false" : "true");
+        }
+
+        updateWrongStreakBtnLabel();
+
+        // ★ 何をしているか:
+        //   クリックで折りたたみ状態を反転し、class と localStorage を更新する（成功ログあり）
+        btn.addEventListener("click", function () {
+          wrongStreakCollapsed = !wrongStreakCollapsed;
+
+          if (wrongStreakCollapsed) {
+            if (card.className.indexOf("is-collapsed") === -1) {
+              card.className += " is-collapsed";
+            }
+          } else {
+            card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+          }
+
+          try {
+            localStorage.setItem("cscs_sync_view_b_wrong_streak_collapsed", wrongStreakCollapsed ? "1" : "0");
+          } catch (_eSaveWrongStreak) {}
+
+          updateWrongStreakBtnLabel();
+
+          console.log("[SYNC-B:view] Wrong Streak toggle", {
+            qid: (info && info.qid) ? info.qid : "-",
+            collapsed: wrongStreakCollapsed
+          });
+        });
+
+        head.appendChild(h);
+        head.appendChild(btn);
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(grid, "streak_len", String(model.localWrongStreakLen));
+        appendGridRow(grid, "streak_max", String(model.localWrongStreakMax));
+        appendGridRow(grid, "max_day", String(model.localWrongStreakMaxDayLabel));
+
+        card.appendChild(head);
+        card.appendChild(grid);
+        pair.appendChild(card);
+
+        // ★ 何をしているか:
+        //   初期描画が完了したことをログで確認できるようにする
+        console.log("[SYNC-B:view] appended Wrong Streak card (pair)", {
+          qid: (info && info.qid) ? info.qid : "-",
+          collapsed: wrongStreakCollapsed,
+          streak_len: model.localWrongStreakLen,
+          streak_max: model.localWrongStreakMax,
+          max_day: model.localWrongStreakMaxDayLabel
+        });
+      })();
+
+      body.appendChild(pair);
 
       // ★ 何をしているか:
-      //   初期描画が「折りたたみ復元込み」で完了したことをログで確認できるようにする
-      console.log("[SYNC-B:view] appended Correct Streak card (collapsible)", {
-        qid: (info && info.qid) ? info.qid : "-",
-        collapsed: correctStreakCollapsed,
-        streak_len: model.localStreakLen,
-        streak_max: model.localCorrectStreakMax,
-        max_day: model.localCorrectStreakMaxDayLabel
+      //   2列ペア全体の追加が完了したことをログで確認できるようにする
+      console.log("[SYNC-B:view] appended Streak Max pair (correct/wrong)", {
+        qid: (info && info.qid) ? info.qid : "-"
       });
     })();
 
@@ -1720,6 +1833,28 @@
         });
       } catch (eStreakMax) {
         console.error("[SYNC-B:view] correct-streak max read error:", eStreakMax);
+      }
+
+      // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続不正解数 / 達成日）を読み出す
+      //   何をしているか: localStorage の確定キーから「最高/達成日」を取得し、HUD model に載せる
+      //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
+      var localWrongStreakMax = 0;
+      var localWrongStreakMaxDayLabel = "（データなし）";
+      try {
+        localWrongStreakMax = readIntFromLocalStorage("cscs_q_wrong_streak_max:" + info.qid);
+        var maxWrongDayNum = readDayFromLocalStorage("cscs_q_wrong_streak_max_day:" + info.qid);
+        if (maxWrongDayNum !== null) {
+          localWrongStreakMaxDayLabel = String(maxWrongDayNum);
+        }
+
+        console.log("[SYNC-B:view] wrong-streak max from localStorage", {
+          qid: info.qid,
+          localWrongStreakLen: localWrongStreakLen,
+          localWrongStreakMax: localWrongStreakMax,
+          localWrongStreakMaxDay: localWrongStreakMaxDayLabel
+        });
+      } catch (eWrongStreakMax) {
+        console.error("[SYNC-B:view] wrong-streak max read error:", eWrongStreakMax);
       }
 
       // statusText は内部状態としてログだけに使う
@@ -2171,7 +2306,11 @@
 
         // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続正解数 / 更新日）
         localCorrectStreakMax: localCorrectStreakMax,
-        localCorrectStreakMaxDayLabel: localCorrectStreakMaxDayLabel
+        localCorrectStreakMaxDayLabel: localCorrectStreakMaxDayLabel,
+
+        // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続不正解数 / 達成日）
+        localWrongStreakMax: localWrongStreakMax,
+        localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel
       });
 
       // ★ ここから O.D.O.A Mode 表示専用ロジック
