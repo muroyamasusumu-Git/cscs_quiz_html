@@ -236,10 +236,6 @@
 
     // ★ 処理: UI側にも反映（存在すれば）
     try{
-      const el = document.querySelector("#cscs_sync_monitor_a .sync-fetch-state");
-      if (el) {
-        el.textContent = syncFetchEnabled ? "ON" : "OFF";
-      }
       const btn = document.querySelector("#cscs_sync_monitor_a button[data-fetch-toggle=\"1\"]");
       if (btn) {
         btn.textContent = syncFetchEnabled ? "Fetch: ON" : "Fetch: OFF";
@@ -2723,7 +2719,6 @@
 
               <div class="status-label">Fetch</div>
               <div class="status-value">
-                <span class="sync-fetch-state">ON</span>
                 <button type="button" class="sync-toggle-btn sync-fetch-btn" data-fetch-toggle="1">Fetch: ON</button>
               </div>
             </div>
