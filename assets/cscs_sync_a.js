@@ -695,45 +695,46 @@
           btnWrap.style.gridTemplateColumns = "1fr";
           btnWrap.style.gap = "8px";
 
-          // ★ ボタン共通：カード準拠スタイルを統一適用（CLOSE含む）
-          function applyCardButtonStyle(btn){
-            btn.className = "sync-card";
-            btn.style.width = "100%";
-            btn.style.padding = "8px 10px";
-            btn.style.cursor = "pointer";
-            btn.style.textAlign = "center";
-            btn.style.fontSize = "12px";
-            btn.style.lineHeight = "1.2";
-            btn.style.background = "rgba(0,0,0,0.42)";
-            btn.style.border = "1px solid rgba(255,255,255,0.10)";
-            btn.style.borderRadius = "10px";
-            btn.style.color = "#fff";
-          }
-
           // --- ボタン1: 自動取得 ON/OFF ---
           const btnToggle = document.createElement("button");
           btnToggle.type = "button";
           btnToggle.id = "cscs_sync_a_btn_toggle_auto_fetch";
           btnToggle.textContent = autoFetchEnabled ? "AUTO FETCH: ON" : "AUTO FETCH: OFF";
-          applyCardButtonStyle(btnToggle);
+
+          // ★ カードUI準拠スタイル（sync-card 系）
+          btnToggle.className = "sync-card";
+          btnToggle.style.width = "100%";
+          btnToggle.style.padding = "8px 10px";
+          btnToggle.style.cursor = "pointer";
+          btnToggle.style.textAlign = "center";
+          btnToggle.style.fontSize = "12px";
+          btnToggle.style.lineHeight = "1.2";
+          btnToggle.style.background = "rgba(0,0,0,0.42)";
+          btnToggle.style.border = "1px solid rgba(255,255,255,0.10)";
+          btnToggle.style.borderRadius = "10px";
+          btnToggle.style.color = "#fff";
 
           // --- ボタン2: 手動取得→ローカル上書き ---
           const btnManual = document.createElement("button");
           btnManual.type = "button";
           btnManual.id = "cscs_sync_a_btn_manual_fetch_overwrite";
           btnManual.textContent = "FETCH SYNC → OVERWRITE LOCAL";
-          applyCardButtonStyle(btnManual);
 
-          // --- ボタン3: CLOSE（押したらモニタを隠す） ---
-          const btnClose = document.createElement("button");
-          btnClose.type = "button";
-          btnClose.id = "cscs_sync_a_btn_close";
-          btnClose.textContent = "CLOSE";
-          applyCardButtonStyle(btnClose);
+          // ★ カードUI準拠スタイル（sync-card 系）
+          btnManual.className = "sync-card";
+          btnManual.style.width = "100%";
+          btnManual.style.padding = "8px 10px";
+          btnManual.style.cursor = "pointer";
+          btnManual.style.textAlign = "center";
+          btnManual.style.fontSize = "12px";
+          btnManual.style.lineHeight = "1.2";
+          btnManual.style.background = "rgba(0,0,0,0.42)";
+          btnManual.style.border = "1px solid rgba(255,255,255,0.10)";
+          btnManual.style.borderRadius = "10px";
+          btnManual.style.color = "#fff";
 
           btnWrap.appendChild(btnToggle);
           btnWrap.appendChild(btnManual);
-          btnWrap.appendChild(btnClose);
 
           // ★ 処理4: 「パネルの一番下」に追加
           box.appendChild(btnWrap);
@@ -741,8 +742,7 @@
           console.log("[SYNC-A][OK][UI] bottom buttons appended", {
             containerId: "cscs_sync_a_bottom_buttons",
             toggleId: "cscs_sync_a_btn_toggle_auto_fetch",
-            manualId: "cscs_sync_a_btn_manual_fetch_overwrite",
-            closeId: "cscs_sync_a_btn_close"
+            manualId: "cscs_sync_a_btn_manual_fetch_overwrite"
           });
 
           // ★ 処理5: クリックイベントを1回だけ登録
@@ -771,23 +771,6 @@
                 error: String(e && e.message || e)
               });
             });
-          });
-
-          btnClose.addEventListener("click", function(){
-            // ★ CLOSE: モニタ全体を隠す（フォールバック無し、推測で何かを復帰しない）
-            try{
-              const target = document.getElementById("cscs_sync_monitor_a");
-              if (target) {
-                target.style.display = "none";
-                console.log("[SYNC-A][OK][UI] monitor hidden by CLOSE", { id: "cscs_sync_monitor_a" });
-              } else {
-                console.error("[SYNC-A][ERR][UI] monitor not found for CLOSE", { id: "cscs_sync_monitor_a" });
-              }
-            }catch(e){
-              console.error("[SYNC-A][ERR][UI] CLOSE handler exception", {
-                error: String(e && e.message || e)
-              });
-            }
           });
         } else {
           // ★ すでに存在する場合：表示だけ最新化（ON/OFF表示ズレ防止）
