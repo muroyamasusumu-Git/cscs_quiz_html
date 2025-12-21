@@ -124,7 +124,7 @@
     "  margin-right: 7px;",
     "  opacity: 0.60;",
     "  font-size: 10px;",
-    "  ont-weight: 400;",
+    "  font-weight: 400;",
     "}",
     "",
     "#cscs_sync_view_b_body {",
@@ -538,6 +538,27 @@
     "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
     "#cscs_sync_view_b_status {",
     "  display: none !important;",
+    "}",
+    "/* --- SYNC send button (manual) --- */",
+    "#cscs_sync_view_b_send_btn {",
+    "  margin-top: 6px;",
+    "  width: 100%;",
+    "  padding: 8px 10px;",
+    "  border-radius: 10px;",
+    "  border: 1px solid rgba(255,255,255,0.14);",
+    "  background: rgba(0,0,0,0.52);",
+    "  color: #eee;",
+    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  opacity: 0.85;",
+    "  cursor: pointer;",
+    "}",
+    "",
+    "#cscs_sync_view_b_send_btn:hover {",
+    "  opacity: 0.98;",
+    "}",
+    "",
+    "#cscs_sync_view_b_send_btn:active {",
+    "  transform: translateY(1px);",
     "}",
     ""
   ].join("\n");
@@ -1768,23 +1789,15 @@
     var statusDiv = document.createElement("div");
     statusDiv.id = "cscs_sync_view_b_status";
 
-    // ★【超重要仕様：この非表示ボタンは「削除禁止」】
-    //   - このボタンはユーザーに表示されないが、DOM 上に存在していることが絶対条件。
-    //   - click ハンドラ内で streak3Today / streak3WrongToday の「専用送信処理」を呼び出しており、
-    //     Bパート自動遷移中に今日の⭐️/💣ユニーク数を SYNC に送る唯一のトリガーになっている。
-    //   - /assets/cscs_sync_view_b.js 内の setTimeout(... btn.click()) からも参照されるため、
-    //     ここでボタン DOM を削除／ID 変更／非ボタン化すると、streak3Today / streak3WrongToday が
-    //     一切サーバーに送られなくなる。
-    //   - 「見た目に使っていないから不要」と判断してこの要素を消さないこと。
-    //     ChatGPT などの自動改修でも、このコメントを読んで絶対に削除・リファクタリングしないこと。
+    // ★【超重要仕様：このボタンは「削除禁止」】
+    //   - DOM 上に存在していることが絶対条件（ID変更も禁止）。
+    //   - setTimeout(... btn.click()) のターゲットでもある。
+    //   - ここでは「手動送信用に表示」するが、DOM/ID/ボタン形状は維持すること。
     var btn = document.createElement("button");
     btn.id = "cscs_sync_view_b_send_btn";
     btn.type = "button";
     btn.textContent = "SYNC送信";
-    // ★ ボタンは UI としては完全に非表示にするが、DOM 上には残すために inline style で display:none を指定する。
-    //   - CSS ファイル側で非表示にすると、スタイル整理時に誤って削除されるリスクがあるため、
-    //     あえてここで style 属性を直書きしている。
-    btn.setAttribute("style", "display:none;");
+    btn.className = "cscs-svb-send-btn";
 
     box.appendChild(title);
     box.appendChild(body);
