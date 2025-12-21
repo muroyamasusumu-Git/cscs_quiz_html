@@ -1,44 +1,47 @@
 // assets/cscs_sync_a_status_compare_b.js
-// -------------------------------------------
-// 目的:
-//   - Aの「SYNCステータスパネル相当」を、Bページで“表示だけ”行う。
-//   - 送信（/api/sync/merge）やキュー管理は一切しない。
-//   - 参照元は /api/sync/state と localStorage のみ（フォールバックで別ソースを捏造しない）。
-//
-// 前提:
-//   - BページURL: /_build_cscs_YYYYMMDD/slides/qNNN_b.html
-//   - qid形式: "YYYYMMDD-NNN"
-//
-// 注意:
-//   - このJSは “Aのcscs_sync_a.js” を読み込まなくても動く（完全独立）。
-//   - 既存B側のSYNCパネルと衝突しないよう、DOM id を専用化している。
-
-(function(){
+/**
+ * CSCS SYNC Monitor (B)
+ * 目的:
+ *   - Aで表示されている「SYNCステータスパネル風」のUIを、Bでも表示する。
+ *   - B側は“表示専用”として扱い、送信キューやmerge送信は担当しない。
+ *
+ * 参照元（フォールバック禁止）:
+ *   - localStorage（b_judge_record.js が書く各キー）
+ *   - /api/sync/state（SYNC state）
+ *
+ * パネルroot:
+ *   - id="cscs_sync_monitor_b"
+ *
+ * 注意:
+ *   - 「取れない値は取れない」と表示する（0埋め/別ルート補完禁止）
+ */
+(function () {
   "use strict";
 
-  // 二重初期化防止
-  if (window.__CSCS_A_PANEL_ON_B_INSTALLED__) return;
-  window.__CSCS_A_PANEL_ON_B_INSTALLED__ = true;
+  // 二重起動防止
+  if (window.__CSCS_SYNC_MONITOR_B_INSTALLED__) return;
+  window.__CSCS_SYNC_MONITOR_B_INSTALLED__ = true;
 
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
 
-  // =========================
-  // QID検出（Bページ）
-  // =========================
-  function detectQidFromLocationB(){
+  // -----------------------------
+  // QID検出（Bパート）
+  // 例: /_build_cscs_20250926/slides/q013_b.html → "20250926-013"
+  // -----------------------------
+  function detectQidFromLocationB() {
     var m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
     if (!m) return null;
-    var day  = m[1];
+    var day = m[1];
     var num3 = m[2];
     return day + "-" + num3;
   }
 
   var QID = detectQidFromLocationB();
 
-  // =========================
-  // “欠損は欠損” 表示用
-  // =========================
-  function toDisplayText(value, emptyLabel){
+  // -----------------------------
+  // 表示補助（欠損は "-" / "（データなし）"）
+  // -----------------------------
+  function toDisplayText(value, emptyLabel) {
     var fallback = (emptyLabel != null) ? String(emptyLabel) : "-";
     if (value === null || value === undefined) return fallback;
     var s = String(value);
@@ -46,8 +49,8 @@
     return s;
   }
 
-  function readLsNonNegIntOrNull(key){
-    try{
+  function readLsNonNegIntOrNull(key) {
+    try {
       var raw = localStorage.getItem(key);
       if (raw === null || raw === undefined) return null;
       var s = String(raw).trim();
@@ -56,408 +59,688 @@
       var n = parseInt(s, 10);
       if (!Number.isFinite(n) || n < 0) return null;
       return n;
-    }catch(_){
+    } catch (_) {
       return null;
     }
   }
 
-  function readDatasetNonNegIntOrNull(ds, keyName){
-    try{
-      if (!ds) return null;
-      var raw = ds[keyName];
-      if (raw === null || raw === undefined) return null;
-      var s = String(raw).trim();
+  function readLsStringOrNull(key) {
+    try {
+      var v = localStorage.getItem(key);
+      if (v === null || v === undefined) return null;
+      var s = String(v).trim();
       if (s === "") return null;
-      if (!/^\d+$/.test(s)) return null;
-      var n = parseInt(s, 10);
-      if (!Number.isFinite(n) || n < 0) return null;
-      return n;
-    }catch(_){
+      return s;
+    } catch (_) {
       return null;
     }
   }
 
-  // =========================
-  // パネルDOM（Bへ挿入）
-  // =========================
-  function ensurePanelDom(){
-    var rootId = "cscs_sync_monitor_a_on_b";
-    var existing = document.getElementById(rootId);
-    if (existing) return existing;
-
-    // Bページ内の挿入先：まず body 直下（最小依存）
-    var host = document.body;
-    if (!host) return null;
-
-    // style（最低限：読みやすいカード表示）
-    injectStyleOnce();
-
-    var box = document.createElement("div");
-    box.id = rootId;
-
-    // Aの“雰囲気”に寄せた、必要最小限の表示枠
-    box.innerHTML =
-      '' +
-      '<div class="cscs-aob-card">' +
-        '<div class="cscs-aob-head">' +
-          '<div class="cscs-aob-title">SYNC Monitor (A panel on B)</div>' +
-          '<div class="cscs-aob-qid">qid: <span class="aob-qid-val">（未検出）</span></div>' +
-        '</div>' +
-
-        '<div class="cscs-aob-grid">' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">SYNC totals</div>' +
-            '<div class="aob-v"><span class="aob-sync-totals">（データなし）</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">local totals</div>' +
-            '<div class="aob-v"><span class="aob-local-totals">（データなし）</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">streak3 (⭐️)</div>' +
-            '<div class="aob-v">SYNC <span class="aob-sync-s3">-</span> / local <span class="aob-local-s3">-</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">streakLen</div>' +
-            '<div class="aob-v">SYNC <span class="aob-sync-sl">-</span> (p:<span class="aob-sync-sl-prog">-</span>) / local <span class="aob-local-sl">-</span> (p:<span class="aob-local-sl-prog">-</span>)</div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">streak3Wrong</div>' +
-            '<div class="aob-v">SYNC <span class="aob-sync-s3w">-</span> / local <span class="aob-local-s3w">-</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">streakWrongLen</div>' +
-            '<div class="aob-v">SYNC <span class="aob-sync-slw">-</span> (p:<span class="aob-sync-slw-prog">-</span>) / local <span class="aob-local-slw">-</span> (p:<span class="aob-local-slw-prog">-</span>)</div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">streak3Today</div>' +
-            '<div class="aob-v">SYNC day <span class="aob-s3t-day-sync">（データなし）</span> / unique <span class="aob-s3t-uc-sync">（データなし）</span> ｜ local day <span class="aob-s3t-day-local">（データなし）</span> / unique <span class="aob-s3t-uc-local">（データなし）</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">streak3WrongToday</div>' +
-            '<div class="aob-v">SYNC day <span class="aob-s3wt-day-sync">（データなし）</span> / unique <span class="aob-s3wt-uc-sync">（データなし）</span> ｜ local day <span class="aob-s3wt-day-local">（データなし）</span> / unique <span class="aob-s3wt-uc-local">（データなし）</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">oncePerDayToday</div>' +
-            '<div class="aob-v">SYNC day <span class="aob-once-day-sync">（データなし）</span> ｜ local day <span class="aob-once-day-local">（データなし）</span> ｜ result <span class="aob-once-qid-result">（データなし）</span></div>' +
-          '</div>' +
-
-          '<div class="aob-row">' +
-            '<div class="aob-k">status</div>' +
-            '<div class="aob-v"><span class="aob-status">idle</span> (<span class="aob-time">-</span>) <span class="aob-err"></span></div>' +
-          '</div>' +
-
-        '</div>' +
-      '</div>';
-
-    // 先頭に挿入（邪魔ならCSSで位置調整してOK）
-    host.insertBefore(box, host.firstChild);
-    return box;
+  function readLsJsonOrNull(key) {
+    try {
+      var v = localStorage.getItem(key);
+      if (v === null || v === undefined) return null;
+      var s = String(v).trim();
+      if (s === "") return null;
+      return JSON.parse(s);
+    } catch (_) {
+      return null;
+    }
   }
 
-  function injectStyleOnce(){
-    var styleId = "cscs_sync_a_panel_on_b_style";
-    if (document.getElementById(styleId)) return;
+  function getTodayYmdNum() {
+    try {
+      var now = new Date();
+      var yy = now.getFullYear();
+      var mm = now.getMonth() + 1;
+      var dd = now.getDate();
+      return yy * 10000 + mm * 100 + dd;
+    } catch (_) {
+      return null;
+    }
+  }
 
-    var css =
-      '' +
-      '#cscs_sync_monitor_a_on_b{ position: relative; z-index: 9999; }\n' +
-      '#cscs_sync_monitor_a_on_b .cscs-aob-card{\n' +
-      '  margin: 10px;\n' +
-      '  padding: 10px 10px;\n' +
-      '  border: 1px solid rgba(255,255,255,0.14);\n' +
-      '  border-radius: 10px;\n' +
-      '  background: rgba(0,0,0,0.42);\n' +
-      '  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);\n' +
-      '  color: rgba(255,255,255,0.92);\n' +
-      '  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;\n' +
-      '  line-height: 1.25;\n' +
-      '}\n' +
-      '#cscs_sync_monitor_a_on_b .cscs-aob-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-bottom:8px; }\n' +
-      '#cscs_sync_monitor_a_on_b .cscs-aob-title{ font-weight:600; opacity:0.95; }\n' +
-      '#cscs_sync_monitor_a_on_b .cscs-aob-qid{ font-size:12px; opacity:0.85; }\n' +
-      '#cscs_sync_monitor_a_on_b .cscs-aob-grid{ display:grid; grid-template-columns:1fr; gap:6px; }\n' +
-      '#cscs_sync_monitor_a_on_b .aob-row{ display:grid; grid-template-columns:160px 1fr; gap:10px; }\n' +
-      '#cscs_sync_monitor_a_on_b .aob-k{ font-size:12px; opacity:0.78; }\n' +
-      '#cscs_sync_monitor_a_on_b .aob-v{ font-size:13px; opacity:0.95; word-break:break-word; }\n';
+  function isTodayYmdString(ymdStr) {
+    try {
+      var s = String(ymdStr || "").trim();
+      if (!/^\d{8}$/.test(s)) return "unknown";
+      var t = getTodayYmdNum();
+      if (t === null) return "unknown";
+      return (s === String(t)) ? "YES" : "NO";
+    } catch (_) {
+      return "unknown";
+    }
+  }
+
+  // -----------------------------
+  // 共通CSS（A風）をBにも注入
+  // ※ここは「AのCSSをそのまま完全コピー」ではなく、
+  //   Aと同系統のカード/グリッド表現を新規で作る。
+  // -----------------------------
+  function injectCscsSyncMonitorBStyleOnce() {
+    if (document.getElementById("cscs_sync_monitor_b_style")) return;
+
+    var css = ""
+      + "#cscs_sync_monitor_b{"
+      + "  position: fixed;"
+      + "  right: 10px;"
+      + "  bottom: 10px;"
+      + "  width: min(420px, calc(100vw - 20px));"
+      + "  z-index: 999999;"
+      + "  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji';"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-wrap{"
+      + "  background: rgba(0,0,0,0.52);"
+      + "  border: 1px solid rgba(255,255,255,0.14);"
+      + "  border-radius: 14px;"
+      + "  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);"
+      + "  color: rgba(255,255,255,0.92);"
+      + "  overflow: hidden;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-head{"
+      + "  display:flex;"
+      + "  align-items:center;"
+      + "  justify-content:space-between;"
+      + "  gap:10px;"
+      + "  padding: 10px 10px;"
+      + "  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));"
+      + "  border-bottom: 1px solid rgba(255,255,255,0.10);"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-title{"
+      + "  font-weight: 650;"
+      + "  letter-spacing: 0.2px;"
+      + "  font-size: 13px;"
+      + "  opacity: 0.95;"
+      + "  white-space: nowrap;"
+      + "  overflow: hidden;"
+      + "  text-overflow: ellipsis;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-sub{"
+      + "  font-size: 11px;"
+      + "  opacity: 0.75;"
+      + "  white-space: nowrap;"
+      + "  overflow: hidden;"
+      + "  text-overflow: ellipsis;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-btn{"
+      + "  appearance:none;"
+      + "  border: 1px solid rgba(255,255,255,0.18);"
+      + "  background: rgba(255,255,255,0.06);"
+      + "  color: rgba(255,255,255,0.90);"
+      + "  border-radius: 10px;"
+      + "  padding: 6px 10px;"
+      + "  font-size: 12px;"
+      + "  cursor: pointer;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-btn:hover{"
+      + "  background: rgba(255,255,255,0.10);"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-body{"
+      + "  padding: 10px;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-grid{"
+      + "  display: grid;"
+      + "  grid-template-columns: 1fr 1fr;"
+      + "  gap: 8px;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-card{"
+      + "  background: rgba(0,0,0,0.38);"
+      + "  border: 1px solid rgba(255,255,255,0.10);"
+      + "  border-radius: 12px;"
+      + "  padding: 9px 9px;"
+      + "  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-card.is-wide{"
+      + "  grid-column: 1 / span 2;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-card-title{"
+      + "  font-size: 12px;"
+      + "  font-weight: 600;"
+      + "  opacity: 0.90;"
+      + "  margin-bottom: 6px;"
+      + "  white-space: nowrap;"
+      + "  overflow: hidden;"
+      + "  text-overflow: ellipsis;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-row{"
+      + "  display:flex;"
+      + "  align-items:baseline;"
+      + "  justify-content:space-between;"
+      + "  gap: 8px;"
+      + "  font-size: 12px;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-k{"
+      + "  opacity: 0.70;"
+      + "  font-size: 11px;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-v{"
+      + "  font-variant-numeric: tabular-nums;"
+      + "  font-size: 12px;"
+      + "  opacity: 0.95;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-mini{"
+      + "  font-size: 11px;"
+      + "  opacity: 0.70;"
+      + "  margin-top: 6px;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-divider{"
+      + "  height: 1px;"
+      + "  background: rgba(255,255,255,0.10);"
+      + "  margin: 8px 0;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-tag{"
+      + "  display:inline-block;"
+      + "  padding: 2px 6px;"
+      + "  border-radius: 999px;"
+      + "  border: 1px solid rgba(255,255,255,0.14);"
+      + "  background: rgba(255,255,255,0.06);"
+      + "  font-size: 10px;"
+      + "  opacity: 0.85;"
+      + "}"
+      + "#cscs_sync_monitor_b .syncb-hidden{"
+      + "  display:none;"
+      + "}";
 
     var style = document.createElement("style");
-    style.id = styleId;
+    style.id = "cscs_sync_monitor_b_style";
     style.type = "text/css";
     style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
   }
 
-  // =========================
-  // state取得（表示のみ）
-  // =========================
-  var lastStatus = "idle";
-  var lastTime = null;
-  var lastErr = "";
+  // -----------------------------
+  // DOM生成（B用パネル）
+  // -----------------------------
+  function buildMonitorDomB() {
+    var root = document.getElementById("cscs_sync_monitor_b");
+    if (root) return root;
 
-  function setStatus(box, status, err){
-    try{
-      var st = box.querySelector(".aob-status");
-      var tm = box.querySelector(".aob-time");
-      var er = box.querySelector(".aob-err");
-      if (st) st.textContent = status;
-      if (tm) tm.textContent = lastTime ? lastTime : "-";
-      if (er) er.textContent = err ? (" err:" + err) : "";
-    }catch(_){}
-  }
+    root = document.createElement("div");
+    root.id = "cscs_sync_monitor_b";
 
-  function computeProgressMod3(n){
-    if (typeof n === "number" && Number.isFinite(n)) return (n % 3);
-    return null;
-  }
+    var wrap = document.createElement("div");
+    wrap.className = "syncb-wrap";
 
-  function readOncePerDayQidResult(state, qid){
-    try{
-      if (!state || typeof state !== "object") return null;
-      var once = (state.oncePerDayToday && typeof state.oncePerDayToday === "object") ? state.oncePerDayToday : null;
-      if (!once || !once.results || typeof once.results !== "object") return null;
-      if (!Object.prototype.hasOwnProperty.call(once.results, qid)) return null;
-      return once.results[qid];
-    }catch(_){
-      return null;
+    var head = document.createElement("div");
+    head.className = "syncb-head";
+
+    var left = document.createElement("div");
+    left.style.minWidth = "0";
+
+    var title = document.createElement("div");
+    title.className = "syncb-title";
+    title.textContent = "CSCS SYNC Monitor (B)";
+
+    var sub = document.createElement("div");
+    sub.className = "syncb-sub";
+    sub.innerHTML =
+      'QID: <span class="syncb-qid syncb-tag"></span> ' +
+      '<span class="syncb-status syncb-tag"></span>';
+
+    left.appendChild(title);
+    left.appendChild(sub);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "syncb-btn";
+    btn.textContent = "OPEN";
+    btn.setAttribute("aria-expanded", "false");
+
+    head.appendChild(left);
+    head.appendChild(btn);
+
+    var body = document.createElement("div");
+    body.className = "syncb-body syncb-hidden";
+
+    // グリッド本体
+    var grid = document.createElement("div");
+    grid.className = "syncb-grid";
+
+    function card(titleText, wide) {
+      var c = document.createElement("div");
+      c.className = "syncb-card" + (wide ? " is-wide" : "");
+      var h = document.createElement("div");
+      h.className = "syncb-card-title";
+      h.textContent = titleText;
+      c.appendChild(h);
+      return c;
     }
+
+    function row(k, clsV) {
+      var r = document.createElement("div");
+      r.className = "syncb-row";
+      var kk = document.createElement("div");
+      kk.className = "syncb-k";
+      kk.textContent = k;
+      var vv = document.createElement("div");
+      vv.className = "syncb-v " + clsV;
+      vv.textContent = "-";
+      r.appendChild(kk);
+      r.appendChild(vv);
+      return r;
+    }
+
+    // Totals（SYNC / local）
+    var cTotals = card("Totals (c / w)", true);
+    cTotals.appendChild(row("SYNC", "v-sync-totals"));
+    cTotals.appendChild(row("local", "v-local-totals"));
+    cTotals.appendChild(row("+Δ(参考)", "v-delta-ref"));
+    cTotals.appendChild(document.createElement("div")).className = "syncb-mini v-note-totals";
+    grid.appendChild(cTotals);
+
+    // Streak (correct)
+    var cStreak = card("Streak (correct)", false);
+    cStreak.appendChild(row("streak3 (SYNC)", "v-sync-s3"));
+    cStreak.appendChild(row("streak3 (local)", "v-local-s3"));
+    cStreak.appendChild(row("len (SYNC)", "v-sync-sl"));
+    cStreak.appendChild(row("len (local)", "v-local-sl"));
+    cStreak.appendChild(row("progress SYNC", "v-sync-prog"));
+    cStreak.appendChild(row("progress local", "v-local-prog"));
+    grid.appendChild(cStreak);
+
+    // Streak (wrong)
+    var cWStreak = card("Streak (wrong)", false);
+    cWStreak.appendChild(row("streak3 (SYNC)", "v-sync-s3w"));
+    cWStreak.appendChild(row("streak3 (local)", "v-local-s3w"));
+    cWStreak.appendChild(row("len (SYNC)", "v-sync-slw"));
+    cWStreak.appendChild(row("len (local)", "v-local-slw"));
+    cWStreak.appendChild(row("progress SYNC", "v-sync-progw"));
+    cWStreak.appendChild(row("progress local", "v-local-progw"));
+    grid.appendChild(cWStreak);
+
+    // streak max (local)
+    var cMax = card("Streak Max (local)", true);
+    cMax.appendChild(row("len (now)", "v-local-max-len"));
+    cMax.appendChild(row("max", "v-local-max-val"));
+    cMax.appendChild(row("day", "v-local-max-day"));
+    cMax.appendChild(document.createElement("div")).className = "syncb-mini v-note-max";
+    grid.appendChild(cMax);
+
+    // wrong streak max (local)
+    var cWMax = card("Wrong Streak Max (local)", true);
+    cWMax.appendChild(row("len (now)", "v-local-wmax-len"));
+    cWMax.appendChild(row("max", "v-local-wmax-val"));
+    cWMax.appendChild(row("day", "v-local-wmax-day"));
+    cWMax.appendChild(document.createElement("div")).className = "syncb-mini v-note-wmax";
+    grid.appendChild(cWMax);
+
+    // Today streak3 unique
+    var cToday = card("Streak3Today (⭐️ unique)", true);
+    cToday.appendChild(row("SYNC day", "v-s3t-sync-day"));
+    cToday.appendChild(row("local day", "v-s3t-local-day"));
+    cToday.appendChild(row("isToday (SYNC)", "v-s3t-istoday"));
+    cToday.appendChild(row("SYNC unique", "v-s3t-sync-uc"));
+    cToday.appendChild(row("local unique", "v-s3t-local-uc"));
+    grid.appendChild(cToday);
+
+    // Today wrong streak3 unique
+    var cWToday = card("Streak3WrongToday (unique)", true);
+    cWToday.appendChild(row("SYNC day", "v-s3wt-sync-day"));
+    cWToday.appendChild(row("local day", "v-s3wt-local-day"));
+    cWToday.appendChild(row("isToday (SYNC)", "v-s3wt-istoday"));
+    cWToday.appendChild(row("SYNC unique", "v-s3wt-sync-uc"));
+    cWToday.appendChild(row("local unique", "v-s3wt-local-uc"));
+    grid.appendChild(cWToday);
+
+    // oncePerDayToday
+    var cOnce = card("OncePerDayToday / ODOA", true);
+    cOnce.appendChild(row("oncePerDayToday.day (SYNC)", "v-once-sync-day"));
+    cOnce.appendChild(row("oncePerDayToday.day (local)", "v-once-local-day"));
+    cOnce.appendChild(row("isToday (SYNC)", "v-once-istoday"));
+    cOnce.appendChild(row("result for this QID (SYNC)", "v-once-result"));
+    cOnce.appendChild(row("ODOA_MODE", "v-odoa-mode"));
+    grid.appendChild(cOnce);
+
+    // last day info
+    var cLast = card("LastSeen / LastCorrect / LastWrong", true);
+    cLast.appendChild(row("lastSeen (SYNC)", "v-last-seen-sync"));
+    cLast.appendChild(row("lastSeen (local)", "v-last-seen-local"));
+    cLast.appendChild(row("lastCorrect (SYNC)", "v-last-cor-sync"));
+    cLast.appendChild(row("lastCorrect (local)", "v-last-cor-local"));
+    cLast.appendChild(row("lastWrong (SYNC)", "v-last-wrg-sync"));
+    cLast.appendChild(row("lastWrong (local)", "v-last-wrg-local"));
+    grid.appendChild(cLast);
+
+    body.appendChild(grid);
+    wrap.appendChild(head);
+    wrap.appendChild(body);
+    root.appendChild(wrap);
+    document.body.appendChild(root);
+
+    // open/close
+    btn.addEventListener("click", function () {
+      var open = !body.classList.contains("syncb-hidden");
+      if (open) {
+        body.classList.add("syncb-hidden");
+        btn.textContent = "OPEN";
+        btn.setAttribute("aria-expanded", "false");
+      } else {
+        body.classList.remove("syncb-hidden");
+        btn.textContent = "CLOSE";
+        btn.setAttribute("aria-expanded", "true");
+      }
+    });
+
+    return root;
   }
 
-  async function fetchState(){
-    if (!QID) return null;
-    var r = await fetch(SYNC_STATE_ENDPOINT, { method: "GET" });
-    if (!r.ok) throw new Error(String(r.status));
-    var json = await r.json();
+  // -----------------------------
+  // state取得（B）
+  // -----------------------------
+  async function fetchSyncStateB() {
+    var res = await fetch(SYNC_STATE_ENDPOINT, { method: "GET" });
+    if (!res.ok) throw new Error(String(res.status));
+    var json = await res.json();
     return json;
   }
 
-  function updateUiFromState(box, state){
-    if (!box) return;
-
-    // qid
-    try{
-      var qidEl = box.querySelector(".aob-qid-val");
-      if (qidEl) qidEl.textContent = QID ? QID : "（未検出）";
-    }catch(_){}
-
-    // local totals
-    var lc = readLsNonNegIntOrNull("cscs_q_correct_total:" + QID);
-    var lw = readLsNonNegIntOrNull("cscs_q_wrong_total:" + QID);
-
-    // local streaks
-    var ls3  = readLsNonNegIntOrNull("cscs_q_correct_streak3_total:" + QID);
-    var lsl  = readLsNonNegIntOrNull("cscs_q_correct_streak_len:" + QID);
-    var ls3w = readLsNonNegIntOrNull("cscs_q_wrong_streak3_total:" + QID);
-    var lslw = readLsNonNegIntOrNull("cscs_q_wrong_streak_len:" + QID);
-
-    // sync totals / streaks（欠損は欠損）
-    var sc = null, si = null, ss3 = null, ssl = null, ss3w = null, sslw = null;
-
-    try{
-      if (state && typeof state === "object") {
-        if (state.correct && typeof state.correct === "object" && Object.prototype.hasOwnProperty.call(state.correct, QID)) {
-          var v = state.correct[QID];
-          if (typeof v === "number" && Number.isFinite(v) && v >= 0) sc = v;
-        }
-        if (state.incorrect && typeof state.incorrect === "object" && Object.prototype.hasOwnProperty.call(state.incorrect, QID)) {
-          var v2 = state.incorrect[QID];
-          if (typeof v2 === "number" && Number.isFinite(v2) && v2 >= 0) si = v2;
-        }
-        if (state.streak3 && typeof state.streak3 === "object" && Object.prototype.hasOwnProperty.call(state.streak3, QID)) {
-          var v3 = state.streak3[QID];
-          if (typeof v3 === "number" && Number.isFinite(v3) && v3 >= 0) ss3 = v3;
-        }
-        if (state.streakLen && typeof state.streakLen === "object" && Object.prototype.hasOwnProperty.call(state.streakLen, QID)) {
-          var v4 = state.streakLen[QID];
-          if (typeof v4 === "number" && Number.isFinite(v4) && v4 >= 0) ssl = v4;
-        }
-        if (state.streak3Wrong && typeof state.streak3Wrong === "object" && Object.prototype.hasOwnProperty.call(state.streak3Wrong, QID)) {
-          var v5 = state.streak3Wrong[QID];
-          if (typeof v5 === "number" && Number.isFinite(v5) && v5 >= 0) ss3w = v5;
-        }
-        if (state.streakWrongLen && typeof state.streakWrongLen === "object" && Object.prototype.hasOwnProperty.call(state.streakWrongLen, QID)) {
-          var v6 = state.streakWrongLen[QID];
-          if (typeof v6 === "number" && Number.isFinite(v6) && v6 >= 0) sslw = v6;
-        }
-      }
-    }catch(_){}
-
-    // progress（計算できる時だけ）
-    var sp  = computeProgressMod3(ssl);
-    var lp  = computeProgressMod3(lsl);
-    var spw = computeProgressMod3(sslw);
-    var lpw = computeProgressMod3(lslw);
-
-    // streak3Today / WrongToday（SYNCは取れた時だけ）
-    var s3tDaySync = "";
-    var s3tUcSync  = "";
-    var s3wtDaySync = "";
-    var s3wtUcSync  = "";
-
-    try{
-      if (state && state.streak3Today && typeof state.streak3Today === "object") {
-        if (Object.prototype.hasOwnProperty.call(state.streak3Today, "day")) {
-          s3tDaySync = String(state.streak3Today.day || "");
-        }
-        if (typeof state.streak3Today.unique_count === "number" && Number.isFinite(state.streak3Today.unique_count)) {
-          s3tUcSync = String(state.streak3Today.unique_count);
-        }
-      }
-    }catch(_){}
-
-    try{
-      if (state && state.streak3WrongToday && typeof state.streak3WrongToday === "object") {
-        if (Object.prototype.hasOwnProperty.call(state.streak3WrongToday, "day")) {
-          s3wtDaySync = String(state.streak3WrongToday.day || "");
-        }
-        if (typeof state.streak3WrongToday.unique_count === "number" && Number.isFinite(state.streak3WrongToday.unique_count)) {
-          s3wtUcSync = String(state.streak3WrongToday.unique_count);
-        }
-      }
-    }catch(_){}
-
-    // local today系（欠損は欠損）
-    var s3tDayLocal = "";
-    var s3tUcLocal  = readLsNonNegIntOrNull("cscs_streak3_today_unique_count");
-    var s3wtDayLocal = "";
-    var s3wtUcLocal  = readLsNonNegIntOrNull("cscs_streak3_wrong_today_unique_count");
-
-    try{ s3tDayLocal  = localStorage.getItem("cscs_streak3_today_day") || ""; }catch(_){}
-    try{ s3wtDayLocal = localStorage.getItem("cscs_streak3_wrong_today_day") || ""; }catch(_){}
-
-    // oncePerDayToday（SYNC day / local day / result）
-    var onceDaySync = "";
-    var onceDayLocal = "";
-    var onceResult = null;
-
-    try{
-      if (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object") {
-        if (typeof state.oncePerDayToday.day === "number" && Number.isFinite(state.oncePerDayToday.day)) {
-          onceDaySync = String(state.oncePerDayToday.day);
-        } else if (typeof state.oncePerDayToday.day === "string" && state.oncePerDayToday.day.trim() !== "") {
-          onceDaySync = state.oncePerDayToday.day.trim();
-        }
-      }
-    }catch(_){}
-
-    try{ onceDayLocal = localStorage.getItem("cscs_once_per_day_today_day") || ""; }catch(_){}
-    onceResult = readOncePerDayQidResult(state, QID);
-
-    // ---- DOM反映 ----
-    function setText(sel, text){
-      try{
-        var el = box.querySelector(sel);
-        if (el) el.textContent = text;
-      }catch(_){}
+  // -----------------------------
+  // 値の読み取り（local / sync）
+  // -----------------------------
+  function readLocalSnapshotForQid(qid) {
+    if (!qid) {
+      return {
+        totals: { c: null, w: null },
+        streak: { s3: null, sl: null },
+        wrong: { s3: null, sl: null },
+        max: { max: null, day: null },
+        wmax: { max: null, day: null },
+        last: { seen: null, cor: null, wrg: null },
+        s3t: { day: null, uc: null },
+        s3wt: { day: null, uc: null },
+        once: { day: null, results: null }
+      };
     }
 
-    setText(".aob-sync-totals", "SYNC " + toDisplayText(sc, "-") + " / " + toDisplayText(si, "-"));
-    setText(".aob-local-totals", "local " + toDisplayText(lc, "-") + " / " + toDisplayText(lw, "-"));
+    var kC = "cscs_q_correct_total:" + qid;
+    var kW = "cscs_q_wrong_total:" + qid;
 
-    setText(".aob-sync-s3",  toDisplayText(ss3, "-"));
-    setText(".aob-local-s3", toDisplayText(ls3, "-"));
+    var kS3 = "cscs_q_correct_streak3_total:" + qid;
+    var kSL = "cscs_q_correct_streak_len:" + qid;
 
-    setText(".aob-sync-sl",  toDisplayText(ssl, "-"));
-    setText(".aob-local-sl", toDisplayText(lsl, "-"));
-    setText(".aob-sync-sl-prog",  toDisplayText(sp, "-"));
-    setText(".aob-local-sl-prog", toDisplayText(lp, "-"));
+    var kS3W = "cscs_q_wrong_streak3_total:" + qid;
+    var kSLW = "cscs_q_wrong_streak_len:" + qid;
 
-    setText(".aob-sync-s3w",  toDisplayText(ss3w, "-"));
-    setText(".aob-local-s3w", toDisplayText(ls3w, "-"));
+    var kMax = "cscs_q_correct_streak_max:" + qid;
+    var kMaxDay = "cscs_q_correct_streak_max_day:" + qid;
 
-    setText(".aob-sync-slw",  toDisplayText(sslw, "-"));
-    setText(".aob-local-slw", toDisplayText(lslw, "-"));
-    setText(".aob-sync-slw-prog",  toDisplayText(spw, "-"));
-    setText(".aob-local-slw-prog", toDisplayText(lpw, "-"));
+    var kWMax = "cscs_q_wrong_streak_max:" + qid;
+    var kWMaxDay = "cscs_q_wrong_streak_max_day:" + qid;
 
-    setText(".aob-s3t-day-sync", toDisplayText(s3tDaySync, "（データなし）"));
-    setText(".aob-s3t-uc-sync",  toDisplayText(s3tUcSync,  "（データなし）"));
-    setText(".aob-s3t-day-local", toDisplayText(s3tDayLocal, "（データなし）"));
-    setText(".aob-s3t-uc-local",  toDisplayText((s3tUcLocal === null ? "" : String(s3tUcLocal)), "（データなし）"));
+    var kSeen = "cscs_q_last_seen_day:" + qid;
+    var kCor = "cscs_q_last_correct_day:" + qid;
+    var kWrg = "cscs_q_last_wrong_day:" + qid;
 
-    setText(".aob-s3wt-day-sync", toDisplayText(s3wtDaySync, "（データなし）"));
-    setText(".aob-s3wt-uc-sync",  toDisplayText(s3wtUcSync,  "（データなし）"));
-    setText(".aob-s3wt-day-local", toDisplayText(s3wtDayLocal, "（データなし）"));
-    setText(".aob-s3wt-uc-local",  toDisplayText((s3wtUcLocal === null ? "" : String(s3wtUcLocal)), "（データなし）"));
-
-    setText(".aob-once-day-sync",  toDisplayText(onceDaySync, "（データなし）"));
-    setText(".aob-once-day-local", toDisplayText(onceDayLocal, "（データなし）"));
-    setText(".aob-once-qid-result", toDisplayText(onceResult, "（データなし）"));
-
-    console.log("[A-PANEL-ON-B][UI] updated (no-send)", {
-      qid: QID,
-      sync: { c: sc, w: si, s3: ss3, sl: ssl, s3w: ss3w, slw: sslw },
-      local: { c: lc, w: lw, s3: ls3, sl: lsl, s3w: ls3w, slw: lslw },
-      today: {
-        streak3Today: { syncDay: s3tDaySync, syncUc: s3tUcSync, localDay: s3tDayLocal, localUc: s3tUcLocal },
-        streak3WrongToday: { syncDay: s3wtDaySync, syncUc: s3wtUcSync, localDay: s3wtDayLocal, localUc: s3wtUcLocal }
+    return {
+      totals: { c: readLsNonNegIntOrNull(kC), w: readLsNonNegIntOrNull(kW) },
+      streak: { s3: readLsNonNegIntOrNull(kS3), sl: readLsNonNegIntOrNull(kSL) },
+      wrong: { s3: readLsNonNegIntOrNull(kS3W), sl: readLsNonNegIntOrNull(kSLW) },
+      max: { max: readLsNonNegIntOrNull(kMax), day: readLsStringOrNull(kMaxDay) },
+      wmax: { max: readLsNonNegIntOrNull(kWMax), day: readLsStringOrNull(kWMaxDay) },
+      last: { seen: readLsStringOrNull(kSeen), cor: readLsStringOrNull(kCor), wrg: readLsStringOrNull(kWrg) },
+      s3t: {
+        day: readLsStringOrNull("cscs_streak3_today_day"),
+        uc: readLsNonNegIntOrNull("cscs_streak3_today_unique_count")
       },
-      oncePerDayToday: { syncDay: onceDaySync, localDay: onceDayLocal, qidResult: onceResult }
-    });
+      s3wt: {
+        day: readLsStringOrNull("cscs_streak3_wrong_today_day"),
+        uc: readLsNonNegIntOrNull("cscs_streak3_wrong_today_unique_count")
+      },
+      once: {
+        day: readLsStringOrNull("cscs_once_per_day_today_day"),
+        results: readLsJsonOrNull("cscs_once_per_day_today_results")
+      }
+    };
   }
 
-  async function tick(){
-    if (!QID) return;
+  function readSyncSnapshotForQid(state, qid) {
+    function readMapNum(mapKey) {
+      try {
+        if (!state || typeof state !== "object") return null;
+        if (!state[mapKey] || typeof state[mapKey] !== "object") return null;
+        if (!qid) return null;
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) return null;
+        var v = state[mapKey][qid];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) return null;
+        return v;
+      } catch (_) {
+        return null;
+      }
+    }
 
-    var box = ensurePanelDom();
-    if (!box) return;
+    function readLastDay(mapKey) {
+      try {
+        if (!state || typeof state !== "object") return null;
+        if (!state[mapKey] || typeof state[mapKey] !== "object") return null;
+        if (!qid) return null;
+        var v = state[mapKey][qid];
+        if (v === null || v === undefined) return null;
+        var s = String(v).trim();
+        if (s === "") return null;
+        return s;
+      } catch (_) {
+        return null;
+      }
+    }
 
-    lastStatus = "sending";
-    lastErr = "";
-    lastTime = null;
-    setStatus(box, lastStatus, lastErr);
+    var s3t = null;
+    try {
+      if (state && state.streak3Today && typeof state.streak3Today === "object") s3t = state.streak3Today;
+    } catch (_) {
+      s3t = null;
+    }
 
-    try{
-      var state = await fetchState();
+    var s3wt = null;
+    try {
+      if (state && state.streak3WrongToday && typeof state.streak3WrongToday === "object") s3wt = state.streak3WrongToday;
+    } catch (_) {
+      s3wt = null;
+    }
 
-      // “表示だけ”でも、他のビューが参照できるように保持（上書きはOK）
-      try{
-        window.__cscs_sync_state = state;
-      }catch(_){}
+    var once = null;
+    try {
+      if (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object") once = state.oncePerDayToday;
+    } catch (_) {
+      once = null;
+    }
 
-      lastStatus = "ok";
-      lastTime = new Date().toLocaleTimeString();
-      lastErr = "";
+    return {
+      totals: { c: readMapNum("correct"), w: readMapNum("incorrect") },
+      streak: { s3: readMapNum("streak3"), sl: readMapNum("streakLen") },
+      wrong: { s3: readMapNum("streak3Wrong"), sl: readMapNum("streakWrongLen") },
+      last: {
+        seen: readLastDay("lastSeenDay"),
+        cor: readLastDay("lastCorrectDay"),
+        wrg: readLastDay("lastWrongDay")
+      },
+      s3t: {
+        day: (s3t && ("day" in s3t)) ? String(s3t.day) : null,
+        uc: (s3t && typeof s3t.unique_count === "number" && Number.isFinite(s3t.unique_count) && s3t.unique_count >= 0) ? s3t.unique_count : null
+      },
+      s3wt: {
+        day: (s3wt && ("day" in s3wt)) ? String(s3wt.day) : null,
+        uc: (s3wt && typeof s3wt.unique_count === "number" && Number.isFinite(s3wt.unique_count) && s3wt.unique_count >= 0) ? s3wt.unique_count : null
+      },
+      once: (function () {
+        var out = { day: null, result: null };
+        try {
+          if (!once) return out;
 
-      updateUiFromState(box, state);
-      setStatus(box, lastStatus, lastErr);
-    }catch(e){
-      lastStatus = "error";
-      lastTime = new Date().toLocaleTimeString();
-      lastErr = String(e && e.message || e);
+          if (typeof once.day === "number" && Number.isFinite(once.day) && once.day > 0) out.day = String(once.day);
+          if (typeof once.day === "string" && once.day.trim() !== "") out.day = once.day.trim();
 
-      setStatus(box, lastStatus, lastErr);
-      console.error("[A-PANEL-ON-B][ERROR] tick failed", { qid: QID, error: lastErr });
+          if (qid && once.results && typeof once.results === "object") {
+            if (Object.prototype.hasOwnProperty.call(once.results, qid)) {
+              out.result = String(once.results[qid]);
+            }
+          }
+          return out;
+        } catch (_) {
+          return out;
+        }
+      })()
+    };
+  }
+
+  // -----------------------------
+  // UI更新
+  // -----------------------------
+  function setText(root, cls, text) {
+    var el = root.querySelector("." + cls);
+    if (!el) return;
+    el.textContent = text;
+  }
+
+  function updateUiB(root, localSnap, syncSnap, stateOk, lastError) {
+    // header
+    setText(root, "syncb-qid", QID ? QID : "（データなし）");
+    setText(root, "syncb-status", stateOk ? "state:OK" : ("state:ERR " + toDisplayText(lastError, "-")));
+
+    // Totals
+    var syncTotals = "SYNC " + toDisplayText(syncSnap.totals.c, "-") + " / " + toDisplayText(syncSnap.totals.w, "-");
+    var localTotals = "local " + toDisplayText(localSnap.totals.c, "-") + " / " + toDisplayText(localSnap.totals.w, "-");
+    setText(root, "v-sync-totals", syncTotals);
+    setText(root, "v-local-totals", localTotals);
+
+    // Δ(参考) = (local - sync) ※取れた時だけ
+    var dRef = "-";
+    if (typeof localSnap.totals.c === "number" && typeof syncSnap.totals.c === "number" &&
+        typeof localSnap.totals.w === "number" && typeof syncSnap.totals.w === "number") {
+      dRef = String(localSnap.totals.c - syncSnap.totals.c) + " / " + String(localSnap.totals.w - syncSnap.totals.w);
+    }
+    setText(root, "v-delta-ref", dRef);
+
+    var noteTotals = root.querySelector(".v-note-totals");
+    if (noteTotals) {
+      noteTotals.textContent = "※Δは参考（両方が取れた時だけ計算）。欠損は欠損のまま。";
+    }
+
+    // Streak correct
+    setText(root, "v-sync-s3", toDisplayText(syncSnap.streak.s3, "-"));
+    setText(root, "v-local-s3", toDisplayText(localSnap.streak.s3, "-"));
+    setText(root, "v-sync-sl", toDisplayText(syncSnap.streak.sl, "-"));
+    setText(root, "v-local-sl", toDisplayText(localSnap.streak.sl, "-"));
+
+    var sp = (typeof syncSnap.streak.sl === "number") ? (syncSnap.streak.sl % 3) : null;
+    var lp = (typeof localSnap.streak.sl === "number") ? (localSnap.streak.sl % 3) : null;
+    setText(root, "v-sync-prog", toDisplayText(sp, "-"));
+    setText(root, "v-local-prog", toDisplayText(lp, "-"));
+
+    // Streak wrong
+    setText(root, "v-sync-s3w", toDisplayText(syncSnap.wrong.s3, "-"));
+    setText(root, "v-local-s3w", toDisplayText(localSnap.wrong.s3, "-"));
+    setText(root, "v-sync-slw", toDisplayText(syncSnap.wrong.sl, "-"));
+    setText(root, "v-local-slw", toDisplayText(localSnap.wrong.sl, "-"));
+
+    var spw = (typeof syncSnap.wrong.sl === "number") ? (syncSnap.wrong.sl % 3) : null;
+    var lpw = (typeof localSnap.wrong.sl === "number") ? (localSnap.wrong.sl % 3) : null;
+    setText(root, "v-sync-progw", toDisplayText(spw, "-"));
+    setText(root, "v-local-progw", toDisplayText(lpw, "-"));
+
+    // Max (local)
+    setText(root, "v-local-max-len", toDisplayText(localSnap.streak.sl, "（データなし）"));
+    setText(root, "v-local-max-val", toDisplayText(localSnap.max.max, "（データなし）"));
+    setText(root, "v-local-max-day", toDisplayText(localSnap.max.day, "（データなし）"));
+    var noteMax = root.querySelector(".v-note-max");
+    if (noteMax) {
+      noteMax.textContent = "※max/day は b_judge_record.js の localStorage を唯一の参照元。";
+    }
+
+    // Wrong Max (local)
+    setText(root, "v-local-wmax-len", toDisplayText(localSnap.wrong.sl, "（データなし）"));
+    setText(root, "v-local-wmax-val", toDisplayText(localSnap.wmax.max, "（データなし）"));
+    setText(root, "v-local-wmax-day", toDisplayText(localSnap.wmax.day, "（データなし）"));
+    var noteWMax = root.querySelector(".v-note-wmax");
+    if (noteWMax) {
+      noteWMax.textContent = "※wrong max/day も localStorage を唯一の参照元。";
+    }
+
+    // Streak3Today
+    setText(root, "v-s3t-sync-day", toDisplayText(syncSnap.s3t.day, "（データなし）"));
+    setText(root, "v-s3t-local-day", toDisplayText(localSnap.s3t.day, "（データなし）"));
+    setText(root, "v-s3t-istoday", isTodayYmdString(syncSnap.s3t.day));
+    setText(root, "v-s3t-sync-uc", toDisplayText(syncSnap.s3t.uc, "（データなし）"));
+    setText(root, "v-s3t-local-uc", toDisplayText(localSnap.s3t.uc, "（データなし）"));
+
+    // Streak3WrongToday
+    setText(root, "v-s3wt-sync-day", toDisplayText(syncSnap.s3wt.day, "（データなし）"));
+    setText(root, "v-s3wt-local-day", toDisplayText(localSnap.s3wt.day, "（データなし）"));
+    setText(root, "v-s3wt-istoday", isTodayYmdString(syncSnap.s3wt.day));
+    setText(root, "v-s3wt-sync-uc", toDisplayText(syncSnap.s3wt.uc, "（データなし）"));
+    setText(root, "v-s3wt-local-uc", toDisplayText(localSnap.s3wt.uc, "（データなし）"));
+
+    // oncePerDayToday / ODOA
+    setText(root, "v-once-sync-day", toDisplayText(syncSnap.once.day, "（データなし）"));
+    setText(root, "v-once-local-day", toDisplayText(localSnap.once.day, "（データなし）"));
+    setText(root, "v-once-istoday", isTodayYmdString(syncSnap.once.day));
+
+    var onceResult = syncSnap.once.result;
+    setText(root, "v-once-result", toDisplayText(onceResult, "（データなし）"));
+
+    var odoa = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+    var odoaText = (odoa === "on") ? "on" : (odoa === "off") ? "off" : "unknown";
+    setText(root, "v-odoa-mode", odoaText);
+
+    // Last day info
+    setText(root, "v-last-seen-sync", toDisplayText(syncSnap.last.seen, "（データなし）"));
+    setText(root, "v-last-seen-local", toDisplayText(localSnap.last.seen, "（データなし）"));
+    setText(root, "v-last-cor-sync", toDisplayText(syncSnap.last.cor, "（データなし）"));
+    setText(root, "v-last-cor-local", toDisplayText(localSnap.last.cor, "（データなし）"));
+    setText(root, "v-last-wrg-sync", toDisplayText(syncSnap.last.wrg, "（データなし）"));
+    setText(root, "v-last-wrg-local", toDisplayText(localSnap.last.wrg, "（データなし）"));
+  }
+
+  // -----------------------------
+  // ループ
+  // -----------------------------
+  var lastStateOk = false;
+  var lastError = "";
+  var lastState = null;
+
+  async function tickB() {
+    try {
+      if (!QID) QID = detectQidFromLocationB();
+
+      // UIは常に更新できるように、DOMとlocalは先に読む
+      var root = buildMonitorDomB();
+      var localSnap = readLocalSnapshotForQid(QID);
+
+      // state取得
+      var st = await fetchSyncStateB();
+      lastState = st;
+      lastStateOk = true;
+      lastError = "";
+
+      var syncSnap = readSyncSnapshotForQid(st, QID);
+      updateUiB(root, localSnap, syncSnap, true, "");
+    } catch (e) {
+      try {
+        var root2 = buildMonitorDomB();
+        var localSnap2 = readLocalSnapshotForQid(QID);
+        var syncSnap2 = readSyncSnapshotForQid(lastState, QID);
+
+        lastStateOk = false;
+        lastError = String(e && e.message || e);
+
+        updateUiB(root2, localSnap2, syncSnap2, false, lastError);
+      } catch (_) {}
     }
   }
 
-  function start(){
-    if (!QID) {
-      console.log("[A-PANEL-ON-B] QID not detected. panel skipped.", { path: location.pathname });
-      return;
-    }
+  function startB() {
+    injectCscsSyncMonitorBStyleOnce();
+    buildMonitorDomB();
+    tickB();
 
-    // 初回
-    tick();
-
-    // 以降は軽めに更新（“表示だけ”なので 5秒間隔）
-    setInterval(function(){
-      tick();
-    }, 5000);
+    // 3秒ごと更新（軽量）
+    setInterval(function () {
+      tickB();
+    }, 3000);
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", startB);
   } else {
-    start();
+    startB();
   }
 })();
