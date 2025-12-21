@@ -3105,7 +3105,7 @@
 
 #cscs_sync_monitor_a .delta-grid{
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: auto 1fr;
   gap: 4px 10px;
   align-items: center;
   font-size: 11px;
