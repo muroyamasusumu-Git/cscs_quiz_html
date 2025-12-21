@@ -120,40 +120,11 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   }
   const key = `sync:${user}`;
 
-  // -----------------------------
-  // (debug) ブラウザ側で「merge と state が同一キーを見ているか」を確実に突き合わせるための情報
-  // -----------------------------
-  const reqMeta = getReqMeta(request);
-  const reqId = crypto.randomUUID();
-
-  const userMasked = maskEmail(user);
-  const userHash = await sha256Hex(user);
-  const keyHash = await sha256Hex(key);
-
-  const debug: any = {
-    reqId,
-    endpoint: "state",
-    ts: Date.now(),
-    cfRay: reqMeta.cfRay,
-    colo: reqMeta.colo,
-    userMasked,
-    userHash,
-    key,
-    keyHash
-  };
-
   try {
     console.log("====================================================");
     console.log("[SYNC/state] === onRequestGet START ===");
     console.log("[SYNC/state] user:", user);
     console.log("[SYNC/state] key :", key);
-    console.log("[SYNC/state] (dbg) ids:", {
-      reqId: debug.reqId,
-      cfRay: debug.cfRay,
-      colo: debug.colo,
-      userHash: debug.userHash,
-      keyHash: debug.keyHash
-    });
   } catch (_e) {}
 
   // -----------------------------
@@ -167,32 +138,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     data = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
     console.log("[SYNC/state] ★KV.get(cacheTtl:0) OK");
     console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
-
-    // (debug) state が「実際に読み取った値」を確定ログ化（merge.ts の kvAfterPut と比較して原因を確定する）
-    // - userHash/keyHash が一致しているか → 別ユーザー/別キー問題を確定
-    // - odoa_mode が一致しているか → 伝播/書き込み失敗/上書きの疑いを確定
-    try {
-      const rawText = await env.SYNC.get(key, { type: "text", cacheTtl: 0 });
-      const bytes = typeof rawText === "string" ? rawText.length : 0;
-
-      let parsed: any = null;
-      try {
-        parsed = rawText ? JSON.parse(rawText) : null;
-      } catch (_eParse) {
-        parsed = null;
-      }
-
-      debug.kvRead = {
-        bytes,
-        updatedAt: parsed && typeof parsed.updatedAt === "number" ? parsed.updatedAt : null,
-        odoa_mode: parsed && typeof parsed.odoa_mode === "string" ? parsed.odoa_mode : null
-      };
-
-      console.log("[SYNC/state] (dbg) kvRead:", debug.kvRead);
-    } catch (eDbg) {
-      debug.kvRead = { error: String(eDbg) };
-      console.warn("[SYNC/state] (dbg) kvRead failed:", eDbg);
-    }
   } catch (e) {
     console.error("[SYNC/state] ★KV 読み出し失敗:", e);
   }
@@ -472,19 +417,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // - /api/sync/state のレスポンス自体を no-store にして、ブラウザ/中継が古いJSONを保持しないようにする
   // - 成功確認: no-store で返していることをログ
   try {
-    const responsePayload = Object.assign({}, out, { _debug: debug });
-    const resJson = JSON.stringify(responsePayload);
-    console.log("[SYNC/state] ★RESPONSE no-store:", {
-      bytes: resJson.length,
-      debug: {
-        reqId: debug.reqId,
-        cfRay: debug.cfRay,
-        colo: debug.colo,
-        userHash: debug.userHash,
-        keyHash: debug.keyHash,
-        kvRead: debug.kvRead ? debug.kvRead : null
-      }
-    });
+    const resJson = JSON.stringify(out);
+    console.log("[SYNC/state] ★RESPONSE no-store:", { bytes: resJson.length });
     return new Response(resJson, {
       headers: {
         "content-type": "application/json",
