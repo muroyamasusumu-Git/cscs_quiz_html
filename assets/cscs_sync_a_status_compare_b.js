@@ -156,7 +156,7 @@
     if (document.getElementById(ID)) return;
 
     var css = ""
-      + "#"+ROOT_ID+"{position:fixed;right:12px;bottom:12px;z-index:99999;max-width:420px;width:calc(100vw - 24px);}\n"
+      + "#"+ROOT_ID+"{position:fixed;right:12px;top:12px;z-index:99999;max-width:420px;width:calc(100vw - 24px);}\n"
       + "#"+ROOT_ID+" .cmp-card{background:rgba(0,0,0,0.56);border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:10px 10px;color:rgba(255,255,255,0.92);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;}\n"
       + "#"+ROOT_ID+" .cmp-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}\n"
       + "#"+ROOT_ID+" .cmp-title{font-weight:600;letter-spacing:0.2px;font-size:13px;opacity:0.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}\n"
@@ -408,7 +408,7 @@
     var verifyMode = (typeof window.CSCS_VERIFY_MODE === "string") ? window.CSCS_VERIFY_MODE : "";
 
     var odoaEl = root.querySelector(".v-odoa");
-    if (odoaEl) odoaEl.textContent = (od oaMode === "on") ? "ON" : (od oaMode === "off") ? "OFF" : "unknown";
+    if (odoaEl) odoaEl.textContent = (odoaMode === "on") ? "ON" : (odoaMode === "off") ? "OFF" : "unknown";
 
     var verifyEl = root.querySelector(".v-verify");
     if (verifyEl) verifyEl.textContent = (verifyMode === "on") ? "ON" : (verifyMode === "off") ? "OFF" : "unknown";
