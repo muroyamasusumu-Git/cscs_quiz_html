@@ -1043,33 +1043,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   } catch (_e) {}
 
   // クライアントには、マージ後の server スナップショット全体を返す
-  // - UI巻き戻り対策A: 「POSTの返答 = 確定版(merged state)」として扱えるように、
-  //   キャッシュ禁止ヘッダを付けて返す（中継/ブラウザに古い返答を掴ませない）
-  // - 成功確認: レスポンス直前に updatedAt / サイズ / 主要キーをログ出力する
-  try {
-    const resJson = JSON.stringify(server);
-    console.log("[SYNC/merge] (5) ★RESPONSE merged state (no-store):", {
-      key,
-      updatedAt: (server as any).updatedAt,
-      bytes: resJson.length,
-      hasStreak3Today: Object.prototype.hasOwnProperty.call(server as any, "streak3Today"),
-      hasStreak3WrongToday: Object.prototype.hasOwnProperty.call(server as any, "streak3WrongToday"),
-      hasOncePerDayToday: Object.prototype.hasOwnProperty.call(server as any, "oncePerDayToday")
-    });
-
-    return new Response(resJson, {
-      headers: {
-        "content-type": "application/json",
-        "Cache-Control": "no-store"
-      },
-    });
-  } catch (e) {
-    console.error("[SYNC/merge] (5-err) ★RESPONSE stringify failed:", e);
-    return new Response("response json failed", {
-      status: 500,
-      headers: { "content-type": "text/plain", "Cache-Control": "no-store" }
-    });
-  }
+  return new Response(JSON.stringify(server), {
+    headers: { "content-type": "application/json" },
+  });
 };
 
 async function getUserIdFromAccess(request: Request) {

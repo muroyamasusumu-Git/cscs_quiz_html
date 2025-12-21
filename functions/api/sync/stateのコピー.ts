@@ -132,11 +132,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   let data: any = null;
   try {
-    // UI巻き戻り対策B:
-    // - KV.get の cacheTtl を 0 にして、エッジキャッシュ由来の「古いstate」を掴む確率を下げる
-    // - 成功確認: cacheTtl:0 で読めたことを明示ログ
-    data = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
-    console.log("[SYNC/state] ★KV.get(cacheTtl:0) OK");
+    data = await env.SYNC.get(key, "json");
     console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
   } catch (e) {
     console.error("[SYNC/state] ★KV 読み出し失敗:", e);
@@ -413,25 +409,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("====================================================");
   } catch (_e) {}
 
-  // UI巻き戻り対策B:
-  // - /api/sync/state のレスポンス自体を no-store にして、ブラウザ/中継が古いJSONを保持しないようにする
-  // - 成功確認: no-store で返していることをログ
-  try {
-    const resJson = JSON.stringify(out);
-    console.log("[SYNC/state] ★RESPONSE no-store:", { bytes: resJson.length });
-    return new Response(resJson, {
-      headers: {
-        "content-type": "application/json",
-        "Cache-Control": "no-store"
-      },
-    });
-  } catch (e) {
-    console.error("[SYNC/state] ★RESPONSE stringify failed:", e);
-    return new Response("response json failed", {
-      status: 500,
-      headers: { "content-type": "text/plain", "Cache-Control": "no-store" }
-    });
-  }
+  return new Response(JSON.stringify(out), {
+    headers: { "content-type": "application/json" },
+  });
 };
 
 // -----------------------------
