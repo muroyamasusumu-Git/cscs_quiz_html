@@ -539,9 +539,16 @@
     "#cscs_sync_view_b_status {",
     "  display: none !important;",
     "}",
+    "/* --- SYNC send / refresh buttons wrapper --- */",
+    "#cscs_sync_view_b_btn_row {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr 1fr;",
+    "  gap: 6px;",
+    "  margin-top: 6px;",
+    "}",
+    "",
     "/* --- SYNC send button (manual) --- */",
     "#cscs_sync_view_b_send_btn {",
-    "  margin-top: 6px;",
     "  width: 100%;",
     "  padding: 8px 10px;",
     "  border-radius: 10px;",
@@ -550,6 +557,19 @@
     "  color: #eee;",
     "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
     "  opacity: 0.85;",
+    "  cursor: pointer;",
+    "}",
+    "",
+    "/* --- SYNC refresh (state only) button --- */",
+    "#cscs_sync_view_b_refresh_btn {",
+    "  width: 100%;",
+    "  padding: 8px 10px;",
+    "  border-radius: 10px;",
+    "  border: 1px solid rgba(255,255,255,0.14);",
+    "  background: rgba(0,0,0,0.38);",
+    "  color: #eee;",
+    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  opacity: 0.80;",
     "  cursor: pointer;",
     "}",
     "",
@@ -1963,8 +1983,146 @@
     box.appendChild(title);
     box.appendChild(body);
     box.appendChild(statusDiv);
-    // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
-    box.appendChild(btn);
+
+    // ★ ボタン横並びラッパー
+    var btnRow = document.createElement("div");
+    btnRow.id = "cscs_sync_view_b_btn_row";
+
+    btnRow.appendChild(btn);
+
+    // ★ 最終計測結果（SYNC state）取得専用ボタン
+    var refreshBtn = document.createElement("button");
+    refreshBtn.id = "cscs_sync_view_b_refresh_btn";
+    refreshBtn.type = "button";
+    refreshBtn.textContent = "最終結果取得";
+
+    // ★ refreshBtn: /api/sync/state を取り直して HUD を再描画（送信はしない）
+    refreshBtn.addEventListener("click", function () {
+      var qid = info.qid;
+
+      console.log("[SYNC-B:view] refresh clicked → fetchState start", {
+        qid: qid
+      });
+
+      fetchState().then(function (st) {
+        try {
+          window.__cscs_sync_state = st;
+        } catch (_eAssign) {}
+
+        console.log("[SYNC-B:view] refresh fetchState success → window.__cscs_sync_state updated", {
+          qid: qid,
+          hasState: !!st
+        });
+
+        // ★ server値（SYNC側）を state から拾う（無ければ 0）
+        var serverCorrect = 0;
+        var serverWrong = 0;
+        var serverStreak3 = 0;
+        var serverStreakLen = 0;
+        var serverStreak3Wrong = 0;
+        var serverWrongStreakLen = 0;
+
+        try {
+          if (st && st.correct && typeof st.correct === "object" && st.correct[qid] != null) {
+            if (typeof st.correct[qid] === "number" && Number.isFinite(st.correct[qid]) && st.correct[qid] >= 0) {
+              serverCorrect = st.correct[qid];
+            }
+          }
+          if (st && st.incorrect && typeof st.incorrect === "object" && st.incorrect[qid] != null) {
+            if (typeof st.incorrect[qid] === "number" && Number.isFinite(st.incorrect[qid]) && st.incorrect[qid] >= 0) {
+              serverWrong = st.incorrect[qid];
+            }
+          }
+          if (st && st.streak3 && typeof st.streak3 === "object" && st.streak3[qid] != null) {
+            if (typeof st.streak3[qid] === "number" && Number.isFinite(st.streak3[qid]) && st.streak3[qid] >= 0) {
+              serverStreak3 = st.streak3[qid];
+            }
+          }
+          if (st && st.streakLen && typeof st.streakLen === "object" && st.streakLen[qid] != null) {
+            if (typeof st.streakLen[qid] === "number" && Number.isFinite(st.streakLen[qid]) && st.streakLen[qid] >= 0) {
+              serverStreakLen = st.streakLen[qid];
+            }
+          }
+          if (st && st.streak3Wrong && typeof st.streak3Wrong === "object" && st.streak3Wrong[qid] != null) {
+            if (typeof st.streak3Wrong[qid] === "number" && Number.isFinite(st.streak3Wrong[qid]) && st.streak3Wrong[qid] >= 0) {
+              serverStreak3Wrong = st.streak3Wrong[qid];
+            }
+          }
+          if (st && st.streakWrongLen && typeof st.streakWrongLen === "object" && st.streakWrongLen[qid] != null) {
+            if (typeof st.streakWrongLen[qid] === "number" && Number.isFinite(st.streakWrongLen[qid]) && st.streakWrongLen[qid] >= 0) {
+              serverWrongStreakLen = st.streakWrongLen[qid];
+            }
+          }
+        } catch (eSrvPick) {
+          console.error("[SYNC-B:view] refresh pick server values error:", eSrvPick);
+        }
+
+        // ★ local値（ローカル側）を localStorage から拾う（確定キーのみ）
+        var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + qid);
+        var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + qid);
+        var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + qid);
+        var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + qid);
+        var localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + qid);
+        var localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + qid);
+
+        // ★ diff（local - server）を計算（マイナスは 0 に丸める）
+        var diffCorrect = Math.max(0, localCorrect - serverCorrect);
+        var diffWrong = Math.max(0, localWrong - serverWrong);
+        var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
+        var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
+        var diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
+        var diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
+
+        // ★ Pending（未送信っぽい差分）を再計算
+        var pending = null;
+        try {
+          pending = computePendingFlags(st, qid);
+        } catch (_ePending) {
+          pending = null;
+        }
+
+        console.log("[SYNC-B:view] refresh clicked → renderPanel", {
+          qid: qid,
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: diffCorrect,
+          diffWrong: diffWrong,
+          pending: pending
+        });
+
+        renderPanel(box, {
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: diffCorrect,
+          diffWrong: diffWrong,
+          serverStreak3: serverStreak3,
+          localStreak3: localStreak3,
+          diffStreak3: diffStreak3,
+          serverStreakLen: serverStreakLen,
+          localStreakLen: localStreakLen,
+          diffStreakLen: diffStreakLen,
+          serverStreak3Wrong: serverStreak3Wrong,
+          localStreak3Wrong: localStreak3Wrong,
+          diffStreak3Wrong: diffStreak3Wrong,
+          serverWrongStreakLen: serverWrongStreakLen,
+          localWrongStreakLen: localWrongStreakLen,
+          diffWrongStreakLen: diffWrongStreakLen,
+          statusText: "refresh click → HUD refreshed",
+          pending: pending,
+          odoaStatusText: "__keep__"
+        });
+
+      }).catch(function (e) {
+        console.error("[SYNC-B:view] refresh clicked → fetchState failed:", e);
+      });
+    });
+
+    btnRow.appendChild(refreshBtn);
+    box.appendChild(btnRow);
 
     return box;
   }
