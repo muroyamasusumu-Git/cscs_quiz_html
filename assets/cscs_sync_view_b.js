@@ -3013,6 +3013,129 @@
         return;
       }
 
+      // ★ 何をしているか:
+      //   POST が「ok」で返ってきた（＝HTTPレベルでは到達した）ことをログで確定させる
+      console.log("[SYNC-B] POST ok → now fetchState before renderPanel", {
+        qid: qid
+      });
+
+      // ★ 何をしているか:
+      //   POST 完了後に /api/sync/state を取り直し、「最新state」を window.__cscs_sync_state に反映する
+      var freshState = null;
+      try {
+        freshState = await fetchState();
+        try {
+          window.__cscs_sync_state = freshState;
+        } catch (_eAssignFresh) {}
+
+        console.log("[SYNC-B] fetchState ok (after POST) → window.__cscs_sync_state updated", {
+          qid: qid,
+          hasState: !!freshState
+        });
+      } catch (eFetchAfterPost) {
+        console.error("[SYNC-B] fetchState failed (after POST) → renderPanel uses previous snapshot", {
+          qid: qid,
+          error: eFetchAfterPost
+        });
+        freshState = null;
+      }
+
+      // ★ 何をしているか:
+      //   最新state（freshState優先。無ければ従来の params.server* を使用）からサーバ値を再確定する
+      var serverCorrect2 = serverCorrect;
+      var serverWrong2 = serverWrong;
+      var serverStreak3_2 = serverStreak3;
+      var serverStreakLen_2 = serverStreakLen;
+      var serverStreak3Wrong2 = serverStreak3Wrong;
+      var serverWrongStreakLen2 = serverWrongStreakLen;
+
+      try {
+        if (freshState) {
+          if (freshState.correct && typeof freshState.correct === "object" && freshState.correct[qid] != null) {
+            if (typeof freshState.correct[qid] === "number" && Number.isFinite(freshState.correct[qid]) && freshState.correct[qid] >= 0) {
+              serverCorrect2 = freshState.correct[qid];
+            }
+          }
+          if (freshState.incorrect && typeof freshState.incorrect === "object" && freshState.incorrect[qid] != null) {
+            if (typeof freshState.incorrect[qid] === "number" && Number.isFinite(freshState.incorrect[qid]) && freshState.incorrect[qid] >= 0) {
+              serverWrong2 = freshState.incorrect[qid];
+            }
+          }
+          if (freshState.streak3 && typeof freshState.streak3 === "object" && freshState.streak3[qid] != null) {
+            if (typeof freshState.streak3[qid] === "number" && Number.isFinite(freshState.streak3[qid]) && freshState.streak3[qid] >= 0) {
+              serverStreak3_2 = freshState.streak3[qid];
+            }
+          }
+          if (freshState.streakLen && typeof freshState.streakLen === "object" && freshState.streakLen[qid] != null) {
+            if (typeof freshState.streakLen[qid] === "number" && Number.isFinite(freshState.streakLen[qid]) && freshState.streakLen[qid] >= 0) {
+              serverStreakLen_2 = freshState.streakLen[qid];
+            }
+          }
+          if (freshState.streak3Wrong && typeof freshState.streak3Wrong === "object" && freshState.streak3Wrong[qid] != null) {
+            if (typeof freshState.streak3Wrong[qid] === "number" && Number.isFinite(freshState.streak3Wrong[qid]) && freshState.streak3Wrong[qid] >= 0) {
+              serverStreak3Wrong2 = freshState.streak3Wrong[qid];
+            }
+          }
+          if (freshState.streakWrongLen && typeof freshState.streakWrongLen === "object" && freshState.streakWrongLen[qid] != null) {
+            if (typeof freshState.streakWrongLen[qid] === "number" && Number.isFinite(freshState.streakWrongLen[qid]) && freshState.streakWrongLen[qid] >= 0) {
+              serverWrongStreakLen2 = freshState.streakWrongLen[qid];
+            }
+          }
+        }
+      } catch (ePickFresh) {
+        console.error("[SYNC-B] pick server values from freshState failed:", ePickFresh);
+      }
+
+      // ★ 何をしているか:
+      //   最新の server 値で diff を再計算し、HUDの「送信後の見た目」を確実に最新化する
+      var diffCorrect2 = Math.max(0, localCorrect - serverCorrect2);
+      var diffWrong2 = Math.max(0, localWrong - serverWrong2);
+      var diffStreak3_2 = Math.max(0, localStreak3 - serverStreak3_2);
+      var diffStreakLen_2 = Math.max(0, localStreakLen - serverStreakLen_2);
+      var diffStreak3Wrong2 = Math.max(0, localStreak3Wrong - serverStreak3Wrong2);
+      var diffWrongStreakLen2 = Math.max(0, localWrongStreakLen - serverWrongStreakLen2);
+
+      // ★ 何をしているか:
+      //   Pending（未反映っぽい差分）も「最新state基準」で再計算して表示に反映する
+      var pendingAfterPost = null;
+      try {
+        pendingAfterPost = computePendingFlags(freshState || (params && params.syncState ? params.syncState : null), qid);
+      } catch (_ePendingAfterPost) {
+        pendingAfterPost = null;
+      }
+
+      console.log("[SYNC-B] after POST → server snapshot refreshed", {
+        qid: qid,
+        serverCorrect: serverCorrect2,
+        serverWrong: serverWrong2,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect2,
+        diffWrong: diffWrong2,
+        pending: pendingAfterPost
+      });
+
+      // ★ 何をしているか:
+      //   POST完了→fetchState完了（または失敗）後に renderPanel を呼び、表示更新の順序を確定させる
+      renderPanel(box, {
+        serverCorrect: serverCorrect2,
+        serverWrong: serverWrong2,
+        localCorrect: localCorrect,
+        localWrong: localWrong,
+        diffCorrect: diffCorrect2,
+        diffWrong: diffWrong2,
+        serverStreak3: serverStreak3_2,
+        localStreak3: localStreak3,
+        diffStreak3: diffStreak3_2,
+        serverStreakLen: serverStreakLen_2,
+        localStreakLen: localStreakLen,
+        diffStreakLen: diffStreakLen_2,
+        statusText: "POST ok → fetchState → renderPanel",
+        pending: pendingAfterPost,
+        odoaModeText: odoaModeText,
+        odoaStatusText: "__keep__"
+      });
+
       var data = null;
       try {
         data = await response.json();
