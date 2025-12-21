@@ -47,6 +47,7 @@
     { id: "nav_list", label: "NavList" },
     { id: "nl_daily_summary", label: "NlDailySummary" },
     { id: "star_summary_compact", label: "StarSummaryCompact" },
+    { id: "correct_star", label: "CorrectStar" },
     { id: "cscs_layout_tuner_fixed", label: "LayoutTuner" },
     { id: "b_wrong_strike_mark", label: "WrongStrike" }
   ];
