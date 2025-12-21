@@ -141,17 +141,34 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // ★KVバインディング診断（このFunctionsがどのKVを“掴んでいるか”の判定材料）
     // - binding名はコード上は固定で "SYNC"
-    // - envにSYNCが存在するか、get/putが生えているかを出す（これが揃っていれば“この実行環境でのSYNCバインド”が成立）
-    console.log("[SYNC/merge][KV-DIAG] bindingName:", "SYNC");
-    console.log("[SYNC/merge][KV-DIAG] hasEnvSYNC:", !!(env as any).SYNC);
-    console.log("[SYNC/merge][KV-DIAG] typeof env.SYNC.get:", typeof (env as any).SYNC?.get);
-    console.log("[SYNC/merge][KV-DIAG] typeof env.SYNC.put:", typeof (env as any).SYNC?.put);
+    // - envにSYNCが存在するか、get/put/delete が生えているかを出す（binding実体がKVとして機能しているかの確認）
+    // - env keys を「全件」出す（preview/prod 等で env の見え方が違うのを確実に切り分ける）
+    // - requestの Host / CF-Ray / colo を出す（別デプロイ/別経路の切り分け材料）
+    const envAny: any = env as any;
+    const envKeys = envAny && typeof envAny === "object" ? Object.keys(envAny).sort() : [];
+    const syncAny: any = envAny ? envAny.SYNC : undefined;
 
-    // ★envに見えているキー一覧（“SYNCが別env/別bindingで消えてる”を即断するための証跡）
-    // - 全キーを出すとノイズが増えるので "SYNC" を含むものだけ抽出
-    const envKeys = Object.keys(env as any);
-    const envKeysFiltered = envKeys.filter((k) => k === "SYNC" || k.indexOf("SYNC") !== -1);
-    console.log("[SYNC/merge][KV-DIAG] env keys filtered:", envKeysFiltered);
+    console.log("[SYNC/merge][KV-DIAG] bindingName:", "SYNC");
+    console.log("[SYNC/merge][KV-DIAG] env keys (all):", envKeys);
+
+    console.log("[SYNC/merge][KV-DIAG] binding check:", {
+      bindingName: "SYNC",
+      hasEnvSYNC: !!syncAny,
+      typeOfSYNC: typeof syncAny,
+      hasGet: !!(syncAny && typeof syncAny.get === "function"),
+      hasPut: !!(syncAny && typeof syncAny.put === "function"),
+      hasDelete: !!(syncAny && typeof syncAny.delete === "function")
+    });
+
+    const reqHost = request.headers.get("Host") || "";
+    const reqRay = request.headers.get("CF-Ray") || "";
+    const cfAny: any = (request as any).cf || {};
+    const reqColo = typeof cfAny.colo === "string" ? cfAny.colo : "";
+    console.log("[SYNC/merge][KV-DIAG] request route snapshot:", {
+      host: reqHost,
+      ray: reqRay,
+      colo: reqColo
+    });
 
     // ★受信deltaのスナップショット（既存ログ）
     console.log("[SYNC/merge] (1) delta 全体:", JSON.stringify(delta));
@@ -1184,6 +1201,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       headers: {
         "content-type": "application/json",
         "Cache-Control": "no-store",
+
+        // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
+        "X-CSCS-KV-Binding": "SYNC",
 
         "X-CSCS-ReqId": reqId,
         "X-CSCS-User": user,
