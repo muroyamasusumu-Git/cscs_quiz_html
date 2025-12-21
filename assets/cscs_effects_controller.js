@@ -45,6 +45,7 @@
     { id: "field_summary", label: "FieldSummary" },
     { id: "similar_list", label: "SimilarList" },
     { id: "nav_list", label: "NavList" },
+    { id: "deep_dive_inline", label: "DeepDiveInline" },
     { id: "nl_daily_summary", label: "NlDailySummary" },
     { id: "star_summary_compact", label: "StarSummaryCompact" },
     { id: "consistency_check_debug", label: "ConsistencyCheckDebug" },
