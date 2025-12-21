@@ -1799,6 +1799,15 @@
     btn.textContent = "SYNC送信";
     btn.className = "cscs-svb-send-btn";
 
+    // ★ 手動送信ボタンが押されたら「直近が手動送信である」ことを記録する
+    //   - sendDiffToServer 側でこのフラグを見て「差分ゼロでも必ず送信」に切り替える
+    //   - ここでは“送信処理そのもの”は触らない（既存のクリック処理と共存させる）
+    btn.addEventListener("click", function () {
+      try {
+        window.__cscs_sync_b_manual_send_ts = Date.now();
+      } catch (_eManual) {}
+    });
+
     box.appendChild(title);
     box.appendChild(body);
     box.appendChild(statusDiv);
@@ -2411,6 +2420,25 @@
   async function sendDiffToServer(box, params) {
     var qid = info.qid;
 
+    // ★ 手動送信の強制フラグ
+    //   - ボタン押下直後（2秒以内）なら forceSend=true 扱い
+    //   - params.forceSend === true が明示されていればそれも優先
+    var forceSend = false;
+    try {
+      if (params && params.forceSend === true) {
+        forceSend = true;
+      } else {
+        var ts = window.__cscs_sync_b_manual_send_ts || 0;
+        if (typeof ts === "number" && Number.isFinite(ts) && ts > 0) {
+          if ((Date.now() - ts) <= 2000) {
+            forceSend = true;
+          }
+        }
+      }
+    } catch (_eForce) {
+      forceSend = false;
+    }
+
     // ====== ① 各種 diff / local / server 値を受け取る ======
     // params は refreshAndSend() 側で作られた「同期前の状態比較」結果
     var diffCorrect = params.diffCorrect;      // local - server の「正解」増分
@@ -2525,7 +2553,8 @@
     //
     // → 「今回は送るべき更新が何もない」ので、
     //    HUD パネルの表示だけ更新して return する。
-    if (diffCorrect <= 0 &&
+    if (!forceSend &&
+        diffCorrect <= 0 &&
         diffWrong <= 0 &&
         diffStreak3 <= 0 &&
         diffStreak3Wrong <= 0 &&
@@ -2740,6 +2769,7 @@
          Object.prototype.hasOwnProperty.call(payload.global, "totalQuestions"));
 
     if (
+      !forceSend &&
       !hasCorrectDeltaInPayload &&
       !hasIncorrectDeltaInPayload &&
       !hasStreak3DeltaInPayload &&
@@ -2776,6 +2806,17 @@
         odoaModeText: odoaModeText
       });
       return;
+    }
+
+    // ★ 手動送信の場合：差分がゼロでも「送信ボタン押下」をサーバへ必ず到達させる
+    //   - 既存の delta 仕様は壊さず、追加フィールドだけ付与する
+    if (forceSend) {
+      payload.forceSend = true;
+      payload.forceReason = "manual_button";
+      payload.forceQid = qid;
+      console.log("[SYNC-B] forceSend ON → send request even if no delta", {
+        qid: qid
+      });
     }
 
     console.log("[SYNC-B] sending diff payload:", payload);
