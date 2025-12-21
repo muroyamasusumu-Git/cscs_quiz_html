@@ -171,9 +171,12 @@
   //     コンソールに出すための状態。
   let loggedWrongStreakMaxUiOnce = false;
 
-  // 空欄を「（データなし）」などで埋めるための共通ヘルパー
+  // 空欄を「-」で表示する共通ヘルパー（フォールバック埋め禁止）
+  //   - null / undefined / "" / 空白のみ → "-"
+  //   - 0 は「本当に 0 の場合だけ」"0" として表示される（呼び出し元で null と区別する）
   function toDisplayText(value, emptyLabel){
-    const fallback = emptyLabel != null ? String(emptyLabel) : "（データなし）";
+    // ★ 処理1: 欠損（null/undefined/空文字）を "-" に統一する
+    const fallback = emptyLabel != null ? String(emptyLabel) : "-";
     if (value === null || value === undefined) {
       return fallback;
     }
@@ -216,31 +219,75 @@
     try{
       const kC = "cscs_q_correct_total:" + qid;
       const kW = "cscs_q_wrong_total:"   + qid;
-      const c  = parseInt(localStorage.getItem(kC) || "0", 10) || 0;
-      const w  = parseInt(localStorage.getItem(kW) || "0", 10) || 0;
+
+      // ★ 処理: localStorage の数値を「厳密」に読む（欠損/空/非数 → null、"0" → 0）
+      function readLsNonNegIntOrNull(key){
+        const raw = localStorage.getItem(key);
+
+        // 欠損は null（0埋め禁止）
+        if (raw === null || raw === undefined) return null;
+
+        const s = String(raw).trim();
+        if (s === "") return null;
+
+        // 数字以外は null（0埋め禁止）
+        if (!/^\d+$/.test(s)) return null;
+
+        const n = parseInt(s, 10);
+        if (!Number.isFinite(n) || n < 0) return null;
+
+        return n;
+      }
+
+      const c = readLsNonNegIntOrNull(kC);
+      const w = readLsNonNegIntOrNull(kW);
+
       return { c, w };
     }catch(_){
-      return { c:0, w:0 };
+      // ★ 方針: 例外でも 0 にせず null（欠損扱い）にする
+      return { c: null, w: null };
     }
   }
 
   function readLocalStreak3ForQid(qid){
     try{
       const kS = "cscs_q_correct_streak3_total:" + qid;
-      const s  = parseInt(localStorage.getItem(kS) || "0", 10) || 0;
-      return s;
+
+      // ★ 処理: 欠損/空/非数は null（0埋め禁止）
+      const raw = localStorage.getItem(kS);
+      if (raw === null || raw === undefined) return null;
+
+      const s = String(raw).trim();
+      if (s === "") return null;
+      if (!/^\d+$/.test(s)) return null;
+
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n) || n < 0) return null;
+
+      return n;
     }catch(_){
-      return 0;
+      return null;
     }
   }
 
   function readLocalStreakLenForQid(qid){
     try{
       const kL = "cscs_q_correct_streak_len:" + qid;
-      const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
-      return l;
+
+      // ★ 処理: 欠損/空/非数は null（0埋め禁止）
+      const raw = localStorage.getItem(kL);
+      if (raw === null || raw === undefined) return null;
+
+      const s = String(raw).trim();
+      if (s === "") return null;
+      if (!/^\d+$/.test(s)) return null;
+
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n) || n < 0) return null;
+
+      return n;
     }catch(_){
-      return 0;
+      return null;
     }
   }
 
@@ -249,10 +296,21 @@
   function readLocalStreakMaxForQid(qid){
     try{
       const kM = "cscs_q_correct_streak_max:" + qid;
-      const m  = parseInt(localStorage.getItem(kM) || "0", 10) || 0;
-      return m;
+
+      // ★ 処理: 欠損/空/非数は null（0埋め禁止）
+      const raw = localStorage.getItem(kM);
+      if (raw === null || raw === undefined) return null;
+
+      const s = String(raw).trim();
+      if (s === "") return null;
+      if (!/^\d+$/.test(s)) return null;
+
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n) || n < 0) return null;
+
+      return n;
     }catch(_){
-      return 0;
+      return null;
     }
   }
 
@@ -262,9 +320,27 @@
     try{
       const kD = "cscs_q_correct_streak_max_day:" + qid;
       const v = localStorage.getItem(kD);
-      return v || "";
-    }catch(_){
-      return "";
+
+      // ★ 処理1: 欠損/空は null（空文字で埋めない）
+      if (v === null || v === undefined) {
+        console.log("[SYNC-A][NO-FALLBACK][LS] streakMaxDay missing -> null", { qid: qid, key: kD });
+        return null;
+      }
+      const s = String(v).trim();
+      if (s === "") {
+        console.log("[SYNC-A][NO-FALLBACK][LS] streakMaxDay empty -> null", { qid: qid, key: kD, raw: v });
+        return null;
+      }
+
+      // ★ 処理2: 成功ログ（取得できた事実を確実に可視化）
+      console.log("[SYNC-A][OK][LS] streakMaxDay ok", { qid: qid, key: kD, value: s });
+      return s;
+    }catch(e){
+      console.error("[SYNC-A][NO-FALLBACK][LS] streakMaxDay read exception -> null", {
+        qid: qid,
+        error: String(e && e.message || e)
+      });
+      return null;
     }
   }
 
@@ -273,10 +349,21 @@
   function readLocalWrongStreak3ForQid(qid){
     try{
       const kS = "cscs_q_wrong_streak3_total:" + qid;
-      const s  = parseInt(localStorage.getItem(kS) || "0", 10) || 0;
-      return s;
+
+      // ★ 処理: 欠損/空/非数は null（0埋め禁止）
+      const raw = localStorage.getItem(kS);
+      if (raw === null || raw === undefined) return null;
+
+      const s = String(raw).trim();
+      if (s === "") return null;
+      if (!/^\d+$/.test(s)) return null;
+
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n) || n < 0) return null;
+
+      return n;
     }catch(_){
-      return 0;
+      return null;
     }
   }
 
@@ -285,10 +372,21 @@
   function readLocalWrongStreakLenForQid(qid){
     try{
       const kL = "cscs_q_wrong_streak_len:" + qid;
-      const l  = parseInt(localStorage.getItem(kL) || "0", 10) || 0;
-      return l;
+
+      // ★ 処理: 欠損/空/非数は null（0埋め禁止）
+      const raw = localStorage.getItem(kL);
+      if (raw === null || raw === undefined) return null;
+
+      const s = String(raw).trim();
+      if (s === "") return null;
+      if (!/^\d+$/.test(s)) return null;
+
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n) || n < 0) return null;
+
+      return n;
     }catch(_){
-      return 0;
+      return null;
     }
   }
 
@@ -297,10 +395,21 @@
   function readLocalWrongStreakMaxForQid(qid){
     try{
       const kM = "cscs_q_wrong_streak_max:" + qid;
-      const m  = parseInt(localStorage.getItem(kM) || "0", 10) || 0;
-      return m;
+
+      // ★ 処理: 欠損/空/非数は null（0埋め禁止）
+      const raw = localStorage.getItem(kM);
+      if (raw === null || raw === undefined) return null;
+
+      const s = String(raw).trim();
+      if (s === "") return null;
+      if (!/^\d+$/.test(s)) return null;
+
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n) || n < 0) return null;
+
+      return n;
     }catch(_){
-      return 0;
+      return null;
     }
   }
 
@@ -310,9 +419,27 @@
     try{
       const kD = "cscs_q_wrong_streak_max_day:" + qid;
       const v = localStorage.getItem(kD);
-      return v || "";
-    }catch(_){
-      return "";
+
+      // ★ 処理1: 欠損/空は null（空文字で埋めない）
+      if (v === null || v === undefined) {
+        console.log("[SYNC-A][NO-FALLBACK][LS] wrongStreakMaxDay missing -> null", { qid: qid, key: kD });
+        return null;
+      }
+      const s = String(v).trim();
+      if (s === "") {
+        console.log("[SYNC-A][NO-FALLBACK][LS] wrongStreakMaxDay empty -> null", { qid: qid, key: kD, raw: v });
+        return null;
+      }
+
+      // ★ 処理2: 成功ログ
+      console.log("[SYNC-A][OK][LS] wrongStreakMaxDay ok", { qid: qid, key: kD, value: s });
+      return s;
+    }catch(e){
+      console.error("[SYNC-A][NO-FALLBACK][LS] wrongStreakMaxDay read exception -> null", {
+        qid: qid,
+        error: String(e && e.message || e)
+      });
+      return null;
     }
   }
 
@@ -321,9 +448,27 @@
     try{
       const k = "cscs_q_last_seen_day:" + qid;
       const v = localStorage.getItem(k);
-      return v || "";
-    }catch(_){
-      return "";
+
+      // ★ 処理1: 欠損/空は null（空文字で埋めない）
+      if (v === null || v === undefined) {
+        console.log("[SYNC-A][NO-FALLBACK][LS] lastSeenDay missing -> null", { qid: qid, key: k });
+        return null;
+      }
+      const s = String(v).trim();
+      if (s === "") {
+        console.log("[SYNC-A][NO-FALLBACK][LS] lastSeenDay empty -> null", { qid: qid, key: k, raw: v });
+        return null;
+      }
+
+      // ★ 処理2: 成功ログ
+      console.log("[SYNC-A][OK][LS] lastSeenDay ok", { qid: qid, key: k, value: s });
+      return s;
+    }catch(e){
+      console.error("[SYNC-A][NO-FALLBACK][LS] lastSeenDay read exception -> null", {
+        qid: qid,
+        error: String(e && e.message || e)
+      });
+      return null;
     }
   }
 
@@ -332,9 +477,27 @@
     try{
       const k = "cscs_q_last_correct_day:" + qid;
       const v = localStorage.getItem(k);
-      return v || "";
-    }catch(_){
-      return "";
+
+      // ★ 処理1: 欠損/空は null（空文字で埋めない）
+      if (v === null || v === undefined) {
+        console.log("[SYNC-A][NO-FALLBACK][LS] lastCorrectDay missing -> null", { qid: qid, key: k });
+        return null;
+      }
+      const s = String(v).trim();
+      if (s === "") {
+        console.log("[SYNC-A][NO-FALLBACK][LS] lastCorrectDay empty -> null", { qid: qid, key: k, raw: v });
+        return null;
+      }
+
+      // ★ 処理2: 成功ログ
+      console.log("[SYNC-A][OK][LS] lastCorrectDay ok", { qid: qid, key: k, value: s });
+      return s;
+    }catch(e){
+      console.error("[SYNC-A][NO-FALLBACK][LS] lastCorrectDay read exception -> null", {
+        qid: qid,
+        error: String(e && e.message || e)
+      });
+      return null;
     }
   }
 
@@ -343,9 +506,27 @@
     try{
       const k = "cscs_q_last_wrong_day:" + qid;
       const v = localStorage.getItem(k);
-      return v || "";
-    }catch(_){
-      return "";
+
+      // ★ 処理1: 欠損/空は null（空文字で埋めない）
+      if (v === null || v === undefined) {
+        console.log("[SYNC-A][NO-FALLBACK][LS] lastWrongDay missing -> null", { qid: qid, key: k });
+        return null;
+      }
+      const s = String(v).trim();
+      if (s === "") {
+        console.log("[SYNC-A][NO-FALLBACK][LS] lastWrongDay empty -> null", { qid: qid, key: k, raw: v });
+        return null;
+      }
+
+      // ★ 処理2: 成功ログ
+      console.log("[SYNC-A][OK][LS] lastWrongDay ok", { qid: qid, key: k, value: s });
+      return s;
+    }catch(e){
+      console.error("[SYNC-A][NO-FALLBACK][LS] lastWrongDay read exception -> null", {
+        qid: qid,
+        error: String(e && e.message || e)
+      });
+      return null;
     }
   }
 
@@ -373,11 +554,22 @@
       const dI = queue.incorrectDelta[QID] || 0;
 
       const local = readLocalTotalsForQid(QID);
-      const lc = local.c;
-      const li = local.w;
+      const lc = local.c; // ★ 欠損は null（0埋め禁止）
+      const li = local.w; // ★ 欠損は null（0埋め禁止）
 
-      const ls = readLocalStreak3ForQid(QID);
-      const ll = readLocalStreakLenForQid(QID);
+      const ls = readLocalStreak3ForQid(QID);   // ★ 欠損は null（0埋め禁止）
+      const ll = readLocalStreakLenForQid(QID); // ★ 欠損は null（0埋め禁止）
+
+      // ★ 追加ログ: localStorage から「欠損か/数値か」を確実に確認できる
+      console.log("[SYNC-A][UI] local snapshot (no-fallback)", {
+        qid: QID,
+        localTotals: { correct: lc, wrong: li },
+        localStreak: { streak3: ls, streakLen: ll },
+        missing: {
+          totals: (lc === null || li === null),
+          streak: (ls === null || ll === null)
+        }
+      });
 
       // ★ 追加: 正解ストリークの「過去最高」と「達成日」を localStorage から取得
       //   - フォールバック無し：b_judge_record.js の localStorage を唯一の参照元として表示する
@@ -403,7 +595,7 @@
       //   - フォールバックで別ソースから推測しない（datasetが空なら欠損扱い）
       //   - streak3/streakLen は従来通り（欠損時は 0 表示のまま）※必要なら後で同様に拡張可能
       // ============================================================
-      let sc = null, si = null, ss = 0, sl = 0;
+      let sc = null, si = null, ss = null, sl = null;
       if (totalsEl) {
         // ★ 処理1: dataset の数値を “厳密” に読む（空/欠損/非数は null）
         function readDatasetNonNegIntOrNull(ds, keyName){
@@ -426,9 +618,9 @@
         sc = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverC");
         si = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverI");
 
-        // ★ 処理3: streak 系は従来互換（欠損時は 0）
-        ss = parseInt(totalsEl.dataset.serverS3 || "0", 10) || 0;
-        sl = parseInt(totalsEl.dataset.serverSL || "0", 10) || 0;
+        // ★ 処理3: streak 系も欠損なら null（0埋め禁止）
+        ss = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverS3");
+        sl = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverSL");
 
         // ★ 処理4: 表示を反映（欠損は "-"）
         const serverTextEl = totalsEl.querySelector(".sync-server-text");
@@ -447,33 +639,84 @@
         }
       }
 
-      // ★ 処理: progress は数値でない場合に備えてガード（推測値で埋めない）
-      const serverProgress = (typeof sl === "number" && Number.isFinite(sl)) ? (sl % 3) : 0;
-      const localProgress  = (typeof ll === "number" && Number.isFinite(ll)) ? (ll % 3) : 0;
+      // ★ 処理: progress は推測で埋めない
+      //   - sl/ll が number の時だけ計算し、それ以外は null（UI は "-" で表示する）
+      const serverProgress = (typeof sl === "number" && Number.isFinite(sl)) ? (sl % 3) : null;
+      const localProgress  = (typeof ll === "number" && Number.isFinite(ll)) ? (ll % 3) : null;
 
-      // ★ 不正解ストリーク（SYNC 側）の最新値を __cscs_sync_state から取得
-      let ssWrong = 0;
-      let slWrong = 0;
+      // ★ 追加ログ: progress の算出が「計算できたか/欠損か」を確認
+      console.log("[SYNC-A][UI] progress computed (no-fallback)", {
+        qid: QID,
+        serverProgress: serverProgress,
+        localProgress: localProgress,
+        missing: {
+          server: (serverProgress === null),
+          local: (localProgress === null)
+        }
+      });
+
+      // ★ 不正解ストリーク（SYNC 側）の最新値を __cscs_sync_state から取得（フォールバック禁止）
+      let ssWrong = null;
+      let slWrong = null;
       try{
         const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
           ? window.__cscs_sync_state
           : null;
-        if (state && state.streak3Wrong && typeof state.streak3Wrong === "object") {
-          const v = state.streak3Wrong[QID];
-          if (typeof v === "number" && v >= 0) {
-            ssWrong = v;
-          }
-        }
-        if (state && state.streakWrongLen && typeof state.streakWrongLen === "object") {
-          const v2 = state.streakWrongLen[QID];
-          if (typeof v2 === "number" && v2 >= 0) {
-            slWrong = v2;
-          }
-        }
-      }catch(_){}
 
-      const serverWrongProgress = slWrong % 3;
-      const localWrongProgress  = llWrong % 3;
+        // ★ 処理1: state未取得なら null のまま（0埋め禁止）
+        if (!state) {
+          console.log("[SYNC-A][NO-FALLBACK] __cscs_sync_state missing -> wrong streak server = null", {
+            qid: QID
+          });
+        } else {
+          // ★ 処理2: streak3Wrong[qid] を厳密に検証して採用（欠損/型不正は null）
+          if (state.streak3Wrong && typeof state.streak3Wrong === "object" && Object.prototype.hasOwnProperty.call(state.streak3Wrong, QID)) {
+            const v = state.streak3Wrong[QID];
+            if (typeof v === "number" && Number.isFinite(v) && v >= 0) {
+              ssWrong = v;
+              console.log("[SYNC-A][NO-FALLBACK] wrong streak3 server ok", { qid: QID, value: ssWrong });
+            } else {
+              console.error("[SYNC-A][NO-FALLBACK] wrong streak3 server invalid -> null", { qid: QID, value: v, type: typeof v });
+            }
+          } else {
+            console.log("[SYNC-A][NO-FALLBACK] wrong streak3 server missing entry -> null", { qid: QID });
+          }
+
+          // ★ 処理3: streakWrongLen[qid] を厳密に検証して採用（欠損/型不正は null）
+          if (state.streakWrongLen && typeof state.streakWrongLen === "object" && Object.prototype.hasOwnProperty.call(state.streakWrongLen, QID)) {
+            const v2 = state.streakWrongLen[QID];
+            if (typeof v2 === "number" && Number.isFinite(v2) && v2 >= 0) {
+              slWrong = v2;
+              console.log("[SYNC-A][NO-FALLBACK] wrong streakLen server ok", { qid: QID, value: slWrong });
+            } else {
+              console.error("[SYNC-A][NO-FALLBACK] wrong streakLen server invalid -> null", { qid: QID, value: v2, type: typeof v2 });
+            }
+          } else {
+            console.log("[SYNC-A][NO-FALLBACK] wrong streakLen server missing entry -> null", { qid: QID });
+          }
+        }
+      }catch(e){
+        ssWrong = null;
+        slWrong = null;
+        console.error("[SYNC-A][NO-FALLBACK] wrong streak server read exception -> nulls", {
+          qid: QID,
+          error: String(e && e.message || e)
+        });
+      }
+
+      // ★ 処理4: progress は “計算できる時だけ” 計算（nullなら "-" 表示へ）
+      const serverWrongProgress = (typeof slWrong === "number" && Number.isFinite(slWrong)) ? (slWrong % 3) : null;
+      const localWrongProgress  = (typeof llWrong === "number" && Number.isFinite(llWrong)) ? (llWrong % 3) : null;
+
+      console.log("[SYNC-A][NO-FALLBACK] wrong progress computed", {
+        qid: QID,
+        serverWrongProgress: serverWrongProgress,
+        localWrongProgress: localWrongProgress,
+        missing: {
+          server: (serverWrongProgress === null),
+          local: (localWrongProgress === null)
+        }
+      });
 
       // ★ 初回だけ、不正解ストリーク UI の値をコンソールにログ出し
       if (!loggedWrongStreakUiOnce) {
@@ -487,38 +730,172 @@
         loggedWrongStreakUiOnce = true;
       }
 
-      const streak3Today = (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today)
-        ? window.__cscs_sync_state.streak3Today
-        : { day: "", unique_count: 0 };
+      // ★ フォールバック完全排除：SYNC state が無ければ null（欠損扱い）で保持する
+      //   - { unique_count: 0 } のような “勝手な0埋めオブジェクト生成” を禁止する
+      let streak3Today = null;
+      try{
+        const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+
+        if (state && state.streak3Today && typeof state.streak3Today === "object") {
+          streak3Today = state.streak3Today;
+          console.log("[SYNC-A][NO-FALLBACK][STATE] streak3Today ok (object)", {
+            hasDay: Object.prototype.hasOwnProperty.call(streak3Today, "day"),
+            hasUniqueCount: Object.prototype.hasOwnProperty.call(streak3Today, "unique_count"),
+            hasQids: Object.prototype.hasOwnProperty.call(streak3Today, "qids")
+          });
+        } else {
+          streak3Today = null;
+          console.log("[SYNC-A][NO-FALLBACK][STATE] streak3Today missing -> null", {
+            hasState: !!state
+          });
+        }
+      }catch(e){
+        streak3Today = null;
+        console.error("[SYNC-A][NO-FALLBACK][STATE] streak3Today read exception -> null", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      // ★ UI表示用：SYNC側は “取れた時だけ” 値を採用（取れなければ空→（データなし））
+      const streak3TodayDayForUi =
+        (streak3Today && Object.prototype.hasOwnProperty.call(streak3Today, "day"))
+          ? streak3Today.day
+          : "";
+
+      const streak3TodayCountForUi =
+        (streak3Today && typeof streak3Today.unique_count === "number" && Number.isFinite(streak3Today.unique_count))
+          ? streak3Today.unique_count
+          : "";
 
       let localStreakDay = "";
-      let localStreakCount = 0;
+      let localStreakCount = null;
       try{
+        // ★ 処理1: day は “無いなら無い” を正として空文字（UI側で "-" / （データなし）に落とす）
         localStreakDay = localStorage.getItem("cscs_streak3_today_day") || "";
-        const rawLocalCnt = localStorage.getItem("cscs_streak3_today_unique_count");
-        const parsedLocalCnt = rawLocalCnt == null ? NaN : parseInt(rawLocalCnt, 10);
-        if (Number.isFinite(parsedLocalCnt) && parsedLocalCnt >= 0) {
-          localStreakCount = parsedLocalCnt;
-        }
-      }catch(_){}
 
-      // ★ 今日の3連続不正解ユニーク数（Streak3WrongToday）を SYNC state と localStorage から読み込む
-      //   - SYNC 側: state.streak3WrongToday.{day, unique_count, qids}
-      //   - local 側: cscs_streak3_wrong_today_day / _unique_count をそのまま表示に使う
-      const streak3WrongToday = (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday)
-        ? window.__cscs_sync_state.streak3WrongToday
-        : { day: "", unique_count: 0 };
+        // ★ 処理2: unique_count は欠損なら null（0埋め禁止）
+        const k = "cscs_streak3_today_unique_count";
+        const rawLocalCnt = localStorage.getItem(k);
+
+        if (rawLocalCnt === null || rawLocalCnt === undefined) {
+          localStreakCount = null;
+          console.log("[SYNC-A][NO-FALLBACK][LS] streak3Today unique_count missing -> null", {
+            key: k
+          });
+        } else {
+          const s = String(rawLocalCnt).trim();
+          if (s === "") {
+            localStreakCount = null;
+            console.log("[SYNC-A][NO-FALLBACK][LS] streak3Today unique_count empty -> null", {
+              key: k,
+              raw: rawLocalCnt
+            });
+          } else if (!/^\d+$/.test(s)) {
+            localStreakCount = null;
+            console.error("[SYNC-A][NO-FALLBACK][LS] streak3Today unique_count invalid -> null", {
+              key: k,
+              raw: rawLocalCnt
+            });
+          } else {
+            const n = parseInt(s, 10);
+            localStreakCount = (Number.isFinite(n) && n >= 0) ? n : null;
+            console.log("[SYNC-A][NO-FALLBACK][LS] streak3Today unique_count ok", {
+              key: k,
+              value: localStreakCount
+            });
+          }
+        }
+      }catch(e){
+        localStreakCount = null;
+        console.error("[SYNC-A][NO-FALLBACK][LS] streak3Today unique_count exception -> null", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      // ★ フォールバック完全排除：SYNC state が無ければ null（欠損扱い）で保持する
+      let streak3WrongToday = null;
+      try{
+        const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+
+        if (state && state.streak3WrongToday && typeof state.streak3WrongToday === "object") {
+          streak3WrongToday = state.streak3WrongToday;
+          console.log("[SYNC-A][NO-FALLBACK][STATE] streak3WrongToday ok (object)", {
+            hasDay: Object.prototype.hasOwnProperty.call(streak3WrongToday, "day"),
+            hasUniqueCount: Object.prototype.hasOwnProperty.call(streak3WrongToday, "unique_count"),
+            hasQids: Object.prototype.hasOwnProperty.call(streak3WrongToday, "qids")
+          });
+        } else {
+          streak3WrongToday = null;
+          console.log("[SYNC-A][NO-FALLBACK][STATE] streak3WrongToday missing -> null", {
+            hasState: !!state
+          });
+        }
+      }catch(e){
+        streak3WrongToday = null;
+        console.error("[SYNC-A][NO-FALLBACK][STATE] streak3WrongToday read exception -> null", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      // ★ UI表示用：SYNC側は “取れた時だけ” 値を採用（取れなければ空→（データなし））
+      const streak3WrongTodayDayForUi =
+        (streak3WrongToday && Object.prototype.hasOwnProperty.call(streak3WrongToday, "day"))
+          ? streak3WrongToday.day
+          : "";
+
+      const streak3WrongTodayCountForUi =
+        (streak3WrongToday && typeof streak3WrongToday.unique_count === "number" && Number.isFinite(streak3WrongToday.unique_count))
+          ? streak3WrongToday.unique_count
+          : "";
 
       let localWrongStreakDay = "";
-      let localWrongStreakCount = 0;
+      let localWrongStreakCount = null;
       try{
+        // ★ 処理1: day は “無いなら無い” を正として空文字
         localWrongStreakDay = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
-        const rawLocalWrongCnt = localStorage.getItem("cscs_streak3_wrong_today_unique_count");
-        const parsedLocalWrongCnt = rawLocalWrongCnt == null ? NaN : parseInt(rawLocalWrongCnt, 10);
-        if (Number.isFinite(parsedLocalWrongCnt) && parsedLocalWrongCnt >= 0) {
-          localWrongStreakCount = parsedLocalWrongCnt;
+
+        // ★ 処理2: unique_count は欠損なら null（0埋め禁止）
+        const k = "cscs_streak3_wrong_today_unique_count";
+        const rawLocalWrongCnt = localStorage.getItem(k);
+
+        if (rawLocalWrongCnt === null || rawLocalWrongCnt === undefined) {
+          localWrongStreakCount = null;
+          console.log("[SYNC-A][NO-FALLBACK][LS] streak3WrongToday unique_count missing -> null", {
+            key: k
+          });
+        } else {
+          const s = String(rawLocalWrongCnt).trim();
+          if (s === "") {
+            localWrongStreakCount = null;
+            console.log("[SYNC-A][NO-FALLBACK][LS] streak3WrongToday unique_count empty -> null", {
+              key: k,
+              raw: rawLocalWrongCnt
+            });
+          } else if (!/^\d+$/.test(s)) {
+            localWrongStreakCount = null;
+            console.error("[SYNC-A][NO-FALLBACK][LS] streak3WrongToday unique_count invalid -> null", {
+              key: k,
+              raw: rawLocalWrongCnt
+            });
+          } else {
+            const n = parseInt(s, 10);
+            localWrongStreakCount = (Number.isFinite(n) && n >= 0) ? n : null;
+            console.log("[SYNC-A][NO-FALLBACK][LS] streak3WrongToday unique_count ok", {
+              key: k,
+              value: localWrongStreakCount
+            });
+          }
         }
-      }catch(_){}
+      }catch(e){
+        localWrongStreakCount = null;
+        console.error("[SYNC-A][NO-FALLBACK][LS] streak3WrongToday unique_count exception -> null", {
+          error: String(e && e.message || e)
+        });
+      }
 
       // ★ 問題別 最終日情報（LastSeen / LastCorrect / LastWrong）の取得
       //   - local: localStorage に保存された最終日
@@ -626,14 +1003,12 @@
         const lastdaySummaryLocalEl = box.querySelector(".sync-lastday-summary-local");
 
         if (s3tDayEl) {
-          s3tDayEl.textContent = toDisplayText(streak3Today.day, "（データなし）");
+          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3tDayEl.textContent = toDisplayText(streak3TodayDayForUi, "（データなし）");
         }
         if (s3tSyncEl) {
-          // unique_count 自体が欠損している場合のみ「（データなし）」を表示
-          s3tSyncEl.textContent = toDisplayText(
-            typeof streak3Today.unique_count === "number" ? streak3Today.unique_count : "",
-            "（データなし）"
-          );
+          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3tSyncEl.textContent = toDisplayText(streak3TodayCountForUi, "（データなし）");
         }
         if (s3tLocalEl) {
           s3tLocalEl.textContent = toDisplayText(
@@ -649,13 +1024,12 @@
         const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
         const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
         if (s3wtDayEl) {
-          s3wtDayEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
+          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3wtDayEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "（データなし）");
         }
         if (s3wtSyncEl) {
-          s3wtSyncEl.textContent = toDisplayText(
-            typeof streak3WrongToday.unique_count === "number" ? streak3WrongToday.unique_count : "",
-            "（データなし）"
-          );
+          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3wtSyncEl.textContent = toDisplayText(streak3WrongTodayCountForUi, "（データなし）");
         }
         if (s3wtLocalEl) {
           s3wtLocalEl.textContent = toDisplayText(
@@ -712,13 +1086,22 @@
           }
         }
 
-        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3Today.day, "（データなし）");
+        // ★ 処理1: SYNC day は “取れた値だけ” を使う（null/欠損でオブジェクト参照しない）
+        // ★ 処理2: isToday 判定も同じ入力（streak3TodayDayForUi / streak3WrongTodayDayForUi）で統一する
+        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3TodayDayForUi, "（データなし）");
         if (s3tDayLocalEl)   s3tDayLocalEl.textContent = toDisplayText(localStreakDayRaw, "（データなし）");
-        if (s3tDayIsTodayEl) s3tDayIsTodayEl.textContent = isTodayYmdString(streak3Today.day);
+        if (s3tDayIsTodayEl) s3tDayIsTodayEl.textContent = isTodayYmdString(streak3TodayDayForUi);
 
-        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongToday.day, "（データなし）");
+        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "（データなし）");
         if (s3wtDayLocalEl)  s3wtDayLocalEl.textContent = toDisplayText(localWrongStreakDayRaw, "（データなし）");
-        if (s3wtDayIsTodayEl) s3wtDayIsTodayEl.textContent = isTodayYmdString(streak3WrongToday.day);
+        if (s3wtDayIsTodayEl) s3wtDayIsTodayEl.textContent = isTodayYmdString(streak3WrongTodayDayForUi);
+
+        // ★ 処理3: 反映成功ログ（「例外でUI更新が止まってない」ことを確実に確認）
+        console.log("[SYNC-A][OK][UI] day compare updated (no-fallback)", {
+          qid: QID,
+          streak3Today: { syncDay: streak3TodayDayForUi, localDay: localStreakDayRaw },
+          streak3WrongToday: { syncDay: streak3WrongTodayDayForUi, localDay: localWrongStreakDayRaw }
+        });
 
         if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "（データなし）");
         if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "（データなし）");
@@ -850,10 +1233,37 @@
         const sllwProgEl = box.querySelector(".sync-wrong-streaklen-local-progress");
 
         if (qEl)   qEl.textContent  = QID ? QID : "（データなし）";
-        if (lEl)   lEl.textContent  = "local  " + lc + " / " + li;
+        if (lEl) {
+          // ★ 処理1: null は "-" 表示（0埋め禁止）
+          const lcText = (lc === null) ? "-" : String(lc);
+          const liText = (li === null) ? "-" : String(li);
+          lEl.textContent  = "local  " + lcText + " / " + liText;
+
+          // ★ 処理2: 反映成功ログ（欠損有無も出す）
+          console.log("[SYNC-A][UI] local totals display updated", {
+            qid: QID,
+            correct: lc,
+            wrong: li,
+            missing: (lc === null || li === null)
+          });
+        }
+
         if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
-        if (s3El)  s3El.textContent = String(ls);
-        if (s3sEl) s3sEl.textContent = String(ss);
+
+        if (s3El) {
+          // ★ 処理3: null は "-" 表示（0埋め禁止）
+          s3El.textContent = (ls === null) ? "-" : String(ls);
+
+          // ★ 処理4: 反映成功ログ
+          console.log("[SYNC-A][UI] local streak3 display updated", {
+            qid: QID,
+            streak3: ls,
+            missing: (ls === null)
+          });
+        }
+
+        // ★ 処理: server streak3 は欠損なら "-"（0埋め禁止）
+        if (s3sEl) s3sEl.textContent = (ss === null) ? "-" : String(ss);
 
         // ★ 追加: streak max カード（A）に localStorage の値を反映
         //   - len: 現在の連続正解数（cscs_q_correct_streak_len:{qid}）
@@ -893,18 +1303,54 @@
           loggedWrongStreakMaxUiOnce = true;
         }
 
-        if (slEl)        slEl.textContent        = String(ll);
-        if (slsEl)       slsEl.textContent       = String(sl);
-        if (slsProgEl)   slsProgEl.textContent   = String(serverProgress);
-        if (sllProgEl)   sllProgEl.textContent   = String(localProgress);
+        if (slEl) {
+          // ★ 処理1: null は "-" 表示（0埋め禁止）
+          slEl.textContent = (ll === null) ? "-" : String(ll);
 
-        // ★ 不正解ストリークの値を UI に反映
-        if (s3wEl)  s3wEl.textContent  = String(lsWrong);
-        if (s3wsEl) s3wsEl.textContent = String(ssWrong);
-        if (slwEl)  slwEl.textContent  = String(llWrong);
-        if (slwsEl) slwsEl.textContent = String(slWrong);
-        if (slwsProgEl) slwsProgEl.textContent = String(serverWrongProgress);
-        if (sllwProgEl) sllwProgEl.textContent  = String(localWrongProgress);
+          // ★ 処理2: 反映成功ログ
+          console.log("[SYNC-A][UI] local streakLen display updated", {
+            qid: QID,
+            streakLen: ll,
+            missing: (ll === null)
+          });
+        }
+
+        // ★ 処理: server streakLen は欠損なら "-"（0埋め禁止）
+        if (slsEl)       slsEl.textContent       = (sl === null) ? "-" : String(sl);
+
+        if (slsProgEl) {
+          // ★ 処理3: null は "-" 表示（推測で 0 にしない）
+          slsProgEl.textContent = (serverProgress === null) ? "-" : String(serverProgress);
+
+          // ★ 処理4: 反映成功ログ
+          console.log("[SYNC-A][UI] server progress display updated", {
+            qid: QID,
+            serverProgress: serverProgress,
+            missing: (serverProgress === null)
+          });
+        }
+
+        if (sllProgEl) {
+          // ★ 処理5: null は "-" 表示（推測で 0 にしない）
+          sllProgEl.textContent = (localProgress === null) ? "-" : String(localProgress);
+
+          // ★ 処理6: 反映成功ログ
+          console.log("[SYNC-A][UI] local progress display updated", {
+            qid: QID,
+            localProgress: localProgress,
+            missing: (localProgress === null)
+          });
+        }
+
+        // ★ 不正解ストリークの値を UI に反映（欠損は "-"、0 は本当に 0 の時だけ）
+        if (s3wEl)  s3wEl.textContent  = (lsWrong === null) ? "-" : String(lsWrong);
+        if (s3wsEl) s3wsEl.textContent = (ssWrong === null) ? "-" : String(ssWrong);
+        if (slwEl)  slwEl.textContent  = (llWrong === null) ? "-" : String(llWrong);
+        if (slwsEl) slwsEl.textContent = (slWrong === null) ? "-" : String(slWrong);
+
+        // ★ 処理: progress は “計算できる時だけ” 数字、できなければ "-"（0埋め禁止）
+        if (slwsProgEl) slwsProgEl.textContent = (serverWrongProgress === null) ? "-" : String(serverWrongProgress);
+        if (sllwProgEl) sllwProgEl.textContent  = (localWrongProgress === null) ? "-" : String(localWrongProgress);
 
         // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（B）
         //   - streakLenDelta / streakWrongLenDelta は「増分」ではなく「最新値」なので、そのまま表示する
@@ -1792,11 +2238,10 @@
         });
       }
 
-      // ★ 追加: SYNC 側 streak3WrongToday を正として localStorage 側も同期する
+      // ★ 追加: SYNC 側 streak3WrongToday を正として localStorage 側も同期する（no-fallback）
       //   - state.streak3WrongToday を唯一のソースとして、
       //     「今日の3連続不正解ユニーク数」関連の localStorage を上書きする。
-      //   - フォールバックは行わず、state.streak3WrongToday が無ければ
-      //     「day: 空 / unique_count: 0 / qids: 空配列」とみなす。
+      //   - 無い/壊れている場合は “0埋め” せず、上書きもしない（欠損は欠損のまま）
       const streak3WrongToday = (s && s.streak3WrongToday && typeof s.streak3WrongToday === "object")
         ? s.streak3WrongToday
         : null;
@@ -2029,11 +2474,42 @@
       try{
         const totalsEl = document.getElementById("cscs_sync_totals");
         if (totalsEl) {
-          const sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
-          const si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
-          setServerTotalsForQid(sc, si, 0);
+          // ★ 処理1: dataset を厳密に読む（欠損/非数は null。0埋めしない）
+          function readDatasetNonNegIntOrNull(ds, keyName){
+            try{
+              if (!ds) return null;
+              const raw = ds[keyName];
+              if (raw === null || raw === undefined) return null;
+              const s = String(raw).trim();
+              if (s === "") return null;
+              if (!/^\d+$/.test(s)) return null;
+              const n = parseInt(s, 10);
+              if (!Number.isFinite(n) || n < 0) return null;
+              return n;
+            }catch(_e){
+              return null;
+            }
+          }
+
+          const sc = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverC");
+          const si = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverI");
+
+          // ★ 処理2: 両方取れた時だけ上書き（欠損なら上書き禁止）
+          if (sc !== null && si !== null) {
+            setServerTotalsForQid(sc, si, 0);
+            console.log("[SYNC-A][OK][NO-FALLBACK] resetStar dataset updated", { serverC: sc, serverI: si });
+          } else {
+            console.error("[SYNC-A][NO-OVERWRITE] resetStar skipped dataset update (missing/invalid)", {
+              serverC: sc,
+              serverI: si
+            });
+          }
         }
-      }catch(_){}
+      }catch(e){
+        console.error("[SYNC-A][ERROR] resetStar dataset sync failed", {
+          error: String(e && e.message || e)
+        });
+      }
 
       try{
         const stars = document.querySelectorAll(".correct_star");
@@ -2071,17 +2547,19 @@
         localStorage.removeItem("cscs_streak3_today_qids");
       }catch(_){}
 
-      // 2) クライアント側の SYNC スナップショットも「streak3Today を空」に更新（デバッグ専用）
+      // 2) クライアント側 snapshot は「生成して埋める」の禁止：存在しても削除/未定義にする（no-fallback）
       try{
-        if (!window.__cscs_sync_state || typeof window.__cscs_sync_state !== "object") {
-          window.__cscs_sync_state = {};
+        if (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object") {
+          delete window.__cscs_sync_state.streak3Today;
         }
-        window.__cscs_sync_state.streak3Today = {
-          day: "",
-          unique_count: 0,
-          qids: []
-        };
-      }catch(_){}
+        console.log("[SYNC-A][NO-FALLBACK][RESET] cleared snapshot streak3Today (delete only)", {
+          hasState: !!window.__cscs_sync_state
+        });
+      }catch(e){
+        console.error("[SYNC-A][NO-FALLBACK][RESET] clear snapshot streak3Today failed", {
+          error: String(e && e.message || e)
+        });
+      }
 
       // 3) サーバー側の最新状態を /api/sync/state から取り直して上書き（streak3Today も含めて確認）
       try{
@@ -2125,16 +2603,19 @@
         localStorage.removeItem("cscs_once_per_day_today_results");
       }catch(_){}
 
-      // 3) クライアント側 snapshot の oncePerDayToday を一旦クリア
+      // 3) クライアント側 snapshot は「空オブジェクト生成」禁止：存在しても削除/未定義にする（no-fallback）
       try{
-        if (!window.__cscs_sync_state || typeof window.__cscs_sync_state !== "object") {
-          window.__cscs_sync_state = {};
+        if (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object") {
+          delete window.__cscs_sync_state.oncePerDayToday;
         }
-        window.__cscs_sync_state.oncePerDayToday = {
-          day: null,
-          results: {}
-        };
-      }catch(_){}
+        console.log("[SYNC-A][NO-FALLBACK][RESET] cleared snapshot oncePerDayToday (delete only)", {
+          hasState: !!window.__cscs_sync_state
+        });
+      }catch(e){
+        console.error("[SYNC-A][NO-FALLBACK][RESET] clear snapshot oncePerDayToday failed", {
+          error: String(e && e.message || e)
+        });
+      }
 
       // 4) サーバー側の最新状態を取り直して、oncePerDayToday も含めて上書き
       try{
@@ -2223,10 +2704,26 @@
         }
       }catch(_){}
 
-      // 3) クライアント側 snapshot を一旦クリアしてから /api/sync/state を取り直す
+      // 3) クライアント側 snapshot を一旦クリアしてから /api/sync/state を取り直す（no-fallback）
+      //   - 空オブジェクト生成で「存在する体」を作らない
+      //   - delete + null にして「無い」を正として扱う
       try{
-        window.__cscs_sync_state = {};
-      }catch(_){}
+        const had = Object.prototype.hasOwnProperty.call(window, "__cscs_sync_state");
+        if (had) {
+          delete window.__cscs_sync_state;
+        }
+        window.__cscs_sync_state = null;
+
+        console.log("[SYNC-A][NO-FALLBACK][RESET] cleared snapshot __cscs_sync_state (delete + null)", {
+          had: had,
+          nowType: typeof window.__cscs_sync_state,
+          nowValue: window.__cscs_sync_state
+        });
+      }catch(e){
+        console.error("[SYNC-A][NO-FALLBACK][RESET] clear snapshot __cscs_sync_state failed", {
+          error: String(e && e.message || e)
+        });
+      }
 
       try{
         const s = await CSCS_SYNC.fetchServer();
