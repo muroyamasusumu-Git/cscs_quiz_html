@@ -68,25 +68,10 @@
   const KEY_LAST_S3_WRONG = `cscs_sync_last_ws3:${info.qid}`;
 
   function loadInt(key){
-    // フォールバック①: localStorage にキーが存在しない（null）場合は 0 扱いにする。
-    // 目的: 初回アクセス時や、まだ計測が走っていない問題でも script が落ちないようにする。
     const v = localStorage.getItem(key);
-    if (v == null) {
-      console.log("[SYNC/B][fallback][loadInt] localStorage miss -> 0", { key });
-      return 0;
-    }
-
-    // フォールバック②: 文字列が数値に変換できない場合（NaN 等）は 0 扱いにする。
-    // 目的: 破損値や想定外の値が入っていても delta 計算を継続し、送信ペイロードを壊さない。
+    if (v == null) return 0;
     const n = parseInt(v, 10);
-    if (!Number.isFinite(n)) {
-      console.warn("[SYNC/B][fallback][loadInt] parseInt failed -> 0", { key, raw: v });
-      return 0;
-    }
-
-    // 正常系: ここに来たら「整数として解釈できた」ことが確定。
-    console.log("[SYNC/B][ok][loadInt] loaded", { key, raw: v, value: n });
-    return n;
+    return Number.isFinite(n) ? n : 0;
   }
 
   function saveInt(key, value){
@@ -105,110 +90,38 @@
     const streakWrongLenNow = loadInt(KEY_STREAK_WRONG_LEN);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
-    // フォールバック③: 「前回SYNC済み累計」が未保存（初回）なら 0 を基準に差分を作る。
-    // 目的: 初回の merge で「今の累計＝差分」として正しく送れるようにする。
     const cLast       = loadInt(KEY_LAST_COR);
     const wLast       = loadInt(KEY_LAST_WRG);
     let   s3Last      = loadInt(KEY_LAST_S3);
     let   s3WrongLast = loadInt(KEY_LAST_S3_WRONG);
 
-    console.log("[SYNC/B][ok][lastTotals] loaded last totals (0 means first sync or missing)", {
-      qid: info.qid,
-      KEY_LAST_COR,
-      KEY_LAST_WRG,
-      KEY_LAST_S3,
-      KEY_LAST_S3_WRONG,
-      cLast,
-      wLast,
-      s3Last,
-      s3WrongLast
-    });
-
     // correct 側の 3連続正解累計について、local が s3Last より小さい場合 → s3Last を local に強制修正
-    // フォールバック④: 「前回SYNC済みキャッシュ(KEY_LAST_*)」が現在の累計より大きい矛盾を検出したら、
-    //   “減算送信”を発生させないために、キャッシュ側を現在値へ下げて整合させる。
-    // 目的: delta は加算専用（マイナス送信なし）なので、基準値が未来に飛ぶと永久に追いつけなくなるのを防ぐ。
     if (s3Last > s3Now) {
-      console.warn("[SYNC/B][fallback][guard] s3Last > s3Now -> clamp last to now", {
+      console.warn("[SYNC/B] 修正: s3Last が local より大きかったため補正しました", {
         qid: info.qid,
-        KEY_LAST_S3,
-        before_s3Last: s3Last,
+        s3Last,
         s3Now
       });
-
       s3Last = s3Now;
       saveInt(KEY_LAST_S3, s3Last);
-
-      console.log("[SYNC/B][ok][guard] saved corrected KEY_LAST_S3", {
-        qid: info.qid,
-        KEY_LAST_S3,
-        after_s3Last: s3Last
-      });
     }
 
     // wrong 側の 3連続不正解累計についても同様にガード
-    // フォールバック⑤: s3WrongLast も同様に「キャッシュが現在値を超える」矛盾を補正して、
-    //   “減算送信”や永久不一致を防ぐ（delta は加算専用）。
     if (s3WrongLast > s3WrongNow) {
-      console.warn("[SYNC/B][fallback][guard] s3WrongLast > s3WrongNow -> clamp last to now", {
+      console.warn("[SYNC/B] 修正: s3WrongLast が local より大きかったため補正しました", {
         qid: info.qid,
-        KEY_LAST_S3_WRONG,
-        before_s3WrongLast: s3WrongLast,
+        s3WrongLast,
         s3WrongNow
       });
-
       s3WrongLast = s3WrongNow;
       saveInt(KEY_LAST_S3_WRONG, s3WrongLast);
-
-      console.log("[SYNC/B][ok][guard] saved corrected KEY_LAST_S3_WRONG", {
-        qid: info.qid,
-        KEY_LAST_S3_WRONG,
-        after_s3WrongLast: s3WrongLast
-      });
     }
 
     // 3) 差分（マイナスは送らない）
-    // フォールバック⑥: delta は “加算専用” のため、(now - last) がマイナスなら 0 に丸めて送信しない。
-    // 目的: 減算送信を禁止し、SYNC側の累計を絶対に戻さない（ロールバックしない）方針を守る。
-    const rawDc       = cNow       - cLast;
-    const rawDw       = wNow       - wLast;
-    const rawDs3      = s3Now      - s3Last;
-    const rawDs3Wrong = s3WrongNow - s3WrongLast;
-
-    const dc       = Math.max(0, rawDc);
-    const dw       = Math.max(0, rawDw);
-    const ds3      = Math.max(0, rawDs3);
-    const ds3Wrong = Math.max(0, rawDs3Wrong);
-
-    if (rawDc < 0 || rawDw < 0 || rawDs3 < 0 || rawDs3Wrong < 0) {
-      console.warn("[SYNC/B][fallback][deltaClamp] negative delta detected -> clamped to 0", {
-        qid: info.qid,
-        rawDc,
-        rawDw,
-        rawDs3,
-        rawDs3Wrong,
-        dc,
-        dw,
-        ds3,
-        ds3Wrong,
-        cNow,
-        cLast,
-        wNow,
-        wLast,
-        s3Now,
-        s3Last,
-        s3WrongNow,
-        s3WrongLast
-      });
-    } else {
-      console.log("[SYNC/B][ok][delta] computed delta (all non-negative)", {
-        qid: info.qid,
-        dc,
-        dw,
-        ds3,
-        ds3Wrong
-      });
-    }
+    const dc       = Math.max(0, cNow       - cLast);
+    const dw       = Math.max(0, wNow       - wLast);
+    const ds3      = Math.max(0, s3Now      - s3Last);
+    const ds3Wrong = Math.max(0, s3WrongNow - s3WrongLast);
 
     // streak3TodayDelta は cscs_sync_view_b.js 側からのみ送信するため、
     // ここでは streak3Today 系は一切扱わない。

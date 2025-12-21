@@ -606,62 +606,20 @@
     return;
   }
 
-  function readDayFromLocalStorage(key) {
-    // ★ 何をしているか:
-    //   localStorage の値を JST日付 "YYYYMMDD" として読み取る。
-    //   フォールバック方針（基本）:
-    //     - 値なし（null/undefined/空） → null（SYNCに載せない）
-    //     - 形式不正（8桁数字以外） → null（SYNCに載せない）
-    //     - 数値化不正 / 0以下 → null（SYNCに載せない）
-    //     - 例外 → null（読み取り失敗扱い）
-    //   追加: どの理由で null になったか / 成功したかをログで確認できるようにする。
+  function readIntFromLocalStorage(key) {
     try {
       var raw = window.localStorage.getItem(key);
-
-      // ★ フォールバック(1): 値なし → null
-      if (raw === null || raw === undefined || raw === "") {
-        console.log("[SYNC-B:view][LS:day] missing/empty → fallback null", {
-          key: key,
-          raw: raw
-        });
-        return null;
+      if (raw === null || raw === undefined) {
+        return 0;
       }
-
-      // ★ フォールバック(2): 形式不正 → null
-      if (!/^\d{8}$/.test(raw)) {
-        console.log("[SYNC-B:view][LS:day] format invalid → fallback null", {
-          key: key,
-          raw: raw
-        });
-        return null;
-      }
-
       var n = parseInt(raw, 10);
-
-      // ★ フォールバック(3): 数値不正 → null
-      if (!Number.isFinite(n) || n <= 0) {
-        console.log("[SYNC-B:view][LS:day] numeric invalid → fallback null", {
-          key: key,
-          raw: raw,
-          parsed: n
-        });
-        return null;
+      if (!Number.isFinite(n) || n < 0) {
+        return 0;
       }
-
-      // ★ 成功: YYYYMMDD として採用
-      console.log("[SYNC-B:view][LS:day] ok", {
-        key: key,
-        raw: raw,
-        value: n
-      });
       return n;
     } catch (e) {
-      // ★ フォールバック(4): 例外 → null
-      console.error("[SYNC-B:view][LS:day] exception → fallback null", {
-        key: key,
-        error: e
-      });
-      return null;
+      console.error("[SYNC-B:view] failed to read int from localStorage:", key, e);
+      return 0;
     }
   }
 
@@ -711,77 +669,31 @@
   //   - day: number | null（YYYYMMDD）
   //   - results: { qid: "correct" | "wrong" }
   function readOncePerDayTodayFromLocal() {
-    // ★ 何をしているか:
-    //   oncePerDayToday の localStorage 状態を読み出す。
-    //   フォールバック方針（基本）:
-    //     - day が読めない/形式不正 → day:null（SYNCに載せない）
-    //     - results JSON が壊れている/読めない → results:{}（差分生成時に無視される）
-    //     - 例外（アクセス不可など） → day:null / results:{} に落とす
-    //   追加: 成功/失敗の理由をコンソールで追えるようにログを出す。
     var dayStr = null;
     try {
       dayStr = window.localStorage.getItem("cscs_once_per_day_today_day");
-      console.log("[SYNC-B:view][LS:once] day read ok", {
-        key: "cscs_once_per_day_today_day",
-        raw: dayStr
-      });
-    } catch (eDay) {
+    } catch (_e) {
       dayStr = null;
-      console.error("[SYNC-B:view][LS:once] day read exception → fallback null", {
-        key: "cscs_once_per_day_today_day",
-        error: eDay
-      });
     }
 
     var results = {};
     try {
       var raw = window.localStorage.getItem("cscs_once_per_day_today_results") || "{}";
       results = JSON.parse(raw);
-      console.log("[SYNC-B:view][LS:once] results parse ok", {
-        key: "cscs_once_per_day_today_results",
-        rawLen: (typeof raw === "string" ? raw.length : 0),
-        isObject: !!results && typeof results === "object"
-      });
-    } catch (eRes) {
+    } catch (_e2) {
       results = {};
-      console.error("[SYNC-B:view][LS:once] results parse exception → fallback {}", {
-        key: "cscs_once_per_day_today_results",
-        error: eRes
-      });
     }
-
-    // ★ フォールバック: object以外は {} に落とす
     if (!results || typeof results !== "object") {
-      console.log("[SYNC-B:view][LS:once] results not object → fallback {}", {
-        key: "cscs_once_per_day_today_results",
-        type: (results == null ? String(results) : typeof results)
-      });
       results = {};
     }
 
     var dayNum = null;
-
-    // ★ フォールバック: day が 8桁数字でなければ null
     if (dayStr && /^\d{8}$/.test(dayStr)) {
       var n = parseInt(dayStr, 10);
       if (Number.isFinite(n)) {
         dayNum = n;
-      } else {
-        console.log("[SYNC-B:view][LS:once] day numeric invalid → fallback null", {
-          raw: dayStr,
-          parsed: n
-        });
       }
-    } else {
-      console.log("[SYNC-B:view][LS:once] day format invalid/missing → fallback null", {
-        raw: dayStr
-      });
     }
-
-    console.log("[SYNC-B:view][LS:once] final", {
-      day: dayNum,
-      resultsKeys: (results && typeof results === "object") ? Object.keys(results).length : 0
-    });
 
     return {
       day: dayNum,
@@ -2059,42 +1971,20 @@
 
   function renderPanel(box, payload) {
     try {
-      // ★ 何をしているか:
-      //   renderPanel は payload（計算済みスナップショット）から HUD 表示用の値を取り出す。
-      //   ここは「フォールバックの温床」なので、||0 で潰すのではなく、
-      //   1) 値が数値として妥当か
-      //   2) 不正なら 0 に落とした（＝フォールバック発生）
-      //   をログで可視化する。
-      function pickNum(name, v) {
-        if (typeof v === "number" && Number.isFinite(v) && v >= 0) {
-          console.log("[SYNC-B:view][payload:num] ok", {
-            name: name,
-            value: v
-          });
-          return v;
-        }
-        console.log("[SYNC-B:view][payload:num] invalid → fallback 0", {
-          name: name,
-          value: v,
-          type: (v == null ? String(v) : typeof v)
-        });
-        return 0;
-      }
+      var serverCorrect = payload.serverCorrect || 0;
+      var serverWrong = payload.serverWrong || 0;
+      var localCorrect = payload.localCorrect || 0;
+      var localWrong = payload.localWrong || 0;
+      var diffCorrect = payload.diffCorrect || 0;
+      var diffWrong = payload.diffWrong || 0;
 
-      var serverCorrect = pickNum("serverCorrect", payload && payload.serverCorrect);
-      var serverWrong = pickNum("serverWrong", payload && payload.serverWrong);
-      var localCorrect = pickNum("localCorrect", payload && payload.localCorrect);
-      var localWrong = pickNum("localWrong", payload && payload.localWrong);
-      var diffCorrect = pickNum("diffCorrect", payload && payload.diffCorrect);
-      var diffWrong = pickNum("diffWrong", payload && payload.diffWrong);
+      var serverStreak3 = payload.serverStreak3 || 0;
+      var localStreak3 = payload.localStreak3 || 0;
+      var diffStreak3 = payload.diffStreak3 || 0;
 
-      var serverStreak3 = pickNum("serverStreak3", payload && payload.serverStreak3);
-      var localStreak3 = pickNum("localStreak3", payload && payload.localStreak3);
-      var diffStreak3 = pickNum("diffStreak3", payload && payload.diffStreak3);
-
-      var serverStreakLen = pickNum("serverStreakLen", payload && payload.serverStreakLen);
-      var localStreakLen = pickNum("localStreakLen", payload && payload.localStreakLen);
-      var diffStreakLen = pickNum("diffStreakLen", payload && payload.diffStreakLen);
+      var serverStreakLen = payload.serverStreakLen || 0;
+      var localStreakLen = payload.localStreakLen || 0;
+      var diffStreakLen = payload.diffStreakLen || 0;
 
       // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続正解数 / 更新日）を読み出す
       //   何をしているか: localStorage の確定キーから「現在/最高/達成日」を取得し、HUD model に載せる
