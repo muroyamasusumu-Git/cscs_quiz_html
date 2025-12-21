@@ -120,6 +120,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     });
   }
   const key = `sync:${user}`;
+  let kvIdentityId = "";
 
   // (0) 受信 delta 全体をログ
   // - クライアント（A/B パートなど）から送られてきた差分データを JSON として受け取る
@@ -196,6 +197,59 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       commit: pagesCommitSha,
       deployment: pagesDeploymentId
     });
+
+    // ★KV identity 証明（最終兵器）
+    // - 目的: state/merge が「同一のKV namespace」を掴んでいることを“証明”する
+    // - 方針: merge.ts 側だけが「未作成時のみ」diag:kv_identity を 1回だけ作る（state.tsは読むだけ）
+    // - 成功確認: putしたか / 既に存在したか / 読めたidentityId を必ずログに出す
+    const kvIdentityKey = "diag:kv_identity";
+    let kvIdentityRaw: string | null = null;
+
+    try {
+      kvIdentityRaw = await env.SYNC.get(kvIdentityKey, "text");
+      console.log("[SYNC/merge][KV-IDENTITY] get OK:", {
+        hasValue: !!kvIdentityRaw
+      });
+    } catch (e) {
+      console.error("[SYNC/merge][KV-IDENTITY] get FAILED:", e);
+      kvIdentityRaw = null;
+    }
+
+    if (!kvIdentityRaw) {
+      const identityObj = {
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        pages: {
+          project: pagesProject,
+          branch: pagesBranch,
+          commit: pagesCommitSha,
+          deployment: pagesDeploymentId
+        }
+      };
+
+      try {
+        await env.SYNC.put(kvIdentityKey, JSON.stringify(identityObj));
+        kvIdentityId = identityObj.id;
+        console.log("[SYNC/merge][KV-IDENTITY] put OK (created):", {
+          key: kvIdentityKey,
+          id: kvIdentityId
+        });
+      } catch (e) {
+        console.error("[SYNC/merge][KV-IDENTITY] put FAILED:", e);
+      }
+    } else {
+      try {
+        const parsed = JSON.parse(kvIdentityRaw);
+        kvIdentityId = parsed && typeof parsed.id === "string" ? parsed.id : "";
+        console.log("[SYNC/merge][KV-IDENTITY] use existing:", {
+          key: kvIdentityKey,
+          id: kvIdentityId
+        });
+      } catch (e) {
+        console.error("[SYNC/merge][KV-IDENTITY] parse FAILED:", e);
+        kvIdentityId = "";
+      }
+    }
 
     // ★受信deltaのスナップショット（既存ログ）
     console.log("[SYNC/merge] (1) delta 全体:", JSON.stringify(delta));
@@ -1211,6 +1265,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       key,
       colo,
       ray,
+      kv_identity: kvIdentityId,
       odoa_mode: odoaModeNow,
       updatedAt: updatedAtNow
     });
@@ -1231,6 +1286,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
         "X-CSCS-KV-Binding": "SYNC",
+        "X-CSCS-KV-Identity": kvIdentityId,
 
         // ★Pages デプロイ実体診断ヘッダ（preview / production / 別デプロイを一発で確定）
         "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",

@@ -119,6 +119,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     });
   }
   const key = `sync:${user}`;
+  let kvIdentityId = "";
 
   try {
     console.log("====================================================");
@@ -183,6 +184,34 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       commit: pagesCommitSha,
       deployment: pagesDeploymentId
     });
+
+    // ★KV identity 証明（読むだけ）
+    // - 目的: merge.ts が作った diag:kv_identity を state.ts でも読めることを示す
+    // - 方針: state.ts は put しない（余計な書き込みを増やさない）
+    // - 成功確認: get/parse 成功と kvIdentityId をログに出す
+    const kvIdentityKey = "diag:kv_identity";
+    try {
+      const kvIdentityRaw = await env.SYNC.get(kvIdentityKey, "text");
+      console.log("[SYNC/state][KV-IDENTITY] get OK:", {
+        hasValue: !!kvIdentityRaw
+      });
+
+      if (kvIdentityRaw) {
+        const parsed = JSON.parse(kvIdentityRaw);
+        kvIdentityId = parsed && typeof parsed.id === "string" ? parsed.id : "";
+        console.log("[SYNC/state][KV-IDENTITY] parsed:", {
+          key: kvIdentityKey,
+          id: kvIdentityId
+        });
+      } else {
+        console.warn("[SYNC/state][KV-IDENTITY] missing (not created yet):", {
+          key: kvIdentityKey
+        });
+      }
+    } catch (e) {
+      console.error("[SYNC/state][KV-IDENTITY] get/parse FAILED:", e);
+      kvIdentityId = "";
+    }
   } catch (_e) {}
 
   // -----------------------------
@@ -546,6 +575,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       kv: kvHit,
       colo,
       ray,
+      kv_identity: kvIdentityId,
       odoa_mode: odoaModeNow,
       updatedAt: updatedAtNow
     });
@@ -559,6 +589,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
         "X-CSCS-KV-Binding": "SYNC",
+        "X-CSCS-KV-Identity": kvIdentityId,
 
         // ★Pages デプロイ実体診断ヘッダ（preview / production / 別デプロイを一発で確定）
         "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
