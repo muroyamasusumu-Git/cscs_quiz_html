@@ -1825,106 +1825,12 @@
     updateMonitor();
 
     try{
-      // ★ 処理1: merge を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const res = await fetch("/api/sync/merge", {
         method:"POST",
         headers:{ "content-type":"application/json" },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(String(res.status));
-
-      // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
-      function readHeaderStrict(headers, name){
-        try{
-          const v = headers ? headers.get(name) : null;
-          if (v === null || v === undefined) return null;
-          const s = String(v).trim();
-          return s === "" ? null : s;
-        }catch(_){
-          return null;
-        }
-      }
-
-      function readHeaderAny(headers, names){
-        for (let i = 0; i < names.length; i++) {
-          const v = readHeaderStrict(headers, names[i]);
-          if (v !== null) return v;
-        }
-        return null;
-      }
-
-      const mergeHeaders = {
-        // ★ 処理2-1: 明示指定ヘッダ
-        "X-CSCS-User": readHeaderStrict(res.headers, "X-CSCS-User"),
-        "Key": readHeaderAny(res.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]),
-        "OdoaMode": readHeaderAny(res.headers, ["X-CSCS-OdoaMode", "X-CSCS-ODOA-Mode", "X-ODOA-Mode"]),
-        "KV(hit|miss)": readHeaderAny(res.headers, ["X-CSCS-KV", "X-CSCS-KV-Cache", "CF-KV-Cache", "X-KV-Cache", "X-KV"]),
-        "Colo": readHeaderAny(res.headers, ["CF-Colo", "cf-colo"]),
-        "CF-Ray": readHeaderAny(res.headers, ["CF-Ray", "cf-ray"])
-      };
-
-      // ★ 処理3: merge ヘッダを “確実に” 出す（ここで missing も見える化）
-      console.log("[SYNC-A][HDR][MERGE] response headers snapshot", {
-        endpoint: "/api/sync/merge",
-        qid: QID || null,
-        headers: mergeHeaders,
-        missing: {
-          "X-CSCS-User": (mergeHeaders["X-CSCS-User"] === null),
-          "Key": (mergeHeaders["Key"] === null),
-          "OdoaMode": (mergeHeaders["OdoaMode"] === null),
-          "KV(hit|miss)": (mergeHeaders["KV(hit|miss)"] === null),
-          "Colo": (mergeHeaders["Colo"] === null),
-          "CF-Ray": (mergeHeaders["CF-Ray"] === null)
-        }
-      });
-
-      // ★ 処理4: merge ヘッダを保持し、state と一致/不一致を比較できるようにする
-      try{
-        if (!window.__cscs_sync_last_headers || typeof window.__cscs_sync_last_headers !== "object") {
-          window.__cscs_sync_last_headers = { state: null, merge: null };
-        }
-        window.__cscs_sync_last_headers.merge = mergeHeaders;
-      }catch(_){}
-
-      // ★ 処理5: state ヘッダが既にあるなら “一致/不一致” をここで判定して出す
-      try{
-        const last = (window.__cscs_sync_last_headers && typeof window.__cscs_sync_last_headers === "object")
-          ? window.__cscs_sync_last_headers
-          : null;
-
-        const sh = last && last.state ? last.state : null;
-        if (sh) {
-          const keys = ["X-CSCS-User", "Key", "OdoaMode", "KV(hit|miss)", "Colo", "CF-Ray"];
-          const diff = {};
-          let anyDiff = false;
-
-          for (let i = 0; i < keys.length; i++) {
-            const k = keys[i];
-            const sv = sh[k];
-            const mv = mergeHeaders[k];
-            const same = (sv === mv);
-            if (!same) {
-              anyDiff = true;
-              diff[k] = { state: sv, merge: mv };
-            }
-          }
-
-          console.log("[SYNC-A][CMP][MERGE↔STATE] headers compare", {
-            qid: QID || null,
-            match: !anyDiff,
-            diff: diff
-          });
-        } else {
-          console.log("[SYNC-A][CMP][MERGE↔STATE] headers compare skipped (state headers missing)", {
-            qid: QID || null
-          });
-        }
-      }catch(eCmp){
-        console.error("[SYNC-A][CMP][MERGE↔STATE] headers compare error", {
-          qid: QID || null,
-          error: String(eCmp && eCmp.message || eCmp)
-        });
-      }
 
       queue.correctDelta        = {};
       queue.incorrectDelta      = {};
@@ -1936,42 +1842,7 @@
       queue.lastCorrectDayDelta = {};
       queue.lastWrongDayDelta   = {};
 
-      // ★ 処理6: JSON本文を取得し、注目項目（odoa_mode / updatedAt / correct 空か等）をログ
       const latest = await res.json();
-
-      let correctInfo = null;
-      try{
-        const hasCorrectMap = !!(latest && latest.correct && typeof latest.correct === "object");
-        const keysLen = hasCorrectMap ? Object.keys(latest.correct).length : null;
-
-        let qidHasEntry = null;
-        let qidValue = null;
-        if (hasCorrectMap && QID) {
-          qidHasEntry = Object.prototype.hasOwnProperty.call(latest.correct, QID);
-          if (qidHasEntry) qidValue = latest.correct[QID];
-        }
-
-        correctInfo = {
-          hasCorrectMap: hasCorrectMap,
-          correctKeysLen: keysLen,
-          correctIsEmpty: (hasCorrectMap ? (keysLen === 0) : null),
-          qid: QID || null,
-          qidHasEntry: qidHasEntry,
-          qidValue: qidValue
-        };
-      }catch(eCorrect){
-        correctInfo = {
-          error: String(eCorrect && eCorrect.message || eCorrect)
-        };
-      }
-
-      console.log("[SYNC-A][BODY][MERGE] json snapshot (selected fields)", {
-        endpoint: "/api/sync/merge",
-        qid: QID || null,
-        odoa_mode: (latest && Object.prototype.hasOwnProperty.call(latest, "odoa_mode")) ? latest.odoa_mode : null,
-        updatedAt: (latest && Object.prototype.hasOwnProperty.call(latest, "updatedAt")) ? latest.updatedAt : null,
-        correct: correctInfo
-      });
 
       // SYNC 全体状態を常に最新に保つ（streak3Today も含めて反映）
       try{
@@ -2236,141 +2107,9 @@
 
     // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
     async fetchServer(){
-      // ★ 処理1: /api/sync/state を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state");
       if(!r.ok) throw new Error(r.statusText);
-
-      // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
-      function readHeaderStrict(headers, name){
-        try{
-          const v = headers ? headers.get(name) : null;
-          if (v === null || v === undefined) return null;
-          const s = String(v).trim();
-          return s === "" ? null : s;
-        }catch(_){
-          return null;
-        }
-      }
-
-      function readHeaderAny(headers, names){
-        for (let i = 0; i < names.length; i++) {
-          const v = readHeaderStrict(headers, names[i]);
-          if (v !== null) return v;
-        }
-        return null;
-      }
-
-      const stateHeaders = {
-        // ★ 処理2-1: 明示指定ヘッダ
-        "X-CSCS-User": readHeaderStrict(r.headers, "X-CSCS-User"),
-        "Key": readHeaderAny(r.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]),
-        "OdoaMode": readHeaderAny(r.headers, ["X-CSCS-OdoaMode", "X-CSCS-ODOA-Mode", "X-ODOA-Mode"]),
-        "KV(hit|miss)": readHeaderAny(r.headers, ["X-CSCS-KV", "X-CSCS-KV-Cache", "CF-KV-Cache", "X-KV-Cache", "X-KV"]),
-        "Colo": readHeaderAny(r.headers, ["CF-Colo", "cf-colo"]),
-        "CF-Ray": readHeaderAny(r.headers, ["CF-Ray", "cf-ray"])
-      };
-
-      // ★ 処理3: state ヘッダを “確実に” 出す（ここで missing も見える化）
-      console.log("[SYNC-A][HDR][STATE] response headers snapshot", {
-        endpoint: "/api/sync/state",
-        qid: QID || null,
-        headers: stateHeaders,
-        missing: {
-          "X-CSCS-User": (stateHeaders["X-CSCS-User"] === null),
-          "Key": (stateHeaders["Key"] === null),
-          "OdoaMode": (stateHeaders["OdoaMode"] === null),
-          "KV(hit|miss)": (stateHeaders["KV(hit|miss)"] === null),
-          "Colo": (stateHeaders["Colo"] === null),
-          "CF-Ray": (stateHeaders["CF-Ray"] === null)
-        }
-      });
-
-      // ★ 処理4: JSON本文を取得（本文側の要点もログに出す）
       const json = await r.json();
-
-      // ★ 処理5: 本文JSONの注目項目（od oa_mode / updatedAt / correct 空か等）をまとめてログ
-      let correctInfo = null;
-      try{
-        const hasCorrectMap = !!(json && json.correct && typeof json.correct === "object");
-        const keysLen = hasCorrectMap ? Object.keys(json.correct).length : null;
-
-        let qidHasEntry = null;
-        let qidValue = null;
-        if (hasCorrectMap && QID) {
-          qidHasEntry = Object.prototype.hasOwnProperty.call(json.correct, QID);
-          if (qidHasEntry) qidValue = json.correct[QID];
-        }
-
-        correctInfo = {
-          hasCorrectMap: hasCorrectMap,
-          correctKeysLen: keysLen,
-          correctIsEmpty: (hasCorrectMap ? (keysLen === 0) : null),
-          qid: QID || null,
-          qidHasEntry: qidHasEntry,
-          qidValue: qidValue
-        };
-      }catch(eCorrect){
-        correctInfo = {
-          error: String(eCorrect && eCorrect.message || eCorrect)
-        };
-      }
-
-      console.log("[SYNC-A][BODY][STATE] json snapshot (selected fields)", {
-        endpoint: "/api/sync/state",
-        qid: QID || null,
-        odoa_mode: (json && Object.prototype.hasOwnProperty.call(json, "odoa_mode")) ? json.odoa_mode : null,
-        updatedAt: (json && Object.prototype.hasOwnProperty.call(json, "updatedAt")) ? json.updatedAt : null,
-        correct: correctInfo
-      });
-
-      // ★ 処理6: 取得した state ヘッダを保持し、merge 側ヘッダと一致/不一致を比較できるようにする
-      try{
-        if (!window.__cscs_sync_last_headers || typeof window.__cscs_sync_last_headers !== "object") {
-          window.__cscs_sync_last_headers = { state: null, merge: null };
-        }
-        window.__cscs_sync_last_headers.state = stateHeaders;
-      }catch(_){}
-
-      // ★ 処理7: もし merge ヘッダが既にあるなら “一致/不一致” をここでも判定して出す
-      try{
-        const last = (window.__cscs_sync_last_headers && typeof window.__cscs_sync_last_headers === "object")
-          ? window.__cscs_sync_last_headers
-          : null;
-
-        const mh = last && last.merge ? last.merge : null;
-        if (mh) {
-          const keys = ["X-CSCS-User", "Key", "OdoaMode", "KV(hit|miss)", "Colo", "CF-Ray"];
-          const diff = {};
-          let anyDiff = false;
-
-          for (let i = 0; i < keys.length; i++) {
-            const k = keys[i];
-            const sv = stateHeaders[k];
-            const mv = mh[k];
-            const same = (sv === mv);
-            if (!same) {
-              anyDiff = true;
-              diff[k] = { state: sv, merge: mv };
-            }
-          }
-
-          console.log("[SYNC-A][CMP][STATE↔MERGE] headers compare", {
-            qid: QID || null,
-            match: !anyDiff,
-            diff: diff
-          });
-        } else {
-          console.log("[SYNC-A][CMP][STATE↔MERGE] headers compare skipped (merge headers missing)", {
-            qid: QID || null
-          });
-        }
-      }catch(eCmp){
-        console.error("[SYNC-A][CMP][STATE↔MERGE] headers compare error", {
-          qid: QID || null,
-          error: String(eCmp && eCmp.message || eCmp)
-        });
-      }
-
       // ★ 取得した SYNC state が、3連正解系 / 3連不正解系 / 今日の3連ユニーク系を
       //   すべて持っているかどうかをデバッグログに出す
       console.log("[SYNC-A] fetchServer state fetched", {
