@@ -125,6 +125,20 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] === onRequestGet START ===");
     console.log("[SYNC/state] user:", user);
     console.log("[SYNC/state] key :", key);
+
+    // ★KVバインディング診断（このFunctionsがどのKVを“掴んでいるか”の判定材料）
+    // - binding名はコード上は固定で "SYNC"
+    // - envにSYNCが存在するか、get/putが生えているかを出す（これが揃っていれば“この実行環境でのSYNCバインド”が成立）
+    console.log("[SYNC/state][KV-DIAG] bindingName:", "SYNC");
+    console.log("[SYNC/state][KV-DIAG] hasEnvSYNC:", !!(env as any).SYNC);
+    console.log("[SYNC/state][KV-DIAG] typeof env.SYNC.get:", typeof (env as any).SYNC?.get);
+    console.log("[SYNC/state][KV-DIAG] typeof env.SYNC.put:", typeof (env as any).SYNC?.put);
+
+    // ★envに見えているキー一覧（“SYNCが別env/別bindingで消えてる”を即断するための証跡）
+    // - 全キーを出すとノイズが増えるので "SYNC" を含むものだけ抽出
+    const envKeys = Object.keys(env as any);
+    const envKeysFiltered = envKeys.filter((k) => k === "SYNC" || k.indexOf("SYNC") !== -1);
+    console.log("[SYNC/state][KV-DIAG] env keys filtered:", envKeysFiltered);
   } catch (_e) {}
 
   // -----------------------------
