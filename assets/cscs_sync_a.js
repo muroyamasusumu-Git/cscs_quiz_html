@@ -690,7 +690,7 @@
           btnWrap.id = "cscs_sync_a_bottom_buttons";
 
           // ★ 余計な枠を作らず、最低限の余白だけ（ボタンだけ要件を維持）
-          btnWrap.style.marginTop = "10px";
+          btnWrap.style.marginTop = "0";
           btnWrap.style.display = "grid";
           btnWrap.style.gridTemplateColumns = "1fr 1fr 1fr";
           btnWrap.style.gap = "8px";
@@ -699,7 +699,7 @@
           const btnToggle = document.createElement("button");
           btnToggle.type = "button";
           btnToggle.id = "cscs_sync_a_btn_toggle_auto_fetch";
-          btnToggle.textContent = autoFetchEnabled ? "AUTO FETCH: ON" : "AUTO FETCH: OFF";
+          btnToggle.textContent = autoFetchEnabled ? "AUTO: ON" : "AUTO: OFF";
 
           // ★ カードUI準拠スタイル（sync-card 系）
           btnToggle.className = "sync-card";
@@ -718,7 +718,7 @@
           const btnManual = document.createElement("button");
           btnManual.type = "button";
           btnManual.id = "cscs_sync_a_btn_manual_fetch_overwrite";
-          btnManual.textContent = "FETCH SYNC → OVERWRITE LOCAL";
+          btnManual.textContent = "SYNC → LOCAL";
 
           // ★ カードUI準拠スタイル（sync-card 系）
           btnManual.className = "sync-card";
