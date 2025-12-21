@@ -50,6 +50,7 @@
     { id: "consistency_check_debug", label: "ConsistencyCheckDebug" },
     { id: "correct_star", label: "CorrectStar" },
     { id: "fav_modal", label: "FavModal" },
+    { id: "temp_hide", label: "TempHide" },
     { id: "cscs_layout_tuner_fixed", label: "LayoutTuner" },
     { id: "b_wrong_strike_mark", label: "WrongStrike" }
   ];
