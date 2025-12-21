@@ -691,9 +691,9 @@
 
           // ★ 余計な枠を作らず、最低限の余白だけ（ボタンだけ要件を維持）
           btnWrap.style.marginTop = "10px";
-          btnWrap.style.display = "flex";
+          btnWrap.style.display = "grid";
+          btnWrap.style.gridTemplateColumns = "1fr";
           btnWrap.style.gap = "8px";
-          btnWrap.style.flexWrap = "wrap";
 
           // --- ボタン1: 自動取得 ON/OFF ---
           const btnToggle = document.createElement("button");
@@ -701,11 +701,37 @@
           btnToggle.id = "cscs_sync_a_btn_toggle_auto_fetch";
           btnToggle.textContent = autoFetchEnabled ? "AUTO FETCH: ON" : "AUTO FETCH: OFF";
 
+          // ★ カードUI準拠スタイル（sync-card 系）
+          btnToggle.className = "sync-card";
+          btnToggle.style.width = "100%";
+          btnToggle.style.padding = "8px 10px";
+          btnToggle.style.cursor = "pointer";
+          btnToggle.style.textAlign = "center";
+          btnToggle.style.fontSize = "12px";
+          btnToggle.style.lineHeight = "1.2";
+          btnToggle.style.background = "rgba(0,0,0,0.42)";
+          btnToggle.style.border = "1px solid rgba(255,255,255,0.10)";
+          btnToggle.style.borderRadius = "10px";
+          btnToggle.style.color = "#fff";
+
           // --- ボタン2: 手動取得→ローカル上書き ---
           const btnManual = document.createElement("button");
           btnManual.type = "button";
           btnManual.id = "cscs_sync_a_btn_manual_fetch_overwrite";
           btnManual.textContent = "FETCH SYNC → OVERWRITE LOCAL";
+
+          // ★ カードUI準拠スタイル（sync-card 系）
+          btnManual.className = "sync-card";
+          btnManual.style.width = "100%";
+          btnManual.style.padding = "8px 10px";
+          btnManual.style.cursor = "pointer";
+          btnManual.style.textAlign = "center";
+          btnManual.style.fontSize = "12px";
+          btnManual.style.lineHeight = "1.2";
+          btnManual.style.background = "rgba(0,0,0,0.42)";
+          btnManual.style.border = "1px solid rgba(255,255,255,0.10)";
+          btnManual.style.borderRadius = "10px";
+          btnManual.style.color = "#fff";
 
           btnWrap.appendChild(btnToggle);
           btnWrap.appendChild(btnManual);
