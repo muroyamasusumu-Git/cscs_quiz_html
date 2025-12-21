@@ -1802,10 +1802,162 @@
     // ★ 手動送信ボタンが押されたら「直近が手動送信である」ことを記録する
     //   - sendDiffToServer 側でこのフラグを見て「差分ゼロでも必ず送信」に切り替える
     //   - ここでは“送信処理そのもの”は触らない（既存のクリック処理と共存させる）
+    //   - 追加: ボタン押下直後に /api/sync/state を取り直して HUD を即時再描画し、
+    //          パネル内の全値が「押した瞬間に更新された」ことを保証する（ログで確認可能）
     btn.addEventListener("click", function () {
       try {
         window.__cscs_sync_b_manual_send_ts = Date.now();
       } catch (_eManual) {}
+
+      // ★ 何をしているか:
+      //   1) 最新 state を取得して window.__cscs_sync_state を更新
+      //   2) state + localStorage から「今この瞬間の」表示用payloadを再構築
+      //   3) renderPanel() を呼び、ステータスパネル内の全値をまとめて更新
+      (function refreshHudAllValuesAfterManualSendClick() {
+        var qid = info.qid;
+
+        console.log("[SYNC-B:view] manual send clicked → refresh HUD start", {
+          qid: qid,
+          ts: (function () { try { return window.__cscs_sync_b_manual_send_ts || 0; } catch (_e) { return 0; } })()
+        });
+
+        fetchState().then(function (st) {
+          try {
+            window.__cscs_sync_state = st;
+          } catch (_eAssign) {}
+
+          console.log("[SYNC-B:view] fetchState success → window.__cscs_sync_state updated", {
+            qid: qid,
+            hasState: !!st
+          });
+
+          // ★ 何をしているか:
+          //   server値（SYNC側）を state から拾う（無ければ 0 / "-"）
+          var serverCorrect = 0;
+          var serverWrong = 0;
+          var serverStreak3 = 0;
+          var serverStreakLen = 0;
+          var serverStreak3Wrong = 0;
+          var serverWrongStreakLen = 0;
+
+          try {
+            if (st && st.correct && typeof st.correct === "object" && st.correct[qid] != null) {
+              if (typeof st.correct[qid] === "number" && Number.isFinite(st.correct[qid]) && st.correct[qid] >= 0) {
+                serverCorrect = st.correct[qid];
+              }
+            }
+            if (st && st.incorrect && typeof st.incorrect === "object" && st.incorrect[qid] != null) {
+              if (typeof st.incorrect[qid] === "number" && Number.isFinite(st.incorrect[qid]) && st.incorrect[qid] >= 0) {
+                serverWrong = st.incorrect[qid];
+              }
+            }
+            if (st && st.streak3 && typeof st.streak3 === "object" && st.streak3[qid] != null) {
+              if (typeof st.streak3[qid] === "number" && Number.isFinite(st.streak3[qid]) && st.streak3[qid] >= 0) {
+                serverStreak3 = st.streak3[qid];
+              }
+            }
+            if (st && st.streakLen && typeof st.streakLen === "object" && st.streakLen[qid] != null) {
+              if (typeof st.streakLen[qid] === "number" && Number.isFinite(st.streakLen[qid]) && st.streakLen[qid] >= 0) {
+                serverStreakLen = st.streakLen[qid];
+              }
+            }
+            if (st && st.streak3Wrong && typeof st.streak3Wrong === "object" && st.streak3Wrong[qid] != null) {
+              if (typeof st.streak3Wrong[qid] === "number" && Number.isFinite(st.streak3Wrong[qid]) && st.streak3Wrong[qid] >= 0) {
+                serverStreak3Wrong = st.streak3Wrong[qid];
+              }
+            }
+            if (st && st.streakWrongLen && typeof st.streakWrongLen === "object" && st.streakWrongLen[qid] != null) {
+              if (typeof st.streakWrongLen[qid] === "number" && Number.isFinite(st.streakWrongLen[qid]) && st.streakWrongLen[qid] >= 0) {
+                serverWrongStreakLen = st.streakWrongLen[qid];
+              }
+            }
+          } catch (eSrvPick) {
+            console.error("[SYNC-B:view] refresh pick server values error:", eSrvPick);
+          }
+
+          // ★ 何をしているか:
+          //   local値（ローカル側）を localStorage から拾う（確定キーのみ）
+          var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + qid);
+          var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + qid);
+          var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + qid);
+          var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + qid);
+          var localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + qid);
+          var localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + qid);
+
+          // ★ 何をしているか:
+          //   diff（local - server）を計算（マイナスは 0 に丸める）
+          var diffCorrect = Math.max(0, localCorrect - serverCorrect);
+          var diffWrong = Math.max(0, localWrong - serverWrong);
+          var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
+          var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
+          var diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
+          var diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
+
+          // ★ 何をしているか:
+          //   Pending（未送信っぽい差分）を再計算して payload に載せる
+          var pending = null;
+          try {
+            pending = computePendingFlags(st, qid);
+          } catch (_ePending) {
+            pending = null;
+          }
+
+          console.log("[SYNC-B:view] manual send clicked → refresh HUD computed", {
+            qid: qid,
+            serverCorrect: serverCorrect,
+            serverWrong: serverWrong,
+            localCorrect: localCorrect,
+            localWrong: localWrong,
+            diffCorrect: diffCorrect,
+            diffWrong: diffWrong,
+            serverStreak3: serverStreak3,
+            localStreak3: localStreak3,
+            diffStreak3: diffStreak3,
+            serverStreakLen: serverStreakLen,
+            localStreakLen: localStreakLen,
+            diffStreakLen: diffStreakLen,
+            serverStreak3Wrong: serverStreak3Wrong,
+            localStreak3Wrong: localStreak3Wrong,
+            diffStreak3Wrong: diffStreak3Wrong,
+            serverWrongStreakLen: serverWrongStreakLen,
+            localWrongStreakLen: localWrongStreakLen,
+            diffWrongStreakLen: diffWrongStreakLen,
+            pending: pending
+          });
+
+          // ★ 何をしているか:
+          //   renderPanel() に payload を渡して「パネル内の全値」をまとめて更新
+          renderPanel(box, {
+            serverCorrect: serverCorrect,
+            serverWrong: serverWrong,
+            localCorrect: localCorrect,
+            localWrong: localWrong,
+            diffCorrect: diffCorrect,
+            diffWrong: diffWrong,
+            serverStreak3: serverStreak3,
+            localStreak3: localStreak3,
+            diffStreak3: diffStreak3,
+            serverStreakLen: serverStreakLen,
+            localStreakLen: localStreakLen,
+            diffStreakLen: diffStreakLen,
+            serverStreak3Wrong: serverStreak3Wrong,
+            localStreak3Wrong: localStreak3Wrong,
+            diffStreak3Wrong: diffStreak3Wrong,
+            serverWrongStreakLen: serverWrongStreakLen,
+            localWrongStreakLen: localWrongStreakLen,
+            diffWrongStreakLen: diffWrongStreakLen,
+            statusText: "manual click → HUD refreshed",
+            pending: pending,
+            odoaStatusText: "__keep__"
+          });
+
+          console.log("[SYNC-B:view] manual send clicked → refresh HUD done", {
+            qid: qid
+          });
+        }).catch(function (e) {
+          console.error("[SYNC-B:view] manual send clicked → fetchState failed:", e);
+        });
+      })();
     });
 
     box.appendChild(title);
