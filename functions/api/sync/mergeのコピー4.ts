@@ -144,22 +144,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   // (server) 現在のサーバー状態を KV から取得
   // - ユーザーごとの SYNC スナップショットを KV から読み出す
-  //
-  // 【フォールバックに関与するポイント①: “KV.get が null → 初期テンプレ採用”】
-  // - env.SYNC.get(key, "json") は、キー未作成(未保存)のとき通常 null を返す。
-  // - また、KV取得で例外が起きた場合も（ここは try/catch を挟んでないので）上へ投げられる可能性がある。
-  // - 現在の実装は `(...get...) || { ... }` なので、
-  //   - 取得結果が null（=未保存） → 初期テンプレ（空オブジェクト＋odoa_mode:"off"等）を server に採用
-  //   - 取得結果が falsy（想定外だが "" や 0 など）→ 同様にテンプレ採用
-  //
-  // つまり:
-  //   “サーバーに何も無い/読めない” を “正しい空状態” として扱う暗黙フォールバックがここにある。
-  //
-  // 【重要な誤解ポイント】
-  // - これは state.ts のような「返却のための空補完」ではなく、
-  //   merge の内部状態として「この後 KV.put されうる server の土台」になる。
-  // - したがって、もしここでテンプレ採用が走ると、
-  //   delta が小さい/一部だけの場合でも「結果として空に見える」状態が作られうる（※どこまで上書きするかは後段次第）。
+  // - まだ一度も保存されていなければ、全フィールド空のオブジェクトを初期値として使う
   let server: any =
     (await env.SYNC.get(key, "json")) || {
       correct: {},
@@ -186,14 +171,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     };
 
   // 読み出した server オブジェクトに必須フィールドが欠けていた場合は補完する
-  //
-  // 【フォールバックに “見える” ポイント②: 欠落→空オブジェクト補完（形合わせ）】
-  // - ここは「別ソースから埋め合わせる」類のフォールバックではなく、
-  //   “null/undefined で落ちないための最低限の構造補完”。
-  // - ただし UI/ロジック側から見ると、
-  //   欠落していたデータが {} や 0 に見えるため「0に戻った」印象を与えやすい。
-  // - 特に “旧フォーマットのデータ” を読む場面では、
-  //   「存在しない＝未計測」なのか「消えた」なのかの区別が曖昧になりやすいのでログで追う前提。
   if (!server.correct) server.correct = {};
   if (!server.incorrect) server.incorrect = {};
   if (!server.streak3) server.streak3 = {};
@@ -205,42 +182,22 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.lastWrongDay) server.lastWrongDay = {};
   if (!server.consistency_status) server.consistency_status = {};
   if (!server.fav || typeof server.fav !== "object") server.fav = {};
-
-  // 【フォールバックに “見える” ポイント③: 今日系フィールドの欠落→空テンプレ補完】
-  // - streak3Today / streak3WrongToday / oncePerDayToday は “1日単位の構造” を持つ。
-  // - 旧データにフィールド自体が存在しない場合、ここで「空の構造」を作って以後の処理を通す。
-  // - これにより「存在しない」は「空の today 構造」に置き換えられる（=欠落検知はできなくなる）。
-  // - state.ts は “today を補完しない” 方針だったが、merge.ts は “初回保存を許可する” ため補完している。
   if (!(server as any).streak3Today) {
     (server as any).streak3Today = { day: "", unique_count: 0, qids: [] };
   }
-
   // ★ streak3WrongToday が欠けている既存ユーザーのデータを補完
   //   - 旧フォーマットからの移行時に、構造を壊さずに「空の3連続不正解ユニーク情報」を用意する
   if (!(server as any).streak3WrongToday) {
     (server as any).streak3WrongToday = { day: "", unique_count: 0, qids: [] };
   }
-
-  // 【フォールバックに “見える” ポイント④: oncePerDayToday 欠落→空テンプレ補完】
-  // - oncePerDayToday は “day:number + results:{}” を前提に後段でマージする。
-  // - 欠落/不正構造を空テンプレに丸めることで「データが無い/壊れている」を “空” として扱う。
   if (!(server as any).oncePerDayToday || typeof (server as any).oncePerDayToday !== "object") {
     (server as any).oncePerDayToday = { day: 0, results: {} };
   }
-
-  // 【フォールバックに “見える” ポイント⑤: global 欠落→空オブジェクト補完】
-  // - totalQuestions を入れる箱。欠けていたら空箱を用意するだけ。
   if (!(server as any).global || typeof (server as any).global !== "object") {
     (server as any).global = {};
   }
 
   // O.D.O.A Mode が存在しない or 不正な場合は "off" で補完しておく
-  //
-  // 【フォールバックに “見える” ポイント⑥: 不正値の丸め込み（coerce）】
-  // - server.odoa_mode が欠落/不正（string以外）なら "off" に強制する。
-  // - これは “テンプレに戻す” というより「壊れた値を正規値へ丸める」処理。
-  // - UIから見ると “勝手にoffになった” に見えるので、ログで
-  //   「KV miss 由来」なのか「KV内の値欠落/破損」なのかを切り分ける前提。
   if (!Object.prototype.hasOwnProperty.call(server as any, "odoa_mode") || typeof (server as any).odoa_mode !== "string") {
     (server as any).odoa_mode = "off";
     try {
@@ -360,14 +317,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.warn("[SYNC/merge] ★logging error (BEFORE streak3Today)");
   }
 
-  // ---- 通常の correct / incorrect / streak3 / streakLen / consistency_status マージ ----
-  //
-  // 【フォールバックに “見える” ポイント⑦: delta未指定を {} 扱いにして “何もしない”】
-  // - 以降の各マージは概ね `Object.entries(delta.xxx || {})` の形式。
-  // - delta.xxx が undefined / null の場合、`|| {}` により空集合として扱われ、更新は一切行われない（=スキップ）。
-  // - これは “別ソースへフォールバック” ではなく「データが来てないものは触らない」という方針。
-  // - ただし、もし上流クライアントの送信が欠落していると、
-  //   ユーザー体感では「反映されない/0のまま」に見え、フォールバックっぽく誤解されやすい。
   // ---- 通常の correct / incorrect / streak3 / streakLen / consistency_status マージ ----
   // ここから先は「今日の⭐️情報」以外の通常カウンタ類を差分加算する
 
@@ -500,11 +449,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     // server.fav が存在しない / 不正な場合はここで空オブジェクトとして初期化
-    //
-    // 【フォールバックに “見える” ポイント⑧: 欠落構造→空オブジェクト補完（fav）】
-    // - 旧データや壊れたデータで server.fav が無い場合、ここで空にして処理を継続する。
-    // - これにより “favが存在しない” は “fav={}” に置き換えられる。
-    // - favDelta が来ていればこの後に値が入り、来ていなければ空のまま温存される。
     if (!server.fav || typeof server.fav !== "object") {
       server.fav = {};
     }
@@ -577,10 +521,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
           console.warn("[SYNC/merge] (2-g-warn) 不正な totalQuestions が送信されたため無視します:", {
             raw: rawTq
           });
-        // 【フォールバックに “見える” ポイント⑨: 不正入力は “無視して現状維持”】
-        // - totalQuestions は UI 表示に使うことが多いので、値が変わらないと「反映されてない」に見える。
-        // - ここはフォールバックではなく “更新拒否(keep previous)”。
-        // - 送信が壊れていた場合でも、サーバーの既存値を守る設計。          
         } catch (_eWarn) {}
       }
     }
@@ -689,13 +629,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     } catch (_e2) {}
   } else {
     // 今回の delta には streak3TodayDelta が含まれていない場合
-    //
-    // 【フォールバックに “見える” ポイント⑩: “更新しない＝現状維持” だが、初期テンプレ採用時は空が維持される】
-    // - ここは「別の情報源へフォールバック」ではなく「このリクエストでは streak3Today を触らない」。
-    // - ただし、(server) 初期化段階で KV.get が null だった場合、
-    //   server.streak3Today はテンプレ {day:"", unique_count:0, qids:[]} になっている。
-    // - その状態で delta が来なければ “空を維持” するだけなので、
-    //   体感としては “今日の情報が0に戻った” ように見える。
     console.log("[SYNC/merge] (2-1) streak3Today: delta なし（更新スキップ）");
   }
 
@@ -798,10 +731,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     } catch (_eW2) {}
   } else {
     // 今回の delta には streak3WrongTodayDelta が含まれていない場合
-    //
-    // 【フォールバックに “見える” ポイント⑪: “更新しない＝現状維持” だが、初期テンプレ採用時は空が維持される】
-    // - streak3WrongToday も streak3Today と同じ構造。
-    // - KV miss / 旧データ欠落補完で空テンプレが入っていると、delta無し＝空のまま。
     console.log("[SYNC/merge] (2-1w) streak3WrongToday: delta なし（更新スキップ）");
   }
 
@@ -913,11 +842,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         mergedResults[qid] = v;
       }
     } else {
-      // 【フォールバックに “見える” ポイント⑫: day が違うと “当日構造をリセット”】
-      // - oncePerDayToday は「本日分」のみを保持する設計。
-      // - day が変わったら、前日の results を残すのではなく “新しい日として丸ごと置き換え” する。
-      // - これはフォールバックではなく仕様上の reset。
-      // - UIから見ると “記録が消えた” に見えるが、「前日分を保持しない」という仕様によるもの。
       mode = "reset";
       mergedResults = cleanedResults;
     }
@@ -978,11 +902,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       ? (delta as any).exam_date_iso
       : null;
 
-
-  // 【フォールバックに “見える” ポイント⑬: 不正な exam_date は “無視して現状維持”】
-  // - exam_date は「新しい日付に常に上書き」ポリシーだが、
-  //   そもそもフォーマットが不正なら server.exam_date を変更しない（= keep previous）。
-  // - UIからは「更新できなかった」に見えるので、必要なら warn ログを追加すると切り分けが楽。
   if (examDateIsoRaw) {
     const m = examDateIsoRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (m) {
@@ -1192,12 +1111,6 @@ async function getUserIdFromAccess(request: Request) {
   // ユーザーごとの SYNC キー（sync:<email>）を作るための ID として使う
   const jwt = request.headers.get("CF-Access-Jwt-Assertion");
   if (!jwt) {
-    // 【フォールバックに “見える” 可能性があるポイント⑭: 認証ヘッダー欠落→401】
-    // - getUserIdFromAccess はヘッダーが無ければ空文字を返す。
-    // - 呼び出し元 onRequestPost は `if (!user)` で 401 を返すため、
-    //   merge.ts 自体は “テンプレを返す” ことはしない（明示的に失敗で止める）。
-    // - ただしフロントが 401 を “未同期扱い” としてUIを初期化すると、
-    //   体感では “0に戻った/テンプレに戻った” に近く見える。
     console.error("[SYNC/merge] CF-Access-Jwt-Assertion header missing.");
     return "";
   }

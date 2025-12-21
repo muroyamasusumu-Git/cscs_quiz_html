@@ -132,19 +132,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   let data: any = null;
   try {
-    // 【フォールバックに関与するポイント①: KV.get の戻り値と “null”】
-    // - env.SYNC.get() は「キーが存在しない」場合、通常 null を返す（例外ではない）。
-    // - つまり try が成功しても、data が null のままというケースが普通にある。
-    // - この data:null が、後段の out = data ? data : empty; を発動させ、
-    //   “テンプレ返却（= KV miss を empty に置換）” につながる。
-    //
-    // 【フォールバックに関与するポイント②: cacheTtl:0 の意味】
-    // - cacheTtl:0 は「エッジキャッシュで古い値を掴む確率を下げる」目的。
-    // - ただし cacheTtl:0 は “常に最新が取れる保証” ではなく、
-    //   単に「Workersランタイム側のキャッシュを使わない」方向に寄せるだけ。
-    // - したがって「KVが一時的に取りづらい」「読み出しが失敗/遅延」などが起きた場合、
-    //   data が null になり → out が empty になり → UIが初期値に戻ったように見える余地は残る。
-    //
     // UI巻き戻り対策B:
     // - KV.get の cacheTtl を 0 にして、エッジキャッシュ由来の「古いstate」を掴む確率を下げる
     // - 成功確認: cacheTtl:0 で読めたことを明示ログ
@@ -152,10 +139,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.log("[SYNC/state] ★KV.get(cacheTtl:0) OK");
     console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
   } catch (e) {
-    // 【フォールバックに関与するポイント③: 例外時は “nullのまま”】
-    // - ここで読み出し例外が起きても data は初期値 null のまま。
-    // - その結果、後段で out は empty になり、「テンプレ返却」に見える。
-    // - つまり “例外 → empty” の流れも暗黙フォールバックの一種。
     console.error("[SYNC/state] ★KV 読み出し失敗:", e);
   }
 
@@ -187,26 +170,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   // 3) out 生成（補完）
   // -----------------------------
-  // 【重要】ここが “暗黙フォールバック” の本体
-  // - data は KV.get(key, json) の結果
-  // - KV に保存が無い / 取り出し失敗 / null が返った場合、data は null になりうる
-  // - そのとき out は empty に差し替わる（=「KV miss を empty で置き換える」）
-  //
-  // つまり:
-  //   out = data ? data : empty;
-  // は、挙動としては
-  //   「KVの実データが取れない → 初期テンプレ（odoa_mode:"off"等）を “正しいstate” として返す」
-  // になっている。
-  //
-  // この方式の危険点:
-  // - “未保存” と “本当に off” を区別できない（UIが off に戻されたように見える）
-  // - もし KV miss が一時的に起きると、ユーザーの体感では「設定が勝手にOFFになった」に見える
   let out: any = data ? data : empty;
 
   // 欠けている構造だけ補完（streak3Today は絶対に補完しない）
-  // - ここでの補完は「null/undefined で落ちるのを防ぐための“最低限の形合わせ”」だけ。
-  // - 値の推測や別ソースからの埋め合わせ（フォールバック）は行わない方針。
-  // - streak3Today を補完しないのは、「存在しない/消えた」を検知できるようにするため。
   if (!out.correct) out.correct = {};
   if (!out.incorrect) out.incorrect = {};
   if (!out.streak3) out.streak3 = {};
@@ -221,10 +187,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.global || typeof out.global !== "object") out.global = {};
 
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
-  // - ここも “フォールバックっぽく見える” 代表例。
-  // - out が empty 由来の場合、odoa_mode は最初から "off" なのでここは通常通らない。
-  // - 逆に、out が KV 由来なのに odoa_mode が欠落/壊れている場合だけ、この補完が発動する。
-  // - その場合、UI は "off" を受け取るため、原因が「KVの欠落」なのか「KVの破損」なのかをログで区別する必要がある。
   const hasOdoaMode = Object.prototype.hasOwnProperty.call(out, "odoa_mode");
   if (!hasOdoaMode || typeof out.odoa_mode !== "string") {
     out.odoa_mode = "off";
@@ -462,13 +424,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     const colo = typeof cfAny.colo === "string" ? cfAny.colo : "";
     const ray = request.headers.get("CF-Ray") || "";
 
-    // 【フォールバックに関与するポイント④: kvHit の定義】
-    // - kvHit は “KVから何か取れたか” の判定に使う診断ラベル。
-    // - 現在は `data ? "hit" : "miss"` のため、data が null のとき miss になる。
-    // - 重要: この miss は「KVが本当に空(未保存)」なのか
-    //         「読み出し失敗/一時的なnull」なのかを区別しない。
-    // - そのため、UIで初期値に見える問題が起きたときは、
-    //   この kvHit と、上の KV.get の RAWログ/例外ログをセットで見るのが前提。
     const kvHit = data ? "hit" : "miss";
 
     const odoaModeNow =
@@ -522,12 +477,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
 async function getUserIdFromAccess(request: Request) {
   const jwt = request.headers.get("CF-Access-Jwt-Assertion");
   if (!jwt) {
-    // 【フォールバックに “見える” 可能性があるポイント⑤: 認証ヘッダー欠落】
-    // - ここで空文字を返す → 呼び出し元 onRequestGet では `if (!user)` で 401 を返す。
-    // - state.ts 自体は “emptyテンプレ” を返さず、明確に Unauthorized で止める。
-    // - ただし、フロント側が 401 を「stateが無い扱い」にしてUI初期化を走らせる設計だと、
-    //   見た目は “テンプレに戻った” に近い挙動になる。
-    // - なので「OFFになった/0になった」系の現象では、401が混じっていないかも必ず確認する。
     console.error("[SYNC/state] CF-Access-Jwt-Assertion header missing.");
     return "";
   }
