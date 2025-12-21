@@ -121,28 +121,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   }
   const key = `sync:${user}`;
 
-  // -----------------------------
-  // (debug) ブラウザ側で「merge と state が同一キーを見ているか」を確実に突き合わせるための情報
-  // -----------------------------
-  const reqMeta = getReqMeta(request);
-  const reqId = crypto.randomUUID();
-
-  const userMasked = maskEmail(user);
-  const userHash = await sha256Hex(user);
-  const keyHash = await sha256Hex(key);
-
-  const debug: any = {
-    reqId,
-    endpoint: "merge",
-    ts: Date.now(),
-    cfRay: reqMeta.cfRay,
-    colo: reqMeta.colo,
-    userMasked,
-    userHash,
-    key,
-    keyHash
-  };
-
   // (0) 受信 delta 全体をログ
   // - クライアント（A/B パートなど）から送られてきた差分データを JSON として受け取る
   // - ここでパースに失敗した場合は以降の処理は不可能なので 400 を返して終了
@@ -993,31 +971,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streak3Today: (server as any).streak3Today
     });
 
-    // (debug) KV put 直後に「実際にKVから読める値」を記録（同一キー確認＆伝播/読み取り差の検出用）
-    // - state.ts 側の _debug と比較すれば「同一 user/key を見ているか」「読み取った odoa_mode が一致するか」が確定する
-    try {
-      const rawAfterPut = await env.SYNC.get(key, "text");
-      const bytesAfterPut = typeof rawAfterPut === "string" ? rawAfterPut.length : 0;
-
-      let parsedAfterPut: any = null;
-      try {
-        parsedAfterPut = rawAfterPut ? JSON.parse(rawAfterPut) : null;
-      } catch (_eParse) {
-        parsedAfterPut = null;
-      }
-
-      debug.kvAfterPut = {
-        bytes: bytesAfterPut,
-        updatedAt: parsedAfterPut && typeof parsedAfterPut.updatedAt === "number" ? parsedAfterPut.updatedAt : null,
-        odoa_mode: parsedAfterPut && typeof parsedAfterPut.odoa_mode === "string" ? parsedAfterPut.odoa_mode : null
-      };
-
-      console.log("[SYNC/merge] (3-dbg) kvAfterPut:", debug.kvAfterPut);
-    } catch (eDbg) {
-      debug.kvAfterPut = { error: String(eDbg) };
-      console.warn("[SYNC/merge] (3-dbg) kvAfterPut read failed:", eDbg);
-    }
-
     // streak3Today フィールドが「unique_count === qids.length」を満たしているかの自己整合性チェック
     // - 本日の3連続正解ユニーク数について、保存された配列長とカウント値が一致しているかを確認する
     try {
@@ -1094,29 +1047,54 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   //   キャッシュ禁止ヘッダを付けて返す（中継/ブラウザに古い返答を掴ませない）
   // - 成功確認: レスポンス直前に updatedAt / サイズ / 主要キーをログ出力する
   try {
-    const responsePayload = Object.assign({}, server, { _debug: debug });
-    const resJson = JSON.stringify(responsePayload);
+    const resJson = JSON.stringify(server);
+
+    const reqId = crypto.randomUUID();
+    const cfAny: any = (request as any).cf || {};
+    const colo = typeof cfAny.colo === "string" ? cfAny.colo : "";
+    const ray = request.headers.get("CF-Ray") || "";
+
+    const odoaModeNow =
+      typeof (server as any).odoa_mode === "string"
+        ? (server as any).odoa_mode
+        : "";
+
+    const updatedAtNow =
+      typeof (server as any).updatedAt === "number"
+        ? String((server as any).updatedAt)
+        : "";
+
+    console.log("[SYNC/merge][diag] response headers snapshot:", {
+      reqId,
+      user,
+      key,
+      colo,
+      ray,
+      odoa_mode: odoaModeNow,
+      updatedAt: updatedAtNow
+    });
+
     console.log("[SYNC/merge] (5) ★RESPONSE merged state (no-store):", {
       key,
       updatedAt: (server as any).updatedAt,
       bytes: resJson.length,
       hasStreak3Today: Object.prototype.hasOwnProperty.call(server as any, "streak3Today"),
       hasStreak3WrongToday: Object.prototype.hasOwnProperty.call(server as any, "streak3WrongToday"),
-      hasOncePerDayToday: Object.prototype.hasOwnProperty.call(server as any, "oncePerDayToday"),
-      debug: {
-        reqId: debug.reqId,
-        cfRay: debug.cfRay,
-        colo: debug.colo,
-        userHash: debug.userHash,
-        keyHash: debug.keyHash,
-        kvAfterPut: debug.kvAfterPut ? debug.kvAfterPut : null
-      }
+      hasOncePerDayToday: Object.prototype.hasOwnProperty.call(server as any, "oncePerDayToday")
     });
 
     return new Response(resJson, {
       headers: {
         "content-type": "application/json",
-        "Cache-Control": "no-store"
+        "Cache-Control": "no-store",
+
+        "X-CSCS-ReqId": reqId,
+        "X-CSCS-User": user,
+        "X-CSCS-Key": key,
+        "X-CSCS-Colo": colo,
+        "X-CSCS-CF-Ray": ray,
+        "X-CSCS-UpdatedAt": updatedAtNow,
+        "X-CSCS-OdoaMode": odoaModeNow
       },
     });
   } catch (e) {
@@ -1127,33 +1105,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     });
   }
 };
-
-function getReqMeta(request: Request) {
-  const cfAny: any = (request as any).cf ? (request as any).cf : {};
-  const cfRay = request.headers.get("CF-Ray");
-  const colo = typeof cfAny.colo === "string" ? cfAny.colo : null;
-  return { cfRay, colo };
-}
-
-function maskEmail(email: string) {
-  const at = email.indexOf("@");
-  if (at <= 0) return "(invalid)";
-  const name = email.slice(0, at);
-  const domain = email.slice(at + 1);
-  const head = name.slice(0, 2);
-  return head + "***@" + domain;
-}
-
-async function sha256Hex(input: string) {
-  const enc = new TextEncoder();
-  const buf = await crypto.subtle.digest("SHA-256", enc.encode(input));
-  const bytes = new Uint8Array(buf);
-  let out = "";
-  for (let i = 0; i < bytes.length; i++) {
-    out += bytes[i].toString(16).padStart(2, "0");
-  }
-  return out;
-}
 
 async function getUserIdFromAccess(request: Request) {
   // Cloudflare Access の JWT からユーザーの email を取り出し、
