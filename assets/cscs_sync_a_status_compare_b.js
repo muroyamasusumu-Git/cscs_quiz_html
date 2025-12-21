@@ -118,171 +118,67 @@
   //   Aと同系統のカード/グリッド表現を新規で作る。
   // -----------------------------
   function injectCscsSyncMonitorBStyleOnce() {
-    if (document.getElementById("cscs_sync_monitor_b_style")) return;
-
-    var css = ""
-      + "#cscs_sync_monitor_b{"
-      + "  position: fixed;"
-      + "  right: 10px;"
-      + "  bottom: 10px;"
-      + "  width: min(420px, calc(100vw - 20px));"
-      + "  z-index: 999999;"
-      + "  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji';"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-wrap{"
-      + "  background: rgba(0,0,0,0.52);"
-      + "  border: 1px solid rgba(255,255,255,0.14);"
-      + "  border-radius: 14px;"
-      + "  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);"
-      + "  color: rgba(255,255,255,0.92);"
-      + "  overflow: hidden;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-head{"
-      + "  display:flex;"
-      + "  align-items:center;"
-      + "  justify-content:space-between;"
-      + "  gap:10px;"
-      + "  padding: 10px 10px;"
-      + "  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));"
-      + "  border-bottom: 1px solid rgba(255,255,255,0.10);"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-title{"
-      + "  font-weight: 650;"
-      + "  letter-spacing: 0.2px;"
-      + "  font-size: 13px;"
-      + "  opacity: 0.95;"
-      + "  white-space: nowrap;"
-      + "  overflow: hidden;"
-      + "  text-overflow: ellipsis;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-sub{"
-      + "  font-size: 11px;"
-      + "  opacity: 0.75;"
-      + "  white-space: nowrap;"
-      + "  overflow: hidden;"
-      + "  text-overflow: ellipsis;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-btn{"
-      + "  appearance:none;"
-      + "  border: 1px solid rgba(255,255,255,0.18);"
-      + "  background: rgba(255,255,255,0.06);"
-      + "  color: rgba(255,255,255,0.90);"
-      + "  border-radius: 10px;"
-      + "  padding: 6px 10px;"
-      + "  font-size: 12px;"
-      + "  cursor: pointer;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-btn:hover{"
-      + "  background: rgba(255,255,255,0.10);"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-body{"
-      + "  padding: 10px;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-grid{"
-      + "  display: grid;"
-      + "  grid-template-columns: 1fr 1fr;"
-      + "  gap: 8px;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-card{"
-      + "  background: rgba(0,0,0,0.38);"
-      + "  border: 1px solid rgba(255,255,255,0.10);"
-      + "  border-radius: 12px;"
-      + "  padding: 9px 9px;"
-      + "  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-card.is-wide{"
-      + "  grid-column: 1 / span 2;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-card-title{"
-      + "  font-size: 12px;"
-      + "  font-weight: 600;"
-      + "  opacity: 0.90;"
-      + "  margin-bottom: 6px;"
-      + "  white-space: nowrap;"
-      + "  overflow: hidden;"
-      + "  text-overflow: ellipsis;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-row{"
-      + "  display:flex;"
-      + "  align-items:baseline;"
-      + "  justify-content:space-between;"
-      + "  gap: 8px;"
-      + "  font-size: 12px;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-k{"
-      + "  opacity: 0.70;"
-      + "  font-size: 11px;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-v{"
-      + "  font-variant-numeric: tabular-nums;"
-      + "  font-size: 12px;"
-      + "  opacity: 0.95;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-mini{"
-      + "  font-size: 11px;"
-      + "  opacity: 0.70;"
-      + "  margin-top: 6px;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-divider{"
-      + "  height: 1px;"
-      + "  background: rgba(255,255,255,0.10);"
-      + "  margin: 8px 0;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-tag{"
-      + "  display:inline-block;"
-      + "  padding: 2px 6px;"
-      + "  border-radius: 999px;"
-      + "  border: 1px solid rgba(255,255,255,0.14);"
-      + "  background: rgba(255,255,255,0.06);"
-      + "  font-size: 10px;"
-      + "  opacity: 0.85;"
-      + "}"
-      + "#cscs_sync_monitor_b .syncb-hidden{"
-      + "  display:none;"
-      + "}";
-
-    var style = document.createElement("style");
-    style.id = "cscs_sync_monitor_b_style";
-    style.type = "text/css";
-    style.appendChild(document.createTextNode(css));
-    document.head.appendChild(style);
+    // 目的:
+    //   - Bの見た目/カード構成を「Aと完全同一」に寄せるため、A側と同じ共通CSS注入関数を使う。
+    //   - このファイル内で独自CSSを生成して“それっぽく”寄せるのは禁止（Aと差分が出て比較できないため）。
+    // 成功ログ:
+    //   - 共通CSSが呼べたかを必ずconsoleで確認できるようにする。
+    try {
+      if (typeof window.injectCscsSyncMonitorCommonStyleOnce === "function") {
+        window.injectCscsSyncMonitorCommonStyleOnce();
+        console.log("[CSCS_SYNC_MONITOR_B] common style injected: OK");
+      } else {
+        console.warn("[CSCS_SYNC_MONITOR_B] common style injector not found: window.injectCscsSyncMonitorCommonStyleOnce");
+      }
+    } catch (e) {
+      console.warn("[CSCS_SYNC_MONITOR_B] common style inject failed:", e);
+    }
   }
 
   // -----------------------------
   // DOM生成（B用パネル）
   // -----------------------------
   function buildMonitorDomB() {
+    // 目的:
+    //   - BパネルのDOMクラス構成を、Aパネルと「同一のカード/行クラス」に統一する。
+    //   - A/Bを隣に並べた時に“カード構造そのもの”が一致することが重要（比較のため）。
+    // 成功ログ:
+    //   - DOM生成が新規だったか/既存再利用だったかをconsoleで判別できるようにする。
     var root = document.getElementById("cscs_sync_monitor_b");
-    if (root) return root;
+    if (root) {
+      console.log("[CSCS_SYNC_MONITOR_B] buildMonitorDomB: reuse existing root");
+      return root;
+    }
 
     root = document.createElement("div");
     root.id = "cscs_sync_monitor_b";
 
     var wrap = document.createElement("div");
-    wrap.className = "syncb-wrap";
+    wrap.className = "sync-wrap";
 
     var head = document.createElement("div");
-    head.className = "syncb-head";
+    head.className = "sync-head";
 
     var left = document.createElement("div");
+    left.className = "sync-head-left";
     left.style.minWidth = "0";
 
     var title = document.createElement("div");
-    title.className = "syncb-title";
+    title.className = "sync-title";
     title.textContent = "CSCS SYNC Monitor (B)";
 
     var sub = document.createElement("div");
-    sub.className = "syncb-sub";
+    sub.className = "sync-sub";
     sub.innerHTML =
-      'QID: <span class="syncb-qid syncb-tag"></span> ' +
-      '<span class="syncb-status syncb-tag"></span>';
+      'QID: <span class="sync-qid sync-tag"></span> ' +
+      '<span class="sync-status sync-tag"></span>';
 
     left.appendChild(title);
     left.appendChild(sub);
 
     var btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "syncb-btn";
+    btn.className = "sync-btn";
     btn.textContent = "OPEN";
     btn.setAttribute("aria-expanded", "false");
 
@@ -290,17 +186,17 @@
     head.appendChild(btn);
 
     var body = document.createElement("div");
-    body.className = "syncb-body syncb-hidden";
+    body.className = "sync-body sync-hidden";
 
-    // グリッド本体
+    // グリッド本体（Aと同一クラス）
     var grid = document.createElement("div");
-    grid.className = "syncb-grid";
+    grid.className = "sync-grid";
 
     function card(titleText, wide) {
       var c = document.createElement("div");
-      c.className = "syncb-card" + (wide ? " is-wide" : "");
+      c.className = "sync-card" + (wide ? " sync-span-2" : "");
       var h = document.createElement("div");
-      h.className = "syncb-card-title";
+      h.className = "sync-card-title";
       h.textContent = titleText;
       c.appendChild(h);
       return c;
@@ -308,12 +204,12 @@
 
     function row(k, clsV) {
       var r = document.createElement("div");
-      r.className = "syncb-row";
+      r.className = "sync-row";
       var kk = document.createElement("div");
-      kk.className = "syncb-k";
+      kk.className = "sync-k";
       kk.textContent = k;
       var vv = document.createElement("div");
-      vv.className = "syncb-v " + clsV;
+      vv.className = "sync-v " + clsV;
       vv.textContent = "-";
       r.appendChild(kk);
       r.appendChild(vv);
@@ -325,7 +221,7 @@
     cTotals.appendChild(row("SYNC", "v-sync-totals"));
     cTotals.appendChild(row("local", "v-local-totals"));
     cTotals.appendChild(row("+Δ(参考)", "v-delta-ref"));
-    cTotals.appendChild(document.createElement("div")).className = "syncb-mini v-note-totals";
+    cTotals.appendChild(document.createElement("div")).className = "sync-mini v-note-totals";
     grid.appendChild(cTotals);
 
     // Streak (correct)
@@ -353,7 +249,7 @@
     cMax.appendChild(row("len (now)", "v-local-max-len"));
     cMax.appendChild(row("max", "v-local-max-val"));
     cMax.appendChild(row("day", "v-local-max-day"));
-    cMax.appendChild(document.createElement("div")).className = "syncb-mini v-note-max";
+    cMax.appendChild(document.createElement("div")).className = "sync-mini v-note-max";
     grid.appendChild(cMax);
 
     // wrong streak max (local)
@@ -361,7 +257,7 @@
     cWMax.appendChild(row("len (now)", "v-local-wmax-len"));
     cWMax.appendChild(row("max", "v-local-wmax-val"));
     cWMax.appendChild(row("day", "v-local-wmax-day"));
-    cWMax.appendChild(document.createElement("div")).className = "syncb-mini v-note-wmax";
+    cWMax.appendChild(document.createElement("div")).className = "sync-mini v-note-wmax";
     grid.appendChild(cWMax);
 
     // Today streak3 unique
@@ -407,20 +303,27 @@
     root.appendChild(wrap);
     document.body.appendChild(root);
 
-    // open/close
+    // open/close（Aと同一クラスで開閉）
     btn.addEventListener("click", function () {
-      var open = !body.classList.contains("syncb-hidden");
+      // 目的:
+      //   - Aと同じ「sync-hidden」で開閉制御し、比較時に挙動も一致させる。
+      // 成功ログ:
+      //   - クリックごとに open/close 状態をconsoleで確認できる。
+      var open = !body.classList.contains("sync-hidden");
       if (open) {
-        body.classList.add("syncb-hidden");
+        body.classList.add("sync-hidden");
         btn.textContent = "OPEN";
         btn.setAttribute("aria-expanded", "false");
+        console.log("[CSCS_SYNC_MONITOR_B] toggle: CLOSE");
       } else {
-        body.classList.remove("syncb-hidden");
+        body.classList.remove("sync-hidden");
         btn.textContent = "CLOSE";
         btn.setAttribute("aria-expanded", "true");
+        console.log("[CSCS_SYNC_MONITOR_B] toggle: OPEN");
       }
     });
 
+    console.log("[CSCS_SYNC_MONITOR_B] buildMonitorDomB: created new root");
     return root;
   }
 
@@ -593,8 +496,25 @@
 
   function updateUiB(root, localSnap, syncSnap, stateOk, lastError) {
     // header
-    setText(root, "syncb-qid", QID ? QID : "（データなし）");
-    setText(root, "syncb-status", stateOk ? "state:OK" : ("state:ERR " + toDisplayText(lastError, "-")));
+    // 目的:
+    //   - buildMonitorDomB() でA同一クラス（sync-qid / sync-status）に統一したため、参照クラスも揃える。
+    // 成功ログ:
+    //   - ヘッダの2要素がDOM上に存在して更新できたかをconsoleで確認する。
+    (function () {
+      var qidText = QID ? QID : "（データなし）";
+      var statusText = stateOk ? "state:OK" : ("state:ERR " + toDisplayText(lastError, "-"));
+
+      setText(root, "sync-qid", qidText);
+      setText(root, "sync-status", statusText);
+
+      var hasQid = !!root.querySelector(".sync-qid");
+      var hasStatus = !!root.querySelector(".sync-status");
+      if (hasQid && hasStatus) {
+        console.log("[CSCS_SYNC_MONITOR_B] header updated: OK", { qid: qidText, status: statusText });
+      } else {
+        console.warn("[CSCS_SYNC_MONITOR_B] header updated: MISSING_EL", { hasQid: hasQid, hasStatus: hasStatus });
+      }
+    })();
 
     // Totals
     var syncTotals = "SYNC " + toDisplayText(syncSnap.totals.c, "-") + " / " + toDisplayText(syncSnap.totals.w, "-");
