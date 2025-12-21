@@ -397,21 +397,59 @@
       const lsWrong = readLocalWrongStreak3ForQid(QID);
       const llWrong = readLocalWrongStreakLenForQid(QID);
 
-      let sc = 0, si = 0, ss = 0, sl = 0;
+      // ============================================================
+      // ★ 表示方針:
+      //   - SYNC合計（serverC/serverI）が「未取得/欠損」の場合は 0 にせず "-" 表示
+      //   - フォールバックで別ソースから推測しない（datasetが空なら欠損扱い）
+      //   - streak3/streakLen は従来通り（欠損時は 0 表示のまま）※必要なら後で同様に拡張可能
+      // ============================================================
+      let sc = null, si = null, ss = 0, sl = 0;
       if (totalsEl) {
-        sc = parseInt(totalsEl.dataset.serverC || "0", 10) || 0;
-        si = parseInt(totalsEl.dataset.serverI || "0", 10) || 0;
+        // ★ 処理1: dataset の数値を “厳密” に読む（空/欠損/非数は null）
+        function readDatasetNonNegIntOrNull(ds, keyName){
+          try{
+            if (!ds) return null;
+            const raw = ds[keyName];
+            if (raw === null || raw === undefined) return null;
+            const s = String(raw).trim();
+            if (s === "") return null;
+            if (!/^\d+$/.test(s)) return null;
+            const n = parseInt(s, 10);
+            if (!Number.isFinite(n) || n < 0) return null;
+            return n;
+          }catch(_){
+            return null;
+          }
+        }
+
+        // ★ 処理2: SYNC合計（c/w）は欠損なら null のまま（0にしない）
+        sc = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverC");
+        si = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverI");
+
+        // ★ 処理3: streak 系は従来互換（欠損時は 0）
         ss = parseInt(totalsEl.dataset.serverS3 || "0", 10) || 0;
         sl = parseInt(totalsEl.dataset.serverSL || "0", 10) || 0;
 
+        // ★ 処理4: 表示を反映（欠損は "-"）
         const serverTextEl = totalsEl.querySelector(".sync-server-text");
         if (serverTextEl) {
-          serverTextEl.textContent = "SYNC " + sc + " / " + si;
+          const cText = (sc === null) ? "-" : String(sc);
+          const iText = (si === null) ? "-" : String(si);
+          serverTextEl.textContent = "SYNC " + cText + " / " + iText;
+
+          // ★ 処理5: コンソールで「欠損なのか/数値なのか」を確実に確認できるログ
+          console.log("[SYNC-A][UI] totals server display updated", {
+            qid: QID,
+            serverC: sc,
+            serverI: si,
+            missing: (sc === null || si === null)
+          });
         }
       }
 
-      const serverProgress = sl % 3;
-      const localProgress  = ll % 3;
+      // ★ 処理: progress は数値でない場合に備えてガード（推測値で埋めない）
+      const serverProgress = (typeof sl === "number" && Number.isFinite(sl)) ? (sl % 3) : 0;
+      const localProgress  = (typeof ll === "number" && Number.isFinite(ll)) ? (ll % 3) : 0;
 
       // ★ 不正解ストリーク（SYNC 側）の最新値を __cscs_sync_state から取得
       let ssWrong = 0;
@@ -2652,8 +2690,8 @@
             <div class="sync-body totals-row">
               <div class="sync-totals-label">Totals(c/w)</div>
 
-              <div id="cscs_sync_totals" class="sync-totals" data-server-c="0" data-server-i="0">
-                <span class="sync-server-text">SYNC 0 / 0</span>
+              <div id="cscs_sync_totals" class="sync-totals" data-server-c="" data-server-i="">
+                <span class="sync-server-text">SYNC - / -</span>
               </div>
 
               <div class="sync-local">local  0 / 0</div>
