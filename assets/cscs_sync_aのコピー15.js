@@ -550,20 +550,8 @@
       const box = document.getElementById("cscs_sync_monitor_a");
       const totalsEl = document.getElementById("cscs_sync_totals");
 
-      // ★ 処理: 「|| 0」で欠損を0埋めしない（欠損は null のままにして可視化）
-      const hasDC = Object.prototype.hasOwnProperty.call(queue.correctDelta, QID);
-      const hasDI = Object.prototype.hasOwnProperty.call(queue.incorrectDelta, QID);
-
-      const dC = hasDC ? queue.correctDelta[QID] : null;
-      const dI = hasDI ? queue.incorrectDelta[QID] : null;
-
-      // ★ 処理: 欠損/数値をコンソールで確実に判別できるログ
-      console.log("[SYNC-A][NO-FALLBACK][QUEUE] delta snapshot", {
-        qid: QID,
-        correctDelta: dC,
-        incorrectDelta: dI,
-        missing: { correctDelta: !hasDC, incorrectDelta: !hasDI }
-      });
+      const dC = queue.correctDelta[QID]   || 0;
+      const dI = queue.incorrectDelta[QID] || 0;
 
       const local = readLocalTotalsForQid(QID);
       const lc = local.c; // ★ 欠損は null（0埋め禁止）
@@ -1367,26 +1355,11 @@
         // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（B）
         //   - streakLenDelta / streakWrongLenDelta は「増分」ではなく「最新値」なので、そのまま表示する
         //   - last*DayDelta も「最新値」なので、そのまま表示する
-        // ★ 処理: 「|| 0」禁止。欠損は null のまま保持して “取れていない” を明確化する
-        const hasQdS3  = Object.prototype.hasOwnProperty.call(queue.streak3Delta, QID);
-        const qdS3     = hasQdS3 ? queue.streak3Delta[QID] : null;
-
+        const qdS3  = queue.streak3Delta[QID] || 0;
         const qdSL  = Object.prototype.hasOwnProperty.call(queue.streakLenDelta, QID) ? queue.streakLenDelta[QID] : null;
 
-        const hasQdS3W = Object.prototype.hasOwnProperty.call(queue.streak3WrongDelta, QID);
-        const qdS3W    = hasQdS3W ? queue.streak3WrongDelta[QID] : null;
-
+        const qdS3W = queue.streak3WrongDelta[QID] || 0;
         const qdSLW = Object.prototype.hasOwnProperty.call(queue.streakWrongLenDelta, QID) ? queue.streakWrongLenDelta[QID] : null;
-
-        // ★ 処理: 欠損/数値をコンソールで確実に判別できるログ
-        console.log("[SYNC-A][NO-FALLBACK][QUEUE] detail snapshot", {
-          qid: QID,
-          qdS3: qdS3,
-          qdS3W: qdS3W,
-          qdSL: qdSL,
-          qdSLW: qdSLW,
-          missing: { qdS3: !hasQdS3, qdS3W: !hasQdS3W }
-        });
 
         const qdSeen = Object.prototype.hasOwnProperty.call(queue.lastSeenDayDelta, QID) ? queue.lastSeenDayDelta[QID] : "";
         const qdCor  = Object.prototype.hasOwnProperty.call(queue.lastCorrectDayDelta, QID) ? queue.lastCorrectDayDelta[QID] : "";
@@ -1923,18 +1896,7 @@
     //   それぞれ lastSeenDayDelta / lastCorrectDayDelta に最新値として積む。
     recordCorrect(){
       if (!QID) return;
-      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
-      if (Object.prototype.hasOwnProperty.call(queue.correctDelta, QID)) {
-        queue.correctDelta[QID] = queue.correctDelta[QID] + 1;
-      } else {
-        queue.correctDelta[QID] = 1;
-      }
-
-      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
-      console.log("[SYNC-A][OK][QUEUE] correctDelta incremented", {
-        qid: QID,
-        correctDelta: queue.correctDelta[QID]
-      });
+      queue.correctDelta[QID] = (queue.correctDelta[QID] || 0) + 1;
 
       try{
         const seenDay = readLocalLastSeenDayForQid(QID);
@@ -1961,18 +1923,7 @@
     //   それぞれ lastSeenDayDelta / lastWrongDayDelta に最新値として積む。
     recordIncorrect(){
       if (!QID) return;
-      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
-      if (Object.prototype.hasOwnProperty.call(queue.incorrectDelta, QID)) {
-        queue.incorrectDelta[QID] = queue.incorrectDelta[QID] + 1;
-      } else {
-        queue.incorrectDelta[QID] = 1;
-      }
-
-      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
-      console.log("[SYNC-A][OK][QUEUE] incorrectDelta incremented", {
-        qid: QID,
-        incorrectDelta: queue.incorrectDelta[QID]
-      });
+      queue.incorrectDelta[QID] = (queue.incorrectDelta[QID] || 0) + 1;
 
       try{
         const seenDay = readLocalLastSeenDayForQid(QID);
@@ -1997,18 +1948,7 @@
     // ★ 3連続「正解」達成回数を 1 回分キューに積む
     recordStreak3(){
       if (!QID) return;
-      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
-      if (Object.prototype.hasOwnProperty.call(queue.streak3Delta, QID)) {
-        queue.streak3Delta[QID] = queue.streak3Delta[QID] + 1;
-      } else {
-        queue.streak3Delta[QID] = 1;
-      }
-
-      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
-      console.log("[SYNC-A][OK][QUEUE] streak3Delta incremented", {
-        qid: QID,
-        streak3Delta: queue.streak3Delta[QID]
-      });
+      queue.streak3Delta[QID] = (queue.streak3Delta[QID] || 0) + 1;
       try{
         var ev = new CustomEvent("cscs:streak3-earned", {
           detail: {
@@ -2028,18 +1968,7 @@
     // ★ 3連続「不正解」達成回数を 1 回分キューに積む
     recordWrongStreak3(){
       if (!QID) return;
-      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
-      if (Object.prototype.hasOwnProperty.call(queue.streak3WrongDelta, QID)) {
-        queue.streak3WrongDelta[QID] = queue.streak3WrongDelta[QID] + 1;
-      } else {
-        queue.streak3WrongDelta[QID] = 1;
-      }
-
-      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
-      console.log("[SYNC-A][OK][QUEUE] streak3WrongDelta incremented", {
-        qid: QID,
-        streak3WrongDelta: queue.streak3WrongDelta[QID]
-      });
+      queue.streak3WrongDelta[QID] = (queue.streak3WrongDelta[QID] || 0) + 1;
       try{
         var ev = new CustomEvent("cscs:wrong-streak3-earned", {
           detail: {
