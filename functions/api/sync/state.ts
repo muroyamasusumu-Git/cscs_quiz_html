@@ -146,7 +146,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   let data: any = null;
   try {
-    data = await env.SYNC.get(key, "json");
+    data = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
     console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
   } catch (e) {
     console.error("[SYNC/state] ★KV 読み出し失敗:", e);
@@ -477,7 +477,10 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   } catch (_e) {}
 
   return new Response(JSON.stringify(out), {
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store"
+    },
   });
 };
 

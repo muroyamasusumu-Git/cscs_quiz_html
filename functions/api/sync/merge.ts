@@ -160,7 +160,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   // - ユーザーごとの SYNC スナップショットを KV から読み出す
   // - まだ一度も保存されていなければ、全フィールド空のオブジェクトを初期値として使う
   let server: any =
-    (await env.SYNC.get(key, "json")) || {
+    (await env.SYNC.get(key, { type: "json", cacheTtl: 0 })) || {
       correct: {},
       incorrect: {},
       streak3: {},
@@ -1140,7 +1140,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     // (4) 保存直後に KV から再取得 → parsed.streak3Today を確認
     // - 実際に KV に書き込まれた JSON が期待通りかどうか、もう一度読み出して検証する
     try {
-      const raw = await env.SYNC.get(key, "text");
+      const raw = await env.SYNC.get(key, { type: "text", cacheTtl: 0 });
       console.log("[SYNC/merge] (4-1) ★KV直後ダンプ(raw):", raw);
 
       try {
@@ -1172,7 +1172,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   // クライアントには、マージ後の server スナップショット全体を返す
   return new Response(JSON.stringify(server), {
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store"
+    },
   });
 };
 
