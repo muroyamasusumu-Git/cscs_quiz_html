@@ -692,7 +692,7 @@
           // ★ 余計な枠を作らず、最低限の余白だけ（ボタンだけ要件を維持）
           btnWrap.style.marginTop = "10px";
           btnWrap.style.display = "grid";
-          btnWrap.style.gridTemplateColumns = "1fr";
+          btnWrap.style.gridTemplateColumns = "1fr 1fr 1fr";
           btnWrap.style.gap = "8px";
 
           // --- ボタン1: 自動取得 ON/OFF ---
