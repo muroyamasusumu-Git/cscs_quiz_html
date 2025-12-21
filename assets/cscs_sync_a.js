@@ -194,6 +194,7 @@
   const LS_MON_OPEN        = "cscs_sync_a_monitor_open";
   const LS_DAYS_OPEN       = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN       = "cscs_sync_a_queue_detail_open";
+  const LS_AUTO_FETCH_ON   = "cscs_sync_a_auto_fetch_on";
 
   function readLsBool(key, defaultBool){
     try{
@@ -213,6 +214,165 @@
     try{
       localStorage.setItem(key, boolVal ? "1" : "0");
     }catch(_){}
+  }
+
+  function readAutoFetchOn(){
+    try{
+      // ★ 処理1: 自動取得ON/OFFを localStorage から厳密に読む（未設定はON扱い）
+      const v = localStorage.getItem(LS_AUTO_FETCH_ON);
+      if (v === null || v === undefined) return true;
+      if (v === "1") return true;
+      if (v === "0") return false;
+      if (v === "true") return true;
+      if (v === "false") return false;
+      return true;
+    }catch(e){
+      console.error("[SYNC-A][AUTO-FETCH][READ] exception -> default ON", {
+        error: String(e && e.message || e)
+      });
+      return true;
+    }
+  }
+
+  function writeAutoFetchOn(on){
+    try{
+      // ★ 処理2: 自動取得ON/OFFを localStorage に保存する（成功/失敗をログで可視化）
+      writeLsBool(LS_AUTO_FETCH_ON, !!on);
+      console.log("[SYNC-A][AUTO-FETCH][WRITE] saved", {
+        key: LS_AUTO_FETCH_ON,
+        on: !!on
+      });
+      return true;
+    }catch(e){
+      console.error("[SYNC-A][AUTO-FETCH][WRITE] failed", {
+        key: LS_AUTO_FETCH_ON,
+        on: !!on,
+        error: String(e && e.message || e)
+      });
+      return false;
+    }
+  }
+
+  function ensureFetchControlsAOnce(){
+    try{
+      // ★ 処理3: 二重生成防止（ステータスパネルが頻繁に更新されても増殖させない）
+      if (window.__cscs_sync_a_fetch_controls_installed) return;
+      window.__cscs_sync_a_fetch_controls_installed = true;
+
+      const box = document.getElementById("cscs_sync_monitor_a");
+      if (!box) {
+        console.log("[SYNC-A][AUTO-FETCH][UI] monitor box missing -> controls not injected");
+        return;
+      }
+
+      // ★ 処理4: 既にDOMがある場合は再生成しない
+      if (box.querySelector(".cscs-sync-a-fetch-controls")) {
+        console.log("[SYNC-A][AUTO-FETCH][UI] controls already exist -> skip");
+        return;
+      }
+
+      const wrap = document.createElement("div");
+      wrap.className = "cscs-sync-a-fetch-controls";
+      wrap.style.marginTop = "10px";
+      wrap.style.paddingTop = "10px";
+      wrap.style.borderTop = "1px solid rgba(255,255,255,0.10)";
+
+      const title = document.createElement("div");
+      title.textContent = "SYNC取得";
+      title.style.fontSize = "12px";
+      title.style.opacity = "0.85";
+      title.style.marginBottom = "6px";
+      wrap.appendChild(title);
+
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.gap = "8px";
+      row.style.flexWrap = "wrap";
+      wrap.appendChild(row);
+
+      const btnToggle = document.createElement("button");
+      btnToggle.type = "button";
+      btnToggle.className = "cscs-sync-a-btn-toggle-autofetch";
+      btnToggle.style.padding = "8px 10px";
+      btnToggle.style.borderRadius = "8px";
+      btnToggle.style.border = "1px solid rgba(255,255,255,0.18)";
+      btnToggle.style.background = "rgba(0,0,0,0.35)";
+      btnToggle.style.color = "inherit";
+      btnToggle.style.cursor = "pointer";
+
+      const btnManual = document.createElement("button");
+      btnManual.type = "button";
+      btnManual.className = "cscs-sync-a-btn-manual-fetch";
+      btnManual.textContent = "手動取得→ローカル上書き";
+      btnManual.style.padding = "8px 10px";
+      btnManual.style.borderRadius = "8px";
+      btnManual.style.border = "1px solid rgba(255,255,255,0.18)";
+      btnManual.style.background = "rgba(0,0,0,0.35)";
+      btnManual.style.color = "inherit";
+      btnManual.style.cursor = "pointer";
+
+      function refreshBtnText(){
+        const on = readAutoFetchOn();
+        btnToggle.textContent = on ? "自動取得: ON" : "自動取得: OFF";
+      }
+
+      // ★ 処理5: 初期表示を確実に反映（ON/OFF状態が見える）
+      refreshBtnText();
+      console.log("[SYNC-A][AUTO-FETCH][UI] controls injected", {
+        autoFetchOn: readAutoFetchOn()
+      });
+
+      btnToggle.addEventListener("click", function(){
+        // ★ 処理6: 自動取得ON/OFFをトグルして永続化し、結果をログで確認できるようにする
+        const before = readAutoFetchOn();
+        const after = !before;
+
+        const ok = writeAutoFetchOn(after);
+        refreshBtnText();
+
+        console.log("[SYNC-A][AUTO-FETCH][TOGGLE] clicked", {
+          before: before,
+          after: after,
+          saved: ok
+        });
+
+        // ★ 処理7: ONに戻した直後は、即時に一回取得を走らせて「動いた」を確認できるようにする
+        if (after) {
+          try{
+            initialFetch(true);
+            console.log("[SYNC-A][AUTO-FETCH][TOGGLE] ON -> initialFetch(force) requested");
+          }catch(e){
+            console.error("[SYNC-A][AUTO-FETCH][TOGGLE] ON -> initialFetch(force) failed to start", {
+              error: String(e && e.message || e)
+            });
+          }
+        }
+      });
+
+      btnManual.addEventListener("click", async function(){
+        // ★ 処理8: 手動取得は「自動OFFでも必ず実行」し、結果をログで確認できるようにする
+        console.log("[SYNC-A][MANUAL-FETCH] clicked -> start");
+        try{
+          await initialFetch(true);
+          console.log("[SYNC-A][MANUAL-FETCH] completed OK");
+        }catch(e){
+          console.error("[SYNC-A][MANUAL-FETCH] failed", {
+            error: String(e && e.message || e)
+          });
+        }
+      });
+
+      row.appendChild(btnToggle);
+      row.appendChild(btnManual);
+
+      // ★ 処理9: ステータスパネル最下部に追加（要求どおり「一番下」）
+      box.appendChild(wrap);
+
+    }catch(e){
+      console.error("[SYNC-A][AUTO-FETCH][UI] inject exception", {
+        error: String(e && e.message || e)
+      });
+    }
   }
 
   function readLocalTotalsForQid(qid){
@@ -549,6 +709,10 @@
       if (!QID) return;
       const box = document.getElementById("cscs_sync_monitor_a");
       const totalsEl = document.getElementById("cscs_sync_totals");
+
+      // ★ 処理: ステータスパネル最下部に「取得ボタン群」を一度だけ注入する
+      //   - updateMonitorは頻繁に呼ばれるので、二重生成防止フラグで守る
+      ensureFetchControlsAOnce();
 
       // ★ 処理: 「|| 0」で欠損を0埋めしない（欠損は null のままにして可視化）
       const hasDC = Object.prototype.hasOwnProperty.call(queue.correctDelta, QID);
@@ -2390,8 +2554,29 @@
     }
   };
 
-  async function initialFetch(){
+  async function initialFetch(force){
     if (!QID) return;
+
+    // ★ 処理: 自動取得OFFの場合、force=true（手動ボタン）以外はここで止める
+    //   - フォールバックで別の取得経路は作らない（OFFならOFF）
+    const autoOn = readAutoFetchOn();
+    const isForce = (force === true);
+
+    if (!isForce && !autoOn) {
+      console.log("[SYNC-A][AUTO-FETCH] skipped (OFF)", {
+        qid: QID,
+        autoFetchOn: autoOn,
+        force: isForce
+      });
+      return;
+    }
+
+    console.log("[SYNC-A][AUTO-FETCH] start fetch", {
+      qid: QID,
+      autoFetchOn: autoOn,
+      force: isForce
+    });
+
     try{
       const s  = await CSCS_SYNC.fetchServer();
 
