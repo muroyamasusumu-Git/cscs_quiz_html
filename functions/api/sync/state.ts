@@ -156,6 +156,33 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       ray: reqRay,
       colo: reqColo
     });
+
+    // ★Pages デプロイ実体診断（preview / production / 別デプロイを一発で確定）
+    // - CF Pages が自動注入する環境変数群を出す
+    // - state.ts と merge.ts で同一値なら「同一デプロイ実体」を確定できる
+    const pagesDeploymentId =
+      typeof (envAny as any).CF_PAGES_DEPLOYMENT_ID === "string"
+        ? String((envAny as any).CF_PAGES_DEPLOYMENT_ID)
+        : "";
+    const pagesCommitSha =
+      typeof (envAny as any).CF_PAGES_COMMIT_SHA === "string"
+        ? String((envAny as any).CF_PAGES_COMMIT_SHA)
+        : "";
+    const pagesBranch =
+      typeof (envAny as any).CF_PAGES_BRANCH === "string"
+        ? String((envAny as any).CF_PAGES_BRANCH)
+        : "";
+    const pagesProject =
+      typeof (envAny as any).CF_PAGES_PROJECT_NAME === "string"
+        ? String((envAny as any).CF_PAGES_PROJECT_NAME)
+        : "";
+
+    console.log("[SYNC/state][PAGES-DIAG] pages meta:", {
+      project: pagesProject,
+      branch: pagesBranch,
+      commit: pagesCommitSha,
+      deployment: pagesDeploymentId
+    });
   } catch (_e) {}
 
   // -----------------------------
@@ -532,6 +559,18 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
         "X-CSCS-KV-Binding": "SYNC",
+
+        // ★Pages デプロイ実体診断ヘッダ（preview / production / 別デプロイを一発で確定）
+        "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
+        "X-CSCS-Pages-Branch": typeof (env as any).CF_PAGES_BRANCH === "string" ? String((env as any).CF_PAGES_BRANCH) : "",
+        "X-CSCS-Pages-Commit": typeof (env as any).CF_PAGES_COMMIT_SHA === "string" ? String((env as any).CF_PAGES_COMMIT_SHA) : "",
+        "X-CSCS-Pages-Deploy": typeof (env as any).CF_PAGES_DEPLOYMENT_ID === "string" ? String((env as any).CF_PAGES_DEPLOYMENT_ID) : "",
+
+        // ★KV binding 実体診断ヘッダ（state と merge で env.SYNC が同じ“形”か確認）
+        "X-CSCS-KV-HasEnvSYNC": (env as any).SYNC ? "1" : "0",
+        "X-CSCS-KV-HasGet": (env as any).SYNC && typeof (env as any).SYNC.get === "function" ? "1" : "0",
+        "X-CSCS-KV-HasPut": (env as any).SYNC && typeof (env as any).SYNC.put === "function" ? "1" : "0",
+        "X-CSCS-KV-HasDelete": (env as any).SYNC && typeof (env as any).SYNC.delete === "function" ? "1" : "0",
 
         "X-CSCS-ReqId": reqId,
         "X-CSCS-User": user,
