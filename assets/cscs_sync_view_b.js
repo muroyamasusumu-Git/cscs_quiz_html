@@ -2697,6 +2697,66 @@
       });
     }
 
+    // ★ 何をしているか:
+    //   HUD再描画などで suppressDiffSend が立っている場合でも、
+    //   diff が非ゼロなら「送信は抑止しない」方針に寄せる。
+    //   つまり suppressDiffSend は「diff がゼロのときだけ return」できる。
+    var suppressDiffSend = false;
+    try {
+      suppressDiffSend = !!(params && params.suppressDiffSend);
+    } catch (_eSuppressPick) {
+      suppressDiffSend = false;
+    }
+
+    // ★ 何をしているか:
+    //   送るべき差分が“完全にゼロ”かどうかを 1 個の真偽値に集約する。
+    //   （forceSend は別枠なので、ここでは forceSend の判定式と同等条件にしている）
+    var diffIsZero =
+      (!forceSend &&
+       diffCorrect <= 0 &&
+       diffWrong <= 0 &&
+       diffStreak3 <= 0 &&
+       diffStreak3Wrong <= 0 &&
+       localStreakLen === serverStreakLen &&
+       localWrongStreakLen === serverWrongStreakLen &&
+       !oncePerDayDelta &&
+       !hasLastSeenDayDiff &&
+       !hasLastCorrectDayDiff &&
+       !hasLastWrongDayDiff);
+
+    // ★ 何をしているか:
+    //   suppressDiffSend が true の場合でも、
+    //   diffIsZero のときだけ return（＝HUD再描画由来の無駄送信を止める）。
+    //   diffIsZero が false のときは「抑止せず送信へ進む」ことをログで保証する。
+    if (suppressDiffSend && diffIsZero) {
+      console.log("[SYNC-B] suppressDiffSend=ON & diffIsZero=TRUE → return (send suppressed)", {
+        qid: qid,
+        suppressDiffSend: suppressDiffSend,
+        diffIsZero: diffIsZero
+      });
+      return;
+    }
+
+    if (suppressDiffSend && !diffIsZero) {
+      console.log("[SYNC-B] suppressDiffSend=ON but diffIsZero=FALSE → continue (send NOT suppressed)", {
+        qid: qid,
+        suppressDiffSend: suppressDiffSend,
+        diffIsZero: diffIsZero,
+        diffCorrect: diffCorrect,
+        diffWrong: diffWrong,
+        diffStreak3: diffStreak3,
+        diffStreak3Wrong: diffStreak3Wrong,
+        localStreakLen: localStreakLen,
+        serverStreakLen: serverStreakLen,
+        localWrongStreakLen: localWrongStreakLen,
+        serverWrongStreakLen: serverWrongStreakLen,
+        hasOncePerDayDelta: !!oncePerDayDelta,
+        hasLastSeenDayDiff: hasLastSeenDayDiff,
+        hasLastCorrectDayDiff: hasLastCorrectDayDiff,
+        hasLastWrongDayDiff: hasLastWrongDayDiff
+      });
+    }
+
     // ====== ② diff が存在しない場合は SYNC を送らず終了 ======
     // ・diffCorrect / diffWrong / diffStreak3 / diffStreak3Wrong が 0 以下
     // ・かつ streakLen / streakWrongLen が server と同じ
@@ -2705,17 +2765,7 @@
     //
     // → 「今回は送るべき更新が何もない」ので、
     //    HUD パネルの表示だけ更新して return する。
-    if (!forceSend &&
-        diffCorrect <= 0 &&
-        diffWrong <= 0 &&
-        diffStreak3 <= 0 &&
-        diffStreak3Wrong <= 0 &&
-        localStreakLen === serverStreakLen &&
-        localWrongStreakLen === serverWrongStreakLen &&
-        !oncePerDayDelta &&
-        !hasLastSeenDayDiff &&
-        !hasLastCorrectDayDiff &&
-        !hasLastWrongDayDiff) {
+    if (diffIsZero) {
 
       var odoaStatusTextForPanel;
       if (odoaModeText === "ON") {
