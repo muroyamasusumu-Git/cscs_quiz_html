@@ -1392,11 +1392,36 @@
         const qdCor  = Object.prototype.hasOwnProperty.call(queue.lastCorrectDayDelta, QID) ? queue.lastCorrectDayDelta[QID] : "";
         const qdWrg  = Object.prototype.hasOwnProperty.call(queue.lastWrongDayDelta, QID) ? queue.lastWrongDayDelta[QID] : "";
 
-        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "0") + " / " + toDisplayText(dI, "0");
-        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "0");
+        // ★ 処理1: 欠損（null/undefined）を "0" で埋めず、「（データなし）」として可視化する
+        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "（データなし）") + " / " + toDisplayText(dI, "（データなし）");
+        // ★ 処理2: 欠損（null/undefined）を "0" で埋めず、「（データなし）」として可視化する
+        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "（データなし）");
+        // ★ 処理3: streakLenDelta は「最新値」なので、欠損時のみ「（なし）」を表示する（推測で数値化しない）
         if (qdSLel)   qdSLel.textContent   = toDisplayText(qdSL !== null && qdSL !== undefined ? qdSL : "", "（なし）");
-        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "0");
+        // ★ 処理4: 欠損（null/undefined）を "0" で埋めず、「（データなし）」として可視化する
+        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "（データなし）");
+        // ★ 処理5: streakWrongLenDelta は「最新値」なので、欠損時のみ「（なし）」を表示する（推測で数値化しない）
         if (qdSLwEl)  qdSLwEl.textContent  = toDisplayText(qdSLW !== null && qdSLW !== undefined ? qdSLW : "", "（なし）");
+
+        // ★ 処理6: 反映が確実に成功したかをコンソールで確認できるログ（欠損/表示文字列も併記）
+        console.log("[SYNC-A][OK][UI] queue detail text updated (no-fallback)", {
+          qid: QID,
+          raw: {
+            dC: dC,
+            dI: dI,
+            qdS3: qdS3,
+            qdS3W: qdS3W,
+            qdSL: qdSL,
+            qdSLW: qdSLW
+          },
+          rendered: {
+            cw: (qdCwEl ? qdCwEl.textContent : null),
+            s3: (qdS3El ? qdS3El.textContent : null),
+            sl: (qdSLel ? qdSLel.textContent : null),
+            s3w: (qdS3wEl ? qdS3wEl.textContent : null),
+            slw: (qdSLwEl ? qdSLwEl.textContent : null)
+          }
+        });
 
         if (qdSeenEl) qdSeenEl.textContent = toDisplayText(qdSeen, "（なし）");
         if (qdCorEl)  qdCorEl.textContent  = toDisplayText(qdCor, "（なし）");
