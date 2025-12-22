@@ -290,6 +290,22 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // - もし KV miss が一時的に起きると、ユーザーの体感では「設定が勝手にOFFになった」に見える
   let out: any = data ? data : empty;
 
+  // ★ empty テンプレ返却 “確定” ログ（Workers側で一発判定）
+  // - 目的: 「KVからstateを取得できていない → out=empty を選択 → サーバーがempty返却を宣言」
+  //         の3点を、ログ1行で確定できるようにする。
+  // - 判定基準: data が truthy でなければ out は empty（=KV未取得/未保存/取得失敗を区別せず empty返却）
+  // - 注意: ここで “別ソースから埋め合わせ” はしない（フォールバック禁止方針）
+  const isEmptyTemplate = data ? "0" : "1";
+  if (isEmptyTemplate === "1") {
+    try {
+      console.warn("[SYNC/state][EMPTY-TEMPLATE] KV state NOT obtained -> out=empty (KV miss/failed/empty).");
+    } catch (_e) {}
+  } else {
+    try {
+      console.log("[SYNC/state][KV-HIT] KV state obtained -> out=KV data.");
+    } catch (_e) {}
+  }
+
   // 欠けている構造だけ補完（streak3Today は絶対に補完しない）
   // - ここでの補完は「null/undefined で落ちるのを防ぐための“最低限の形合わせ”」だけ。
   // - 値の推測や別ソースからの埋め合わせ（フォールバック）は行わない方針。
