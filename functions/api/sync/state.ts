@@ -288,15 +288,23 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // この方式の危険点:
   // - “未保存” と “本当に off” を区別できない（UIが off に戻されたように見える）
   // - もし KV miss が一時的に起きると、ユーザーの体感では「設定が勝手にOFFになった」に見える
-  const usedEmptyTemplate = !data;
+  //
+  // ★対策:
+  // - emptyテンプレ返却（KV miss / read fail）になった場合は、JSON内に明示フラグを載せる。
+  // - フロント（A/B）側がこのフラグを見て「データ取得できていない」警告を確実に出せるようにする。
+  const isKvMiss = !data;
   let out: any = data ? data : empty;
 
-  // ★ emptyテンプレ返却（KV miss / 読み出し失敗/一時null）を “必ず警告” として残す
-  // - 目的: 「UIが初期化されたように見える」事象の切り分けを即時化する
-  // - 方針: 値の埋め合わせは行わず、警告ログだけを出す（フォールバック設計は変えない）
-  if (usedEmptyTemplate) {
+  if (isKvMiss) {
     try {
-      console.warn("[SYNC/state] ⚠️ WARNING: empty template returned (KV miss or temporary null).", {
+      (out as any).__cscs_warn = {
+        code: "SYNC_STATE_EMPTY_TEMPLATE",
+        message: "KV から state を取得できず empty テンプレを返却しています。",
+        key,
+        user,
+        at: Date.now()
+      };
+      console.warn("[SYNC/state] ★WARN: emptyテンプレ返却（KV miss）:", {
         user,
         key
       });
@@ -581,8 +589,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         ? String((out as any).updatedAt)
         : "";
 
-    const warnEmpty = data ? "0" : "1";
-
     console.log("[SYNC/state][diag] response headers snapshot:", {
       reqId,
       user,
@@ -592,21 +598,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       ray,
       kv_identity: kvIdentityId,
       odoa_mode: odoaModeNow,
-      updatedAt: updatedAtNow,
-      warn_empty_template: warnEmpty
+      updatedAt: updatedAtNow
     });
-
-    if (warnEmpty === "1") {
-      try {
-        console.warn("[SYNC/state] ⚠️ WARNING: response is based on empty template (KV miss or temporary null).", {
-          user,
-          key,
-          kv: kvHit,
-          kv_identity: kvIdentityId,
-          reqId
-        });
-      } catch (_e) {}
-    }
 
     console.log("[SYNC/state] ★RESPONSE no-store:", { bytes: resJson.length });
 
@@ -614,9 +607,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       headers: {
         "content-type": "application/json",
         "Cache-Control": "no-store",
-
-        // ★ emptyテンプレ返却の可視化（Networkで即判定）
-        "X-CSCS-Warn-Empty-Template": warnEmpty,
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
         "X-CSCS-KV-Binding": "SYNC",
