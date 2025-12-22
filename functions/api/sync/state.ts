@@ -289,18 +289,18 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // - “未保存” と “本当に off” を区別できない（UIが off に戻されたように見える）
   // - もし KV miss が一時的に起きると、ユーザーの体感では「設定が勝手にOFFになった」に見える
   const usedEmptyTemplate = !data;
-  let out: any = usedEmptyTemplate ? empty : data;
+  let out: any = data ? data : empty;
 
-  // ★ emptyテンプレ返却の瞬間を「確定」させる（ログ＋後段ヘッダ用フラグ）
-  // - 目的: UIが “0/0 や off に戻った” ように見える現象のとき、
-  //         「本当に emptyテンプレを返したのか？」をサーバ側だけで即断できるようにする。
-  // - 注意: ここでは補完・推測はしない（単に “empty採用” を明示するだけ）
+  // ★ emptyテンプレ返却（KV miss / 読み出し失敗扱い）を必ず警告として残す
+  // - 「未保存」なのか「一時的なnull/失敗」なのかは、この時点では区別しない
+  // - ただし “emptyを返した” という事実は必ず warn として残す（見落とし防止）
   if (usedEmptyTemplate) {
     try {
-      console.warn("[SYNC/state][WARN] EMPTY TEMPLATE WAS RETURNED (KV miss or read failure).", {
+      console.warn("[SYNC/state] ⚠ empty template returned (KV miss):", {
         user,
         key,
-        kv_identity: kvIdentityId
+        kv: "miss",
+        note: "KV.get returned null (or read failed earlier). Returning empty template as state."
       });
     } catch (_e) {}
   }
@@ -573,11 +573,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     //   この kvHit と、上の KV.get の RAWログ/例外ログをセットで見るのが前提。
     const kvHit = data ? "hit" : "miss";
 
-    // ★emptyテンプレ返却フラグ（Network で確定させる用）
-    // - ここは “usedEmptyTemplate（= !data）” と同義
-    // - 目的: フロント側で「今のstateは emptyテンプレか？」を即判定可能にする
-    const emptyTemplateNow = data ? "0" : "1";
-
     const odoaModeNow =
       typeof (out as any).odoa_mode === "string"
         ? (out as any).odoa_mode
@@ -593,7 +588,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       user,
       key,
       kv: kvHit,
-      emptyTemplate: emptyTemplateNow,
       colo,
       ray,
       kv_identity: kvIdentityId,
@@ -611,9 +605,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
         "X-CSCS-KV-Binding": "SYNC",
         "X-CSCS-KV-Identity": kvIdentityId,
-
-        // ★emptyテンプレ返却診断ヘッダ（KV miss / 読み出し失敗の “結果” を確定）
-        "X-CSCS-EmptyTemplate": emptyTemplateNow,
 
         // ★Pages デプロイ実体診断ヘッダ（preview / production / 別デプロイを一発で確定）
         "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
@@ -678,3 +669,4 @@ async function getUserIdFromAccess(request: Request) {
     return "";
   }
 }
+
