@@ -291,16 +291,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   const usedEmptyTemplate = !data;
   let out: any = data ? data : empty;
 
-  // ★ emptyテンプレ返却（KV miss / 読み出し失敗扱い）を必ず警告として残す
-  // - 「未保存」なのか「一時的なnull/失敗」なのかは、この時点では区別しない
-  // - ただし “emptyを返した” という事実は必ず warn として残す（見落とし防止）
+  // ★ emptyテンプレ返却（KV miss / 読み出し失敗/一時null）を “必ず警告” として残す
+  // - 目的: 「UIが初期化されたように見える」事象の切り分けを即時化する
+  // - 方針: 値の埋め合わせは行わず、警告ログだけを出す（フォールバック設計は変えない）
   if (usedEmptyTemplate) {
     try {
-      console.warn("[SYNC/state] ⚠ empty template returned (KV miss):", {
+      console.warn("[SYNC/state] ⚠️ WARNING: empty template returned (KV miss or temporary null).", {
         user,
-        key,
-        kv: "miss",
-        note: "KV.get returned null (or read failed earlier). Returning empty template as state."
+        key
       });
     } catch (_e) {}
   }
@@ -583,6 +581,8 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         ? String((out as any).updatedAt)
         : "";
 
+    const warnEmpty = data ? "0" : "1";
+
     console.log("[SYNC/state][diag] response headers snapshot:", {
       reqId,
       user,
@@ -592,8 +592,21 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       ray,
       kv_identity: kvIdentityId,
       odoa_mode: odoaModeNow,
-      updatedAt: updatedAtNow
+      updatedAt: updatedAtNow,
+      warn_empty_template: warnEmpty
     });
+
+    if (warnEmpty === "1") {
+      try {
+        console.warn("[SYNC/state] ⚠️ WARNING: response is based on empty template (KV miss or temporary null).", {
+          user,
+          key,
+          kv: kvHit,
+          kv_identity: kvIdentityId,
+          reqId
+        });
+      } catch (_e) {}
+    }
 
     console.log("[SYNC/state] ★RESPONSE no-store:", { bytes: resJson.length });
 
@@ -601,6 +614,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       headers: {
         "content-type": "application/json",
         "Cache-Control": "no-store",
+
+        // ★ emptyテンプレ返却の可視化（Networkで即判定）
+        "X-CSCS-Warn-Empty-Template": warnEmpty,
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
         "X-CSCS-KV-Binding": "SYNC",
