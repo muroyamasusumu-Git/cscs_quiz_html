@@ -195,118 +195,6 @@
   const LS_DAYS_OPEN       = "cscs_sync_a_days_open";
   const LS_QDEL_OPEN       = "cscs_sync_a_queue_detail_open";
 
-  // ★ 追加: SYNC state の自動取得 ON/OFF（A）
-  //   - "1" => 自動取得ON / "0" => 自動取得OFF
-  //   - フォールバック無し：読めない/壊れている場合は OFF 扱いに倒す（勝手にONにしない）
-  const LS_AUTO_FETCH_A    = "cscs_sync_a_auto_fetch_enabled";
-
-  // ★ 追加: 自動取得の内部状態（多重実行防止）
-  let autoFetchTimerA = null;
-  let autoFetchInFlightA = false;
-
-  function readAutoFetchEnabledA(){
-    try{
-      const v = localStorage.getItem(LS_AUTO_FETCH_A);
-      if (v === "1") return true;
-      if (v === "0") return false;
-      if (v === "true") return true;
-      if (v === "false") return false;
-      return false;
-    }catch(e){
-      console.error("[SYNC-A][AUTO-FETCH][NO-FALLBACK] read ls failed -> OFF", {
-        key: LS_AUTO_FETCH_A,
-        error: String(e && e.message || e)
-      });
-      return false;
-    }
-  }
-
-  function writeAutoFetchEnabledA(enabled){
-    try{
-      localStorage.setItem(LS_AUTO_FETCH_A, enabled ? "1" : "0");
-      console.log("[SYNC-A][AUTO-FETCH][OK] ls updated", {
-        key: LS_AUTO_FETCH_A,
-        value: enabled ? "1" : "0"
-      });
-    }catch(e){
-      console.error("[SYNC-A][AUTO-FETCH][NO-FALLBACK] write ls failed", {
-        key: LS_AUTO_FETCH_A,
-        enabled: !!enabled,
-        error: String(e && e.message || e)
-      });
-    }
-  }
-
-  async function runAutoFetchOnceA(reason){
-    if (autoFetchInFlightA) {
-      console.log("[SYNC-A][AUTO-FETCH] skipped (in-flight)", { reason: reason || "unknown" });
-      return;
-    }
-    autoFetchInFlightA = true;
-    try{
-      console.log("[SYNC-A][AUTO-FETCH] start", { reason: reason || "unknown" });
-      await initialFetch();
-      console.log("[SYNC-A][AUTO-FETCH][OK] done", { reason: reason || "unknown" });
-    }catch(e){
-      console.error("[SYNC-A][AUTO-FETCH][ERROR] failed", {
-        reason: reason || "unknown",
-        error: String(e && e.message || e)
-      });
-    }finally{
-      autoFetchInFlightA = false;
-      updateMonitor();
-    }
-  }
-
-  function startAutoFetchTimerA(){
-    if (autoFetchTimerA) {
-      console.log("[SYNC-A][AUTO-FETCH] timer already running");
-      return;
-    }
-    autoFetchTimerA = setInterval(function(){
-      if (!readAutoFetchEnabledA()) return;
-      if (!navigator.onLine) {
-        console.log("[SYNC-A][AUTO-FETCH] skipped (offline)");
-        return;
-      }
-      runAutoFetchOnceA("interval");
-    }, 15000);
-
-    console.log("[SYNC-A][AUTO-FETCH][OK] timer started", { intervalMs: 15000 });
-  }
-
-  function stopAutoFetchTimerA(){
-    if (!autoFetchTimerA) {
-      console.log("[SYNC-A][AUTO-FETCH] timer already stopped");
-      return;
-    }
-    clearInterval(autoFetchTimerA);
-    autoFetchTimerA = null;
-    console.log("[SYNC-A][AUTO-FETCH][OK] timer stopped");
-  }
-
-  // ★ 追加: DOMが取れたタイミングで必ず呼ぶ（テンプレ生成側に依存しない）
-  function applyAutoFetchSettingA(){
-    const enabled = readAutoFetchEnabledA();
-    if (enabled) startAutoFetchTimerA();
-    if (!enabled) stopAutoFetchTimerA();
-    console.log("[SYNC-A][AUTO-FETCH] applied", { enabled: enabled });
-  }
-
-  // ★ 追加: SYNCの自動データ取得 ON/OFF（Aパート）
-  //   - localStorage: "cscs_sync_a_auto_fetch_enabled"
-  //   - 方針: フォールバック無し。LSに無ければ default false。
-  const LS_AUTO_FETCH_EN   = "cscs_sync_a_auto_fetch_enabled";
-
-  // ★ 追加: 自動取得の現在状態（UIボタンとタイマーがこの状態に追従する）
-  let autoFetchEnabled     = readLsBool(LS_AUTO_FETCH_EN, false);
-
-  // ★ 追加: 自動取得タイマー（ONのときだけ動く）
-  let autoFetchTimer       = null;
-
-  // ★ 追加: ボタンDOMの生成済みフラグ（updateMonitor()で毎回生成しないため）
-  let autoFetchUiInstalled = false;
-
   function readLsBool(key, defaultBool){
     try{
       const v = localStorage.getItem(key);
@@ -326,376 +214,6 @@
       localStorage.setItem(key, boolVal ? "1" : "0");
     }catch(_){}
   }
-
-  // ============================================================
-  // ★ 追加: SYNC 自動データ取得（A）ON/OFF + 手動取得→ローカル上書き
-  // ------------------------------------------------------------
-  // 目的:
-  //   - ステータスパネル内（Queue Δ detailブロック）に
-  //     1) 自動取得ON/OFFトグル
-  //     2) 手動で /api/sync/state を取得し、ローカルを上書き
-  //     を追加する。
-  //
-  // 方針:
-  //   - フォールバック無し（取れない時は取れないログを出して何もしない）
-  //   - 成功/失敗をコンソールで確実に確認できるログを出す
-  // ============================================================
-
-  function getAutoFetchIntervalMs(){
-    // ★ 処理: 固定値（軽い周期）。将来調整したい時はここだけ変える。
-    return 15000; // 15s
-  }
-
-  function setAutoFetchEnabled(nextEnabled){
-    // ★ 処理1: 状態更新（boolに正規化）
-    autoFetchEnabled = !!nextEnabled;
-
-    // ★ 処理2: 永続化（LSが唯一の保存先）
-    writeLsBool(LS_AUTO_FETCH_EN, autoFetchEnabled);
-
-    // ★ 処理3: タイマー反映
-    applyAutoFetchTimer();
-
-    // ★ 処理4: UIのラベル更新
-    updateAutoFetchButtonsUi();
-
-    // ★ 処理5: 成功ログ（状態の確定を可視化）
-    console.log("[SYNC-A][OK][AUTO-FETCH] toggled", {
-      enabled: autoFetchEnabled,
-      intervalMs: getAutoFetchIntervalMs()
-    });
-  }
-
-  function applyAutoFetchTimer(){
-    try{
-      // ★ 処理1: 既存タイマー停止（重複実行防止）
-      if (autoFetchTimer) {
-        clearInterval(autoFetchTimer);
-        autoFetchTimer = null;
-      }
-
-      // ★ 処理2: OFFならここで終了
-      if (!autoFetchEnabled) {
-        console.log("[SYNC-A][AUTO-FETCH] timer stopped (disabled)", { enabled: autoFetchEnabled });
-        return;
-      }
-
-      // ★ 処理3: ONなら定期取得を開始
-      autoFetchTimer = setInterval(async function(){
-        // ★ 処理3-1: オフライン時は叩かない（失敗ログは出す）
-        if (!navigator.onLine) {
-          console.log("[SYNC-A][AUTO-FETCH][SKIP] offline", { enabled: autoFetchEnabled });
-          return;
-        }
-
-        console.log("[SYNC-A][AUTO-FETCH] tick -> fetch /api/sync/state", {
-          enabled: autoFetchEnabled,
-          ts: Date.now()
-        });
-
-        try{
-          const s = await CSCS_SYNC.fetchServer();
-
-          // ★ 処理3-2: 取得成功（stateを最新化）
-          try{
-            window.__cscs_sync_state = s;
-          }catch(_){}
-
-          // ★ 処理3-3: UI更新（取得できた事実を見える化）
-          updateMonitor();
-
-          console.log("[SYNC-A][OK][AUTO-FETCH] state fetched & monitor updated", {
-            hasState: !!s,
-            updatedAt: (s && Object.prototype.hasOwnProperty.call(s, "updatedAt")) ? s.updatedAt : null
-          });
-        }catch(e){
-          console.error("[SYNC-A][ERR][AUTO-FETCH] fetchServer failed", {
-            error: String(e && e.message || e)
-          });
-        }
-      }, getAutoFetchIntervalMs());
-
-      console.log("[SYNC-A][AUTO-FETCH] timer started", {
-        enabled: autoFetchEnabled,
-        intervalMs: getAutoFetchIntervalMs()
-      });
-    }catch(e){
-      console.error("[SYNC-A][ERR][AUTO-FETCH] applyAutoFetchTimer failed", {
-        error: String(e && e.message || e)
-      });
-    }
-  }
-
-  function updateAutoFetchButtonsUi(){
-    try{
-      const btnToggle = document.getElementById("cscs_sync_a_btn_auto_fetch_toggle");
-      if (btnToggle) {
-        // ★ 処理: 状態に応じてラベルを確定（UIで必ず確認できる）
-        btnToggle.textContent = autoFetchEnabled ? "AutoFetch: ON" : "AutoFetch: OFF";
-        btnToggle.dataset.enabled = autoFetchEnabled ? "1" : "0";
-      }
-
-      const btnManual = document.getElementById("cscs_sync_a_btn_fetch_overwrite_local");
-      if (btnManual) {
-        // ★ 処理: 実行できる条件（qid有無/online等）は押した時に判定するが、
-        //   UIとしては常に表示して、ログで理由を出す。
-        btnManual.textContent = "Fetch→Overwrite(local)";
-      }
-
-      console.log("[SYNC-A][OK][AUTO-FETCH][UI] buttons updated", {
-        enabled: autoFetchEnabled,
-        hasToggle: !!btnToggle,
-        hasManual: !!btnManual
-      });
-    }catch(e){
-      console.error("[SYNC-A][ERR][AUTO-FETCH][UI] update failed", {
-        error: String(e && e.message || e)
-      });
-    }
-  }
-
-  function injectAutoFetchRowStyleOnce(){
-    try{
-      if (document.getElementById("cscs_sync_a_autofetch_style")) return;
-
-      const css =
-        "#cscs_sync_monitor_a .cscs-sync-a-qdel-bottom-row{" +
-          "display:flex;" +
-          "gap:8px;" +
-          "margin-top:8px;" +
-        "}" +
-        "#cscs_sync_monitor_a .cscs-sync-a-qdel-bottom-row button{" +
-          "flex:1;" +
-          "min-width:0;" +
-          "padding:8px 10px;" +
-          "border-radius:10px;" +
-        "}";
-
-      const st = document.createElement("style");
-      st.id = "cscs_sync_a_autofetch_style";
-      st.textContent = css;
-      document.head.appendChild(st);
-
-      console.log("[SYNC-A][OK][UI] auto-fetch row style injected");
-    }catch(e){
-      console.error("[SYNC-A][ERR][UI] style inject failed", {
-        error: String(e && e.message || e)
-      });
-    }
-  }
-
-  function ensureAutoFetchButtonsInQueueDetail(){
-    try{
-      // ★ 処理0: スタイル注入（横並び保証）
-      injectAutoFetchRowStyleOnce();
-
-      const box = document.getElementById("cscs_sync_monitor_a");
-      if (!box) {
-        console.log("[SYNC-A][AUTO-FETCH][UI] monitor box missing -> skip");
-        return;
-      }
-
-      // ★ 処理1: Queue Δ detail の中（「送信待ち」ブロック）を優先的に探す
-      //   - ここは “確実に存在する保証が無い” ので、見つからなければ何もしない（フォールバックで別所に作らない）
-      const qdel = box.querySelector(".sync-queue-detail");
-      if (!qdel) {
-        console.log("[SYNC-A][AUTO-FETCH][UI] .sync-queue-detail missing -> skip (no-fallback)", {
-          boxId: "cscs_sync_monitor_a"
-        });
-        return;
-      }
-
-      // ★ 処理2: すでに作ってあるならUI更新だけして終了
-      if (autoFetchUiInstalled && document.getElementById("cscs_sync_a_btn_auto_fetch_toggle")) {
-        updateAutoFetchButtonsUi();
-        return;
-      }
-
-      // ★ 処理3: 末尾に「横並び2ボタン」を追加
-      const row = document.createElement("div");
-      row.className = "cscs-sync-a-qdel-bottom-row";
-      row.id = "cscs_sync_a_qdel_bottom_row";
-
-      const btnToggle = document.createElement("button");
-      btnToggle.type = "button";
-      btnToggle.id = "cscs_sync_a_btn_auto_fetch_toggle";
-      btnToggle.textContent = autoFetchEnabled ? "AutoFetch: ON" : "AutoFetch: OFF";
-
-      const btnManual = document.createElement("button");
-      btnManual.type = "button";
-      btnManual.id = "cscs_sync_a_btn_fetch_overwrite_local";
-      btnManual.textContent = "Fetch→Overwrite(local)";
-
-      row.appendChild(btnToggle);
-      row.appendChild(btnManual);
-      qdel.appendChild(row);
-
-      // ★ 処理4: クリックイベント（確実に成功/失敗ログを出す）
-      btnToggle.addEventListener("click", function(){
-        // ★ 処理: ON/OFF反転
-        const next = !autoFetchEnabled;
-        setAutoFetchEnabled(next);
-      });
-
-      btnManual.addEventListener("click", async function(){
-        console.log("[SYNC-A][MANUAL-FETCH] clicked -> fetch & overwrite local (start)", {
-          qid: QID || null,
-          online: !!navigator.onLine
-        });
-
-        // ★ 処理1: オフラインなら何もしない（フォールバック無し）
-        if (!navigator.onLine) {
-          console.error("[SYNC-A][MANUAL-FETCH][NO-FALLBACK] offline -> skip");
-          return;
-        }
-
-        // ★ 処理2: QID が無ければ何もしない（フォールバック無し）
-        if (!QID) {
-          console.error("[SYNC-A][MANUAL-FETCH][NO-FALLBACK] QID missing -> skip");
-          return;
-        }
-
-        try{
-          const s = await CSCS_SYNC.fetchServer();
-          try{ window.__cscs_sync_state = s; }catch(_){}
-
-          // ★ 処理3: stateから “このQID分だけ” を厳密に取り、localStorageへ上書き
-          const applied = applyStateOverwriteLocalForCurrentQidStrict(s);
-
-          // ★ 処理4: UI更新
-          updateMonitor();
-
-          console.log("[SYNC-A][OK][MANUAL-FETCH] fetch & overwrite local done", {
-            qid: QID,
-            applied: applied
-          });
-        }catch(e){
-          console.error("[SYNC-A][ERR][MANUAL-FETCH] failed", {
-            error: String(e && e.message || e)
-          });
-        }
-      });
-
-      autoFetchUiInstalled = true;
-
-      console.log("[SYNC-A][OK][AUTO-FETCH][UI] buttons installed into queue detail", {
-        installed: autoFetchUiInstalled
-      });
-
-      // ★ 処理5: タイマーを現在状態に合わせる（初回設置時にも同期）
-      applyAutoFetchTimer();
-
-      // ★ 処理6: UI文言を確定
-      updateAutoFetchButtonsUi();
-    }catch(e){
-      console.error("[SYNC-A][ERR][AUTO-FETCH][UI] ensure failed", {
-        error: String(e && e.message || e)
-      });
-    }
-  }
-
-  function applyStateOverwriteLocalForCurrentQidStrict(state){
-    // ★ 方針: フォールバック無し
-    //   - stateが壊れている/必要mapが無い/entryが無い/型不正 → 何もしないでログ
-    //   - 成功したキーだけ返す（コンソールで確実に確認できる）
-    const out = {
-      qid: QID || null,
-      wrote: [],
-      skipped: [],
-      errors: []
-    };
-
-    try{
-      if (!state || typeof state !== "object") {
-        out.errors.push("state_missing_or_invalid");
-        console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] state missing/invalid", { qid: QID || null });
-        return out;
-      }
-
-      function readMapNumberStrict(mapKey){
-        if (!state[mapKey] || typeof state[mapKey] !== "object") {
-          console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] missing map", { mapKey: mapKey });
-          return { ok: false, value: null, reason: "missing_map" };
-        }
-        if (!Object.prototype.hasOwnProperty.call(state[mapKey], QID)) {
-          console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] missing qid entry", { mapKey: mapKey, qid: QID });
-          return { ok: false, value: null, reason: "missing_qid" };
-        }
-        const v = state[mapKey][QID];
-        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
-          console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] invalid number", { mapKey: mapKey, qid: QID, value: v });
-          return { ok: false, value: null, reason: "invalid_number" };
-        }
-        return { ok: true, value: v, reason: null };
-      }
-
-      // ★ 対象: totals / streak
-      const rc  = readMapNumberStrict("correct");
-      const ri  = readMapNumberStrict("incorrect");
-      const rs3 = readMapNumberStrict("streak3");
-      const rsl = readMapNumberStrict("streakLen");
-      const rs3w = readMapNumberStrict("streak3Wrong");
-      const rslw = readMapNumberStrict("streakWrongLen");
-
-      // ★ 処理1: 書き込み（成功したものだけ）
-      function writeLs(key, val){
-        try{
-          localStorage.setItem(key, String(val));
-          out.wrote.push(key);
-          console.log("[SYNC-A][OK][OVERWRITE][LS] setItem", { key: key, value: String(val) });
-        }catch(e){
-          out.errors.push("ls_set_failed:" + key);
-          console.error("[SYNC-A][ERR][OVERWRITE][LS] setItem failed", { key: key, error: String(e && e.message || e) });
-        }
-      }
-
-      if (rc.ok)  writeLs("cscs_q_correct_total:" + QID, rc.value); else out.skipped.push("cscs_q_correct_total:" + QID);
-      if (ri.ok)  writeLs("cscs_q_wrong_total:"   + QID, ri.value); else out.skipped.push("cscs_q_wrong_total:" + QID);
-
-      if (rs3.ok) writeLs("cscs_q_correct_streak3_total:" + QID, rs3.value); else out.skipped.push("cscs_q_correct_streak3_total:" + QID);
-      if (rsl.ok) writeLs("cscs_q_correct_streak_len:"    + QID, rsl.value); else out.skipped.push("cscs_q_correct_streak_len:" + QID);
-
-      if (rs3w.ok) writeLs("cscs_q_wrong_streak3_total:" + QID, rs3w.value); else out.skipped.push("cscs_q_wrong_streak3_total:" + QID);
-      if (rslw.ok) writeLs("cscs_q_wrong_streak_len:"    + QID, rslw.value); else out.skipped.push("cscs_q_wrong_streak_len:" + QID);
-
-      // ★ 対象: lastSeen/lastCorrect/lastWrong（値が取れたものだけ）
-      function readMapDayStrict(mapKey){
-        if (!state[mapKey] || typeof state[mapKey] !== "object") {
-          return { ok:false, value:null, reason:"missing_map" };
-        }
-        if (!Object.prototype.hasOwnProperty.call(state[mapKey], QID)) {
-          return { ok:false, value:null, reason:"missing_qid" };
-        }
-        const v = state[mapKey][QID];
-        if (typeof v === "string" && v.trim() !== "") return { ok:true, value:v.trim(), reason:null };
-        if (typeof v === "number" && Number.isFinite(v) && v > 0) return { ok:true, value:String(v), reason:null };
-        return { ok:false, value:null, reason:"invalid_day" };
-      }
-
-      const lsd = readMapDayStrict("lastSeenDay");
-      const lcd = readMapDayStrict("lastCorrectDay");
-      const lwd = readMapDayStrict("lastWrongDay");
-
-      if (lsd.ok) writeLs("cscs_q_last_seen_day:"    + QID, lsd.value); else out.skipped.push("cscs_q_last_seen_day:" + QID);
-      if (lcd.ok) writeLs("cscs_q_last_correct_day:" + QID, lcd.value); else out.skipped.push("cscs_q_last_correct_day:" + QID);
-      if (lwd.ok) writeLs("cscs_q_last_wrong_day:"   + QID, lwd.value); else out.skipped.push("cscs_q_last_wrong_day:" + QID);
-
-      console.log("[SYNC-A][OK][OVERWRITE] summary", out);
-      return out;
-    }catch(e){
-      out.errors.push("exception:" + String(e && e.message || e));
-      console.error("[SYNC-A][ERR][OVERWRITE] exception", { error: String(e && e.message || e) });
-      return out;
-    }
-  }
-
-  // ★ 追加: ページロード後にタイマー状態を反映（LSの値に追従）
-  //   - ここは「何も無ければ何もしない」ではなく、状態の確定ログを出す
-  console.log("[SYNC-A][AUTO-FETCH] initial state", {
-    enabled: autoFetchEnabled,
-    lsKey: LS_AUTO_FETCH_EN
-  });
-  applyAutoFetchTimer();
 
   function readLocalTotalsForQid(qid){
     try{
@@ -1482,157 +1000,6 @@
         const qdSeenEl   = box.querySelector(".sync-queue-lastseen");
         const qdCorEl    = box.querySelector(".sync-queue-lastcorrect");
         const qdWrgEl    = box.querySelector(".sync-queue-lastwrong");
-
-        // ★ 追加: Queue Δ detail（送信待ち）ブロック内に
-        //   - 自動取得 ON/OFF ボタン
-        //   - 手動取得（SYNC→local上書き）ボタン
-        //   を “確実に” 追加する（テンプレ生成側に依存しない）。
-        //
-        // 方針:
-        //   - 差し込み先は #cscs_sync_monitor_a 内の「Queue detail 折りたたみ領域」。
-        //   - .sync-queue-detail-actions が無ければ作成して末尾に追加する。
-        //   - 表示は横並び（display:flex）。
-        //   - 追加・クリック・実行結果を必ず console に出す。
-        (function ensureQueueDetailButtons(){
-          try{
-            // ★ 処理1: 差し込み先（Queue detail ブロック）を厳密に探す
-            const qdRoot =
-              box.querySelector(".sync-queue-detail") ||
-              box.querySelector(".sync-queue-detail-body") ||
-              box.querySelector(".sync-queue-detail-block") ||
-              box.querySelector(".sync-queue-detail-content");
-
-            if (!qdRoot) {
-              console.error("[SYNC-A][UI][NO-FALLBACK] Queue detail root not found -> buttons not injected", {
-                rootId: "cscs_sync_monitor_a"
-              });
-              return;
-            }
-
-            // ★ 処理2: アクション行（横並び領域）を確保
-            let actions = qdRoot.querySelector(".sync-queue-detail-actions");
-            if (!actions) {
-              actions = document.createElement("div");
-              actions.className = "sync-queue-detail-actions";
-              actions.style.display = "flex";
-              actions.style.gap = "8px";
-              actions.style.marginTop = "8px";
-              actions.style.alignItems = "stretch";
-
-              qdRoot.appendChild(actions);
-
-              console.log("[SYNC-A][UI][OK] actions row injected into Queue detail", {
-                className: "sync-queue-detail-actions"
-              });
-            }
-
-            // ★ 処理3: 自動取得ON/OFFボタン
-            let btnAuto = actions.querySelector("#cscs_sync_a_btn_auto_fetch_toggle");
-            if (!btnAuto) {
-              btnAuto = document.createElement("button");
-              btnAuto.type = "button";
-              btnAuto.id = "cscs_sync_a_btn_auto_fetch_toggle";
-              btnAuto.textContent = "Auto fetch: ?";
-              btnAuto.style.flex = "1 1 0";
-              btnAuto.style.padding = "8px 10px";
-              btnAuto.style.borderRadius = "10px";
-              btnAuto.style.border = "1px solid rgba(255,255,255,0.18)";
-              btnAuto.style.background = "rgba(255,255,255,0.06)";
-              btnAuto.style.color = "rgba(255,255,255,0.92)";
-              btnAuto.style.cursor = "pointer";
-
-              btnAuto.addEventListener("click", function(){
-                try{
-                  const cur = readAutoFetchEnabledA();
-                  const next = !cur;
-
-                  // ★ 処理A: LS を更新（状態の唯一の保存先）
-                  writeAutoFetchEnabledA(next);
-
-                  // ★ 処理B: タイマー反映（ONなら開始、OFFなら停止）
-                  applyAutoFetchSettingA();
-
-                  // ★ 処理C: UI更新
-                  updateMonitor();
-
-                  console.log("[SYNC-A][AUTO-FETCH][OK] toggled", { from: cur, to: next });
-                }catch(e){
-                  console.error("[SYNC-A][AUTO-FETCH][ERROR] toggle failed", {
-                    error: String(e && e.message || e)
-                  });
-                }
-              });
-
-              actions.appendChild(btnAuto);
-              console.log("[SYNC-A][UI][OK] auto-fetch toggle button injected", {
-                id: "cscs_sync_a_btn_auto_fetch_toggle"
-              });
-            }
-
-            // ★ 処理4: 手動取得（SYNC→local上書き）ボタン
-            let btnFetch = actions.querySelector("#cscs_sync_a_btn_fetch_overwrite_local");
-            if (!btnFetch) {
-              btnFetch = document.createElement("button");
-              btnFetch.type = "button";
-              btnFetch.id = "cscs_sync_a_btn_fetch_overwrite_local";
-              btnFetch.textContent = "Fetch state → overwrite local";
-              btnFetch.style.flex = "1 1 0";
-              btnFetch.style.padding = "8px 10px";
-              btnFetch.style.borderRadius = "10px";
-              btnFetch.style.border = "1px solid rgba(255,255,255,0.18)";
-              btnFetch.style.background = "rgba(255,255,255,0.06)";
-              btnFetch.style.color = "rgba(255,255,255,0.92)";
-              btnFetch.style.cursor = "pointer";
-
-              btnFetch.addEventListener("click", async function(){
-                try{
-                  if (!navigator.onLine) {
-                    console.log("[SYNC-A][MANUAL-FETCH] skipped (offline)");
-                    return;
-                  }
-
-                  console.log("[SYNC-A][MANUAL-FETCH] start");
-                  await initialFetch();
-                  console.log("[SYNC-A][MANUAL-FETCH][OK] done (state fetched + local overwritten where valid)");
-
-                  updateMonitor();
-                }catch(e){
-                  console.error("[SYNC-A][MANUAL-FETCH][ERROR] failed", {
-                    error: String(e && e.message || e)
-                  });
-                }
-              });
-
-              actions.appendChild(btnFetch);
-              console.log("[SYNC-A][UI][OK] manual fetch button injected", {
-                id: "cscs_sync_a_btn_fetch_overwrite_local"
-              });
-            }
-
-            // ★ 処理5: ボタン文言を現在状態に同期（確実に視認できる）
-            try{
-              const enabledNow = readAutoFetchEnabledA();
-              btnAuto.textContent = enabledNow ? "Auto fetch: ON" : "Auto fetch: OFF";
-              console.log("[SYNC-A][AUTO-FETCH][OK] button label updated", { enabled: enabledNow });
-            }catch(e2){
-              console.error("[SYNC-A][AUTO-FETCH][ERROR] label update failed", {
-                error: String(e2 && e2.message || e2)
-              });
-            }
-
-            // ★ 処理6: 自動取得設定の適用（テンプレ生成に依存しない起動ポイント）
-            applyAutoFetchSettingA();
-          }catch(e){
-            console.error("[SYNC-A][UI][NO-FALLBACK] ensureQueueDetailButtons failed", {
-              error: String(e && e.message || e)
-            });
-          }
-        })();
-
-        // ★ 追加: Queue Δ detail の末尾に「AutoFetchトグル」「手動Fetch→上書き」ボタンを確実に設置
-        //   - フォールバック無し：.sync-queue-detail が無いなら何もしない（ログだけ出す）
-        //   - updateMonitor() が走るたびに “存在チェック→不足なら生成” する
-        ensureAutoFetchButtonsInQueueDetail();
 
         // ★ 問題別 最終日情報表示用要素（詳細テーブル）
         const lastSeenSyncEl     = box.querySelector(".sync-last-seen-sync");
@@ -3020,6 +2387,462 @@
         hasLastWrongDay: !!(json && json.lastWrongDay)
       });
       return json;
+    },
+
+    // ============================================================
+    // ★ 追加: SYNC自動取得 ON/OFF（A） + 手動取得→ローカル上書き（A）
+    // ------------------------------------------------------------
+    // 方針:
+    //   - フォールバック無し（取れないものは取れないとしてログで可視化）
+    //   - 手動ボタンは「SYNC取得→検証→上書き→UI更新」を1回で実行
+    //   - 自動取得は localStorage のフラグで永続化（ページ跨ぎで維持）
+    // ============================================================
+
+    // ★ 自動取得の永続フラグ（A）
+    getAutoFetchEnabled(){
+      // ★ 処理: localStorage を唯一の参照元として ON/OFF を返す（欠損は OFF）
+      try{
+        const v = localStorage.getItem("cscs_sync_a_auto_fetch_enabled");
+        return (v === "1");
+      }catch(e){
+        console.error("[SYNC-A][AUTO-FETCH] read flag failed -> OFF", {
+          error: String(e && e.message || e)
+        });
+        return false;
+      }
+    },
+
+    setAutoFetchEnabled(enabled){
+      // ★ 処理: 自動取得フラグを localStorage に保存して永続化する
+      try{
+        localStorage.setItem("cscs_sync_a_auto_fetch_enabled", enabled ? "1" : "0");
+        console.log("[SYNC-A][AUTO-FETCH][OK] flag updated", {
+          enabled: !!enabled
+        });
+      }catch(e){
+        console.error("[SYNC-A][AUTO-FETCH][ERROR] flag update failed", {
+          enabled: !!enabled,
+          error: String(e && e.message || e)
+        });
+      }
+    },
+
+    // ★ 追加: state を “検証して” ローカルへ上書き（欠損は欠損として上書きしない）
+    applyServerStateToLocalOverwriteStrict(state){
+      // ★ 処理: どのキーを上書きしたか / できなかったかを必ずログ化する
+      const report = {
+        qid: QID || null,
+        wrote: [],
+        skipped: [],
+        errors: []
+      };
+
+      // ★ 処理: number を厳密判定（0 は正、欠損/型不正は NG）
+      function isNonNegFiniteNumber(v){
+        return (typeof v === "number" && Number.isFinite(v) && v >= 0);
+      }
+
+      function setLsSafe(key, valueStr){
+        try{
+          localStorage.setItem(key, valueStr);
+          report.wrote.push({ key: key, value: valueStr });
+          return true;
+        }catch(e){
+          report.errors.push({ key: key, error: String(e && e.message || e) });
+          return false;
+        }
+      }
+
+      // ★ 処理1: QID系（correct / incorrect / streak3 / streakLen / streak3Wrong / streakWrongLen）
+      if (QID) {
+        try{
+          const maps = [
+            { mapKey: "correct",       lsKey: "cscs_q_correct_total:" + QID },
+            { mapKey: "incorrect",     lsKey: "cscs_q_wrong_total:"   + QID },
+            { mapKey: "streak3",       lsKey: "cscs_q_correct_streak3_total:" + QID },
+            { mapKey: "streakLen",     lsKey: "cscs_q_correct_streak_len:"    + QID },
+            { mapKey: "streak3Wrong",  lsKey: "cscs_q_wrong_streak3_total:"   + QID },
+            { mapKey: "streakWrongLen",lsKey: "cscs_q_wrong_streak_len:"      + QID }
+          ];
+
+          for (let i = 0; i < maps.length; i++) {
+            const m = maps[i];
+
+            // ★ フォールバック無し：map が無い/壊れてるならスキップ
+            if (!state || typeof state !== "object" || !state[m.mapKey] || typeof state[m.mapKey] !== "object") {
+              report.skipped.push({ reason: "missing_map", mapKey: m.mapKey, lsKey: m.lsKey });
+              console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] missing map -> skip", {
+                qid: QID,
+                mapKey: m.mapKey,
+                lsKey: m.lsKey
+              });
+              continue;
+            }
+
+            // ★ フォールバック無し：qid エントリが無いならスキップ
+            if (!Object.prototype.hasOwnProperty.call(state[m.mapKey], QID)) {
+              report.skipped.push({ reason: "missing_qid_entry", mapKey: m.mapKey, lsKey: m.lsKey });
+              console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] missing qid entry -> skip", {
+                qid: QID,
+                mapKey: m.mapKey,
+                lsKey: m.lsKey
+              });
+              continue;
+            }
+
+            // ★ フォールバック無し：number 妥当性がNGならスキップ
+            const v = state[m.mapKey][QID];
+            if (!isNonNegFiniteNumber(v)) {
+              report.skipped.push({ reason: "invalid_number", mapKey: m.mapKey, lsKey: m.lsKey, value: v, type: typeof v });
+              console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] invalid number -> skip", {
+                qid: QID,
+                mapKey: m.mapKey,
+                lsKey: m.lsKey,
+                value: v,
+                type: typeof v
+              });
+              continue;
+            }
+
+            // ★ 処理: ローカルへ上書き（成功/失敗は report に残す）
+            setLsSafe(m.lsKey, String(v));
+            console.log("[SYNC-A][OK][OVERWRITE] localStorage updated from state", {
+              qid: QID,
+              mapKey: m.mapKey,
+              lsKey: m.lsKey,
+              value: v
+            });
+          }
+        }catch(eQ){
+          report.errors.push({ area: "qid_maps", error: String(eQ && eQ.message || eQ) });
+          console.error("[SYNC-A][OVERWRITE][ERROR] qid maps overwrite failed", {
+            qid: QID,
+            error: String(eQ && eQ.message || eQ)
+          });
+        }
+      } else {
+        report.skipped.push({ reason: "QID_missing", area: "qid_maps" });
+        console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] QID missing -> skip qid maps overwrite", {});
+      }
+
+      // ★ 処理2: oncePerDayToday（day / results）
+      try{
+        const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+          ? state.oncePerDayToday
+          : null;
+
+        const okDay = !!(once && typeof once.day === "number" && Number.isFinite(once.day));
+        const okResults = !!(once && once.results && typeof once.results === "object");
+
+        if (okDay && okResults) {
+          setLsSafe("cscs_once_per_day_today_day", String(once.day));
+          setLsSafe("cscs_once_per_day_today_results", JSON.stringify(once.results));
+          console.log("[SYNC-A][OK][OVERWRITE] oncePerDayToday overwritten from state", {
+            day: once.day,
+            resultsKeys: Object.keys(once.results || {}).length
+          });
+        } else {
+          report.skipped.push({ reason: "once_invalid", okDay: okDay, okResults: okResults });
+          console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] oncePerDayToday invalid -> skip", {
+            okDay: okDay,
+            okResults: okResults,
+            dayType: once ? typeof once.day : null,
+            resultsType: once ? typeof once.results : null
+          });
+        }
+      }catch(eOnce){
+        report.errors.push({ area: "oncePerDayToday", error: String(eOnce && eOnce.message || eOnce) });
+        console.error("[SYNC-A][OVERWRITE][ERROR] oncePerDayToday overwrite failed", {
+          error: String(eOnce && eOnce.message || eOnce)
+        });
+      }
+
+      // ★ 処理3: streak3Today（day / unique_count / qids）
+      try{
+        const s3t = (state && state.streak3Today && typeof state.streak3Today === "object")
+          ? state.streak3Today
+          : null;
+
+        const okDay = !!(s3t && ("day" in s3t) && String(s3t.day || "").trim() !== "");
+        const okCount = !!(s3t && typeof s3t.unique_count === "number" && Number.isFinite(s3t.unique_count) && s3t.unique_count >= 0);
+        const okQids = !!(s3t && Array.isArray(s3t.qids));
+
+        if (okDay && okCount && okQids) {
+          setLsSafe("cscs_streak3_today_day", String(s3t.day));
+          setLsSafe("cscs_streak3_today_unique_count", String(s3t.unique_count));
+          setLsSafe("cscs_streak3_today_qids", JSON.stringify(s3t.qids));
+          console.log("[SYNC-A][OK][OVERWRITE] streak3Today overwritten from state", {
+            day: String(s3t.day),
+            unique_count: s3t.unique_count,
+            qidsLen: s3t.qids.length
+          });
+        } else {
+          report.skipped.push({ reason: "streak3Today_invalid", okDay: okDay, okCount: okCount, okQids: okQids });
+          console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] streak3Today invalid -> skip", {
+            okDay: okDay,
+            okCount: okCount,
+            okQids: okQids
+          });
+        }
+      }catch(eS3t){
+        report.errors.push({ area: "streak3Today", error: String(eS3t && eS3t.message || eS3t) });
+        console.error("[SYNC-A][OVERWRITE][ERROR] streak3Today overwrite failed", {
+          error: String(eS3t && eS3t.message || eS3t)
+        });
+      }
+
+      // ★ 処理4: streak3WrongToday（day / unique_count / qids）
+      try{
+        const s3wt = (state && state.streak3WrongToday && typeof state.streak3WrongToday === "object")
+          ? state.streak3WrongToday
+          : null;
+
+        const okDay = !!(s3wt && ("day" in s3wt) && String(s3wt.day || "").trim() !== "");
+        const okCount = !!(s3wt && typeof s3wt.unique_count === "number" && Number.isFinite(s3wt.unique_count) && s3wt.unique_count >= 0);
+        const okQids = !!(s3wt && Array.isArray(s3wt.qids));
+
+        if (okDay && okCount && okQids) {
+          setLsSafe("cscs_streak3_wrong_today_day", String(s3wt.day));
+          setLsSafe("cscs_streak3_wrong_today_unique_count", String(s3wt.unique_count));
+          setLsSafe("cscs_streak3_wrong_today_qids", JSON.stringify(s3wt.qids));
+          console.log("[SYNC-A][OK][OVERWRITE] streak3WrongToday overwritten from state", {
+            day: String(s3wt.day),
+            unique_count: s3wt.unique_count,
+            qidsLen: s3wt.qids.length
+          });
+        } else {
+          report.skipped.push({ reason: "streak3WrongToday_invalid", okDay: okDay, okCount: okCount, okQids: okQids });
+          console.error("[SYNC-A][NO-FALLBACK][OVERWRITE] streak3WrongToday invalid -> skip", {
+            okDay: okDay,
+            okCount: okCount,
+            okQids: okQids
+          });
+        }
+      }catch(eS3wt){
+        report.errors.push({ area: "streak3WrongToday", error: String(eS3wt && eS3wt.message || eS3wt) });
+        console.error("[SYNC-A][OVERWRITE][ERROR] streak3WrongToday overwrite failed", {
+          error: String(eS3wt && eS3wt.message || eS3wt)
+        });
+      }
+
+      console.log("[SYNC-A][OVERWRITE][DONE] server->local overwrite report", report);
+      return report;
+    },
+
+    // ★ 追加: 手動で SYNC state 取得 → ローカル上書き → UI更新
+    async manualFetchAndOverwrite(){
+      console.log("[SYNC-A][MANUAL-FETCH] start");
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+
+        // ★ 処理: 取得した state を保持（UI は __cscs_sync_state を参照する設計のため）
+        try{
+          window.__cscs_sync_state = s;
+          console.log("[SYNC-A][MANUAL-FETCH][OK] __cscs_sync_state updated");
+        }catch(eSet){
+          console.error("[SYNC-A][MANUAL-FETCH][ERROR] __cscs_sync_state update failed", {
+            error: String(eSet && eSet.message || eSet)
+          });
+        }
+
+        // ★ 処理: “取れた値だけ” ローカル上書き（フォールバック無し）
+        const rep = CSCS_SYNC.applyServerStateToLocalOverwriteStrict(s);
+
+        // ★ 処理: UI 更新（成功/失敗は見える化ログで追える）
+        try{
+          updateMonitor();
+          console.log("[SYNC-A][MANUAL-FETCH][OK] updateMonitor called");
+        }catch(eUi){
+          console.error("[SYNC-A][MANUAL-FETCH][ERROR] updateMonitor failed", {
+            error: String(eUi && eUi.message || eUi)
+          });
+        }
+
+        console.log("[SYNC-A][MANUAL-FETCH] done", rep);
+        return rep;
+      }catch(e){
+        console.error("[SYNC-A][MANUAL-FETCH][ERROR] failed", {
+          error: String(e && e.message || e)
+        });
+        throw e;
+      }
+    },
+
+    // ★ 追加: ステータスパネル内に「自動取得ON/OFF」「手動取得→上書き」カードを差し込む
+    installFetchControlsCard(){
+      // ★ 処理: 既に入っている場合は二重挿入しない
+      try{
+        if (window.__cscs_sync_a_fetch_controls_installed) return;
+        window.__cscs_sync_a_fetch_controls_installed = true;
+      }catch(_){}
+
+      try{
+        const root = document.getElementById("cscs_sync_monitor_a");
+        if (!root) {
+          console.error("[SYNC-A][FETCH-UI][NO-FALLBACK] monitor root not found -> skip install");
+          return;
+        }
+
+        // ★ 処理: Queue Δ detail ブロック（送信待ち）の直前に差し込む
+        //   - セレクタは “UI構造の参照” であり、データのフォールバックではない
+        const candidates = [
+          root.querySelector(".sync-queue-detail"),
+          root.querySelector(".sync-queue-detail-card"),
+          root.querySelector(".sync-card.queue-detail"),
+          root.querySelector(".sync-card.is-queue-detail"),
+          root.querySelector("[data-role='sync-queue-detail']")
+        ];
+        let anchor = null;
+        for (let i = 0; i < candidates.length; i++) {
+          if (candidates[i]) {
+            anchor = candidates[i];
+            break;
+          }
+        }
+
+        if (!anchor) {
+          console.error("[SYNC-A][FETCH-UI][NO-FALLBACK] queue detail anchor not found -> skip install", {
+            tried: [
+              ".sync-queue-detail",
+              ".sync-queue-detail-card",
+              ".sync-card.queue-detail",
+              ".sync-card.is-queue-detail",
+              "[data-role='sync-queue-detail']"
+            ]
+          });
+          return;
+        }
+
+        const card = document.createElement("div");
+        card.className = "sync-card sync-fetch-controls";
+        card.setAttribute("data-role", "sync-fetch-controls");
+
+        const title = document.createElement("div");
+        title.className = "sync-card-title";
+        title.textContent = "SYNC Fetch Controls";
+
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.gap = "8px";
+        row.style.alignItems = "center";
+
+        const btnAuto = document.createElement("button");
+        btnAuto.type = "button";
+        btnAuto.className = "sync-btn sync-btn-auto-fetch";
+        btnAuto.style.flex = "1";
+
+        const btnManual = document.createElement("button");
+        btnManual.type = "button";
+        btnManual.className = "sync-btn sync-btn-manual-fetch";
+        btnManual.style.flex = "1";
+        btnManual.textContent = "手動取得 → ローカル上書き";
+
+        function refreshAutoButtonText(){
+          const on = CSCS_SYNC.getAutoFetchEnabled();
+          btnAuto.textContent = on ? "自動取得: ON（クリックでOFF）" : "自動取得: OFF（クリックでON）";
+          console.log("[SYNC-A][FETCH-UI][OK] auto button text updated", { enabled: on });
+        }
+
+        btnAuto.addEventListener("click", function(){
+          // ★ 処理: 自動取得フラグを反転して保存し、表示も更新する
+          const next = !CSCS_SYNC.getAutoFetchEnabled();
+          CSCS_SYNC.setAutoFetchEnabled(next);
+          refreshAutoButtonText();
+
+          // ★ 処理: ON にした瞬間は即1回取得して成功可否をログで確認できるようにする
+          if (next) {
+            CSCS_SYNC.manualFetchAndOverwrite()
+              .then(function(){
+                console.log("[SYNC-A][AUTO-FETCH][OK] immediate fetch after ON succeeded");
+              })
+              .catch(function(e){
+                console.error("[SYNC-A][AUTO-FETCH][ERROR] immediate fetch after ON failed", {
+                  error: String(e && e.message || e)
+                });
+              });
+          }
+        });
+
+        btnManual.addEventListener("click", function(){
+          // ★ 処理: 手動取得→上書きを実行し、成功/失敗を確実にログで確認できるようにする
+          console.log("[SYNC-A][FETCH-UI] manual button clicked");
+          CSCS_SYNC.manualFetchAndOverwrite()
+            .then(function(rep){
+              console.log("[SYNC-A][FETCH-UI][OK] manual fetch+overwrite succeeded", rep);
+            })
+            .catch(function(e){
+              console.error("[SYNC-A][FETCH-UI][ERROR] manual fetch+overwrite failed", {
+                error: String(e && e.message || e)
+              });
+            });
+        });
+
+        row.appendChild(btnAuto);
+        row.appendChild(btnManual);
+
+        card.appendChild(title);
+        card.appendChild(row);
+
+        anchor.parentNode.insertBefore(card, anchor);
+
+        console.log("[SYNC-A][FETCH-UI][OK] fetch controls card inserted above queue detail", {
+          anchorClass: anchor.className || null
+        });
+
+        refreshAutoButtonText();
+      }catch(e){
+        console.error("[SYNC-A][FETCH-UI][ERROR] install failed", {
+          error: String(e && e.message || e)
+        });
+      }
+    },
+
+    // ★ 追加: 自動取得ループ（ONのときだけ定期的に state → 上書き）
+    startAutoFetchLoop(){
+      // ★ 処理: 既に回っている場合は二重起動しない
+      try{
+        if (window.__cscs_sync_a_auto_fetch_timer) {
+          console.log("[SYNC-A][AUTO-FETCH] timer already running -> skip start");
+          return;
+        }
+      }catch(_){}
+
+      // ★ 処理: ONでなければ起動しない（欠損はOFF扱い）
+      if (!CSCS_SYNC.getAutoFetchEnabled()) {
+        console.log("[SYNC-A][AUTO-FETCH] disabled -> not starting timer");
+        return;
+      }
+
+      // ★ 処理: 5秒おきに取得（必要なら後で調整）
+      //   - 成否は必ずログに出す
+      try{
+        window.__cscs_sync_a_auto_fetch_timer = setInterval(function(){
+          if (!CSCS_SYNC.getAutoFetchEnabled()) {
+            console.log("[SYNC-A][AUTO-FETCH] turned OFF -> stopping timer");
+            try{
+              clearInterval(window.__cscs_sync_a_auto_fetch_timer);
+            }catch(_){}
+            window.__cscs_sync_a_auto_fetch_timer = null;
+            return;
+          }
+
+          CSCS_SYNC.manualFetchAndOverwrite()
+            .then(function(){
+              console.log("[SYNC-A][AUTO-FETCH][OK] periodic fetch succeeded");
+            })
+            .catch(function(e){
+              console.error("[SYNC-A][AUTO-FETCH][ERROR] periodic fetch failed", {
+                error: String(e && e.message || e)
+              });
+            });
+        }, 5000);
+
+        console.log("[SYNC-A][AUTO-FETCH][OK] timer started", { intervalMs: 5000 });
+      }catch(e){
+        console.error("[SYNC-A][AUTO-FETCH][ERROR] timer start failed", {
+          error: String(e && e.message || e)
+        });
+      }
     }
   };
 
