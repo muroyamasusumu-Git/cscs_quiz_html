@@ -266,7 +266,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // グローバルメタ情報（総問題数など）を保持する領域
     global: {},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
-    odoa_mode: "on",
+    odoa_mode: "off",
     // ★ここでは streak3Today / streak3WrongToday / oncePerDayToday を追加しない（消失確認のため上書き禁止）
     updatedAt: 0
   };
@@ -654,4 +654,3 @@ async function getUserIdFromAccess(request: Request) {
     return "";
   }
 }
-
