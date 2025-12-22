@@ -584,9 +584,11 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // ★ EMPTY確定ログ（Workersログで“一発確定”させるための1行）
     // - 何をしているか: KVから取れていない（kv=miss）→ out=empty が選ばれた（template=empty）→ サーバ自身が empty 返却を宣言（このログ行）
     // - ねらい: Workersログを1行見るだけで「KV未取得」「out=empty」「empty返却宣言」を確定できるようにする
-    // - 方式: オブジェクトを第2引数に渡すとログが複数行展開されやすいので、必ず “文字列1発” に固定する
     if (isEmptyTemplate === "1") {
-      console.warn(`[SYNC/state][EMPTY-TEMPLATE] KV未取得→out=empty→empty返却を宣言 { kv:"${kvHit}", template:"empty", reqId:"${reqId}", user:"${user}", key:"${key}" }`);
+      console.warn(
+        "[SYNC/state][EMPTY-TEMPLATE] KV未取得→out=empty→empty返却を宣言 " +
+          JSON.stringify({ reqId, user, key, kv: kvHit, template: "empty" })
+      );
     }
 
     const odoaModeNow =
