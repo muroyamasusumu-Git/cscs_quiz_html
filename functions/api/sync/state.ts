@@ -266,7 +266,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // グローバルメタ情報（総問題数など）を保持する領域
     global: {},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
-    odoa_mode: "off",
+    odoa_mode: "on",
     // ★ここでは streak3Today / streak3WrongToday / oncePerDayToday を追加しない（消失確認のため上書き禁止）
     updatedAt: 0
   };
@@ -288,28 +288,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // この方式の危険点:
   // - “未保存” と “本当に off” を区別できない（UIが off に戻されたように見える）
   // - もし KV miss が一時的に起きると、ユーザーの体感では「設定が勝手にOFFになった」に見える
-  //
-  // ★対策:
-  // - emptyテンプレ返却（KV miss / read fail）になった場合は、JSON内に明示フラグを載せる。
-  // - フロント（A/B）側がこのフラグを見て「データ取得できていない」警告を確実に出せるようにする。
-  const isKvMiss = !data;
   let out: any = data ? data : empty;
-
-  if (isKvMiss) {
-    try {
-      (out as any).__cscs_warn = {
-        code: "SYNC_STATE_EMPTY_TEMPLATE",
-        message: "KV から state を取得できず empty テンプレを返却しています。",
-        key,
-        user,
-        at: Date.now()
-      };
-      console.warn("[SYNC/state] ★WARN: emptyテンプレ返却（KV miss）:", {
-        user,
-        key
-      });
-    } catch (_e) {}
-  }
 
   // 欠けている構造だけ補完（streak3Today は絶対に補完しない）
   // - ここでの補完は「null/undefined で落ちるのを防ぐための“最低限の形合わせ”」だけ。
