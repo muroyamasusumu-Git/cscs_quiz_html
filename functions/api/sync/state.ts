@@ -558,6 +558,13 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     //   この kvHit と、上の KV.get の RAWログ/例外ログをセットで見るのが前提。
     const kvHit = data ? "hit" : "miss";
 
+    // ★ empty テンプレ返却フラグ（確定）
+    // - 目的: out = data ? data : empty; の結果として「empty が返った」ことを、
+    //         クライアント側（Networkヘッダ / コンソール）で一発判定できるようにする
+    // - 判定基準: data が truthy でない場合は empty テンプレ返却（= isEmptyTemplate: "1"）
+    // - 注意: これは「KVが未保存」か「一時的に読めなかった」かは区別しない（フォールバックはしない方針）
+    const isEmptyTemplate = data ? "0" : "1";
+
     const odoaModeNow =
       typeof (out as any).odoa_mode === "string"
         ? (out as any).odoa_mode
@@ -573,6 +580,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       user,
       key,
       kv: kvHit,
+      isEmptyTemplate,
       colo,
       ray,
       kv_identity: kvIdentityId,
@@ -607,6 +615,12 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         "X-CSCS-User": user,
         "X-CSCS-Key": key,
         "X-CSCS-KV": kvHit,
+
+        // ★ empty テンプレ返却フラグ（確定）
+        // - 目的: クライアント側で「今返ってきたstateが empty テンプレか」を一発で判定する
+        // - 値: "1"=emptyテンプレ返却, "0"=KV由来データ返却
+        "X-CSCS-IsEmptyTemplate": isEmptyTemplate,
+
         "X-CSCS-Colo": colo,
         "X-CSCS-CF-Ray": ray,
         "X-CSCS-UpdatedAt": updatedAtNow,
