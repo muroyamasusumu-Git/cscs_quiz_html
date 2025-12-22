@@ -581,6 +581,19 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // - 注意: これは「KVが未保存」か「一時的に読めなかった」かは区別しない（フォールバックはしない方針）
     const isEmptyTemplate = data ? "0" : "1";
 
+    // ★ EMPTY確定ログ（Workersログで“一発確定”させるための1行）
+    // - 何をしているか: KVから取れていない（kv=miss）→ out=empty が選ばれた（template=empty）→ サーバ自身が empty 返却を宣言（このログ行）
+    // - ねらい: Workersログを1行見るだけで「KV未取得」「out=empty」「empty返却宣言」を確定できるようにする
+    if (isEmptyTemplate === "1") {
+      console.warn("[SYNC/state][EMPTY-TEMPLATE] KV未取得→out=empty→empty返却を宣言", {
+        reqId,
+        user,
+        key,
+        kv: kvHit,
+        template: "empty"
+      });
+    }
+
     const odoaModeNow =
       typeof (out as any).odoa_mode === "string"
         ? (out as any).odoa_mode
