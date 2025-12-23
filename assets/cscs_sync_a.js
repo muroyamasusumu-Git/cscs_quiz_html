@@ -3614,6 +3614,10 @@
   transform: translateY(1px);
 }
 
+#cscs_sync_monitor_a .sync-nopull-btn {
+  font-size: 9px;
+}
+
 /* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
    once-grid の子要素は 8個（label/val ×4行）
    3行目は 5番目(label) と 6番目(val) */
