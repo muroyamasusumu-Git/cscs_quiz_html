@@ -3615,7 +3615,8 @@
 }
 
 #cscs_sync_monitor_a .sync-nopull-btn {
-  font-size: 9px;
+    font-size: 9px;
+    font-weight: 800;
 }
 
 /* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
