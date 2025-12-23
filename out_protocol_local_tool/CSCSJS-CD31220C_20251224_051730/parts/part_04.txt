@@ -1,0 +1,332 @@
+【分割コード(4)の開始】
+PartID: CSCSJS-CD31220C-P04-of-04
+Range: chars 127739..138503 (len=10764)
+
+```javascript
+            <div class="sync-body sync-streak3wrongtoday">
+              <div class="mini-grid">
+                <div class="mini-label">day</div>
+                <div class="mini-val"><span class="sync-streak3wrongtoday-day">-</span></div>
+
+                <div class="mini-label">unique</div>
+                <div class="mini-val">sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">連続正解 (Local)</div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">streak_len</div>
+                <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
+
+                <div class="mini-label">streak_max</div>
+                <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
+
+                <div class="mini-label">max_day</div>
+                <div class="mini-val"><span class="sync-streakmax-maxday-local">（データなし）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">連続不正解 (Local)</div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">streak_len</div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-len-local">（データなし）</span></div>
+
+                <div class="mini-label">streak_max</div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-max-local">（データなし）</span></div>
+
+                <div class="mini-label">max_day</div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">（データなし）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card sync-span-2 once-card">
+            <div class="sync-title">
+              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode</span>
+              <button type="button" class="once-fold-btn" data-once-fold="1">▶show</button>
+            </div>
+            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-lastday-headline">
+              <span class="sync-lastday-summary-type">LastCorrect</span>
+              <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
+              <span class="sync-lastday-summary-local">local （データなし）</span>
+            </div>
+
+            <div class="sync-body sync-lastday">
+              <div class="lastday-grid">
+                <div class="ld-label ld-row-lastseen">lastSeen</div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-local">（データなし）</span></div>
+
+                <div class="ld-label ld-row-lastcorrect">lastCorrect</div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">（データなし）</span></div>
+
+                <div class="ld-label ld-row-lastwrong">lastWrong</div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <details class="sync-fold" data-fold="queue">
+              <summary>Queue Δ detail（送信待ち）</summary>
+              <div class="sync-body">
+                <div class="delta-grid">
+                  <div class="delta-label">Totals(c/w)</div>
+                  <div class="delta-val"><span class="sync-queue-cw">0 / 0</span></div>
+
+                  <div class="delta-label">streak3Delta</div>
+                  <div class="delta-val"><span class="sync-queue-s3">0</span></div>
+
+                  <div class="delta-label">streakLenDelta</div>
+                  <div class="delta-val"><span class="sync-queue-sl">（なし）</span></div>
+
+                  <div class="delta-label">streak3WrongDelta</div>
+                  <div class="delta-val"><span class="sync-queue-s3w">0</span></div>
+
+                  <div class="delta-label">streakWrongLenDelta</div>
+                  <div class="delta-val"><span class="sync-queue-slw">（なし）</span></div>
+
+                  <div class="delta-label">lastSeenDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastseen">（なし）</span></div>
+
+                  <div class="delta-label">lastCorrectDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastcorrect">（なし）</span></div>
+
+                  <div class="delta-label">lastWrongDayDelta</div>
+                  <div class="delta-val"><span class="sync-queue-lastwrong">（なし）</span></div>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="sync-card sync-span-2">
+            <div class="sync-body status-grid">
+              <div class="status-label">Status</div>
+              <div class="status-value"><span class="sync-status">pulled (-)</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+      const wrap = document.querySelector("div.wrap");
+      if (wrap) {
+        wrap.appendChild(box);
+      } else {
+        document.body.appendChild(box);
+      }
+
+      // === ④ 折りたたみ状態の復元＆永続化（モニタ全体 / Days / Queue） ===
+      try{
+        /* ★ OPEN/CLOSE は「パネル全体」ではなく「指定4項目（sync-optional）だけ」を出し入れする
+           - cscs-compact: オプション項目を隠す（デフォルト）
+           - compact 解除: オプション項目を表示（＝OPEN状態）
+           - 状態は LS_MON_OPEN に保存し、リロード後も維持 */
+        const monitorOpen = readLsBool(LS_MON_OPEN, false);  // デフォルトはCLOSE（オプション非表示）
+        if (monitorOpen) {
+          box.classList.remove("cscs-compact");
+        } else {
+          box.classList.add("cscs-compact");
+        }
+
+        const toggleBtn = box.querySelector('button[data-sync-toggle="1"]');
+        function refreshToggleBtnLabel(){
+          if (!toggleBtn) return;
+          const isOpen = !box.classList.contains("cscs-compact"); // compact解除＝OPEN
+          toggleBtn.textContent = isOpen ? "CLOSE" : "OPEN";
+        }
+        refreshToggleBtnLabel();
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", function(){
+            // ★ クリックで「オプション項目」だけをトグル（他の項目は常時表示）
+            const nextOpen = box.classList.contains("cscs-compact"); // 今CLOSE(=compact)ならOPENへ
+            if (nextOpen) {
+              box.classList.remove("cscs-compact");
+            } else {
+              box.classList.add("cscs-compact");
+            }
+            // ★ 永続化：OPEN状態（true/false）を保存
+            writeLsBool(LS_MON_OPEN, nextOpen);
+            refreshToggleBtnLabel();
+          });
+        }
+
+        const daysDetails       = box.querySelector('details.sync-fold[data-fold="days"]');
+        const queueDetails      = box.querySelector('details.sync-fold[data-fold="queue"]');
+
+        // ============================================================
+        // ★ OncePerDayToday / O.D.O.A Mode：カード単体の折りたたみ
+        // ------------------------------------------------------------
+        // - 見出し右端: 「▶show / ▼hide」
+        // - 折りたたみ時: 見出し + 3行目（count対象）のみ表示
+        // - 状態は localStorage に永続化
+        // ============================================================
+        const LS_ONCE_OPEN = "cscs_sync_a_onceperday_open";
+        const onceCard = box.querySelector(".sync-card.once-card");
+        const onceFoldBtn = box.querySelector('button[data-once-fold="1"]');
+
+        function refreshOnceFoldBtnLabel(){
+          if (!onceFoldBtn) return;
+          const isOpen = !(onceCard && onceCard.classList.contains("once-collapsed"));
+          onceFoldBtn.textContent = isOpen ? "▼hide" : "▶show";
+        }
+
+        try{
+          const onceOpen = readLsBool(LS_ONCE_OPEN, false); // デフォルトは折りたたみ（closed）
+          if (onceCard) {
+            if (onceOpen) {
+              onceCard.classList.remove("once-collapsed");
+            } else {
+              onceCard.classList.add("once-collapsed");
+            }
+          }
+          refreshOnceFoldBtnLabel();
+        }catch(_){}
+
+        if (onceFoldBtn) {
+          onceFoldBtn.addEventListener("click", function(){
+            try{
+              if (!onceCard) return;
+              const nextOpen = onceCard.classList.contains("once-collapsed"); // 今閉じてるなら開く
+              if (nextOpen) {
+                onceCard.classList.remove("once-collapsed");
+              } else {
+                onceCard.classList.add("once-collapsed");
+              }
+              writeLsBool(LS_ONCE_OPEN, nextOpen);
+              refreshOnceFoldBtnLabel();
+            }catch(_){}
+          });
+        }
+
+        /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
+           - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
+           - それぞれの親 .sync-card に sync-optional を付ける（CLOSE時に消える対象） */
+        function markOptional(detailsEl){
+          try{
+            if (!detailsEl) return;
+            const card = detailsEl.closest(".sync-card");
+            if (card) {
+              card.classList.add("sync-optional");
+            }
+          }catch(_){}
+        }
+        markOptional(daysDetails);
+        markOptional(queueDetails);
+
+        const daysOpen        = readLsBool(LS_DAYS_OPEN, false);        // デフォルト閉じ
+        const queueOpen       = readLsBool(LS_QDEL_OPEN, false);        // デフォルト閉じ
+
+        if (daysDetails)        daysDetails.open        = !!daysOpen;
+        if (queueDetails)       queueDetails.open       = !!queueOpen;
+
+        if (daysDetails) {
+          daysDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_DAYS_OPEN, !!daysDetails.open);
+          });
+        }
+        if (queueDetails) {
+          queueDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
+          });
+        }
+      }catch(_){}
+
+      const btnOk   = document.getElementById("cscs_sync_test_ok");
+      const btnNg   = document.getElementById("cscs_sync_test_ng");
+
+      if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
+      if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
+    }catch(_){}
+    initialFetch();
+  });
+
+  window.addEventListener("online", function(){
+    lastSyncStatus = "idle";
+    sendDelta();
+  });
+  window.addEventListener("offline", function(){
+    lastSyncStatus = "offline";
+    updateMonitor();
+  });
+})();
+```
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-CD31220C-P01-of-04
+- CSCSJS-CD31220C-P02-of-04
+- CSCSJS-CD31220C-P03-of-04
+- CSCSJS-CD31220C-P04-of-04
+
+EXPECTED_PARTIDS:
+- CSCSJS-CD31220C-P01-of-04
+- CSCSJS-CD31220C-P02-of-04
+- CSCSJS-CD31220C-P03-of-04
+- CSCSJS-CD31220C-P04-of-04
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
+OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　にしたカードを追加したい
+  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　※既存のワイドカードの見出しに”SYNC"と追記
+  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる。
+
+【出力仕様（パッチ規約：厳守）】
+- 参照元のコードから「確実に検索できる」形で提示すること（検索しやすい連続行を含める）
+- 必ず参照元と「同じインデント」で提示すること
+- 「置換前／置換後」を明確に分けること（それぞれ別のコードブロック）
+- 「...」「（中略）」「省略」などの省略表現は禁止（置換対象行は省略なし）
+- 出力は「フル」ではなく「置換部分のみ」
+- 置換前コードブロック内に「参照元本文に無いコメント」を追加しないこと
+- フォールバックの設定・保険・自動互換コードの追加は基本的に禁止（必要なら理由と影響を明示して停止し確認を取る）
+- 追加した処理には、処理ごとに『何をしているか』の補足コメントを置換後側に入れること
+
+【ChatGPT 実行ルール（強制）】
+・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。
+・EXEC_TASK の実現に必要な識別子/DOM/関数が連結JS内に見当たらない場合は、SCOPE_CHECK: FAIL を返して停止し、
+  『どのファイル/どの箇所が必要か』を具体的に要求する（推測で別作業を開始しない）。
+・SCOPE_CHECK: FAIL の場合は、修正案や改善案を勝手に提示しない。まず不足情報を要求する。
+
+【分割コード(4)の終了】→ これで最後です（全4分割）
+
+【分割終了宣言】
+これで分割コードは最後です。直後の RECEIPT_INPUT（このメッセージ内）を用いて受領確認を実施してください。
+
+【ChatGPTへの最終手順（強制）】
+1) このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS を受領一覧として採用する（会話履歴参照は禁止）。
+2) このメッセージ内の EXPECTED_PARTIDS と照合し、欠落/重複/不一致を判定する。
+3) 判定結果を以下の形式で必ず返す：
+   RECEIPT_CHECK: OK もしくは NG
+   RECEIPT_MISSING: （不足があれば列挙、なければ EMPTY）
+   RECEIPT_DUPLICATE: （重複があれば列挙、なければ EMPTY）
+   RECEIPT_MISMATCH: （不一致があれば列挙、なければ EMPTY）
+
+4) 重要：RECEIPT_CHECK: OK の場合、同じ返答の中で必ず続けて次も出力し、直ちに実行する：
+   JOIN_READY: YES
+   JOIN_ACTION: P01→P02→...→Pn の順に全パートを連結して完全なJSを構築する
+   EXEC_START: このメッセージ内の EXEC_TASK（唯一の実行指示）を完全なJSに対して実行し、結果を提示する
+
+5) 重要：RECEIPT_CHECK: NG の場合、同じ返答の中で必ず続けて次も出力して終了する：
+   JOIN_READY: NO
+   RESEND_REQUEST: 不足/重複/不一致の PartID をそのまま列挙して再送要求する
+   EXEC_START: BLOCKED
+
+【禁止事項（再掲）】
+・受領確認OK前に、コードの要約/推測/修正提案/作業開始をしない。
+・RECEIPT_CHECK: OK の場合でも、上記の JOIN_READY/JOIN_ACTION/EXEC_START を同じ返答で出す前に止まらない。
+・実行根拠は最終メッセージ内 EXEC_TASK のみ。PART_01の文を理由に別作業を開始しない。
+
