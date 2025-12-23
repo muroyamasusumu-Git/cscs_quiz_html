@@ -281,7 +281,9 @@ EXPECTED_PARTIDS:
 ・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
 
 【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
-OncePerDayToday / O.D.O.A Mode ブロックの値を全て Local 由来にしたカードを追加したい。OncePerDayToday / O.D.O.A Mode (SYNC) ▶︎show ※既存のワイドカードの見出しに 'SYNC' と追記。OncePerDayToday / O.D.O.A Mode (local) ▶︎show ※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる。
+OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　にしたカードを追加したい
+  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　※既存のワイドカードの見出しに”SYNC"と追記
+  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる。
 
 【出力仕様（パッチ規約：厳守）】
 - 参照元のコードから「確実に検索できる」形で提示すること（検索しやすい連続行を含める）

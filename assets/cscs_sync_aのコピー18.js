@@ -1574,16 +1574,13 @@
 
         if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
 
-        const onceElSync  = box.querySelector(".sync-onceperday.sync");
-        const onceElLocal = box.querySelector(".sync-onceperday.local");
+        const onceEl = box.querySelector(".sync-onceperday");
+        if (onceEl) {
+          // ★ 表示方針:
+          //   - oncePerDayToday と ODOA を「同じ枠で一気に読める」4行構成にする
+          //   - 未開始（今日の状態が未生成/未到達）でも「count対象: 判定可能」と出す（判定不可にしない）
+          //   - フォールバックで別ソースから埋め合わせない（取れなければ取れない表示）
 
-        // ============================================================
-        // ★ SYNC由来カード：既存ロジック（参照元 = window.__cscs_sync_state）を維持して描画
-        // ------------------------------------------------------------
-        // - 表示は従来の4行構成
-        // - フォールバックで別ソースから埋め合わせない（取れなければ取れない表示）
-        // ============================================================
-        if (onceElSync) {
           function ymdNumToIso(ymdNum){
             try{
               const s = String(ymdNum);
@@ -1616,7 +1613,7 @@
             }
           }
 
-          // ★ 処理: 参照元を固定（SYNC snapshot のみ）
+          // ---- 参照元を固定（フォールバックしない） ----
           const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
             ? window.__cscs_sync_state
             : null;
@@ -1630,12 +1627,14 @@
 
           const todayYmd = getTodayYmdNum();
 
+          // ---- oncePerDayToday の状態判定 ----
           let isTodayOnce = false;
           let onceDayIso = "";
           let lastRecordedDayIso = "";
           let measuredResult = null; // "correct" | "wrong" | null
 
           try{
+            // day は number or string(8桁) の両方が来うる想定だが、今日判定は「8桁化」して行う
             let onceDayNum = null;
 
             if (once && typeof once.day === "number" && Number.isFinite(once.day) && once.day > 0) {
@@ -1663,6 +1662,7 @@
                 if (r === "correct" || r === "wrong") {
                   measuredResult = r;
                 } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+                  // 値があるが想定外 → 計測済として扱う（表示は unknown）
                   measuredResult = "unknown";
                 } else {
                   measuredResult = null;
@@ -1676,17 +1676,22 @@
             measuredResult = null;
           }
 
+          // ---- 表示文の組み立て（指定フォーマット） ----
           let line1 = "";
           let line2 = "";
           let line3 = "";
           let line4 = "";
 
           if (!isTodayOnce) {
+            // oncePerDayToday: 未開始
             line1 = "oncePerDayToday: 未開始";
             line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "（データなし）");
             line3 = "count対象: 判定可能";
+
+            // 未開始状態では累計加算は「Yes」と表示（この行は ODOA 側に寄せる）
             line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
           } else {
+            // oncePerDayToday: 計測中
             line1 = "oncePerDayToday: 計測中";
             line2 = "Today: " + (onceDayIso ? onceDayIso : "（データなし）");
 
@@ -1698,6 +1703,9 @@
               line3 = "count対象: Yes 未計測";
             }
 
+            // ODOA 側の「累計加算: Yes/No」
+            //   - ODOA: OFF は常に Yes
+            //   - ODOA: ON は count対象が No（計測済）なら No、それ以外は Yes
             let addYesNo = "Yes";
             if (odoaMode === "off") {
               addYesNo = "Yes";
@@ -1710,181 +1718,7 @@
             line4 = "ODOA: " + odoaText + " (累計加算: " + addYesNo + ")";
           }
 
-          onceElSync.innerHTML =
-            '<div class="once-grid">' +
-
-              '<div class="once-label">oncePerDayToday</div>' +
-              '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
-
-              '<div class="once-label">' +
-                (isTodayOnce ? 'Today' : 'lastRecordedDay') +
-              '</div>' +
-              '<div class="once-val">' +
-                (isTodayOnce
-                  ? line2.replace(/^Today:\s*/, "")
-                  : line2.replace(/^lastRecordedDay:\s*/, "")
-                ) +
-              '</div>' +
-
-              '<div class="once-label">count対象</div>' +
-              '<div class="once-val">' +
-                line3.replace(/^count対象:\s*/, "") +
-              '</div>' +
-
-              '<div class="once-label">ODOA</div>' +
-              '<div class="once-val">' +
-                line4.replace(/^ODOA:\s*/, "") +
-              '</div>' +
-
-            '</div>';
-        }
-
-        // ============================================================
-        // ★ local由来カード：参照元 = localStorage（SYNC snapshot を参照しない）
-        // ------------------------------------------------------------
-        // - oncePerDayToday: localStorage の day/results をそのまま読む
-        // - ODOA/VERIFY: window のフラグだけを読む（localStorage等へフォールバックしない）
-        // - 欠損は欠損として扱い、0埋め・推測はしない
-        // ============================================================
-        if (onceElLocal) {
-          function ymdNumToIso(ymdNum){
-            try{
-              const s = String(ymdNum);
-              if (!/^\d{8}$/.test(s)) return "";
-              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
-            }catch(_){
-              return "";
-            }
-          }
-
-          function getTodayYmdNum(){
-            try{
-              const now = new Date();
-              const yy = now.getFullYear();
-              const mm = now.getMonth() + 1;
-              const dd = now.getDate();
-              return yy * 10000 + mm * 100 + dd;
-            }catch(_){
-              return null;
-            }
-          }
-
-          // ★ 処理: localStorage から oncePerDayToday の day/results を取得する
-          let localDayNum = null;
-          let localResults = null;
-
-          try{
-            const rawDay = localStorage.getItem("cscs_once_per_day_today_day");
-            if (rawDay !== null && rawDay !== undefined) {
-              const s = String(rawDay).trim();
-              if (/^\d{8}$/.test(s)) {
-                localDayNum = parseInt(s, 10);
-              }
-            }
-          }catch(_){
-            localDayNum = null;
-          }
-
-          try{
-            const rawRes = localStorage.getItem("cscs_once_per_day_today_results");
-            if (rawRes !== null && rawRes !== undefined) {
-              const s = String(rawRes).trim();
-              if (s !== "") {
-                const parsed = JSON.parse(s);
-                if (parsed && typeof parsed === "object") {
-                  localResults = parsed;
-                }
-              }
-            }
-          }catch(_){
-            localResults = null;
-          }
-
-          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
-          const odoaText = (odoaMode === "on") ? "ON" : (odoaMode === "off") ? "OFF" : "unknown";
-
-          const verifyModeOn =
-            (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
-
-          const todayYmd = getTodayYmdNum();
-
-          let isTodayOnce = false;
-          let onceDayIso = "";
-          let lastRecordedDayIso = "";
-          let measuredResult = null; // "correct" | "wrong" | "unknown" | null
-
-          try{
-            if (localDayNum !== null) {
-              const iso = ymdNumToIso(localDayNum);
-              if (iso) {
-                lastRecordedDayIso = iso;
-              }
-            }
-
-            if (todayYmd !== null && localDayNum !== null && localDayNum === todayYmd) {
-              isTodayOnce = true;
-              onceDayIso = ymdNumToIso(todayYmd);
-
-              if (localResults && typeof localResults === "object") {
-                const r = localResults[QID];
-                if (r === "correct" || r === "wrong") {
-                  measuredResult = r;
-                } else if (Object.prototype.hasOwnProperty.call(localResults, QID)) {
-                  measuredResult = "unknown";
-                } else {
-                  measuredResult = null;
-                }
-              } else {
-                measuredResult = null;
-              }
-            }
-          }catch(_){
-            isTodayOnce = false;
-            measuredResult = null;
-          }
-
-          let line1 = "";
-          let line2 = "";
-          let line3 = "";
-          let line4 = "";
-
-          if (!isTodayOnce) {
-            // ★ 処理: localの oncePerDayToday が今日でない（または欠損）場合は未開始扱いで表示する
-            line1 = "oncePerDayToday: 未開始";
-            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "（データなし）");
-            line3 = "count対象: 判定可能";
-            line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
-          } else {
-            line1 = "oncePerDayToday: 計測中";
-            line2 = "Today: " + (onceDayIso ? onceDayIso : "（データなし）");
-
-            // ★ 処理: VERIFY_MODE は常に count対象: NO として表示する
-            if (verifyModeOn) {
-              line3 = "count対象: NO 理由: VERIFY_MODE";
-            } else {
-              if (measuredResult === "correct" || measuredResult === "wrong") {
-                line3 = "count対象: No 計測済(" + measuredResult + ")";
-              } else if (measuredResult === "unknown") {
-                line3 = "count対象: No 計測済(unknown)";
-              } else {
-                line3 = "count対象: Yes 未計測";
-              }
-            }
-
-            // ★ 処理: ODOAの累計加算表示（local判定のcount対象と連動して Yes/No を出す）
-            let addYesNo = "Yes";
-            if (odoaMode === "off") {
-              addYesNo = "Yes";
-            } else if (odoaMode === "on") {
-              const counted = (verifyModeOn || measuredResult === "correct" || measuredResult === "wrong" || measuredResult === "unknown");
-              addYesNo = counted ? "No" : "Yes";
-            } else {
-              addYesNo = "unknown";
-            }
-            line4 = "ODOA: " + odoaText + " (累計加算: " + addYesNo + ")";
-          }
-
-          onceElLocal.innerHTML =
+          onceEl.innerHTML =
             '<div class="once-grid">' +
 
               '<div class="once-label">oncePerDayToday</div>' +
@@ -3807,20 +3641,12 @@
             </div>
           </div>
 
-          <div class="sync-card sync-span-2 once-card once-card-sync">
+          <div class="sync-card sync-span-2 once-card">
             <div class="sync-title">
-              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode (SYNC)</span>
-              <button type="button" class="once-fold-btn" data-once-fold="sync">▶show</button>
+              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode</span>
+              <button type="button" class="once-fold-btn" data-once-fold="1">▶show</button>
             </div>
-            <div class="sync-body sync-onceperday sync">oncePerDayToday: （データなし）</div>
-          </div>
-
-          <div class="sync-card sync-span-2 once-card once-card-local">
-            <div class="sync-title">
-              <span class="once-title-text">OncePerDayToday / O.D.O.A Mode (local)</span>
-              <button type="button" class="once-fold-btn" data-once-fold="local">▶show</button>
-            </div>
-            <div class="sync-body sync-onceperday local">oncePerDayToday: （データなし）</div>
+            <div class="sync-body sync-onceperday">oncePerDayToday: （データなし）</div>
           </div>
 
           <div class="sync-card sync-span-2">
@@ -3941,80 +3767,40 @@
         // - 折りたたみ時: 見出し + 3行目（count対象）のみ表示
         // - 状態は localStorage に永続化
         // ============================================================
-        // ============================================================
-        // ★ OncePerDayToday / O.D.O.A Mode：カード単体の折りたたみ（SYNC / local を分離）
-        // ------------------------------------------------------------
-        // - data-once-fold="sync" / "local" をそれぞれ別カードとして扱う
-        // - 状態は localStorage に別キーで永続化する
-        // ============================================================
-        const LS_ONCE_OPEN_SYNC  = "cscs_sync_a_onceperday_open_sync";
-        const LS_ONCE_OPEN_LOCAL = "cscs_sync_a_onceperday_open_local";
+        const LS_ONCE_OPEN = "cscs_sync_a_onceperday_open";
+        const onceCard = box.querySelector(".sync-card.once-card");
+        const onceFoldBtn = box.querySelector('button[data-once-fold="1"]');
 
-        const onceCardSync   = box.querySelector(".sync-card.once-card.once-card-sync");
-        const onceCardLocal  = box.querySelector(".sync-card.once-card.once-card-local");
-        const onceFoldBtnSync  = box.querySelector('button[data-once-fold="sync"]');
-        const onceFoldBtnLocal = box.querySelector('button[data-once-fold="local"]');
-
-        function refreshOnceFoldBtnLabel(btn, card){
-          if (!btn) return;
-          const isOpen = !(card && card.classList.contains("once-collapsed"));
-          btn.textContent = isOpen ? "▼hide" : "▶show";
+        function refreshOnceFoldBtnLabel(){
+          if (!onceFoldBtn) return;
+          const isOpen = !(onceCard && onceCard.classList.contains("once-collapsed"));
+          onceFoldBtn.textContent = isOpen ? "▼hide" : "▶show";
         }
 
         try{
-          // ★ 処理: SYNCカードの折りたたみ状態を復元する
-          const onceOpenSync = readLsBool(LS_ONCE_OPEN_SYNC, false); // デフォルトは折りたたみ（closed）
-          if (onceCardSync) {
-            if (onceOpenSync) {
-              onceCardSync.classList.remove("once-collapsed");
+          const onceOpen = readLsBool(LS_ONCE_OPEN, false); // デフォルトは折りたたみ（closed）
+          if (onceCard) {
+            if (onceOpen) {
+              onceCard.classList.remove("once-collapsed");
             } else {
-              onceCardSync.classList.add("once-collapsed");
+              onceCard.classList.add("once-collapsed");
             }
           }
-          refreshOnceFoldBtnLabel(onceFoldBtnSync, onceCardSync);
-
-          // ★ 処理: localカードの折りたたみ状態を復元する
-          const onceOpenLocal = readLsBool(LS_ONCE_OPEN_LOCAL, false); // デフォルトは折りたたみ（closed）
-          if (onceCardLocal) {
-            if (onceOpenLocal) {
-              onceCardLocal.classList.remove("once-collapsed");
-            } else {
-              onceCardLocal.classList.add("once-collapsed");
-            }
-          }
-          refreshOnceFoldBtnLabel(onceFoldBtnLocal, onceCardLocal);
+          refreshOnceFoldBtnLabel();
         }catch(_){}
 
-        if (onceFoldBtnSync) {
-          onceFoldBtnSync.addEventListener("click", function(){
+        if (onceFoldBtn) {
+          onceFoldBtn.addEventListener("click", function(){
             try{
-              if (!onceCardSync) return;
-              // ★ 処理: SYNCカードをトグルし、永続化する
-              const nextOpen = onceCardSync.classList.contains("once-collapsed"); // 今閉じてるなら開く
+              if (!onceCard) return;
+              const nextOpen = onceCard.classList.contains("once-collapsed"); // 今閉じてるなら開く
               if (nextOpen) {
-                onceCardSync.classList.remove("once-collapsed");
+                onceCard.classList.remove("once-collapsed");
               } else {
-                onceCardSync.classList.add("once-collapsed");
+                onceCard.classList.add("once-collapsed");
               }
-              writeLsBool(LS_ONCE_OPEN_SYNC, nextOpen);
-              refreshOnceFoldBtnLabel(onceFoldBtnSync, onceCardSync);
-            }catch(_){}
-          });
-        }
-
-        if (onceFoldBtnLocal) {
-          onceFoldBtnLocal.addEventListener("click", function(){
-            try{
-              if (!onceCardLocal) return;
-              // ★ 処理: localカードをトグルし、永続化する
-              const nextOpen = onceCardLocal.classList.contains("once-collapsed"); // 今閉じてるなら開く
-              if (nextOpen) {
-                onceCardLocal.classList.remove("once-collapsed");
-              } else {
-                onceCardLocal.classList.add("once-collapsed");
-              }
-              writeLsBool(LS_ONCE_OPEN_LOCAL, nextOpen);
-              refreshOnceFoldBtnLabel(onceFoldBtnLocal, onceCardLocal);
+              writeLsBool(LS_ONCE_OPEN, nextOpen);
+              refreshOnceFoldBtnLabel();
             }catch(_){}
           });
         }

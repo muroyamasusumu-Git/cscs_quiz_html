@@ -13,11 +13,13 @@ Split: total_parts=4, max_chars_per_part=60000, max_lines_per_part=1200
    ACK: <PartID> / WAITING_NEXT
 2) 最終分割コード(N)受領時は、末尾の RECEIPT_INPUT を用いて受領確認を実施すること。
 3) 受領確認は、最終メッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用（会話履歴参照は禁止）。
-4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の指示文は参照してもよいが、実行根拠にしない。
+4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の文は参考であり実行根拠にしない。
 5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。
 
 【指示内容（概要：参考用／実行根拠にしない）】
-OncePerDayToday / O.D.O.A Mode ブロックの値を全て Local 由来にしたカードを追加したい。OncePerDayToday / O.D.O.A Mode (SYNC) ▶︎show ※既存のワイドカードの見出しに 'SYNC' と追記。OncePerDayToday / O.D.O.A Mode (local) ▶︎show ※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる。
+OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　にしたカードを追加したい
+  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　※既存のワイドカードの見出しに”SYNC"と追記
+  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる。
 
 【分割コード貼り付け開始】
 以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。

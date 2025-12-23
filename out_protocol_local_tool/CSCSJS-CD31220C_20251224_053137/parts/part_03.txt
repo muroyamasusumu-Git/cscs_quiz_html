@@ -1,0 +1,1221 @@
+【分割コード(3)の開始】
+PartID: CSCSJS-CD31220C-P03-of-04
+Range: chars 89026..127739 (len=38713)
+
+```javascript
+      // - 欠損/型不正なら console.error で確実に可視化
+      // - 欠損時は以降の localStorage 同期（上書き）も行わない
+      // ============================================================
+      function readStateMapNumberStrict(state, mapKey, qid){
+        // ★ 処理1: mapの存在チェック
+        if (!state || typeof state !== "object" || !state[mapKey] || typeof state[mapKey] !== "object") {
+          console.error("[SYNC-A][NO-FALLBACK] state missing map", {
+            qid: qid,
+            mapKey: mapKey,
+            gotType: state && typeof state === "object" ? typeof state[mapKey] : typeof state
+          });
+          return { ok: false, value: null };
+        }
+
+        // ★ 処理2: qidキーの存在チェック
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
+          console.error("[SYNC-A][NO-FALLBACK] state missing qid entry", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null };
+        }
+
+        // ★ 処理3: number検証
+        const v = state[mapKey][qid];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+          console.error("[SYNC-A][NO-FALLBACK] state invalid number", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v,
+            valueType: typeof v
+          });
+          return { ok: false, value: null };
+        }
+
+        // ★ 処理4: 成功ログ
+        console.log("[SYNC-A][OK] state value", {
+          qid: qid,
+          mapKey: mapKey,
+          value: v
+        });
+        return { ok: true, value: v };
+      }
+
+      const rc  = readStateMapNumberStrict(s, "correct", QID);
+      const ri  = readStateMapNumberStrict(s, "incorrect", QID);
+      const rs3 = readStateMapNumberStrict(s, "streak3", QID);
+      const rsl = readStateMapNumberStrict(s, "streakLen", QID);
+      const rs3w = readStateMapNumberStrict(s, "streak3Wrong", QID);
+      const rslw = readStateMapNumberStrict(s, "streakWrongLen", QID);
+
+      // ★ 処理5: 以降の同期可否（全部そろってる時だけ同期する）
+      const canSyncQidNumbers = !!(rc.ok && ri.ok && rs3.ok && rsl.ok && rs3w.ok && rslw.ok);
+
+      window.__cscs_sync_state = s;
+
+      // oncePerDayToday 情報を参照して、
+      // 「今日この QID が oncePerDay 計測済みかどうか」をコンソールに出す
+      try{
+        var once = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+          ? s.oncePerDayToday
+          : null;
+
+        var todayYmd = null;
+        try{
+          var now = new Date();
+          var yy = now.getFullYear();
+          var mm = now.getMonth() + 1;
+          var dd = now.getDate();
+          todayYmd = yy * 10000 + mm * 100 + dd;  // 例: 20251203
+        }catch(_eDate){
+          todayYmd = null;
+        }
+
+        var onceLogPayload = {
+          qid: QID,
+          todayYmd: todayYmd,
+          onceDay: once && typeof once.day === "number" ? once.day : null,
+          onceResult: null,
+          measuredToday: false
+        };
+
+        if (
+          once &&
+          typeof once.day === "number" &&
+          todayYmd !== null &&
+          once.day === todayYmd &&
+          once.results &&
+          typeof once.results === "object"
+        ) {
+          var r = once.results[QID];
+          if (r === "correct" || r === "wrong") {
+            onceLogPayload.onceResult = r;
+            onceLogPayload.measuredToday = true;
+          } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+            // 値が "correct"/"wrong" 以外でも「何らかの計測済み」として扱う
+            onceLogPayload.onceResult = String(r);
+            onceLogPayload.measuredToday = true;
+          }
+        }
+
+        if (onceLogPayload.measuredToday) {
+          console.log("[SYNC-A:oncePerDay] this qid is ALREADY measured today", onceLogPayload);
+        } else {
+          console.log("[SYNC-A:oncePerDay] this qid is NOT measured today (or oncePerDayToday.day != today)", onceLogPayload);
+        }
+      }catch(_eOnce){
+        console.log("[SYNC-A:oncePerDay] oncePerDayToday check skipped (error)", _eOnce);
+      }
+
+      // ★ 追加: SYNC 側 oncePerDayToday を正として localStorage 側も同期する（欠けていた上書き）
+      //   - A の役割として「SYNC state を正」に localStorage を整流化する。
+      //   - フォールバックは増やさず、SYNC に無ければ removeItem で「無い」を正として反映する。
+      const oncePerDayToday = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+        ? s.oncePerDayToday
+        : null;
+
+      try{
+        // ============================================================
+        // ★ フォールバック無し：oncePerDayToday が取れない/壊れている場合は上書きしない
+        // ------------------------------------------------------------
+        // - day が number でない / results が object でない → console.error
+        // - その場合 localStorage は setItem/removeItem を一切しない
+        // ============================================================
+        const hasOnce = !!oncePerDayToday;
+        const okDay = !!(hasOnce && typeof oncePerDayToday.day === "number" && Number.isFinite(oncePerDayToday.day));
+        const okResults = !!(hasOnce && oncePerDayToday.results && typeof oncePerDayToday.results === "object");
+
+        if (okDay && okResults) {
+          localStorage.setItem("cscs_once_per_day_today_day", String(oncePerDayToday.day));
+          localStorage.setItem("cscs_once_per_day_today_results", JSON.stringify(oncePerDayToday.results));
+
+          console.log("[SYNC-A][OK] initialFetch synced oncePerDayToday from server to localStorage", {
+            day: oncePerDayToday.day,
+            resultsKeys: Object.keys(oncePerDayToday.results || {}).length
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped oncePerDayToday localStorage sync (missing/invalid)", {
+            hasOnce: hasOnce,
+            okDay: okDay,
+            okResults: okResults,
+            dayType: hasOnce ? typeof oncePerDayToday.day : null,
+            resultsType: hasOnce ? typeof oncePerDayToday.results : null
+          });
+        }
+      }catch(eOnceSync){
+        console.error("[SYNC-A][ERROR] initialFetch oncePerDayToday sync failed", {
+          error: String(eOnceSync && eOnceSync.message || eOnceSync)
+        });
+      }
+
+      // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
+      //   - state.streak3Today を唯一のソースとして、
+      //     「今日の⭐️ユニーク数」関連の localStorage を上書きする。
+      const streak3Today = (s && s.streak3Today && typeof s.streak3Today === "object")
+        ? s.streak3Today
+        : null;
+
+      try{
+        // ============================================================
+        // ★ フォールバック無し：streak3Today が取れない/壊れている場合は上書きしない
+        // ------------------------------------------------------------
+        // - day / unique_count / qids を検証し、NGなら console.error
+        // - NG時は localStorage を set/remove しない（0埋め禁止）
+        // ============================================================
+        const hasObj = !!streak3Today;
+        const okDay = !!(hasObj && ("day" in streak3Today) && String(streak3Today.day || "").trim() !== "");
+        const okCount = !!(hasObj && typeof streak3Today.unique_count === "number" && Number.isFinite(streak3Today.unique_count) && streak3Today.unique_count >= 0);
+        const okQids = !!(hasObj && Array.isArray(streak3Today.qids));
+
+        if (okDay && okCount && okQids) {
+          localStorage.setItem("cscs_streak3_today_day", String(streak3Today.day));
+          localStorage.setItem("cscs_streak3_today_unique_count", String(streak3Today.unique_count));
+          localStorage.setItem("cscs_streak3_today_qids", JSON.stringify(streak3Today.qids));
+
+          console.log("[SYNC-A][OK] initialFetch synced streak3Today from server to localStorage", {
+            day: String(streak3Today.day),
+            unique_count: streak3Today.unique_count,
+            qidsLen: streak3Today.qids.length
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped streak3Today localStorage sync (missing/invalid)", {
+            hasObj: hasObj,
+            okDay: okDay,
+            okCount: okCount,
+            okQids: okQids,
+            dayType: hasObj ? typeof streak3Today.day : null,
+            countType: hasObj ? typeof streak3Today.unique_count : null,
+            qidsIsArray: hasObj ? Array.isArray(streak3Today.qids) : null
+          });
+        }
+      }catch(eS3t){
+        console.error("[SYNC-A][ERROR] initialFetch streak3Today sync failed", {
+          error: String(eS3t && eS3t.message || eS3t)
+        });
+      }
+
+      // ★ 追加: SYNC 側 streak3WrongToday を正として localStorage 側も同期する（no-fallback）
+      //   - state.streak3WrongToday を唯一のソースとして、
+      //     「今日の3連続不正解ユニーク数」関連の localStorage を上書きする。
+      //   - 無い/壊れている場合は “0埋め” せず、上書きもしない（欠損は欠損のまま）
+      const streak3WrongToday = (s && s.streak3WrongToday && typeof s.streak3WrongToday === "object")
+        ? s.streak3WrongToday
+        : null;
+
+      try{
+        // ============================================================
+        // ★ フォールバック無し：streak3WrongToday が取れない/壊れている場合は上書きしない
+        // ============================================================
+        const hasObj = !!streak3WrongToday;
+        const okDay = !!(hasObj && ("day" in streak3WrongToday) && String(streak3WrongToday.day || "").trim() !== "");
+        const okCount = !!(hasObj && typeof streak3WrongToday.unique_count === "number" && Number.isFinite(streak3WrongToday.unique_count) && streak3WrongToday.unique_count >= 0);
+        const okQids = !!(hasObj && Array.isArray(streak3WrongToday.qids));
+
+        if (okDay && okCount && okQids) {
+          localStorage.setItem("cscs_streak3_wrong_today_day", String(streak3WrongToday.day));
+          localStorage.setItem("cscs_streak3_wrong_today_unique_count", String(streak3WrongToday.unique_count));
+          localStorage.setItem("cscs_streak3_wrong_today_qids", JSON.stringify(streak3WrongToday.qids));
+
+          console.log("[SYNC-A][OK] initialFetch synced streak3WrongToday from server to localStorage", {
+            day: String(streak3WrongToday.day),
+            unique_count: streak3WrongToday.unique_count,
+            qidsLen: streak3WrongToday.qids.length
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped streak3WrongToday localStorage sync (missing/invalid)", {
+            hasObj: hasObj,
+            okDay: okDay,
+            okCount: okCount,
+            okQids: okQids,
+            dayType: hasObj ? typeof streak3WrongToday.day : null,
+            countType: hasObj ? typeof streak3WrongToday.unique_count : null,
+            qidsIsArray: hasObj ? Array.isArray(streak3WrongToday.qids) : null
+          });
+        }
+      }catch(eS3wt){
+        console.error("[SYNC-A][ERROR] initialFetch streak3WrongToday sync failed", {
+          error: String(eS3wt && eS3wt.message || eS3wt)
+        });
+      }
+
+      // ★ 追加: 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を
+      //   SYNC state を唯一の正として localStorage に同期（このQID分だけ）。
+      //   - state 側は string/number 混在があり得るため、保存は常に String(v) に統一する。
+      //   - 値が無い/空（null/undefined/""/空白のみ）の場合は removeItem して「ない」を正として反映する。
+      try{
+        const kSeen = "cscs_q_last_seen_day:" + QID;
+        const kCor  = "cscs_q_last_correct_day:" + QID;
+        const kWrg  = "cscs_q_last_wrong_day:" + QID;
+
+        let vSeen = "";
+        let vCor  = "";
+        let vWrg  = "";
+
+        if (s && s.lastSeenDay && typeof s.lastSeenDay === "object") {
+          const rawSeen = s.lastSeenDay[QID];
+          if (rawSeen !== null && rawSeen !== undefined) {
+            vSeen = String(rawSeen);
+          }
+        }
+        if (s && s.lastCorrectDay && typeof s.lastCorrectDay === "object") {
+          const rawCor = s.lastCorrectDay[QID];
+          if (rawCor !== null && rawCor !== undefined) {
+            vCor = String(rawCor);
+          }
+        }
+        if (s && s.lastWrongDay && typeof s.lastWrongDay === "object") {
+          const rawWrg = s.lastWrongDay[QID];
+          if (rawWrg !== null && rawWrg !== undefined) {
+            vWrg = String(rawWrg);
+          }
+        }
+
+        if (vSeen.trim() !== "") {
+          localStorage.setItem(kSeen, vSeen);
+        } else {
+          localStorage.removeItem(kSeen);
+        }
+
+        if (vCor.trim() !== "") {
+          localStorage.setItem(kCor, vCor);
+        } else {
+          localStorage.removeItem(kCor);
+        }
+
+        if (vWrg.trim() !== "") {
+          localStorage.setItem(kWrg, vWrg);
+        } else {
+          localStorage.removeItem(kWrg);
+        }
+
+        console.log("[SYNC-A] initialFetch synced last-day fields from server to localStorage", {
+          qid: QID,
+          lastSeenDay: vSeen.trim() !== "" ? vSeen : null,
+          lastCorrectDay: vCor.trim() !== "" ? vCor : null,
+          lastWrongDay: vWrg.trim() !== "" ? vWrg : null
+        });
+      }catch(_){}
+
+      // ============================================================
+      // ★ フォールバック無し：QID数値が全部取れた場合のみ、dataset と localStorage を同期する
+      // ------------------------------------------------------------
+      // - 欠損/型不正があれば console.error を出して「一切上書きしない」
+      // ============================================================
+      if (canSyncQidNumbers) {
+        setServerTotalsForQid(rc.value, ri.value, rs3.value, rsl.value);
+
+        try{
+          localStorage.setItem("cscs_q_correct_total:" + QID, String(rc.value));
+          localStorage.setItem("cscs_q_wrong_total:"   + QID, String(ri.value));
+          localStorage.setItem("cscs_q_correct_streak3_total:" + QID, String(rs3.value));
+          localStorage.setItem("cscs_q_correct_streak_len:" + QID, String(rsl.value));
+          localStorage.setItem("cscs_q_wrong_streak3_total:" + QID, String(rs3w.value));
+          localStorage.setItem("cscs_q_wrong_streak_len:" + QID, String(rslw.value));
+
+          console.log("[SYNC-A][OK] initialFetch synced qid numbers from server to localStorage", {
+            qid: QID,
+            correctTotal: rc.value,
+            wrongTotal: ri.value,
+            streak3Correct: rs3.value,
+            streakLenCorrect: rsl.value,
+            streak3Wrong: rs3w.value,
+            streakLenWrong: rslw.value
+          });
+        }catch(eSync){
+          console.error("[SYNC-A][ERROR] initialFetch localStorage sync failed", {
+            qid: QID,
+            error: String(eSync && eSync.message || eSync)
+          });
+        }
+      } else {
+        console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped qid localStorage sync (missing/invalid)", {
+          qid: QID,
+          ok: {
+            correct: rc.ok,
+            incorrect: ri.ok,
+            streak3: rs3.ok,
+            streakLen: rsl.ok,
+            streak3Wrong: rs3w.ok,
+            streakWrongLen: rslw.ok
+          }
+        });
+      }
+
+      lastSyncStatus = "pulled";
+      lastSyncTime   = new Date().toLocaleTimeString();
+      lastSyncError  = "";
+    }catch(e){
+      lastSyncStatus = "error";
+      lastSyncError  = String(e && e.message || e);
+    }finally{
+      updateMonitor();
+    }
+  }
+
+  async function resetSyncForThisQid(showAlert, doFetch){
+    if (showAlert === undefined) showAlert = true;
+    if (doFetch === undefined) doFetch = true;
+    if (!QID) return;
+    try{
+      await fetch("/api/sync/reset_qid", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ qid: QID })
+      });
+
+      try{
+        const kCorNow  = "cscs_q_correct_total:" + QID;
+        const kWrgNow  = "cscs_q_wrong_total:"   + QID;
+        const kCorLast = "cscs_sync_last_c:"     + QID;
+        const kWrgLast = "cscs_sync_last_w:"     + QID;
+
+        localStorage.setItem(kCorNow,  "0");
+        localStorage.setItem(kWrgNow,  "0");
+        localStorage.setItem(kCorLast, "0");
+        localStorage.setItem(kWrgLast, "0");
+      }catch(_){}
+
+      if (doFetch) {
+        await initialFetch();
+      }
+      if (showAlert) {
+        alert("この問題のSYNCカウンタをリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("reset 失敗: " + e);
+      } else {
+        console.warn("reset_qid 失敗:", e);
+      }
+    }
+  }
+
+  async function resetStarForThisQid(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    if (!QID) return;
+    try{
+      try{
+        await fetch("/api/sync/reset_streak3_qid", {
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify({ qid: QID })
+        });
+      }catch(_){}
+
+      const kStreakLen    = "cscs_q_correct_streak_len:" + QID;
+      const kStreakTotal  = "cscs_q_correct_streak3_total:" + QID;
+      const kStreakLastS3 = "cscs_sync_last_s3:" + QID;
+      try{
+        localStorage.removeItem(kStreakLen);
+        localStorage.removeItem(kStreakTotal);
+        localStorage.setItem(kStreakLastS3, "0");
+      }catch(_){}
+
+      const logKey = "cscs_correct_streak3_log";
+      try{
+        const raw = localStorage.getItem(logKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(function(entry){
+              if (!entry || typeof entry !== "object") return true;
+              if (!("qid" in entry)) return true;
+              return entry.qid !== QID;
+            });
+            localStorage.setItem(logKey, JSON.stringify(filtered));
+          }
+        }
+      }catch(_){}
+
+      try{
+        const totalsEl = document.getElementById("cscs_sync_totals");
+        if (totalsEl) {
+          // ★ 処理1: dataset を厳密に読む（欠損/非数は null。0埋めしない）
+          function readDatasetNonNegIntOrNull(ds, keyName){
+            try{
+              if (!ds) return null;
+              const raw = ds[keyName];
+              if (raw === null || raw === undefined) return null;
+              const s = String(raw).trim();
+              if (s === "") return null;
+              if (!/^\d+$/.test(s)) return null;
+              const n = parseInt(s, 10);
+              if (!Number.isFinite(n) || n < 0) return null;
+              return n;
+            }catch(_e){
+              return null;
+            }
+          }
+
+          const sc = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverC");
+          const si = readDatasetNonNegIntOrNull(totalsEl.dataset, "serverI");
+
+          // ★ 処理2: 両方取れた時だけ上書き（欠損なら上書き禁止）
+          if (sc !== null && si !== null) {
+            setServerTotalsForQid(sc, si, 0);
+            console.log("[SYNC-A][OK][NO-FALLBACK] resetStar dataset updated", { serverC: sc, serverI: si });
+          } else {
+            console.error("[SYNC-A][NO-OVERWRITE] resetStar skipped dataset update (missing/invalid)", {
+              serverC: sc,
+              serverI: si
+            });
+          }
+        }
+      }catch(e){
+        console.error("[SYNC-A][ERROR] resetStar dataset sync failed", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      try{
+        const stars = document.querySelectorAll(".correct_star");
+        stars.forEach(function(el){
+          el.style.display = "none";
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert("この問題の星データをリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("星データのリセットに失敗しました: " + e);
+      } else {
+        console.warn("reset_streak3_qid 失敗:", e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch("/api/sync/reset_streak3_today", {
+        method:"POST",
+        headers:{ "content-type":"application/json" }
+      });
+
+      // 1) localStorage 側の今日の 3連続正解ユニーク数を削除
+      try{
+        localStorage.removeItem("cscs_streak3_today_day");
+        localStorage.removeItem("cscs_streak3_today_unique_count");
+        localStorage.removeItem("cscs_streak3_today_qids");
+      }catch(_){}
+
+      // 2) クライアント側 snapshot は「生成して埋める」の禁止：存在しても削除/未定義にする（no-fallback）
+      try{
+        if (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object") {
+          delete window.__cscs_sync_state.streak3Today;
+        }
+        console.log("[SYNC-A][NO-FALLBACK][RESET] cleared snapshot streak3Today (delete only)", {
+          hasState: !!window.__cscs_sync_state
+        });
+      }catch(e){
+        console.error("[SYNC-A][NO-FALLBACK][RESET] clear snapshot streak3Today failed", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      // 3) サーバー側の最新状態を /api/sync/state から取り直して上書き（streak3Today も含めて確認）
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 4) モニタ表示を最新状態で再描画
+      updateMonitor();
+
+      if (showAlert) {
+        alert("今日の 3連続正解ユニーク数（SYNC と local の両方）をリセットしました。");
+      }
+    }catch(e){
+      if (showAlert) {
+        alert("reset_streak3_today 失敗: " + e);
+      } else {
+        console.warn("reset_streak3_today 失敗:", e);
+      }
+    }
+  }
+
+  // oncePerDayToday（1日1問カウント）用の SYNC + local リセット（デバッグ専用）
+  async function resetOncePerDayTodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      console.log("[SYNC-A:oncePerDay] reset_once_per_day_today START");
+
+      // 1) Workers 側の oncePerDayToday をリセット（デバッグ用エンドポイント想定）
+      const res = await fetch("/api/sync/reset_once_per_day_today", {
+        method: "POST",
+        headers: { "content-type": "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(String(res.status));
+      }
+
+      // 2) localStorage 側の oncePerDayToday 情報を削除
+      try{
+        localStorage.removeItem("cscs_once_per_day_today_day");
+        localStorage.removeItem("cscs_once_per_day_today_results");
+      }catch(_){}
+
+      // 3) クライアント側 snapshot は「空オブジェクト生成」禁止：存在しても削除/未定義にする（no-fallback）
+      try{
+        if (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object") {
+          delete window.__cscs_sync_state.oncePerDayToday;
+        }
+        console.log("[SYNC-A][NO-FALLBACK][RESET] cleared snapshot oncePerDayToday (delete only)", {
+          hasState: !!window.__cscs_sync_state
+        });
+      }catch(e){
+        console.error("[SYNC-A][NO-FALLBACK][RESET] clear snapshot oncePerDayToday failed", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      // 4) サーバー側の最新状態を取り直して、oncePerDayToday も含めて上書き
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 5) モニタを最新状態で再描画
+      updateMonitor();
+
+      console.log("[SYNC-A:oncePerDay] reset_once_per_day_today completed (SYNC + local cleared)");
+      if (showAlert) {
+        alert("oncePerDayToday（SYNC と local の両方）をリセットしました。");
+      }
+    }catch(e){
+      console.warn("[SYNC-A:oncePerDay] reset_once_per_day_today failed:", e);
+      if (showAlert) {
+        alert("reset_once_per_day_today 失敗: " + e);
+      }
+    }
+  }
+
+  // ★ デバッグ専用: 全ての qid の計測系 SYNC + local 記録を一括リセットする
+  //   - 本仕様のユーザー機能ではなく、開発・検証用のみに使用することを想定
+  async function resetAllQidSyncAndLocal(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      console.log("[SYNC-A:debug] reset_all_qid START");
+
+      // 1) Workers 側で全qidの計測系データをリセットする（デバッグ用エンドポイント想定）
+      const res = await fetch("/api/sync/reset_all_qid", {
+        method: "POST",
+        headers: { "content-type": "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(String(res.status));
+      }
+
+      // 2) localStorage 側の計測系キーを全て削除
+      let removedKeys = 0;
+      try{
+        const prefixes = [
+          "cscs_q_correct_total:",
+          "cscs_q_wrong_total:",
+          "cscs_q_correct_streak3_total:",
+          "cscs_q_correct_streak_len:",
+          "cscs_q_wrong_streak3_total:",
+          "cscs_q_wrong_streak_len:",
+          "cscs_sync_last_c:",
+          "cscs_sync_last_w:",
+          "cscs_sync_last_s3:"
+        ];
+
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          for (let j = 0; j < prefixes.length; j++) {
+            if (key.indexOf(prefixes[j]) === 0) {
+              localStorage.removeItem(key);
+              removedKeys++;
+              break;
+            }
+          }
+        }
+
+        const globalKeys = [
+          "cscs_streak3_today_day",
+          "cscs_streak3_today_unique_count",
+          "cscs_streak3_today_qids",
+          // ★ 今日の3連続不正解ユニーク数（Streak3WrongToday）関連キーも一括削除対象に含める
+          //   - reset_all_qid 実行時に「今日の3連続不正解ユニーク数」のローカル状態も完全リセットする。
+          "cscs_streak3_wrong_today_day",
+          "cscs_streak3_wrong_today_unique_count",
+          "cscs_streak3_wrong_today_qids",
+          "cscs_once_per_day_today_day",
+          "cscs_once_per_day_today_results",
+          "cscs_correct_streak3_log"
+        ];
+        for (let g = 0; g < globalKeys.length; g++) {
+          try{
+            if (localStorage.getItem(globalKeys[g]) !== null) {
+              localStorage.removeItem(globalKeys[g]);
+              removedKeys++;
+            }
+          }catch(_){}
+        }
+      }catch(_){}
+
+      // 3) クライアント側 snapshot を一旦クリアしてから /api/sync/state を取り直す（no-fallback）
+      //   - 空オブジェクト生成で「存在する体」を作らない
+      //   - delete + null にして「無い」を正として扱う
+      try{
+        const had = Object.prototype.hasOwnProperty.call(window, "__cscs_sync_state");
+        if (had) {
+          delete window.__cscs_sync_state;
+        }
+        window.__cscs_sync_state = null;
+
+        console.log("[SYNC-A][NO-FALLBACK][RESET] cleared snapshot __cscs_sync_state (delete + null)", {
+          had: had,
+          nowType: typeof window.__cscs_sync_state,
+          nowValue: window.__cscs_sync_state
+        });
+      }catch(e){
+        console.error("[SYNC-A][NO-FALLBACK][RESET] clear snapshot __cscs_sync_state failed", {
+          error: String(e && e.message || e)
+        });
+      }
+
+      try{
+        const s = await CSCS_SYNC.fetchServer();
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // 4) モニタを最新状態で再描画
+      updateMonitor();
+
+      console.log("[SYNC-A:debug] reset_all_qid COMPLETED", {
+        removedLocalKeys: removedKeys
+      });
+
+      if (showAlert) {
+        alert("全ての問題(qid)の計測系 SYNC と local 記録をリセットしました（デバッグ専用）。");
+      }
+    }catch(e){
+      console.warn("[SYNC-A:debug] reset_all_qid FAILED:", e);
+      if (showAlert) {
+        alert("reset_all_qid 失敗: " + e);
+      }
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", function(){
+    if (!QID) return;
+    try{
+      // SYNC(A) monitor の見た目（グリッド/カード）用CSSを一度だけ注入
+      try{
+        if (!document.getElementById("cscs-sync-a-monitor-style")) {
+          const st = document.createElement("style");
+          st.id = "cscs-sync-a-monitor-style";
+          st.textContent = `
+#cscs_sync_monitor_a{
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+#cscs_sync_monitor_a .sync-header{
+  font-weight: 400;
+  margin: 0 3px 6px 0;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#cscs_sync_monitor_a .sync-toggle-btn{
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.45);
+  color: #eee;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.9;
+}
+#cscs_sync_monitor_a .sync-toggle-btn:active{
+  transform: translateY(1px);
+}
+
+/* ★ OPEN/CLOSE で「オプション項目（指定4つ）」だけを隠す
+   - パネル自体（ヘッダ/他カード）は常時表示
+   - .sync-optional を付けたカードだけ非表示にする */
+#cscs_sync_monitor_a.cscs-compact .sync-optional{
+  display: none !important;
+}
+
+#cscs_sync_monitor_a .sync-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  width: auto;
+}
+
+#cscs_sync_monitor_a {
+  position: fixed;
+  right: 15px;
+  top: 100px;
+  color: #eee;
+  padding: 8px;
+  font: 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  max-width: 46vw;
+  width: 310px;
+  opacity: 0.55;
+  z-index: 2147483647;
+}
+
+#cscs_sync_monitor_a details.sync-fold{
+  margin: 0;
+}
+#cscs_sync_monitor_a details.sync-fold > summary{
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+#cscs_sync_monitor_a details.sync-fold > summary::-webkit-details-marker{
+  display: none;
+}
+#cscs_sync_monitor_a details.sync-fold > summary::before{
+  content: "▶";
+  display: inline-block;
+  width: 14px;
+  opacity: 0.85;
+}
+#cscs_sync_monitor_a details.sync-fold[open] > summary::before{
+  content: "▼";
+}
+
+@media (max-width: 520px){
+  #cscs_sync_monitor_a .sync-grid{
+    grid-template-columns: 1fr;
+  }
+}
+#cscs_sync_monitor_a .sync-card{
+  border-radius: 10px;
+  padding: 8px 10px;
+
+  /* ガラス感：少し透けた黒 */
+  background: rgba(0,0,0,0.52);
+
+
+  /* エッジの光：薄い白枠 + ほんの少し内側のハイライト */
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+
+  line-height: 1;
+}
+#cscs_sync_monitor_a .sync-card .sync-title{
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-bottom: 5px;
+
+  /* ★ 見出しは基本的に改行しない（入り切らない時は…） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ★ 英語ラベルだけ少し薄く・軽く */
+#cscs_sync_monitor_a .sync-card .sync-title .sync-title-en{
+  opacity: 0.58;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#cscs_sync_monitor_a .sync-card .sync-body{
+  /* ★ グリッドのマス内では改行させない（必要なら行をグリッドで分ける） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+
+  /* ★ 詳細（本文）は見出しより少し弱めにして、階層をはっきりさせる */
+  word-break: normal;
+  font-weight: 400;
+  opacity: 0.52;
+  font-size: 10.25px;
+  letter-spacing: 0.01em;
+}
+
+/* ★ “複数行” に見せたいものは <br> ではなく「小グリッド」で行を分ける */
+#cscs_sync_monitor_a .mini-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .mini-label{
+  font-weight: 600;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .mini-val{
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cscs_sync_monitor_a .status-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .status-label{
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .status-value{
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+#cscs_sync_monitor_a .totals-row{
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .sync-totals-label{
+  font-weight: 850;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  opacity: 0.96;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .sync-totals,
+#cscs_sync_monitor_a .sync-local,
+#cscs_sync_monitor_a .sync-queue{
+  white-space: nowrap;
+}
+#cscs_sync_monitor_a .sync-card.sync-span-2{
+  grid-column: 1 / -1;
+}
+
+#cscs_sync_monitor_a .lastday-grid{
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .lastday-grid .ld-head{
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+#cscs_sync_monitor_a .lastday-grid .ld-label{
+  opacity: 0.75;
+}
+
+#cscs_sync_monitor_a .days-grid{
+  display: grid;
+  grid-template-columns: 150px 1fr 1fr 60px;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .days-head{
+  font-weight: 700;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .days-label{
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .days-val{
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .delta-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+#cscs_sync_monitor_a .delta-label{
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .delta-val{
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-grid{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#cscs_sync_monitor_a .once-label{
+  font-weight: 600;
+  opacity: 0.80;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-val{
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   ★ OncePerDayToday / O.D.O.A Mode 折りたたみ（カード単体）
+   ------------------------------------------------------------
+   - 見出し右端に「▶show / ▼hide」テキストボタン
+   - 折りたたみ時は「見出し + 3行目（count対象）」だけ表示
+   ============================================================ */
+#cscs_sync_monitor_a .sync-card.once-card .sync-title{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#cscs_sync_monitor_a .once-fold-btn{
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.86);
+  font-weight: 700;
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.92;
+  white-space: nowrap;
+}
+
+#cscs_sync_monitor_a .once-fold-btn:active{
+  transform: translateY(1px);
+}
+
+/* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
+   once-grid の子要素は 8個（label/val ×4行）
+   3行目は 5番目(label) と 6番目(val) */
+#cscs_sync_monitor_a .sync-card.once-card.once-collapsed .once-grid > :not(:nth-child(5)):not(:nth-child(6)){
+  display: none !important;
+}
+
+/* ============================================================
+   ★ 右ブロック（値側）を右寄せに統一
+   ------------------------------------------------------------
+   - 2カラム系: mini-grid / status-grid / delta-grid / once-grid
+   - Totals(c/w) 行: 2〜4列を右寄せ
+   - lastday-grid / days-grid: 「ラベル以外」を右寄せ
+   ============================================================ */
+#cscs_sync_monitor_a .mini-val,
+#cscs_sync_monitor_a .status-value,
+#cscs_sync_monitor_a .delta-val,
+#cscs_sync_monitor_a .once-val{
+  text-align: right;
+}
+
+/* Totals(c/w) の行は 4カラムなので、値側(2〜4列)を右寄せ */
+#cscs_sync_monitor_a .totals-row > :nth-child(2),
+#cscs_sync_monitor_a .totals-row > :nth-child(3),
+#cscs_sync_monitor_a .totals-row > :nth-child(4){
+  text-align: right;
+}
+
+/* lastday-grid は 3カラム（label / SYNC / local）
+   ★ 2列目（真ん中=SYNC列）だけセンター寄せ
+   ★ 3列目（local列）は右寄せ */
+#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+2){
+  text-align: center;
+}
+#cscs_sync_monitor_a .lastday-grid > :nth-child(3n+3){
+  text-align: right;
+}
+
+/* ★ lastday 見出し（type / SYNC / local）の寄せ方：真ん中だけセンター */
+#cscs_sync_monitor_a .sync-lastday-headline > :nth-child(2){
+  text-align: center;
+}
+#cscs_sync_monitor_a .sync-lastday-headline > :nth-child(3){
+  text-align: right;
+}
+
+/* days-grid は 4カラム（label / sync / local / isToday） */
+#cscs_sync_monitor_a .days-grid > :nth-child(4n+2),
+#cscs_sync_monitor_a .days-grid > :nth-child(4n+3),
+#cscs_sync_monitor_a .days-grid > :nth-child(4n+4){
+  text-align: right;
+}
+
+/* ★ lastday は折りたたみ無し：常時表示の1行ヘッダー */
+#cscs_sync_monitor_a .sync-lastday-headline{
+  display: grid;
+
+  /* ★ lastday-grid と列幅を完全一致させる（label=80px / SYNC / local） */
+  grid-template-columns: 80px minmax(0,1fr) minmax(0,1fr);
+
+  column-gap: 10px;
+  align-items: baseline;
+  white-space: nowrap;
+  overflow: hidden;
+  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* ★ type */
+#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-type{
+  font-weight: 700;
+  opacity: 0.90;
+}
+
+/* ★ SYNC/local は「縮む列」に入れ、入り切らない時は … で省略する */
+#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-sync{
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+  font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#cscs_sync_monitor_a .sync-lastday-headline .sync-lastday-summary-local{
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+  font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+          `.trim();
+          (document.head || document.documentElement).appendChild(st);
+        }
+      }catch(_){}
+
+      const box = document.createElement("div");
+      box.id = "cscs_sync_monitor_a";
+      box.innerHTML = `
+        <div class="sync-header">
+          <span>SYNC(A): <span class="sync-qid"></span></span>
+          <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
+        </div>
+
+        <div class="sync-grid">
+          <div class="sync-card sync-span-2">
+            <div class="sync-body totals-row">
+              <div class="sync-totals-label">Totals(c/w)</div>
+
+              <div id="cscs_sync_totals" class="sync-totals" data-server-c="" data-server-i="">
+                <span class="sync-server-text">SYNC - / -</span>
+              </div>
+
+              <div class="sync-local">local  0 / 0</div>
+              <div class="sync-queue">+Δ    0 / 0</div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">⭐️3連続正解数 <span class="sync-title-en">Count</span></div>
+            <div class="sync-body sync-streak3">
+              SYNC <span class="sync-streak3-server">0</span> 回 / local <span class="sync-streak3-val">0</span> 回
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">💣3連続不正解 <span class="sync-title-en">Count</span></div>
+            <div class="sync-body sync-wrong-streak3">
+              SYNC <span class="sync-wrong-streak3-server">0</span> 回 / local <span class="sync-wrong-streak3-val">0</span> 回
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">3連続正解 進捗 <span class="sync-title-en">Progress</span></div>
+            <div class="sync-body sync-streaklen">
+              SYNC (<span class="sync-streaklen-server-progress">0</span>/3) /
+              local (<span class="sync-streaklen-local-progress">0</span>/3)
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">3連続不正解 進捗 <span class="sync-title-en">Progress</span></div>
+            <div class="sync-body sync-wrong-streaklen">
+              SYNC (<span class="sync-wrong-streaklen-server-progress">0</span>/3) /
+              local (<span class="sync-wrong-streaklen-local-progress">0</span>/3)
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">Streak3TodayUnique</div>
+            <div class="sync-body sync-streak3today">
+              <div class="mini-grid">
+                <div class="mini-label">day</div>
+                <div class="mini-val"><span class="sync-streak3today-day">-</span></div>
+
+                <div class="mini-label">unique</div>
+                <div class="mini-val">sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">Streak3WrongTodayUq</div>
+
+```
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-CD31220C-P01-of-04
+- CSCSJS-CD31220C-P02-of-04
+- CSCSJS-CD31220C-P03-of-04
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+【分割コード(3)の終了】→ 次は 分割コード(4) を送ります
+【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。
+ACK: <PartID> / WAITING_NEXT
