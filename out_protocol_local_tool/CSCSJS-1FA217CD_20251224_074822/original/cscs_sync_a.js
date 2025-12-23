@@ -2402,11 +2402,6 @@
 
     // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
     async fetchServer(){
-      // ★ 処理: NO-PULLモードがONなら、sync/state 取得を行わず例外で停止する
-      if (window.__cscs_sync_no_pull === true) {
-        throw new Error("NO_PULL_MODE");
-      }
-
       // ★ 処理1: /api/sync/state を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state");
       if(!r.ok) throw new Error(r.statusText);
@@ -2563,16 +2558,6 @@
 
   async function initialFetch(){
     if (!QID) return;
-
-    // ★ 処理: NO-PULLモードがONなら、sync/state を取りに行かずに終了する
-    if (window.__cscs_sync_no_pull === true) {
-      lastSyncStatus = "nopull";
-      lastSyncTime   = new Date().toLocaleTimeString();
-      lastSyncError  = "";
-      updateMonitor();
-      return;
-    }
-
     try{
       const s  = await CSCS_SYNC.fetchServer();
 
@@ -3898,10 +3883,7 @@
           <div class="sync-card sync-span-2">
             <div class="sync-body status-grid">
               <div class="status-label">Status</div>
-              <div class="status-value">
-                <span class="sync-status">pulled (-)</span>
-                <button type="button" class="sync-nopull-btn" data-nopull-toggle="1">NO-PULL:OFF</button>
-              </div>
+              <div class="status-value"><span class="sync-status">pulled (-)</span></div>
             </div>
           </div>
         </div>
@@ -4075,47 +4057,6 @@
 
       if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
       if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
-
-      // ★ 処理: 「syncからデータを取得しない（NO-PULL）」モードを localStorage で永続化し、ボタンで切替
-      //   - ON: initialFetch() を実行しない（sync/state を取りに行かない）
-      //   - OFF: 通常通り initialFetch() で sync/state 取得を行う
-      const LS_NO_PULL = "cscs_sync_a_no_pull_mode";
-      const noPullBtn = box.querySelector('button[data-nopull-toggle="1"]');
-
-      function refreshNoPullBtnLabel(){
-        if (!noPullBtn) return;
-        const on = (window.__cscs_sync_no_pull === true);
-        noPullBtn.textContent = on ? "NO-PULL:ON" : "NO-PULL:OFF";
-      }
-
-      try{
-        // ★ 処理: 起動時に localStorage から状態を復元し、グローバルフラグに反映する
-        const on = readLsBool(LS_NO_PULL, false);
-        window.__cscs_sync_no_pull = !!on;
-        refreshNoPullBtnLabel();
-      }catch(_){}
-
-      if (noPullBtn) {
-        noPullBtn.addEventListener("click", function(){
-          try{
-            // ★ 処理: クリックでON/OFFをトグルし、localStorageへ保存する
-            const nextOn = !(window.__cscs_sync_no_pull === true);
-            window.__cscs_sync_no_pull = nextOn;
-            writeLsBool(LS_NO_PULL, nextOn);
-            refreshNoPullBtnLabel();
-
-            // ★ 処理: ONは「取得しない」ので状態だけ更新、OFFは即 pull する
-            if (nextOn) {
-              lastSyncStatus = "nopull";
-              lastSyncTime   = new Date().toLocaleTimeString();
-              lastSyncError  = "";
-              updateMonitor();
-            } else {
-              initialFetch();
-            }
-          }catch(_){}
-        });
-      }
     }catch(_){}
     initialFetch();
   });

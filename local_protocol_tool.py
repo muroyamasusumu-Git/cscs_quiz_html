@@ -26,6 +26,10 @@ DEFAULT_MAXLINES = 1200
 # ローカル出力先（このスクリプトが置かれているフォルダ基準）
 DEFAULT_OUTROOT = "out_protocol_local_tool"
 
+# out_protocol_local_tool 配下に保持する RUN ディレクトリ数（ログ保持数）
+# 超過分は「古い順」に自動削除する
+DEFAULT_MAX_LOG_DIRS = 50
+
 # ブラウザからのアクセスをローカルのみに限定（念のため）
 BIND_HOST = "127.0.0.1"
 BIND_PORT = 8787
@@ -50,6 +54,13 @@ class SplitPart:
     text: str
     start_offset: int
     end_offset: int
+
+    # このパート本文の SHA256（貼り間違い・改ざん検出用）
+    part_sha256: str
+
+    # 人間が貼り間違いに気づくための可視ヒント
+    first_line: str
+    last_line: str
 
 
 def sha256_hex(s: str) -> str:
@@ -103,11 +114,33 @@ def split_by_limits(text: str, max_chars: int, max_lines: int) -> List[Tuple[int
         if tentative_end == n:
             end = n
         else:
-            nl = text.rfind("\n", start, tentative_end)
-            if nl == -1 or nl <= start:
-                end = tentative_end
+            # --- 境界優先分割 ---
+            # ChatGPT が理解しやすいように、関数/即時関数境界を優先して探す
+            boundary_candidates = [
+                "\n})();\n",
+                "\n});\n",
+                "\n}\n",
+            ]
+
+            boundary_found = -1
+            search_from = max(start, tentative_end - 2000)
+            search_to = tentative_end
+
+            for token in boundary_candidates:
+                pos = text.rfind(token, search_from, search_to)
+                if pos != -1:
+                    boundary_found = pos + len(token)
+                    break
+
+            if boundary_found != -1:
+                end = boundary_found
             else:
-                end = nl + 1
+                # 境界が見つからなければ従来通り改行優先
+                nl = text.rfind("\n", start, tentative_end)
+                if nl == -1 or nl <= start:
+                    end = tentative_end
+                else:
+                    end = nl + 1
 
         chunk = text[start:end]
         parts.append((start, end, chunk))
@@ -153,24 +186,33 @@ def build_receipt_input_block(
     expected_ids: List[str],
     is_last: bool,
     exec_task_text: str,
+    parts: List[SplitPart],
 ) -> str:
     lines: List[str] = []
     lines.append("【RECEIPT_INPUT（このメッセージ内だけを真とする）】")
+    lines.append(f"EXPECTED_TOTAL: {len(expected_ids)}")
+    lines.append(f"RECEIVED_TOTAL: {len(cumulative_ids)}")
+    lines.append("")
     lines.append("CUMULATIVE_RECEIVED_PARTIDS:")
     for pid in cumulative_ids:
         lines.append(f"- {pid}")
 
     if is_last:
         lines.append("")
-        lines.append("EXPECTED_PARTIDS:")
-        for pid in expected_ids:
-            lines.append(f"- {pid}")
+        lines.append("EXPECTED_PARTIDS_WITH_SHA256:")
+        for p in expected_ids:
+            # PartID → SHA256 の対応表（受領検証用）
+            part = next(x for x in parts if x.part_id == p)
+            lines.append(f"- {part.part_id} | {part.part_sha256}")
 
     lines.append("")
     lines.append("【ChatGPTへの強制ルール】")
     lines.append("・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。")
     lines.append("・会話履歴から PartID を再収集しないこと（禁止）。")
     lines.append("・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。")
+    lines.append("")
+    lines.append("RECEIPT_REQUIRED_RESPONSE_TEMPLATE:")
+    lines.append("ACK: <PartID> <PartSHA256_8> / WAITING_NEXT")
 
     if is_last:
         lines.append("")
@@ -256,9 +298,13 @@ def make_part_payload(
     protocol_epilogue: str,
 ) -> str:
     header_lines: List[str] = []
+    header_lines.append("<<<PART_BEGIN>>>")
     header_lines.append(f"【分割コード({part.index})の開始】")
     header_lines.append(f"PartID: {part.part_id}")
+    header_lines.append(f"PartSHA256: {part.part_sha256}")
     header_lines.append(f"Range: chars {part.start_offset}..{part.end_offset} (len={len(part.text)})")
+    header_lines.append(f"FirstLine: {part.first_line}")
+    header_lines.append(f"LastLine: {part.last_line}")
     header_lines.append("")
 
     if part.index == 1:
@@ -269,6 +315,7 @@ def make_part_payload(
 
     footer_lines: List[str] = []
     footer_lines.append("```")
+    footer_lines.append("<<<PART_END>>>")
     footer_lines.append(receipt_input_block)
 
     if part.index < part.total:
@@ -292,6 +339,7 @@ def write_manifest_json(
     parts: List[SplitPart],
     original_sha256: str,
     instruction: str,
+    original_saved_relpath: str,
 ) -> None:
     manifest = {
         "session_id": session_id,
@@ -301,6 +349,7 @@ def write_manifest_json(
             "filename": input_filename,
             "size_chars": sum(len(p.text) for p in parts),
             "sha256": original_sha256,
+            "saved_copy": str(original_saved_relpath),
         },
         "split": {
             "total_parts": total_parts,
@@ -313,6 +362,7 @@ def write_manifest_json(
                 "index": p.index,
                 "total": p.total,
                 "part_id": p.part_id,
+                "part_sha256": p.part_sha256,
                 "start_offset": p.start_offset,
                 "end_offset": p.end_offset,
                 "len_chars": len(p.text),
@@ -374,6 +424,12 @@ HTML_PAGE = r"""<!doctype html>
       border-radius: 14px;
       padding: 12px;
       margin: 12px 0;
+
+    /* JSファイルブロックのカードだけ、ほんの少し明るくする */
+    .card.card-file {
+      --card-panel:  #16202a;
+      --card-panel2: #141d27;
+    }
 
       /* 各 card ごとの色味調整用（デフォルト） */
       background: linear-gradient(
@@ -529,7 +585,7 @@ HTML_PAGE = r"""<!doctype html>
       font-weight: 700; /* 見出しを太字 */
       color: rgba(125, 211, 252, 0.95); /* 水色っぽい（少し淡いシアン） */
       margin-bottom: 5px;
-      font-size: 16px; 
+      font-size: 18px; 
     }
 
     .sectionTitleHist {
@@ -547,17 +603,40 @@ HTML_PAGE = r"""<!doctype html>
       color: rgba(154,164,178,0.78); /* さらに薄め */
     }
 
-    .parts { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .parts { display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+    /* パート一覧（#partsList）だけ、カード同士の上下余白を詰める */
+    #partsList .card {
+      margin: 0;      /* .card の 12px 0 を打ち消す */
+      padding: 10px;  /* ついでに少し詰めたいなら。不要なら消してOK */
+    }
 
     .partHeader { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
     .partTitleRow {
       display: flex;
       align-items: baseline;
-      justify-content: flex-start;
+      justify-content: space-between; /* 右端にパート切替ボタン列を置く */
       gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 6px;
+      margin-bottom: 0px;
+    }
+
+    .partJump {
+      display: flex;              /* パート番号ボタン列 */
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .partJumpBtn {
+      padding: 6px 10px;          /* 小さめの番号ボタン */
+      min-width: 38px;
+      border-radius: 999px;
+      font-size: 13px;
+      line-height: 1.1;
     }
 
     .pillBig {
@@ -675,7 +754,7 @@ HTML_PAGE = r"""<!doctype html>
 
     #instructionHistory pre {
       padding: 8px;
-      font-size: 10px;
+      font-size: 9px;
       line-height: 1.35;
       border-radius: 12px;
       margin: 0;
@@ -711,7 +790,7 @@ HTML_PAGE = r"""<!doctype html>
   <h2>Protocol Splitter（ローカル専用）</h2>
   <div class="muted">① assets内のJSを選ぶ（ドラッグ&ドロップも可） → ② 指示を書く → ③ 生成 → ④ パートを表示してコピー</div>
 
-  <div class="card">
+  <div class="card card-file">
     <div class="row">
       <div>
         <div class="muted sectionTitle">JSファイル</div>
@@ -742,6 +821,11 @@ HTML_PAGE = r"""<!doctype html>
           <div class="muted">maxlines</div>
           <input id="maxlines" type="number" value="1200" />
         </div>
+
+        <div class="advItem">
+          <div class="muted">maxlogs</div>
+          <input id="maxlogs" type="number" value="50" />
+        </div>
       </div>
     </details>
 
@@ -764,10 +848,14 @@ HTML_PAGE = r"""<!doctype html>
         <span class="currentPartLabel">現在のパート</span>
         <span class="currentPartMeta">　Part: - / -　(SessionID: -)</span>
       </div>
+
+      <!-- 右端：パート番号ボタン -->
+      <div id="partJump" class="partJump"></div>
     </div>
 
     <div class="partHeader">
       <span class="pill pillBig" id="pidPill">PartID: -</span>
+      <span class="pill pillBig" id="sha8Pill">SHA8: -</span>
       <button id="copyCurrent" disabled>このパートをコピー</button>
       <button id="toggleAll" disabled>ALL: OFF</button>
     </div>
@@ -813,6 +901,7 @@ HTML_PAGE = r"""<!doctype html>
         lang: String(($("lang") && $("lang").value) || ""),
         maxchars: Number(($("maxchars") && $("maxchars").value) || 0),
         maxlines: Number(($("maxlines") && $("maxlines").value) || 0),
+        maxlogs: Number(($("maxlogs") && $("maxlogs").value) || 0),
         instruction: String(($("instruction") && $("instruction").value) || ""),
         currentIndex: Number(currentIndex || 0),
         previewAllOn: !!previewAllOn,
@@ -836,6 +925,9 @@ HTML_PAGE = r"""<!doctype html>
     }
     if ($("maxlines") && typeof s.maxlines === "number" && s.maxlines > 0) {
       $("maxlines").value = String(s.maxlines);
+    }
+    if ($("maxlogs") && typeof s.maxlogs === "number" && s.maxlogs > 0) {
+      $("maxlogs").value = String(s.maxlogs);
     }
 
     if ($("instruction") && typeof s.instruction === "string") {
@@ -916,8 +1008,40 @@ HTML_PAGE = r"""<!doctype html>
   let currentIndex = 0;
 
   let previewAllOn = false;
-  const PREVIEW_HEAD_MAX_LINES = 40;
-  const PREVIEW_HEAD_MAX_CHARS = 2200;
+
+  /* 折りたたみ時の縦サイズ上限（= 先頭何行まで見せるか） */
+  const PREVIEW_HEAD_MAX_LINES = 18;
+
+  /* 折りたたみ時の文字数上限（行数で切った後の保険） */
+  const PREVIEW_HEAD_MAX_CHARS = 1200;
+
+  function renderPartJumpButtons() {
+    const box = $("partJump");
+    if (!box) return;
+
+    box.innerHTML = "";
+
+    if (!result || !result.parts || result.parts.length === 0) {
+      return;
+    }
+
+    for (let i = 0; i < result.parts.length; i++) {
+      const p = result.parts[i];
+
+      const btn = document.createElement("button");
+      btn.className = "partJumpBtn" + (i === currentIndex ? " primary" : "");
+      btn.textContent = String(p.index); /* 1..N の番号だけ */
+
+      btn.onclick = () => {
+        currentIndex = i;
+        renderCurrent();
+        saveUiState();
+        setStatus("表示: part_" + String(p.index).padStart(2, "0"));
+      };
+
+      box.appendChild(btn);
+    }
+  }
 
   function buildPreviewText(fullText) {
     const s = String(fullText || "");
@@ -1203,12 +1327,47 @@ HTML_PAGE = r"""<!doctype html>
         }
       };
 
+      const btnCopySrc = document.createElement("button");
+      btnCopySrc.textContent = "元JSコピー";
+      btnCopySrc.disabled = !String(it.output_dir || "") || !String(it.original_saved_copy || "");
+      btnCopySrc.onclick = async () => {
+        const dir = String(it.output_dir || "");
+        if (!dir) return;
+
+        setHistStatus("元JS取得中...: " + String(it.session_id || ""));
+
+        try {
+          const url = "/api/instructions/original?output_dir=" + encodeURIComponent(dir);
+          const res = await fetch(url, { method: "GET" });
+
+          if (!res.ok) {
+            setHistStatus("元JS取得失敗: HTTP " + String(res.status));
+            flashButton(btnCopySrc, "ng");
+            return;
+          }
+
+          const text = await res.text();
+          await navigator.clipboard.writeText(text);
+
+          flashButton(btnCopySrc, "ok");
+          setHistStatus("元JSをコピーしました: " + String(it.session_id || ""));
+
+          const old = btnCopySrc.textContent;
+          btnCopySrc.textContent = "Copied ✓";
+          window.setTimeout(() => (btnCopySrc.textContent = old), 650);
+        } catch (e) {
+          flashButton(btnCopySrc, "ng");
+          setHistStatus("元JSコピー失敗（権限/HTTP制約等）: " + String(e));
+        }
+      };
+
       header.appendChild(t1);
       header.appendChild(t2);
       header.appendChild(t3);
       header.appendChild(btnUse);
       header.appendChild(btnCopy);
       header.appendChild(btnDel);
+      header.appendChild(btnCopySrc);
 
       const pre = document.createElement("pre");
       if (instr) {
@@ -1314,6 +1473,9 @@ HTML_PAGE = r"""<!doctype html>
         }
       }
       $("pidPill").textContent = "PartID: -";
+      if ($("sha8Pill")) {
+        $("sha8Pill").textContent = "SHA8: -";
+      }
 
       previewAllOn = false;
       updateToggleAllButton();
@@ -1337,10 +1499,15 @@ HTML_PAGE = r"""<!doctype html>
       }
     }
     $("pidPill").textContent = "PartID: " + p.part_id;
+    if ($("sha8Pill")) {
+      const s8 = (p && typeof p.part_sha8 === "string" && p.part_sha8) ? p.part_sha8 : "-";
+      $("sha8Pill").textContent = "SHA8: " + s8;
+    }
     $("copyNext").disabled = false;
     $("copyCurrent").disabled = false;
 
     updateToggleAllButton();
+    renderPartJumpButtons(); /* 右端のパート番号ボタンを更新 */
   }
 
   function renderList() {
@@ -1386,8 +1553,14 @@ HTML_PAGE = r"""<!doctype html>
       t2.className = "pill";
       t2.textContent = p.part_id;
 
+      const t3 = document.createElement("span");
+      t3.className = "pill";
+      const s8 = (p && typeof p.part_sha8 === "string" && p.part_sha8) ? p.part_sha8 : "-";
+      t3.textContent = "SHA8:" + s8;
+
       header.appendChild(t1);
       header.appendChild(t2);
+      header.appendChild(t3);
       header.appendChild(btnGo);
       header.appendChild(btnCopy);
 
@@ -1420,6 +1593,7 @@ HTML_PAGE = r"""<!doctype html>
     }
 
     saveUiState();
+    renderPartJumpButtons(); /* 右端のパート番号ボタンを消す/更新 */
     setHistRoot("参照先: （未取得）");
     setStatus("生成結果をリセットしました（指示は保持）");
   }
@@ -1452,6 +1626,7 @@ HTML_PAGE = r"""<!doctype html>
       lang: $("lang").value || "javascript",
       maxchars: Number($("maxchars").value || 60000),
       maxlines: Number($("maxlines").value || 1200),
+      maxlogs: Number($("maxlogs").value || 50),
       instruction: instr
     };
 
@@ -1532,7 +1707,13 @@ HTML_PAGE = r"""<!doctype html>
     $("maxlines").addEventListener("input", () => {
       saveUiState();
     });
-  }  
+  }
+
+  if ($("maxlogs")) {
+    $("maxlogs").addEventListener("input", () => {
+      saveUiState();
+    });
+  }
 
   if ($("file")) {
     $("file").addEventListener("change", async () => {
@@ -1641,6 +1822,46 @@ def now_tag() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+def enforce_max_log_dirs(outroot: Path, max_keep: int) -> Tuple[int, int]:
+    """
+    outroot 配下の RUN ディレクトリを max_keep 個までに制限し、
+    超過分は「古い順」に削除する。
+
+    戻り値:
+      (deleted_count, kept_count)
+    """
+    try:
+        mk = int(max_keep)
+    except Exception:
+        mk = 0
+
+    if mk <= 0:
+        return (0, 0)
+
+    safe_mkdir(outroot)
+
+    dirs = [p for p in outroot.iterdir() if p.is_dir()]
+    if not dirs:
+        return (0, 0)
+
+    # 新しい順（mtime降順）
+    dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    keep = dirs[:mk]
+    drop = dirs[mk:]
+
+    deleted = 0
+    for d in drop:
+        try:
+            shutil.rmtree(d)
+            deleted += 1
+        except Exception:
+            # 削除失敗は握りつぶす（次回の実行で再トライされる）
+            pass
+
+    return (deleted, len(keep))
+
+
 def generate_parts(
     filename: str,
     content: str,
@@ -1650,6 +1871,7 @@ def generate_parts(
     maxlines: int,
     instruction: str,
     outroot: Path,
+    max_keep_logs: int,
 ) -> Tuple[str, Path, List[SplitPart], List[str]]:
     session_id = make_session_id(prefix, content)
     chunks = split_by_limits(content, maxchars, maxlines)
@@ -1662,6 +1884,10 @@ def generate_parts(
     parts: List[SplitPart] = []
     for idx, (st, ed, ch) in enumerate(chunks, start=1):
         part_id = build_part_id(session_id, idx, total)
+        lines = ch.splitlines()
+        first_line = lines[0] if lines else ""
+        last_line = lines[-1] if lines else ""
+
         parts.append(SplitPart(
             index=idx,
             total=total,
@@ -1669,6 +1895,13 @@ def generate_parts(
             text=ch,
             start_offset=st,
             end_offset=ed,
+
+            # パート本文の完全性検証用
+            part_sha256=sha256_hex(ch),
+
+            # 人間向け視認ヒント
+            first_line=first_line,
+            last_line=last_line,
         ))
 
     expected_ids = build_expected_partids(parts)
@@ -1690,6 +1923,7 @@ def generate_parts(
             expected_ids=expected_ids,
             is_last=(p.index == p.total),
             exec_task_text=instruction,
+            parts=parts,
         )
         payload = make_part_payload(
             part=p,
@@ -1701,6 +1935,15 @@ def generate_parts(
         (parts_dir / f"part_{p.index:02d}.txt").write_text(payload, encoding="utf-8")
         payloads.append(payload)
 
+    original_basename = Path(str(filename or "input.js")).name
+    original_dir = out_dir / "original"
+    safe_mkdir(original_dir)
+
+    original_saved = original_dir / original_basename
+    original_saved.write_text(str(content or ""), encoding="utf-8")
+
+    original_saved_rel = str(Path("original") / original_basename)
+
     write_manifest_json(
         out_dir=out_dir,
         session_id=session_id,
@@ -1711,7 +1954,11 @@ def generate_parts(
         parts=parts,
         original_sha256=sha256_hex(content),
         instruction=instruction,
+        original_saved_relpath=original_saved_rel,
     )
+
+    # outroot 配下のログ保持数を制限し、超過分を自動削除する
+    enforce_max_log_dirs(outroot=outroot, max_keep=max_keep_logs)
 
     return session_id, out_dir, parts, payloads
 
@@ -1734,6 +1981,60 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, b"OK", "text/plain; charset=utf-8")
             return
 
+        if self.path.startswith("/api/instructions/original"):
+            from urllib.parse import urlparse, parse_qs
+
+            outroot = Path(__file__).resolve().parent / DEFAULT_OUTROOT
+            safe_mkdir(outroot)
+
+            u = urlparse(self.path)
+            qs = parse_qs(u.query or "")
+            target_raw = ""
+            if "output_dir" in qs and len(qs["output_dir"]) > 0:
+                target_raw = str(qs["output_dir"][0] or "").strip()
+
+            if target_raw == "":
+                self._send(400, b"output_dir is empty", "text/plain; charset=utf-8")
+                return
+
+            try:
+                target_path = Path(target_raw).resolve()
+                outroot_real = outroot.resolve()
+
+                if not str(target_path).startswith(str(outroot_real) + os.sep):
+                    self._send(403, b"forbidden: target is outside outroot", "text/plain; charset=utf-8")
+                    return
+
+                mf = target_path / "manifest.json"
+                if not mf.exists():
+                    self._send(404, b"manifest.json not found", "text/plain; charset=utf-8")
+                    return
+
+                data = json.loads(mf.read_text(encoding="utf-8"))
+                inp = data.get("input") or {}
+                rel = str(inp.get("saved_copy") or "").strip()
+                if rel == "":
+                    self._send(404, b"saved_copy not found in manifest", "text/plain; charset=utf-8")
+                    return
+
+                src = (target_path / rel).resolve()
+
+                if not str(src).startswith(str(target_path) + os.sep):
+                    self._send(403, b"forbidden: invalid saved_copy path", "text/plain; charset=utf-8")
+                    return
+
+                if not src.exists():
+                    self._send(404, b"original js not found", "text/plain; charset=utf-8")
+                    return
+
+                body = src.read_text(encoding="utf-8").encode("utf-8")
+                self._send(200, body, "text/plain; charset=utf-8")
+                return
+
+            except Exception as e:
+                self._send(500, f"failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
+                return
+
         if self.path.startswith("/api/instructions"):
             outroot = Path(__file__).resolve().parent / DEFAULT_OUTROOT
             safe_mkdir(outroot)
@@ -1753,11 +2054,14 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         continue
 
+                    inp = data.get("input") or {}
                     items.append({
                         "output_dir": str(d),
                         "session_id": str(data.get("session_id") or ""),
                         "created_at": str(data.get("created_at") or ""),
-                        "target_file": str((data.get("input") or {}).get("filename") or ""),
+                        "target_file": str(inp.get("filename") or ""),
+                        "original_sha256": str(inp.get("sha256") or ""),
+                        "original_saved_copy": str(inp.get("saved_copy") or ""),
                         "instruction": str(data.get("instruction") or ""),
                     })
             except Exception as e:
@@ -1858,8 +2162,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             maxchars = int(req.get("maxchars") or DEFAULT_MAXCHARS)
             maxlines = int(req.get("maxlines") or DEFAULT_MAXLINES)
+            maxlogs = int(req.get("maxlogs") or DEFAULT_MAX_LOG_DIRS)
         except Exception:
-            self._send(400, b"maxchars/maxlines must be integers", "text/plain; charset=utf-8")
+            self._send(400, b"maxchars/maxlines/maxlogs must be integers", "text/plain; charset=utf-8")
             return
 
         instruction = str(req.get("instruction") or "")
@@ -1886,6 +2191,7 @@ class Handler(BaseHTTPRequestHandler):
                 maxlines=maxlines,
                 instruction=instruction,
                 outroot=outroot,
+                max_keep_logs=maxlogs,
             )
         except Exception as e:
             self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
@@ -1899,6 +2205,13 @@ class Handler(BaseHTTPRequestHandler):
                     "index": p.index,
                     "total": p.total,
                     "part_id": p.part_id,
+
+                    # UI表示用: パート本文SHA256（貼り間違い検出）
+                    "part_sha256": p.part_sha256,
+
+                    # UI表示用: SHA8（人間が一瞬で照合できる短縮）
+                    "part_sha8": p.part_sha256[:8].upper(),
+
                     "start_offset": p.start_offset,
                     "end_offset": p.end_offset,
                     "len_chars": len(p.text),

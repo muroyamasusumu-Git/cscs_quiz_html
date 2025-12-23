@@ -1,0 +1,154 @@
+<<<PART_BEGIN>>>
+【分割コード(3)の開始】
+PartID: CSCSJS-1FA217CD-P03-of-03
+PartSHA256: d4da436bb29ccc022f613e3ed37213fd620255bdcc3ee8b5476ee4f06cabfc52
+Range: chars 144534..147025 (len=2491)
+FirstLine:             }catch(_){}
+LastLine: })();
+
+```javascript
+            }catch(_){}
+          });
+        }
+
+        if (onceFoldBtnLocal) {
+          onceFoldBtnLocal.addEventListener("click", function(){
+            try{
+              if (!onceCardLocal) return;
+              // ★ 処理: localカードをトグルし、永続化する
+              const nextOpen = onceCardLocal.classList.contains("once-collapsed"); // 今閉じてるなら開く
+              if (nextOpen) {
+                onceCardLocal.classList.remove("once-collapsed");
+              } else {
+                onceCardLocal.classList.add("once-collapsed");
+              }
+              writeLsBool(LS_ONCE_OPEN_LOCAL, nextOpen);
+              refreshOnceFoldBtnLabel(onceFoldBtnLocal, onceCardLocal);
+            }catch(_){}
+          });
+        }
+
+        /* ★ OPEN/CLOSE の対象カード（指定4項目）をマーキングする
+           - HTML文字列を直接いじらず、生成後DOMから「days/queue」のdetailsを特定
+           - それぞれの親 .sync-card に sync-optional を付ける（CLOSE時に消える対象） */
+        function markOptional(detailsEl){
+          try{
+            if (!detailsEl) return;
+            const card = detailsEl.closest(".sync-card");
+            if (card) {
+              card.classList.add("sync-optional");
+            }
+          }catch(_){}
+        }
+        markOptional(daysDetails);
+        markOptional(queueDetails);
+
+        const daysOpen        = readLsBool(LS_DAYS_OPEN, false);        // デフォルト閉じ
+        const queueOpen       = readLsBool(LS_QDEL_OPEN, false);        // デフォルト閉じ
+
+        if (daysDetails)        daysDetails.open        = !!daysOpen;
+        if (queueDetails)       queueDetails.open       = !!queueOpen;
+
+        if (daysDetails) {
+          daysDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_DAYS_OPEN, !!daysDetails.open);
+          });
+        }
+        if (queueDetails) {
+          queueDetails.addEventListener("toggle", function(){
+            writeLsBool(LS_QDEL_OPEN, !!queueDetails.open);
+          });
+        }
+      }catch(_){}
+
+      const btnOk   = document.getElementById("cscs_sync_test_ok");
+      const btnNg   = document.getElementById("cscs_sync_test_ng");
+
+      if (btnOk)   btnOk.addEventListener("click", () => window.CSCS_SYNC.recordCorrect());
+      if (btnNg)   btnNg.addEventListener("click", () => window.CSCS_SYNC.recordIncorrect());
+    }catch(_){}
+    initialFetch();
+  });
+
+  window.addEventListener("online", function(){
+    lastSyncStatus = "idle";
+    sendDelta();
+  });
+  window.addEventListener("offline", function(){
+    lastSyncStatus = "offline";
+    updateMonitor();
+  });
+})();
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 3
+RECEIVED_TOTAL: 3
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-1FA217CD-P01-of-03
+- CSCSJS-1FA217CD-P02-of-03
+- CSCSJS-1FA217CD-P03-of-03
+
+EXPECTED_PARTIDS_WITH_SHA256:
+- CSCSJS-1FA217CD-P01-of-03 | 30cad4608da17c50987f0f509ccef4b0f705fe96fada4f4a5c14d041e581d84e
+- CSCSJS-1FA217CD-P02-of-03 | ce803de74181b34beb9d0f727077ac150573d724a3485a667ca1ad1f6f7adfea
+- CSCSJS-1FA217CD-P03-of-03 | d4da436bb29ccc022f613e3ed37213fd620255bdcc3ee8b5476ee4f06cabfc52
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
+syncからデータを取得しないモードを追加したい。<div class="sync-body status-grid">　内にボタンを設置して、
+ボタンのON/OFFでモードを切り替えられるようにしたい。
+
+【出力仕様（パッチ規約：厳守）】
+- 参照元のコードから「確実に検索できる」形で提示すること（検索しやすい連続行を含める）
+- 必ず参照元と「同じインデント」で提示すること
+- 「置換前／置換後」を明確に分けること（それぞれ別のコードブロック）
+- 「...」「（中略）」「省略」などの省略表現は禁止（置換対象行は省略なし）
+- 出力は「フル」ではなく「置換部分のみ」
+- 置換前コードブロック内に「参照元本文に無いコメント」を追加しないこと
+- フォールバックの設定・保険・自動互換コードの追加は基本的に禁止（必要なら理由と影響を明示して停止し確認を取る）
+- 追加した処理には、処理ごとに『何をしているか』の補足コメントを置換後側に入れること
+
+【ChatGPT 実行ルール（強制）】
+・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。
+・EXEC_TASK の実現に必要な識別子/DOM/関数が連結JS内に見当たらない場合は、SCOPE_CHECK: FAIL を返して停止し、
+  『どのファイル/どの箇所が必要か』を具体的に要求する（推測で別作業を開始しない）。
+・SCOPE_CHECK: FAIL の場合は、修正案や改善案を勝手に提示しない。まず不足情報を要求する。
+
+【分割コード(3)の終了】→ これで最後です（全3分割）
+
+【分割終了宣言】
+これで分割コードは最後です。直後の RECEIPT_INPUT（このメッセージ内）を用いて受領確認を実施してください。
+
+【ChatGPTへの最終手順（強制）】
+1) このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS を受領一覧として採用する（会話履歴参照は禁止）。
+2) このメッセージ内の EXPECTED_PARTIDS と照合し、欠落/重複/不一致を判定する。
+3) 判定結果を以下の形式で必ず返す：
+   RECEIPT_CHECK: OK もしくは NG
+   RECEIPT_MISSING: （不足があれば列挙、なければ EMPTY）
+   RECEIPT_DUPLICATE: （重複があれば列挙、なければ EMPTY）
+   RECEIPT_MISMATCH: （不一致があれば列挙、なければ EMPTY）
+
+4) 重要：RECEIPT_CHECK: OK の場合、同じ返答の中で必ず続けて次も出力し、直ちに実行する：
+   JOIN_READY: YES
+   JOIN_ACTION: P01→P02→...→Pn の順に全パートを連結して完全なJSを構築する
+   EXEC_START: このメッセージ内の EXEC_TASK（唯一の実行指示）を完全なJSに対して実行し、結果を提示する
+
+5) 重要：RECEIPT_CHECK: NG の場合、同じ返答の中で必ず続けて次も出力して終了する：
+   JOIN_READY: NO
+   RESEND_REQUEST: 不足/重複/不一致の PartID をそのまま列挙して再送要求する
+   EXEC_START: BLOCKED
+
+【禁止事項（再掲）】
+・受領確認OK前に、コードの要約/推測/修正提案/作業開始をしない。
+・RECEIPT_CHECK: OK の場合でも、上記の JOIN_READY/JOIN_ACTION/EXEC_START を同じ返答で出す前に止まらない。
+・実行根拠は最終メッセージ内 EXEC_TASK のみ。PART_01の文を理由に別作業を開始しない。
+
