@@ -1574,279 +1574,68 @@
 
         if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
 
-        // ★ 追加: 既存カード見出しに "(SYNC)" を追記（テキスト一致で安全に対応）
-        //   - DOM構造に依存しすぎないため、summary テキストから判定する
-        try{
-          const sums = box.querySelectorAll("summary");
-          sums.forEach(function(sm){
-            const t = (sm && sm.textContent) ? String(sm.textContent) : "";
-            if (t.indexOf("OncePerDayToday / O.D.O.A Mode") !== -1 && t.indexOf("(SYNC)") === -1) {
-              sm.textContent = t.replace("OncePerDayToday / O.D.O.A Mode", "OncePerDayToday / O.D.O.A Mode (SYNC)");
-              console.log("[SYNC-A][OK][UI] once/odoa summary labeled as SYNC", { before: t, after: sm.textContent });
-            }
-          });
-        }catch(eSum){
-          console.error("[SYNC-A][ERROR][UI] once/odoa summary label failed", { error: String(eSum && eSum.message || eSum) });
-        }
-
-        // ★ 追加: local 由来カード（折りたたみ）を “既存とは分離” して追加・更新する
-        //   - oncePerDayToday(localStorage) と ODOA/VERIFY(window) のみを参照（SYNC state に依存しない）
-        //   - フォールバックで別ソースから埋め合わせない（欠損は欠損として表示）
-        function ensureOnceOdoaLocalCard(){
-          try{
-            // 既にあるならそれを使う
-            let details = box.querySelector("details.cscs-sync-once-odoa-local");
-            if (details) return details;
-
-            // 新規作成
-            details = document.createElement("details");
-            details.className = "cscs-sync-once-odoa-local";
-
-            const summary = document.createElement("summary");
-            summary.textContent = "OncePerDayToday / O.D.O.A Mode (local)          ▶︎show";
-
-            const body = document.createElement("div");
-            body.className = "sync-onceperday-local";
-
-            details.appendChild(summary);
-            details.appendChild(body);
-
-            // 既存の oncePerDay(SYNC) ブロックの近くに差し込む（見つからなければ末尾）
-            const syncOnce = box.querySelector(".sync-onceperday");
-            if (syncOnce && syncOnce.parentNode) {
-              syncOnce.parentNode.insertBefore(details, syncOnce.nextSibling);
-            } else {
-              box.appendChild(details);
-            }
-
-            console.log("[SYNC-A][OK][UI] local once/odoa card created", { insertedNear: !!syncOnce });
-            return details;
-          }catch(e){
-            console.error("[SYNC-A][ERROR][UI] local once/odoa card create failed", { error: String(e && e.message || e) });
-            return null;
-          }
-        }
-
-        function renderOnceOdoaLocalCard(){
-          const details = ensureOnceOdoaLocalCard();
-          if (!details) return;
-
-          const localEl = details.querySelector(".sync-onceperday-local");
-          if (!localEl) {
-            console.error("[SYNC-A][ERROR][UI] local once/odoa body element missing", {});
-            return;
-          }
-
-          // ★ 処理1: localStorage から oncePerDayToday を “厳密に” 読む（欠損/壊れは欠損として扱う）
-          let localDayRaw = "";
-          let localResultsRaw = "";
-          let localDayNum = null;
-          let localResultsObj = null;
-
-          try{
-            localDayRaw = localStorage.getItem("cscs_once_per_day_today_day") || "";
-            localResultsRaw = localStorage.getItem("cscs_once_per_day_today_results") || "";
-
-            if (/^\d{8}$/.test(String(localDayRaw).trim())) {
-              localDayNum = parseInt(String(localDayRaw).trim(), 10);
-              if (!Number.isFinite(localDayNum) || localDayNum <= 0) localDayNum = null;
-            } else {
-              localDayNum = null;
-            }
-
-            if (String(localResultsRaw).trim() !== "") {
-              const parsed = JSON.parse(localResultsRaw);
-              if (parsed && typeof parsed === "object") {
-                localResultsObj = parsed;
-              } else {
-                localResultsObj = null;
-              }
-            } else {
-              localResultsObj = null;
-            }
-
-            console.log("[SYNC-A][OK][LS] local oncePerDayToday read", {
-              dayRaw: localDayRaw,
-              dayNum: localDayNum,
-              resultsHasObj: !!localResultsObj,
-              resultsKeys: localResultsObj ? Object.keys(localResultsObj).length : null
-            });
-          }catch(eRead){
-            localDayNum = null;
-            localResultsObj = null;
-            console.error("[SYNC-A][ERROR][LS] local oncePerDayToday read/parse failed", {
-              error: String(eRead && eRead.message || eRead),
-              dayRaw: localDayRaw,
-              resultsRaw: localResultsRaw
-            });
-          }
-
-          // ★ 処理2: 今日(YYYYMMDD) を作る（local 判定専用）
-          function getTodayYmdNum(){
-            try{
-              const now = new Date();
-              const yy = now.getFullYear();
-              const mm = now.getMonth() + 1;
-              const dd = now.getDate();
-              return yy * 10000 + mm * 100 + dd;
-            }catch(_){
-              return null;
-            }
-          }
-
-          function ymdNumToIso(ymdNum){
-            try{
-              const s = String(ymdNum);
-              if (!/^\d{8}$/.test(s)) return "";
-              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
-            }catch(_){
-              return "";
-            }
-          }
-
-          const todayYmd = getTodayYmdNum();
-
-          // ★ 処理3: local oncePerDayToday が “今日” かどうか（SYNCを見ない）
-          const isTodayOnceLocal =
-            (todayYmd !== null && localDayNum !== null && localDayNum === todayYmd);
-
-          // ★ 処理4: local results[QID] を見る（欠損は未計測扱い、値異常は "unknown"）
-          let measuredResultLocal = null; // "correct" | "wrong" | "unknown" | null
-          try{
-            if (isTodayOnceLocal && localResultsObj && typeof localResultsObj === "object") {
-              const r = localResultsObj[QID];
-              if (r === "correct" || r === "wrong") {
-                measuredResultLocal = r;
-              } else if (Object.prototype.hasOwnProperty.call(localResultsObj, QID)) {
-                measuredResultLocal = "unknown";
-              } else {
-                measuredResultLocal = null;
-              }
-            } else {
-              measuredResultLocal = null;
-            }
-
-            console.log("[SYNC-A][OK][UI] local oncePerDayToday measured check", {
-              qid: QID,
-              isTodayOnceLocal: isTodayOnceLocal,
-              measuredResultLocal: measuredResultLocal
-            });
-          }catch(eChk){
-            measuredResultLocal = null;
-            console.error("[SYNC-A][ERROR][UI] local measured check failed", {
-              qid: QID,
-              error: String(eChk && eChk.message || eChk)
-            });
-          }
-
-          // ★ 処理5: ODOA/VERIFY は “ローカル実行環境(window)” からのみ取得（SYNC参照なし）
-          const odoaModeLocal = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
-          const verifyModeOnLocal = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
-
-          const odoaTextLocal = (odoaModeLocal === "on") ? "ON" : (odoaModeLocal === "off") ? "OFF" : "unknown";
-
-          // ★ 処理6: count対象（local版）
-          //   - VERIFY_MODE: 常に NO
-          //   - ODOA_OFF   : 常に YES（ODOA制限なし）
-          //   - ODOA_ON    : 今日で計測済みなら NO、それ以外は YES
-          let countText = "unknown";
-          let reasonText = "unknown";
-
-          if (verifyModeOnLocal) {
-            countText = "NO";
-            reasonText = "VERIFY_MODE";
-          } else if (odoaModeLocal === "off") {
-            countText = "YES";
-            reasonText = "ODOA_OFF";
-          } else if (odoaModeLocal === "on") {
-            const counted = (measuredResultLocal === "correct" || measuredResultLocal === "wrong" || measuredResultLocal === "unknown");
-            countText = counted ? "NO" : "YES";
-            reasonText = counted ? "ALREADY_MEASURED_TODAY" : "NOT_MEASURED_TODAY";
-          } else {
-            countText = "unknown";
-            reasonText = "ODOA_MODE_UNKNOWN";
-          }
-
-          console.log("[SYNC-A][OK][UI] local countable computed", {
-            qid: QID,
-            odoaMode: odoaModeLocal,
-            verifyModeOn: verifyModeOnLocal,
-            isTodayOnceLocal: isTodayOnceLocal,
-            measuredResultLocal: measuredResultLocal,
-            countTarget: countText,
-            reason: reasonText
-          });
-
-          // ★ 処理7: 表示（localカード）
-          //   - 既存カードと同じ 4行構成
-          //   - 参照元は localStorage/window のみ
-          let line1 = "";
-          let line2 = "";
-          let line3 = "";
-          let line4 = "";
-
-          if (!isTodayOnceLocal) {
-            line1 = "oncePerDayToday: 未開始";
-            line2 = "lastRecordedDay: " + (localDayNum !== null ? ymdNumToIso(localDayNum) : "（データなし）");
-            line3 = "count対象: " + (countText === "unknown" ? "unknown" : countText);
-            line4 = "ODOA: " + odoaTextLocal + " (理由: " + reasonText + ")";
-          } else {
-            line1 = "oncePerDayToday: 計測中";
-            line2 = "Today: " + (todayYmd !== null ? ymdNumToIso(todayYmd) : "（データなし）");
-
-            if (measuredResultLocal === "correct" || measuredResultLocal === "wrong") {
-              line3 = "count対象: No 計測済(" + measuredResultLocal + ")";
-            } else if (measuredResultLocal === "unknown") {
-              line3 = "count対象: No 計測済(unknown)";
-            } else {
-              line3 = "count対象: Yes 未計測";
-            }
-
-            line4 = "ODOA: " + odoaTextLocal + " (理由: " + reasonText + ")";
-          }
-
-          localEl.innerHTML =
-            '<div class="once-grid">' +
-
-              '<div class="once-label">oncePerDayToday</div>' +
-              '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
-
-              '<div class="once-label">' +
-                (isTodayOnceLocal ? 'Today' : 'lastRecordedDay') +
-              '</div>' +
-              '<div class="once-val">' +
-                (isTodayOnceLocal
-                  ? line2.replace(/^Today:\s*/, "")
-                  : line2.replace(/^lastRecordedDay:\s*/, "")
-                ) +
-              '</div>' +
-
-              '<div class="once-label">count対象</div>' +
-              '<div class="once-val">' +
-                line3.replace(/^count対象:\s*/, "") +
-              '</div>' +
-
-              '<div class="once-label">ODOA</div>' +
-              '<div class="once-val">' +
-                line4.replace(/^ODOA:\s*/, "") +
-              '</div>' +
-
-            '</div>';
-
-          // ★ 処理8: UI反映成功ログ（表示文字列を確実に確認できる）
-          console.log("[SYNC-A][OK][UI] local once/odoa card updated", {
-            qid: QID,
-            rendered: {
-              line1: line1,
-              line2: line2,
-              line3: line3,
-              line4: line4
-            }
-          });
-        }
-
         const onceEl = box.querySelector(".sync-onceperday");
         if (onceEl) {
+          // ★ 追加: 既存ワイドカード（SYNC側）の見出しに "(SYNC)" を追記する
+          //   - HTML側のクラスが環境で揺れても、できるだけ拾えるように「候補セレクタ＋文言一致」で探す
+          //   - 見つからなければ「見つからなかった」ログを出して終わる（フォールバックで別DOMを捏造しない）
+          try{
+            const TITLE_TEXT = "OncePerDayToday / O.D.O.A Mode";
+            const titleSelectors = [
+              ".sync-onceperday-title",
+              ".cscs-sma-card-title",
+              ".cscs-sync-card-title",
+              ".cscs-svb-card-title"
+            ];
+
+            let titleEl = null;
+
+            for (let i = 0; i < titleSelectors.length; i++) {
+              const sel = titleSelectors[i];
+              const cand = box.querySelector(sel);
+              if (cand && typeof cand.textContent === "string" && cand.textContent.indexOf(TITLE_TEXT) !== -1) {
+                titleEl = cand;
+                break;
+              }
+            }
+
+            if (!titleEl) {
+              const all = box.querySelectorAll("*");
+              for (let j = 0; j < all.length; j++) {
+                const el = all[j];
+                if (!el || typeof el.textContent !== "string") continue;
+                const t = el.textContent.trim();
+                if (t === TITLE_TEXT || t.indexOf(TITLE_TEXT) !== -1) {
+                  titleEl = el;
+                  break;
+                }
+              }
+            }
+
+            if (titleEl) {
+              const before = String(titleEl.textContent || "");
+              if (before.indexOf("(SYNC)") === -1) {
+                titleEl.textContent = before.replace(TITLE_TEXT, TITLE_TEXT + " (SYNC)");
+                console.log("[SYNC-A][OK][UI] oncePerDay/ODOA SYNC title updated", {
+                  before: before,
+                  after: titleEl.textContent
+                });
+              } else {
+                console.log("[SYNC-A][OK][UI] oncePerDay/ODOA SYNC title already tagged", {
+                  title: titleEl.textContent
+                });
+              }
+            } else {
+              console.log("[SYNC-A][NO-FALLBACK][UI] oncePerDay/ODOA SYNC title element not found (skip)", {
+                expectedText: TITLE_TEXT
+              });
+            }
+          }catch(eTitle){
+            console.error("[SYNC-A][ERROR][UI] oncePerDay/ODOA SYNC title update failed", {
+              error: String(eTitle && eTitle.message || eTitle)
+            });
+          }
+
           // ★ 表示方針:
           //   - oncePerDayToday と ODOA を「同じ枠で一気に読める」4行構成にする
           //   - 未開始（今日の状態が未生成/未到達）でも「count対象: 判定可能」と出す（判定不可にしない）
@@ -2016,13 +1805,325 @@
               '</div>' +
 
             '</div>';
-        }
 
-        // ★ 追加: local 由来カードを更新（SYNCカードとは独立）
-        try{
-          renderOnceOdoaLocalCard();
-        }catch(eLocalCard){
-          console.error("[SYNC-A][ERROR][UI] local once/odoa card update failed", { error: String(eLocalCard && eLocalCard.message || eLocalCard) });
+          console.log("[SYNC-A][OK][UI] oncePerDay/ODOA (SYNC) block updated", {
+            qid: QID,
+            isTodayOnce: isTodayOnce,
+            measuredResult: measuredResult,
+            odoaMode: odoaMode
+          });
+
+          // ============================================================
+          // ★ 追加: OncePerDayToday / O.D.O.A Mode (local) の新規ワイドカード
+          // ------------------------------------------------------------
+          // - 値は「LocalStorage 由来のみ」
+          // - 折りたたみ（永続化）を持つ
+          // - 既存(SYNC)カードとはDOM的に分離（新規DOMを追加）
+          // ============================================================
+          try{
+            const LS_LOCAL_ONCE_OPEN = "cscs_sync_a_once_local_open";
+
+            function readLocalOncePerDayTodayStrict(){
+              // ★ 処理1: day を localStorage から読む（欠損は ""）
+              let dayRaw = "";
+              try{
+                dayRaw = localStorage.getItem("cscs_once_per_day_today_day") || "";
+              }catch(_){
+                dayRaw = "";
+              }
+
+              // ★ 処理2: results を localStorage から読む（欠損/パース失敗は null）
+              let resultsObj = null;
+              let resultsParseError = null;
+              try{
+                const raw = localStorage.getItem("cscs_once_per_day_today_results");
+                if (raw === null || raw === undefined) {
+                  resultsObj = null;
+                } else {
+                  const s = String(raw).trim();
+                  if (s === "") {
+                    resultsObj = null;
+                  } else {
+                    const parsed = JSON.parse(s);
+                    if (parsed && typeof parsed === "object") {
+                      resultsObj = parsed;
+                    } else {
+                      resultsObj = null;
+                      resultsParseError = "not_object";
+                    }
+                  }
+                }
+              }catch(e){
+                resultsObj = null;
+                resultsParseError = String(e && e.message || e);
+              }
+
+              return {
+                dayRaw: dayRaw,
+                resultsObj: resultsObj,
+                resultsParseError: resultsParseError
+              };
+            }
+
+            function readLocalOdoaModeStrict(){
+              // ★ 処理: ODOA の local 参照キーは「localStorage のみ」
+              //   - ここでは "cscs_odoa_mode" を参照（無ければ unknown）
+              //   - フォールバックで window.CSCS_ODOA_MODE 等は見ない
+              let raw = "";
+              try{
+                raw = localStorage.getItem("cscs_odoa_mode") || "";
+              }catch(_){
+                raw = "";
+              }
+              const s = String(raw || "").trim();
+              if (s === "on") return { mode: "on", text: "ON", raw: s };
+              if (s === "off") return { mode: "off", text: "OFF", raw: s };
+              if (s === "") return { mode: "", text: "unknown", raw: s };
+              return { mode: "unknown", text: "unknown", raw: s };
+            }
+
+            function ymd8ToIsoOrEmpty(v){
+              try{
+                const s = String(v || "").trim();
+                if (!/^\d{8}$/.test(s)) return "";
+                return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+              }catch(_){
+                return "";
+              }
+            }
+
+            function getTodayYmdNumLocal(){
+              try{
+                const now = new Date();
+                const yy = now.getFullYear();
+                const mm = now.getMonth() + 1;
+                const dd = now.getDate();
+                return yy * 10000 + mm * 100 + dd;
+              }catch(_){
+                return null;
+              }
+            }
+
+            function readLsBoolLocal(key, defaultBool){
+              try{
+                const v = localStorage.getItem(key);
+                if (v === null || v === undefined) return !!defaultBool;
+                if (v === "1") return true;
+                if (v === "0") return false;
+                if (v === "true") return true;
+                if (v === "false") return false;
+                return !!defaultBool;
+              }catch(_){
+                return !!defaultBool;
+              }
+            }
+
+            function writeLsBoolLocal(key, boolVal){
+              try{
+                localStorage.setItem(key, boolVal ? "1" : "0");
+              }catch(_){}
+            }
+
+            function ensureOnceLocalCard(){
+              // ★ 処理1: 既に作ってあればそれを返す
+              let root = box.querySelector(".sync-onceperday-local-card");
+              if (root) return root;
+
+              // ★ 処理2: 新規DOMを作成（既存カードと分離）
+              root = document.createElement("div");
+              root.className = "sync-onceperday-local-card";
+              root.style.marginTop = "10px";
+              root.style.width = "100%";
+              root.style.boxSizing = "border-box";
+              root.style.border = "1px solid rgba(255,255,255,0.12)";
+              root.style.borderRadius = "10px";
+              root.style.background = "rgba(0,0,0,0.35)";
+              root.style.padding = "10px 10px";
+
+              const header = document.createElement("div");
+              header.className = "sync-onceperday-local-header";
+              header.style.display = "flex";
+              header.style.alignItems = "center";
+              header.style.justifyContent = "space-between";
+              header.style.gap = "10px";
+              header.style.cursor = "pointer";
+              header.style.userSelect = "none";
+
+              const title = document.createElement("div");
+              title.className = "sync-onceperday-local-title";
+              title.textContent = "OncePerDayToday / O.D.O.A Mode (local)";
+              title.style.fontWeight = "600";
+              title.style.opacity = "0.95";
+
+              const toggle = document.createElement("div");
+              toggle.className = "sync-onceperday-local-toggle";
+              toggle.style.whiteSpace = "nowrap";
+              toggle.style.opacity = "0.90";
+
+              const body = document.createElement("div");
+              body.className = "sync-onceperday-local-body";
+              body.style.marginTop = "10px";
+
+              header.appendChild(title);
+              header.appendChild(toggle);
+              root.appendChild(header);
+              root.appendChild(body);
+
+              // ★ 処理3: 折りたたみ状態を復元
+              const open = readLsBoolLocal(LS_LOCAL_ONCE_OPEN, false);
+              body.style.display = open ? "" : "none";
+              toggle.textContent = open ? "▼hide" : "▶︎show";
+
+              // ★ 処理4: クリックで開閉 + 永続化 + 成功ログ
+              header.addEventListener("click", function(){
+                const isOpen = body.style.display !== "none";
+                const nextOpen = !isOpen;
+                body.style.display = nextOpen ? "" : "none";
+                toggle.textContent = nextOpen ? "▼hide" : "▶︎show";
+                writeLsBoolLocal(LS_LOCAL_ONCE_OPEN, nextOpen);
+
+                console.log("[SYNC-A][OK][UI] oncePerDay/ODOA (local) card toggled", {
+                  open: nextOpen
+                });
+              });
+
+              box.appendChild(root);
+
+              console.log("[SYNC-A][OK][UI] oncePerDay/ODOA (local) card created", {
+                keyOpen: LS_LOCAL_ONCE_OPEN
+              });
+              return root;
+            }
+
+            function renderOnceLocalCard(){
+              const root = ensureOnceLocalCard();
+              const body = root.querySelector(".sync-onceperday-local-body");
+              if (!body) return;
+
+              const odoa = readLocalOdoaModeStrict();
+              const onceLocal = readLocalOncePerDayTodayStrict();
+
+              const todayYmd = getTodayYmdNumLocal();
+              const todayIso = (todayYmd !== null) ? ymd8ToIsoOrEmpty(String(todayYmd)) : "";
+
+              const onceDayIso = ymd8ToIsoOrEmpty(onceLocal.dayRaw);
+              const isTodayOnceLocal = (todayIso && onceDayIso && todayIso === onceDayIso);
+
+              let measured = null; // "correct" | "wrong" | "unknown" | null
+              if (isTodayOnceLocal && onceLocal.resultsObj && typeof onceLocal.resultsObj === "object") {
+                const r = onceLocal.resultsObj[QID];
+                if (r === "correct" || r === "wrong") {
+                  measured = r;
+                } else if (Object.prototype.hasOwnProperty.call(onceLocal.resultsObj, QID)) {
+                  measured = "unknown";
+                } else {
+                  measured = null;
+                }
+              }
+
+              // count対象 判定（localのみ）
+              //   - ODOA: OFF → YES
+              //   - ODOA: ON  → 今日に対して results[QID] があれば NO / 無ければ YES
+              //   - 情報欠損は unknown
+              let countText = "unknown";
+              let reasonText = "unknown";
+
+              if (odoa.mode === "off") {
+                countText = "YES";
+                reasonText = "ODOA_OFF(local)";
+              } else if (odoa.mode === "on") {
+                if (isTodayOnceLocal) {
+                  const hasEntry = !!(onceLocal.resultsObj && typeof onceLocal.resultsObj === "object" && Object.prototype.hasOwnProperty.call(onceLocal.resultsObj, QID));
+                  if (hasEntry) {
+                    countText = "NO";
+                    reasonText = "ALREADY_MEASURED_TODAY(local)";
+                  } else {
+                    countText = "YES";
+                    reasonText = "NOT_MEASURED_TODAY(local)";
+                  }
+                } else {
+                  countText = "unknown";
+                  reasonText = "ONCEPERDAY_NOT_TODAY_OR_MISSING(local)";
+                }
+              } else if (odoa.mode === "") {
+                countText = "unknown";
+                reasonText = "ODOA_MODE_MISSING(local)";
+              } else {
+                countText = "unknown";
+                reasonText = "ODOA_MODE_UNKNOWN(local)";
+              }
+
+              let line1 = "";
+              let line2 = "";
+              let line3 = "";
+              let line4 = "";
+
+              if (!isTodayOnceLocal) {
+                line1 = "oncePerDayToday: 未開始";
+                line2 = "lastRecordedDay: " + (onceDayIso ? onceDayIso : "（データなし）");
+                line3 = "count対象: " + (countText === "unknown" ? "unknown" : (countText === "YES" ? "Yes" : "No")) + " (" + reasonText + ")";
+                line4 = "ODOA: " + odoa.text + " (localStorage)";
+              } else {
+                line1 = "oncePerDayToday: 計測中";
+                line2 = "Today: " + (todayIso ? todayIso : "（データなし）");
+
+                if (measured === "correct" || measured === "wrong") {
+                  line3 = "count対象: No 計測済(" + measured + ") (" + reasonText + ")";
+                } else if (measured === "unknown") {
+                  line3 = "count対象: No 計測済(unknown) (" + reasonText + ")";
+                } else {
+                  line3 = "count対象: Yes 未計測 (" + reasonText + ")";
+                }
+
+                line4 = "ODOA: " + odoa.text + " (localStorage)";
+              }
+
+              body.innerHTML =
+                '<div class="once-grid">' +
+
+                  '<div class="once-label">oncePerDayToday</div>' +
+                  '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
+
+                  '<div class="once-label">' +
+                    (isTodayOnceLocal ? 'Today' : 'lastRecordedDay') +
+                  '</div>' +
+                  '<div class="once-val">' +
+                    (isTodayOnceLocal
+                      ? line2.replace(/^Today:\s*/, "")
+                      : line2.replace(/^lastRecordedDay:\s*/, "")
+                    ) +
+                  '</div>' +
+
+                  '<div class="once-label">count対象</div>' +
+                  '<div class="once-val">' +
+                    line3.replace(/^count対象:\s*/, "") +
+                  '</div>' +
+
+                  '<div class="once-label">ODOA</div>' +
+                  '<div class="once-val">' +
+                    line4.replace(/^ODOA:\s*/, "") +
+                  '</div>' +
+
+                '</div>';
+
+              console.log("[SYNC-A][OK][UI] oncePerDay/ODOA (local) block updated", {
+                qid: QID,
+                localOnceDayRaw: onceLocal.dayRaw,
+                localOnceDayIso: onceDayIso || null,
+                isTodayOnceLocal: isTodayOnceLocal,
+                localOdoaRaw: odoa.raw,
+                localOdoaMode: odoa.mode,
+                localMeasuredResult: measured,
+                localResultsParseError: onceLocal.resultsParseError
+              });
+            }
+
+            renderOnceLocalCard();
+          }catch(eOnceLocal){
+            console.error("[SYNC-A][ERROR][UI] oncePerDay/ODOA (local) card update failed", {
+              error: String(eOnceLocal && eOnceLocal.message || eOnceLocal)
+            });
+          }
         }
       }
     }catch(_){
