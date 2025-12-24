@@ -1,0 +1,59 @@
+{
+  "session_id": "CSCSJS-CBA125D1",
+  "created_at": "2025-12-24T21:43:43",
+  "instruction": "既存の<div class=\"cscs-svb-card is-wide svb-once-odoa-card\">の下に、\n全ての値をLocalstage由来にした<div class=\"cscs-svb-card is-wide svb-once-odoa-card\">をもう一つ追加したい。\nその際に既存の新規のカードの見出しテキストの表記がそれぞれ以下になるようにしたい\n\n  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　\n　　　※既存のワイドカードの見出しに”SYNC\"と追記\n\n  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　\n　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる",
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 155057,
+    "sha256": "cba125d10870f39ee4358bf0515517c63e5f5b8992968c297fde837a74cfc320",
+    "saved_copy": "original/cscs_sync_view_b.js"
+  },
+  "split": {
+    "total_parts": 4,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 4,
+      "part_id": "CSCSJS-CBA125D1-P01-of-04",
+      "part_sha256": "f1154e7dd39771999b7b8e20d6c4b93d77625617525366bd8a37f8734d2d5bce",
+      "start_offset": 0,
+      "end_offset": 37482,
+      "len_chars": 37482,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 4,
+      "part_id": "CSCSJS-CBA125D1-P02-of-04",
+      "part_sha256": "09cc6c3ed2254e5b7e3c0247363283e9b20c436fb2708955d4fa0273e705d68c",
+      "start_offset": 37482,
+      "end_offset": 82328,
+      "len_chars": 44846,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 4,
+      "part_id": "CSCSJS-CBA125D1-P03-of-04",
+      "part_sha256": "99b0cfb4a2032025688fed4d7e68dbe5ec641dbe9b84b0ac66d9ec3e0886ec7a",
+      "start_offset": 82328,
+      "end_offset": 130215,
+      "len_chars": 47887,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 4,
+      "part_id": "CSCSJS-CBA125D1-P04-of-04",
+      "part_sha256": "5d4c93f6580e3d2d1a4d2e96367efb07fb995b079888092c949aedb288dc06cf",
+      "start_offset": 130215,
+      "end_offset": 155057,
+      "len_chars": 24842,
+      "file": "parts/part_04.txt"
+    }
+  ]
+}

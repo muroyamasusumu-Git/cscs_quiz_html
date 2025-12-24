@@ -3719,7 +3719,8 @@
 
   function ensureOnceOdoaWideTitles(box) {
     // ★ 何をしているか:
-    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しに "(SYNC)" を付与する
+    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しを
+    //   必ず "OncePerDayToday / O.D.O.A Mode (SYNC)" の表記に揃える（既存表記ゆれ吸収・二重付与防止）
     //   既存カードは class="svb-once-odoa-card" を持つ前提で、そのうち先頭を SYNC 扱いにする
     try {
       if (!box) return;
@@ -3730,8 +3731,15 @@
       var title = syncCard.querySelector(".cscs-svb-card-title");
       if (title) {
         var base = "OncePerDayToday / O.D.O.A Mode";
+        var desired = "OncePerDayToday / O.D.O.A Mode (SYNC)";
+
+        // ★ 何をしているか:
+        //   既存見出しが base を含む限り、最終表記を desired に固定する（完全一致に揃える）
+        //   すでに desired の場合は何もしない
         if (title.textContent && title.textContent.indexOf(base) >= 0) {
-          title.textContent = "OncePerDayToday / O.D.O.A Mode (SYNC)";
+          if (title.textContent !== desired) {
+            title.textContent = desired;
+          }
         }
       }
     } catch (_e) {}

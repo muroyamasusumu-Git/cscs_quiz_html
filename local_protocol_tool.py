@@ -318,72 +318,11 @@ def _offset_to_line_index(line_starts: List[int], offset: int) -> int:
 def _find_matching_brace_end(s: str, start_pos: int) -> int:
     """
     start_pos 以降で最初に現れる '{' を起点に、対応する '}' の直後位置を返す。
-    - 文字列 / コメント は極力スキップして数える（簡易）。
-    - テンプレ文字列は本体（プレーン文字列部）は無視するが、 ${ ... } の式部分は“コード”として解析し、
-      { } の深さに影響させる（追加した処理: in_tpl を丸ごとスキップしてブレース整合が崩れる問題を抑える）。
+    - 文字列 / テンプレ / コメント を極力避けて数える（簡易）。
     - 見つからない場合は -1。
     """
     n = len(s)
     i = start_pos
-
-    def _is_escaped_at(pos: int) -> bool:
-        """
-        pos の文字が、直前の連続バックスラッシュによりエスケープされているか判定する。
-        （追加した処理: テンプレ内の ` や ${ 判定の誤爆を減らす）
-        """
-        if pos <= 0 or pos >= n:
-            return False
-        k = pos - 1
-        cnt = 0
-        while k >= 0 and s[k] == "\\":
-            cnt += 1
-            k -= 1
-        return (cnt % 2) == 1
-
-    def _consume_string(quote: str, j: int) -> int:
-        """
-        quote（' or "）で始まる文字列を終端まで進める。
-        （追加した処理: ${式} 解析中に文字列が出ても深さ計算が壊れないようにする）
-        """
-        j += 1
-        while j < n:
-            ch2 = s[j]
-            if ch2 == "\\":
-                j += 2
-                continue
-            if ch2 == quote:
-                return j + 1
-            j += 1
-        return n
-
-    def _consume_regex_like(j: int) -> int:
-        """
-        /.../ の正規表現リテラル“っぽい”ものを読み飛ばす（簡易）。
-        （追加した処理: スラッシュをコメント扱いするだけだと式内で壊れやすいので最低限）
-        """
-        j += 1
-        in_cls = False
-        while j < n:
-            ch2 = s[j]
-            if ch2 == "\\":
-                j += 2
-                continue
-            if in_cls:
-                if ch2 == "]":
-                    in_cls = False
-                j += 1
-                continue
-            if ch2 == "[":
-                in_cls = True
-                j += 1
-                continue
-            if ch2 == "/":
-                j += 1
-                while j < n and s[j].isalpha():
-                    j += 1
-                return j
-            j += 1
-        return n
 
     # 1) まず最初の '{' を探す（コメント/文字列はざっくりスキップ）
     in_squote = False
@@ -439,10 +378,16 @@ def _find_matching_brace_end(s: str, start_pos: int) -> int:
             continue
 
         if in_tpl:
-            if ch == "`" and not _is_escaped_at(i):
-                in_tpl = False
+            if esc:
+                esc = False
                 i += 1
                 continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == "`":
+                in_tpl = False
             i += 1
             continue
 
@@ -476,14 +421,13 @@ def _find_matching_brace_end(s: str, start_pos: int) -> int:
     if i >= n or s[i] != "{":
         return -1
 
-    # 2) 対応する '}' を探す（テンプレの ${...} は式として解析）
+    # 2) 対応する '}' を探す
     depth = 0
-    in_line_cmt = False
-    in_block_cmt = False
     in_squote = False
     in_dquote = False
     in_tpl = False
-    tpl_expr_depth = 0
+    in_line_cmt = False
+    in_block_cmt = False
     esc = False
 
     while i < n:
@@ -531,19 +475,21 @@ def _find_matching_brace_end(s: str, start_pos: int) -> int:
             i += 1
             continue
 
-        if in_tpl and tpl_expr_depth <= 0:
-            if ch == "`" and not _is_escaped_at(i):
-                in_tpl = False
+        if in_tpl:
+            if esc:
+                esc = False
                 i += 1
                 continue
-            if ch == "$" and i + 1 < n and s[i + 1] == "{" and not _is_escaped_at(i):
-                tpl_expr_depth = 1
-                i += 2
+            if ch == "\\":
+                esc = True
+                i += 1
                 continue
+            if ch == "`":
+                in_tpl = False
             i += 1
             continue
 
-        # ここからは「通常コード」または「テンプレ内の式（${...}）」の解析
+        # 文字列/コメント外
         if ch == "/" and i + 1 < n and s[i + 1] == "/":
             in_line_cmt = True
             i += 2
@@ -552,7 +498,6 @@ def _find_matching_brace_end(s: str, start_pos: int) -> int:
             in_block_cmt = True
             i += 2
             continue
-
         if ch == "'":
             in_squote = True
             i += 1
@@ -561,31 +506,17 @@ def _find_matching_brace_end(s: str, start_pos: int) -> int:
             in_dquote = True
             i += 1
             continue
-
         if ch == "`":
             in_tpl = True
-            tpl_expr_depth = 0
             i += 1
-            continue
-
-        if ch == "/":
-            i = _consume_regex_like(i)
             continue
 
         if ch == "{":
             depth += 1
-            if in_tpl and tpl_expr_depth > 0:
-                tpl_expr_depth += 1
             i += 1
             continue
-
         if ch == "}":
             depth -= 1
-            if in_tpl and tpl_expr_depth > 0:
-                tpl_expr_depth -= 1
-                if tpl_expr_depth == 0:
-                    i += 1
-                    continue
             i += 1
             if depth == 0:
                 return i
@@ -598,17 +529,11 @@ def _find_matching_brace_end(s: str, start_pos: int) -> int:
 
 def extract_function_whole(js_text: str, name: str) -> Tuple[bool, str, str]:
     """
-    関数 “まるごと” 抽出（簡易 / 現実JS寄せ）
+    関数 “まるごと” 抽出（簡易）
     - function NAME(...) {...}
-    - async function NAME(...) {...}
-    - export function NAME(...) {...}
-    - export default function NAME(...) {...}
-    - function* NAME(...) {...}
-    - var/let/const NAME = function(...) {...}
-    - var/let/const NAME = async function(...) {...}
-    - var/let/const NAME = (...) => {...}
-    - var/let/const NAME = (..) => expr;  （追加した処理: ブロック無し arrow を1文として拾う）
-    - class 内メソッド NAME(...) {...}    （追加した処理: class ブロック内で拾う）
+    - var NAME = function(...) {...}
+    - const NAME = (...) => {...}
+    - let NAME = (...) => {...}
     戻り値: (found, header, body)
     """
     s = str(js_text or "")
@@ -618,192 +543,38 @@ def extract_function_whole(js_text: str, name: str) -> Tuple[bool, str, str]:
 
     import re
 
-    def _find_statement_end(text: str, start_pos: int) -> int:
-        """
-        start_pos から「1文の終端（; または改行）」を探して、その直後位置を返す。
-        （追加した処理: arrow expr など、{ } を持たない宣言を拾うための簡易終端探索）
-        """
-        n = len(text)
-        i = start_pos
-        in_squote = False
-        in_dquote = False
-        in_tpl = False
-        in_line_cmt = False
-        in_block_cmt = False
-        esc = False
+    patterns = [
+        # 追加した処理: async / export / export default / generator 付きの関数宣言も拾う（現実のJSで頻出）
+        re.compile(r"(^|\n)\s*(?:export\s+default\s+)?(?:export\s+)?function\s+" + re.escape(target) + r"\s*\(", re.MULTILINE),
+        re.compile(r"(^|\n)\s*(?:export\s+default\s+)?(?:export\s+)?async\s+function\s+" + re.escape(target) + r"\s*\(", re.MULTILINE),
+        re.compile(r"(^|\n)\s*(?:export\s+default\s+)?(?:export\s+)?function\s*\*\s*" + re.escape(target) + r"\s*\(", re.MULTILINE),
+        re.compile(r"(^|\n)\s*(?:export\s+default\s+)?(?:export\s+)?async\s+function\s*\*\s*" + re.escape(target) + r"\s*\(", re.MULTILINE),
 
-        while i < n:
-            ch = text[i]
+        # 既存: 通常の function NAME( ももちろん拾う（上の export 系で拾えないケースの保険ではなく、素直な網羅）
+        re.compile(r"(^|\n)\s*function\s+" + re.escape(target) + r"\s*\(", re.MULTILINE),
 
-            if in_line_cmt:
-                if ch == "\n":
-                    return i + 1
-                i += 1
-                continue
+        # 既存: var/let/const NAME = function(
+        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*function\s*\(", re.MULTILINE),
 
-            if in_block_cmt:
-                if ch == "*" and i + 1 < n and text[i + 1] == "/":
-                    in_block_cmt = False
-                    i += 2
-                    continue
-                i += 1
-                continue
-
-            if in_squote:
-                if esc:
-                    esc = False
-                    i += 1
-                    continue
-                if ch == "\\":
-                    esc = True
-                    i += 1
-                    continue
-                if ch == "'":
-                    in_squote = False
-                i += 1
-                continue
-
-            if in_dquote:
-                if esc:
-                    esc = False
-                    i += 1
-                    continue
-                if ch == "\\":
-                    esc = True
-                    i += 1
-                    continue
-                if ch == '"':
-                    in_dquote = False
-                i += 1
-                continue
-
-            if in_tpl:
-                if esc:
-                    esc = False
-                    i += 1
-                    continue
-                if ch == "\\":
-                    esc = True
-                    i += 1
-                    continue
-                if ch == "`":
-                    in_tpl = False
-                    i += 1
-                    continue
-                i += 1
-                continue
-
-            if ch == "/" and i + 1 < n and text[i + 1] == "/":
-                in_line_cmt = True
-                i += 2
-                continue
-            if ch == "/" and i + 1 < n and text[i + 1] == "*":
-                in_block_cmt = True
-                i += 2
-                continue
-            if ch == "'":
-                in_squote = True
-                i += 1
-                continue
-            if ch == '"':
-                in_dquote = True
-                i += 1
-                continue
-            if ch == "`":
-                in_tpl = True
-                i += 1
-                continue
-
-            if ch == ";":
-                return i + 1
-            if ch == "\n":
-                return i + 1
-
-            i += 1
-
-        return n
-
-    def _extract_class_method(text: str, method_name: str) -> Optional[Tuple[int, int]]:
-        """
-        class ブロック内で method_name(...) { ... } を探して、その範囲（start,end）を返す。
-        （追加した処理: class のメソッド宣言は現行の function/var パターンだと拾えないため）
-        """
-        import re
-
-        class_rg = re.compile(r"(^|\n)\s*class\s+[A-Za-z_$][A-Za-z0-9_$]*\s*(?:extends\s+[A-Za-z_$][A-Za-z0-9_$]*\s*)?{", re.MULTILINE)
-        m = class_rg.search(text)
-        pos = 0
-        while m:
-            cls_start = m.start(0)
-            if cls_start > 0 and text[cls_start] == "\n":
-                cls_start = cls_start + 1
-
-            cls_end = _find_matching_brace_end(text, m.end(0))
-            if cls_end == -1:
-                pos = m.end(0)
-                m = class_rg.search(text, pos)
-                continue
-
-            cls_body = text[m.end(0):cls_end]
-            method_rg = re.compile(
-                r"(^|\n)\s*(?:async\s+)?(?:static\s+)?(?:get\s+|set\s+)?"
-                + re.escape(method_name)
-                + r"\s*$begin:math:text$\"\,
-                re\.MULTILINE\,
-            \)
-            mm \= method\_rg\.search\(cls\_body\)
-            if mm\:
-                mstart \= m\.end\(0\) \+ mm\.start\(0\)
-                if mstart \> 0 and text\[mstart\] \=\= \"\\n\"\:
-                    mstart \= mstart \+ 1
-                mend \= \_find\_matching\_brace\_end\(text\, m\.end\(0\) \+ mm\.end\(0\)\)
-                if mend \!\= \-1\:
-                    return \(mstart\, mend\)
-
-            pos \= cls\_end
-            m \= class\_rg\.search\(text\, pos\)
-
-        return None
-
-    patterns \= \[
-        re\.compile\(r\"\(\^\|\\n\)\\s\*\(\?\:export\\s\+default\\s\+\)\?\(\?\:export\\s\+\)\?\(\?\:async\\s\+\)\?function\\s\*\\\*\\s\*\" \+ re\.escape\(target\) \+ r\"\\s\*\\\(\"\, re\.MULTILINE\)\,
-        re\.compile\(r\"\(\^\|\\n\)\\s\*\(\?\:export\\s\+default\\s\+\)\?\(\?\:export\\s\+\)\?\(\?\:async\\s\+\)\?function\\s\+\" \+ re\.escape\(target\) \+ r\"\\s\*\\\(\"\, re\.MULTILINE\)\,
-        re\.compile\(r\"\(\^\|\\n\)\\s\*\(\?\:var\|let\|const\)\\s\+\" \+ re\.escape\(target\) \+ r\"\\s\*\=\\s\*\(\?\:async\\s\+\)\?function\\s\*\\\*\\s\*\\\(\"\, re\.MULTILINE\)\,
-        re\.compile\(r\"\(\^\|\\n\)\\s\*\(\?\:var\|let\|const\)\\s\+\" \+ re\.escape\(target\) \+ r\"\\s\*\=\\s\*\(\?\:async\\s\+\)\?function\\s\*\\\(\"\, re\.MULTILINE\)\,
-        re\.compile\(r\"\(\^\|\\n\)\\s\*\(\?\:var\|let\|const\)\\s\+\" \+ re\.escape\(target\) \+ r\"\\s\*\=\\s\*\\\(\[\^\)\]\*$end:math:text$\s*=>\s*{", re.MULTILINE),
+        # 既存: var/let/const NAME = (...) => { / NAME = x => { （ブロックarrowのみ = “まるごと”抽出できる）
+        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*\([^)]*\)\s*=>\s*{", re.MULTILINE),
         re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*[A-Za-z_$][A-Za-z0-9_$]*\s*=>\s*{", re.MULTILINE),
-        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*$begin:math:text$\[\^\)\]\*$end:math:text$\s*=>\s*(?!{)", re.MULTILINE),
-        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*[A-Za-z_$][A-Za-z0-9_$]*\s*=>\s*(?!{)", re.MULTILINE),
     ]
 
     best = None
-    best_kind = "brace"
     for rg in patterns:
         m = rg.search(s)
         if m:
             best = m
-            if "=>\\s*(?!{)" in rg.pattern:
-                best_kind = "stmt"
             break
 
     if not best:
-        cm = _extract_class_method(s, target)
-        if cm:
-            start_pos, end_pos = cm
-            body = s[start_pos:end_pos]
-            header = f"EXTRACT_FUNCTION: {target} (class_method chars {start_pos}..{end_pos})"
-            return (True, header, body)
         return (False, "not found", "")
 
     start_pos = best.start(0)
+    # start_pos が "\n" を含むマッチの場合、行頭から取る
     if start_pos > 0 and s[start_pos] == "\n":
         start_pos = start_pos + 1
-
-    if best_kind == "stmt":
-        end_pos = _find_statement_end(s, best.end(0))
-        body = s[start_pos:end_pos]
-        header = f"EXTRACT_FUNCTION: {target} (stmt chars {start_pos}..{end_pos})"
-        return (True, header, body)
 
     end_pos = _find_matching_brace_end(s, best.end(0))
     if end_pos == -1:
@@ -814,29 +585,13 @@ def extract_function_whole(js_text: str, name: str) -> Tuple[bool, str, str]:
     return (True, header, body)
 
 
-def extract_context_around(
-    js_text: str,
-    needle: str,
-    context_lines: int,
-    max_matches: int,
-    mode: str = "context",
-    with_line_numbers: bool = False,
-) -> Tuple[int, List[Tuple[str, str]]]:
+def extract_context_around(js_text: str, needle: str, context_lines: int, max_matches: int) -> Tuple[int, List[Tuple[str, str]]]:
     """
-    文字列 needle のヒット行を抽出する。
-
-    mode:
-      - "context": ヒット行を中心に ±context_lines 行（従来）
-      - "hit_only": ヒット行のみ（追加した処理: 出力膨張を抑える運用モード）
-
-    with_line_numbers:
-      - True の場合、抽出本文に行番号プレフィックスを付与する
-        （追加した処理: 置換指示が安定し、LLMにも人間にも効く）
+    文字列 needle のヒット行を中心に ±context_lines 行を抽出する。
     戻り値: (hit_count, blocks[(header, body)])
     """
     s = str(js_text or "")
     nd = str(needle or "")
-
     try:
         ctx = int(context_lines)
     except Exception:
@@ -851,25 +606,8 @@ def extract_context_around(
     if mm <= 0:
         mm = DEFAULT_EXTRACT_MAX_MATCHES
 
-    md = str(mode or "context").strip().lower()
-    if md not in ("context", "hit_only"):
-        md = "context"
-
-    ln_on = bool(with_line_numbers)
-
     line_starts = _line_start_offsets(s)
     lines = s.splitlines(True)
-
-    def _format_with_linenos(a_idx: int, b_idx: int) -> str:
-        """
-        行番号付きで lines[a_idx:b_idx] を結合する。
-        （追加した処理: 1-based 行番号を左に付与）
-        """
-        out: List[str] = []
-        for k in range(a_idx, b_idx):
-            line_no = k + 1
-            out.append(f"{line_no:6d}: {lines[k]}")
-        return "".join(out)
 
     blocks: List[Tuple[str, str]] = []
     hit_count = 0
@@ -884,25 +622,17 @@ def extract_context_around(
         hit_count += 1
         if hit_count <= mm:
             li = _offset_to_line_index(line_starts, j)
+            a = max(0, li - ctx)
+            b = min(len(lines), li + ctx + 1)
 
-            if md == "hit_only":
-                a = li
-                b = li + 1
-            else:
-                a = max(0, li - ctx)
-                b = min(len(lines), li + ctx + 1)
-
-            if ln_on:
-                body = _format_with_linenos(a, b)
-            else:
-                body = "".join(lines[a:b])
-
-            header = f"EXTRACT_CONTEXT: '{nd}' mode={md} hit_line={li + 1} range_lines={a + 1}..{b}"
+            body = "".join(lines[a:b])
+            header = f"EXTRACT_CONTEXT: '{nd}' hit_line={li + 1} range_lines={a + 1}..{b}"
             blocks.append((header, body))
 
         pos = j + max(1, len(nd))
 
         if hit_count >= mm:
+            # max_matches 以上はカウントだけ進めず終了
             break
 
     return (hit_count, blocks)

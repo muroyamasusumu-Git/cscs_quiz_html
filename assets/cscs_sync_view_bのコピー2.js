@@ -1,34 +1,3 @@
-<<<PART_BEGIN>>>
-【分割コード(1)の開始】
-PartID: CSCSJS-F07A6B02-P01-of-01
-PartSHA256: f07a6b02df72c24173358111e90f0e61146aa6a67731cd8d07a0b93f7d700980
-Range: chars 0..148083 (len=148083)
-FirstLine: // assets/cscs_sync_view_b.js
-LastLine: })();
-
-【プロトコル宣言（PART_01=宣言 / LAST_PART=EXEC_TASK）】
-SessionID: CSCSJS-F07A6B02
-TargetFile: cscs_sync_view_b.js
-Split: total_parts=1, max_chars_per_part=100000, max_lines_per_part=2000
-
-【あなた（ChatGPT）への最重要ルール（厳守）】
-0) 分割コード受領中は、内容の解釈・要約・推測・修正案提示を一切禁止。
-1) 分割コード(1..N-1)受領時の返答は必ず：
-   ACK: <PartID> / WAITING_NEXT
-2) 最終分割コード(N)受領時は、末尾の RECEIPT_INPUT を用いて受領確認を実施すること。
-3) 受領確認は、最終メッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用（会話履歴参照は禁止）。
-4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の文は参考であり実行根拠にしない。
-5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。
-
-【指示内容（概要：参考用／実行根拠にしない）】
-OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　にしたカードを追加したい
-  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　※既存のワイドカードの見出しに”SYNC"と追記
-  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる
-
-【分割コード貼り付け開始】
-以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。
-
-```javascript
 // assets/cscs_sync_view_b.js
 (function () {
   "use strict";
@@ -3645,6 +3614,14 @@ OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　に
           pending: pending
         });
 
+        // ★ 何をしているか:
+        //   localStorage 由来の OncePerDayToday / O.D.O.A Mode を「local専用カード」に反映する
+        //   （SYNCカードとは独立した表示。diff送信の有無に関係なく、毎回更新する）
+        refreshLocalOnceOdoaCard(box, {
+          qid: info.qid,
+          odoaModeText: odoaModeText
+        });
+
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
         //    HUD 表示のみ更新した状態で終了する（手動 streak3Today テスト用）
         if (suppressDiffSend) {
@@ -3740,6 +3717,208 @@ OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　に
       });
   }
 
+  function ensureOnceOdoaWideTitles(box) {
+    // ★ 何をしているか:
+    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しに "(SYNC)" を付与する
+    //   既存カードは class="svb-once-odoa-card" を持つ前提で、そのうち先頭を SYNC 扱いにする
+    try {
+      if (!box) return;
+      var cards = box.querySelectorAll(".svb-once-odoa-card");
+      if (!cards || cards.length === 0) return;
+
+      var syncCard = cards[0];
+      var title = syncCard.querySelector(".cscs-svb-card-title");
+      if (title) {
+        var base = "OncePerDayToday / O.D.O.A Mode";
+        if (title.textContent && title.textContent.indexOf(base) >= 0) {
+          title.textContent = "OncePerDayToday / O.D.O.A Mode (SYNC)";
+        }
+      }
+    } catch (_e) {}
+  }
+
+  function ensureLocalOnceOdoaWideCard(box) {
+    // ★ 何をしているか:
+    //   SYNCカードの直下に、localStorage由来の値だけを表示する「local専用ワイドカード」を1枚作る（重複作成しない）
+    try {
+      if (!box) return;
+
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      // 既存の once/odoa カード（SYNC）を探し、その直後に差し込む
+      var syncCard = body.querySelector(".svb-once-odoa-card");
+      if (!syncCard) return;
+
+      // すでに local 用が存在するなら何もしない
+      if (body.querySelector(".svb-once-odoa-card-local")) return;
+
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide svb-once-odoa-card svb-once-odoa-card-local";
+
+      var head = document.createElement("div");
+      head.className = "cscs-svb-card-head";
+
+      var title = document.createElement("div");
+      title.className = "cscs-svb-card-title";
+      title.textContent = "OncePerDayToday / O.D.O.A Mode (local)";
+
+      var btn = document.createElement("button");
+      btn.className = "cscs-svb-mini-btn";
+      btn.type = "button";
+      btn.textContent = "▶︎show";
+
+      var details = document.createElement("div");
+      details.className = "cscs-svb-card-details";
+
+      var collapsedKey = "cscs_sync_view_b_once_odoa_local_collapsed";
+      var isCollapsed = false;
+      try {
+        isCollapsed = (localStorage.getItem(collapsedKey) === "1");
+      } catch (_e0) {
+        isCollapsed = false;
+      }
+
+      function applyCollapsed() {
+        if (isCollapsed) {
+          details.style.display = "none";
+          btn.textContent = "▶︎show";
+        } else {
+          details.style.display = "";
+          btn.textContent = "▼hide";
+        }
+      }
+
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        isCollapsed = !isCollapsed;
+        try {
+          localStorage.setItem(collapsedKey, isCollapsed ? "1" : "0");
+        } catch (_e1) {}
+        applyCollapsed();
+      });
+
+      // グリッド（2列）
+      var grid = document.createElement("div");
+      grid.className = "cscs-svb-grid2";
+
+      function addRow(labelText, valueText) {
+        var l = document.createElement("div");
+        l.className = "cscs-svb-grid2-label";
+        l.textContent = labelText;
+
+        var v = document.createElement("div");
+        v.className = "cscs-svb-grid2-value";
+        v.textContent = valueText;
+
+        grid.appendChild(l);
+        grid.appendChild(v);
+      }
+
+      addRow("oncePerDayToday", "-");
+      addRow("Today", "-");
+      addRow("qid", "-");
+      addRow("count対象", "-");
+      addRow("記録", "-");
+      addRow("ODOA", "-");
+
+      details.appendChild(grid);
+
+      head.appendChild(title);
+      head.appendChild(btn);
+
+      card.appendChild(head);
+      card.appendChild(details);
+
+      // SYNCカードの直後に挿入
+      if (syncCard.nextSibling) {
+        body.insertBefore(card, syncCard.nextSibling);
+      } else {
+        body.appendChild(card);
+      }
+
+      applyCollapsed();
+    } catch (_e) {}
+  }
+
+  function refreshLocalOnceOdoaCard(box, params) {
+    // ★ 何をしているか:
+    //   local専用カードの行テキストを、localStorage由来の値だけで更新する
+    try {
+      if (!box) return;
+
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      var card = body.querySelector(".svb-once-odoa-card-local");
+      if (!card) return;
+
+      var qid = (params && typeof params.qid === "string") ? params.qid : "";
+      var odoaModeText = (params && typeof params.odoaModeText === "string") ? params.odoaModeText : "OFF";
+
+      // local oncePerDayToday を読む（既存ヘルパーがあればそれを優先）
+      var localOnceDay = null;
+      var localOnceVal = null;
+
+      try {
+        if (typeof readOncePerDayTodayFromLocal === "function") {
+          var localOnce = readOncePerDayTodayFromLocal();
+          if (localOnce && typeof localOnce.day === "number") {
+            localOnceDay = localOnce.day;
+          }
+          if (localOnce && localOnce.results && typeof localOnce.results === "object" && qid) {
+            if (Object.prototype.hasOwnProperty.call(localOnce.results, qid)) {
+              localOnceVal = localOnce.results[qid];
+            }
+          }
+        }
+      } catch (_eOnce) {
+        localOnceDay = null;
+        localOnceVal = null;
+      }
+
+      function fmtDay8ToDateText(dayNum) {
+        if (typeof dayNum !== "number" || !Number.isFinite(dayNum) || dayNum <= 0) return "-";
+        var s = String(dayNum);
+        if (s.length !== 8) return s;
+        return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8);
+      }
+
+      var onceStateLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "計測済" : "未開始";
+      var onceTodayDateLabel = (localOnceDay != null) ? fmtDay8ToDateText(localOnceDay) : "-";
+      var onceQidLabel = qid || "-";
+      var onceCountableLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "No（計測済）" : "Yes（未計測）";
+      var onceRecordLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? String(localOnceVal) : "-";
+
+      var onceOdoaLabel = "-";
+      if (odoaModeText === "ON") {
+        if (onceRecordLabel !== "-") {
+          onceOdoaLabel = "ON（累計加算: No）  " + onceRecordLabel;
+        } else {
+          onceOdoaLabel = "ON（累計加算: No）";
+        }
+      } else if (odoaModeText === "OFF") {
+        onceOdoaLabel = "OFF（累計加算: Yes）";
+      } else {
+        onceOdoaLabel = String(odoaModeText);
+      }
+
+      // grid の 2列を先頭から順に上書き
+      var values = card.querySelectorAll(".cscs-svb-grid2-value");
+      if (!values || values.length < 6) return;
+
+      values[0].textContent = onceStateLabel;
+      values[1].textContent = onceTodayDateLabel;
+      values[2].textContent = onceQidLabel;
+      values[3].textContent = onceCountableLabel;
+      values[4].textContent = onceRecordLabel;
+      values[5].textContent = onceOdoaLabel;
+
+    } catch (_e) {}
+  }
+
   function init() {
     // ★ パネル生成より先にCSSを注入（初回表示から確実に適用）
     ensureSyncViewBStyles();
@@ -3757,6 +3936,12 @@ OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　に
           document.body.appendChild(box);
         }
       }
+
+      // ★ 何をしているか:
+      //   既存(SYNC)カードの見出しを "(SYNC)" にし、直下に local専用カードを追加する
+      ensureOnceOdoaWideTitles(box);
+      ensureLocalOnceOdoaWideCard(box);
+
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {
         btn.addEventListener("click", function (ev) {
@@ -4140,1125 +4325,3 @@ OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　に
 
   init();
 })();
-```
-<<<PART_END>>>
-【RECEIPT_INPUT（このメッセージ内だけを真とする）】
-EXPECTED_TOTAL: 1
-RECEIVED_TOTAL: 1
-
-CUMULATIVE_RECEIVED_PARTIDS:
-- CSCSJS-F07A6B02-P01-of-01
-
-EXPECTED_PARTIDS_WITH_SHA256:
-- CSCSJS-F07A6B02-P01-of-01 | f07a6b02df72c24173358111e90f0e61146aa6a67731cd8d07a0b93f7d700980
-
-【ChatGPTへの強制ルール】
-・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
-・会話履歴から PartID を再収集しないこと（禁止）。
-・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
-
-RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
-ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
-
-【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
-OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　にしたカードを追加したい
-  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　※既存のワイドカードの見出しに”SYNC"と追記
-  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる
-
-【SCOPE_INDEX（連結後JSの探索用索引）】
-・この索引は、分割前の元JS全文（= 連結後JS）から抽出しています。
-・まずここを見て「存在する/しない」を確定し、不要な全文探索や見落としを減らしてください。
-・識別子だけでなく DOM/selector/storage key も含めています。
-
-【SUMMARY】
-TOTAL_IDENTIFIERS_UNIQ: 917
-TOTAL_DOM_IDS_UNIQ: 4
-TOTAL_DOM_CLASSES_UNIQ: 0
-TOTAL_DOM_NAMES_UNIQ: 0
-TOTAL_SELECTORS_UNIQ: 1
-TOTAL_LOCALSTORAGE_KEYS_UNIQ: 10
-TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
-
-【IDENTIFIERS_TOP_FREQUENT（頻出上位）】
-- qid (307)
-- svb (161)
-- SYNC (146)
-- state (127)
-- console (115)
-- card (101)
-- B (97)
-- window (94)
-- model (86)
-- O (82)
-- grid (82)
-- day (79)
-- localStorage (77)
-- syncState (76)
-- document (75)
-- payload (73)
-- log (69)
-- local (68)
-- String (68)
-- st (68)
-- appendChild (67)
-- className (67)
-- info (65)
-- createElement (62)
-- streak3Today (56)
-- __cscs_sync_state (56)
-- cscs_sync_view_b_body (55)
-- odoaModeText (55)
-- streak3WrongToday (54)
-- div (54)
-- localStreakLen (53)
-- correct (50)
-- oncePerDayToday (50)
-- freshState (50)
-- object (47)
-- localCorrect (47)
-- localWrong (47)
-- head (46)
-- Number (46)
-- qids (45)
-- serverStreakLen (45)
-- pending (44)
-- isFinite (44)
-- diffCorrect (44)
-- diffWrong (44)
-- box (43)
-- cscs (43)
-- error (43)
-- diffStreak3 (43)
-- A (42)
-- HUD (42)
-- serverCorrect (42)
-- serverWrong (42)
-- localWrongStreakLen (42)
-- D (41)
-- localStreak3 (41)
-- stateAfter (41)
-- lastday (40)
-- number (40)
-- data (40)
-- max (39)
-- serverStreak3 (37)
-- serverWrongStreakLen (36)
-- diffStreakLen (35)
-- streakWrongLen (34)
-- Math (34)
-- merge (33)
-- streak3Wrong (33)
-- ON (33)
-- results (32)
-- textContent (32)
-- server (32)
-- params (32)
-- body (31)
-- text (30)
-- streak (30)
-- k (30)
-- x (30)
-- diffStreak3Wrong (30)
-- Mode (29)
-
-【IDENTIFIERS_ALL（ユニーク識別子一覧）】
-- A
-- Array
-- B
-- CALLED
-- CSCS
-- CSCS_ODOA_MODE
-- CSCS_SYNC
-- CSCS_SYNC_VIEW_B_CSS
-- CSCS_VERIFY_MODE
-- CSS
-- ChatGPT
-- Content
-- Correct
-- Counts
-- D
-- DD
-- DOM
-- DOMContentLoaded
-- Date
-- DayDelta
-- Delta
-- Df
-- ERROR
-- Error
-- FAILED
-- FALSE
-- GET
-- HTTP
-- HUD
-- ID
-- JSON
-- JST
-- KV
-- LAST_ODOA_STATUS
-- LastDay
-- Lcl
-- Local
-- LocalStorage
-- MERGE
-- MM
-- Math
-- Max
-- Mode
-- NG
-- NNN
-- NO
-- NOT
-- NaN
-- No
-- Number
-- O
-- ODOA
-- ODOA_MODE
-- OFF
-- OK
-- ON
-- Object
-- OncePerDayToday
-- POST
-- Pending
-- Promise
-- Roboto
-- SEND
-- SYNC
-- SYNC_MERGE_ENDPOINT
-- SYNC_STATE_ENDPOINT
-- Segoe
-- Status
-- Streak
-- Streak3Today
-- Streak3TodayUnique
-- Streak3WrongToday
-- Streak3WrongTodayUq
-- String
-- Syc
-- TRUE
-- Today
-- Totals
-- Type
-- UI
-- UPDATED
-- Unique
-- VERIFY
-- Wide
-- Worker
-- Workers
-- Wrong
-- YYYY
-- YYYYMMDD
-- Yes
-- __cscs_sync_b_manual_send_ts
-- __cscs_sync_state
-- __keep__
-- _b
-- _build_cscs_
-- _e
-- _e2
-- _e3
-- _e4
-- _eAll
-- _eAssign
-- _eAssignFresh
-- _eDate
-- _eForce
-- _eLast
-- _eLocalS3TodayQids
-- _eLocalS3WrongTodayQids
-- _eManual
-- _eOdoaLower
-- _eOdoaModeRaw
-- _eOdoaModeText
-- _eOdoaPick
-- _eOnce
-- _eOnceAll
-- _eOnceCollapsed
-- _ePending
-- _ePendingAfterPost
-- _ePendingCollapsed
-- _eS3TodaySyncQids
-- _eS3WrongTodaySyncQids
-- _eS3t
-- _eS3t2
-- _eS3w
-- _eS3w2
-- _eSaveOnce
-- _eSavePending
-- _eSt
-- _eStateWrong
-- _eSuppressPick
-- _ignore
-- a
-- active
-- addEventListener
-- addNo
-- addOdoaSingleRow
-- addPart
-- addRow
-- after
-- align
-- all
-- alreadyCounted
-- api
-- appearance
-- append
-- appendChild
-- appendCountsSectionInline
-- appendGridRow
-- appendGridSection
-- appendLastDayCard
-- appendOncePerDayAndOdoaWideCard
-- appendStreakMaxPairCards
-- appendStreakQuad4WideCards
-- appendTodayUniquePair
-- appended
-- apple
-- application
-- aria
-- arr
-- as
-- asDayNum
-- assets
-- async
-- attach
-- attached
-- auto
-- available
-- b
-- b_judge_record
-- background
-- baseline
-- because
-- before
-- best
-- between
-- bis
-- bits
-- block
-- body
-- border
-- bottom
-- box
-- btn
-- build
-- buildCorrectCard
-- buildOncePerDayTodayDelta
-- buildWrongCard
-- but
-- button
-- c
-- cVal
-- call
-- card
-- cell
-- center
-- chev
-- child
-- childNodes
-- className
-- clearSyncBody
-- click
-- clicked
-- cnt
-- col
-- collapsed
-- collapsible
-- color
-- column
-- columns
-- completed
-- computePendingFlags
-- computed
-- console
-- contains
-- content
-- corL
-- corMax
-- corS
-- correct
-- correctDelta
-- correctDeltaObj
-- counts
-- create
-- createElement
-- createPanel
-- cscs
-- cscs_once_per_day_today_day
-- cscs_once_per_day_today_results
-- cscs_q_correct_streak3_total
-- cscs_q_correct_streak_len
-- cscs_q_correct_streak_max
-- cscs_q_correct_streak_max_day
-- cscs_q_correct_total
-- cscs_q_last_correct_day
-- cscs_q_last_seen_day
-- cscs_q_last_wrong_day
-- cscs_q_wrong_streak3_total
-- cscs_q_wrong_streak_len
-- cscs_q_wrong_streak_max
-- cscs_q_wrong_streak_max_day
-- cscs_q_wrong_total
-- cscs_streak3_today_day
-- cscs_streak3_today_qids
-- cscs_streak3_today_unique_count
-- cscs_streak3_wrong_today_day
-- cscs_streak3_wrong_today_qids
-- cscs_streak3_wrong_today_unique_count
-- cscs_sync_monitor_b
-- cscs_sync_view_b
-- cscs_sync_view_b_body
-- cscs_sync_view_b_correct_streak_collapsed
-- cscs_sync_view_b_inline_css
-- cscs_sync_view_b_once_odoa_collapsed
-- cscs_sync_view_b_pending_collapsed
-- cscs_sync_view_b_send_btn
-- cscs_sync_view_b_status
-- cscs_sync_view_b_title
-- cscs_total_questions
-- css
-- cssText
-- cursor
-- d
-- data
-- day
-- dayLabel
-- dayNum
-- dayStr
-- debug
-- delta
-- deltaResults
-- details
-- detectInfo
-- detected
-- diff
-- diffCorrect
-- diffCorrect2
-- diffCounts
-- diffIsZero
-- diffProgress
-- diffStreak3
-- diffStreak3Wrong
-- diffStreak3Wrong2
-- diffStreak3_2
-- diffStreakLen
-- diffStreakLen_2
-- diffWrong
-- diffWrong2
-- diffWrongProgress
-- diffWrongStreakLen
-- diffWrongStreakLen2
-- display
-- div
-- document
-- done
-- dual
-- e
-- e2
-- e4
-- e5
-- eFetchAfterPost
-- eLast
-- ePickFresh
-- eSrvPick
-- eStreakMax
-- eWrong
-- eWrongStreakMax
-- eee
-- el
-- ellipsis
-- end
-- ensureSyncViewBStyles
-- error
-- errorText
-- ev
-- even
-- expanded
-- failed
-- fallback
-- fatal
-- fetch
-- fetchState
-- filter
-- first
-- firstChild
-- fixed
-- flags
-- flex
-- fmtDayPair
-- fmtNumPair
-- fmtQidsPreview
-- fold
-- font
-- forceQid
-- forceReason
-- forceSend
-- freshState
-- from
-- full
-- g
-- gPending
-- gap
-- getDate
-- getElementById
-- getElementsByTagName
-- getFullYear
-- getItem
-- getMonth
-- global
-- grid
-- gridEl
-- group
-- groupEnd
-- h
-- has
-- hasCorrectDeltaInPayload
-- hasGlobalTotalQuestionsInPayload
-- hasIncorrectDeltaInPayload
-- hasLastCorrectDayDeltaInPayload
-- hasLastCorrectDayDiff
-- hasLastSeenDayDeltaInPayload
-- hasLastSeenDayDiff
-- hasLastWrongDayDeltaInPayload
-- hasLastWrongDayDiff
-- hasOncePerDayDelta
-- hasOncePerDayDeltaInPayload
-- hasOwnProperty
-- hasState
-- hasStreak3DeltaInPayload
-- hasStreak3WrongDeltaInPayload
-- hasStreakLenDeltaInPayload
-- hasStreakWrongLenDeltaInPayload
-- head
-- headKey
-- headLocal
-- headSync
-- headers
-- height
-- hidden
-- hide
-- hk
-- hl
-- hover
-- hs
-- html
-- i
-- id
-- important
-- incorrect
-- incorrectDelta
-- incorrectDeltaObj
-- index
-- indexOf
-- info
-- inherit
-- init
-- initial
-- initialized
-- injected
-- inline
-- innerHTML
-- inset
-- int
-- internal
-- is
-- isArray
-- isFinite
-- isMuted
-- items
-- j
-- join
-- js
-- json
-- justify
-- k
-- kText
-- keepalive
-- kept
-- key
-- keyClass
-- keys
-- l
-- label
-- last
-- lastCorrect
-- lastCorrectDay
-- lastCorrectDayDelta
-- lastCorrectDayDeltaObj
-- lastCorrectLocalLabel
-- lastCorrectSyncLabel
-- lastDay
-- lastSeen
-- lastSeenDay
-- lastSeenDayDelta
-- lastSeenDayDeltaObj
-- lastSeenLocalLabel
-- lastSeenSyncLabel
-- lastWrong
-- lastWrongDay
-- lastWrongDayDelta
-- lastWrongDayDeltaObj
-- lastWrongLocalLabel
-- lastWrongSyncLabel
-- lastday
-- layout
-- left
-- leftText
-- length
-- letter
-- line
-- loading
-- loc1
-- loc2
-- loc3
-- locCor
-- locSeen
-- locWro
-- local
-- localArr
-- localCnt
-- localCorrect
-- localCorrectStreakLen
-- localCorrectStreakMax
-- localCorrectStreakMaxDay
-- localCorrectStreakMaxDayLabel
-- localCount
-- localDay
-- localDayW
-- localLastCorrectDay
-- localLastSeenDay
-- localLastWrongDay
-- localNum
-- localOnce
-- localOnceDay
-- localOnceVal
-- localProgress
-- localQids
-- localQidsW
-- localS3TodayCnt
-- localS3TodayDay
-- localS3TodayQids
-- localS3WrongTodayCnt
-- localS3WrongTodayDay
-- localS3WrongTodayQids
-- localStorage
-- localStreak3
-- localStreak3Wrong
-- localStreakLen
-- localText
-- localVal
-- localWrong
-- localWrongProgress
-- localWrongStreakLen
-- localWrongStreakMax
-- localWrongStreakMaxDay
-- localWrongStreakMaxDayLabel
-- location
-- log
-- m
-- makeCard
-- makeTodayCard
-- manifest
-- manual
-- manual_button
-- margin
-- match
-- max
-- max2
-- maxDayNum
-- maxWrongDayNum
-- max_day
-- merge
-- mergeErrorOncePerDayStatus
-- mergeResponse
-- merged
-- message
-- method
-- mid
-- min
-- minmax
-- missing
-- missingW
-- mode
-- model
-- moved
-- muted
-- n
-- navGuard
-- navigator
-- network
-- networkErrorOncePerDayStatus
-- newDiffCorrect
-- newDiffStreak3
-- newDiffStreak3Wrong
-- newDiffStreakLen
-- newDiffWrong
-- newDiffWrongStreakLen
-- newOnceVal
-- newServerCorrect
-- newServerStreak3
-- newServerStreak3Wrong
-- newServerStreakLen
-- newServerWrong
-- newServerWrongStreakLen
-- no
-- nocount
-- non
-- none
-- not
-- now
-- nowrap
-- nth
-- num3
-- number
-- numeric
-- nums
-- object
-- odoa
-- odoaIsOn
-- odoaLower
-- odoaMode
-- odoaModeRaw
-- odoaModeText
-- odoaRaw
-- odoaResultSuffix
-- odoaStatusText
-- odoaStatusTextForPanel
-- odoaStatusTextForPanelAfter
-- odoaStatusTextForPanelInit
-- odoaStatusTextForPanelMergeError
-- odoaStatusTextForPanelNetworkError
-- odoaStatusTextForPanelOffline
-- odoaStatusTextForPanelStateError
-- odoa_mode
-- off
-- offline
-- offlineOncePerDayStatus
-- ok
-- on
-- onLine
-- on_nocount
-- once
-- onceCollapsed
-- onceCountableLabel
-- onceMeasureOkLabel
-- onceOdoaLabel
-- oncePerDay
-- oncePerDayDelta
-- oncePerDayStatus
-- oncePerDayToday
-- oncePerDayTodayDelta
-- onceQidLabel
-- onceRecordLabel
-- onceResultLabel
-- onceStateLabel
-- onceTodayDateLabel
-- online
-- only
-- opacity
-- options
-- or
-- otoa_mode
-- out
-- overflow
-- pToday
-- pWrongToday
-- padStart
-- padding
-- pair
-- params
-- parse
-- parseInt
-- parsed
-- parsedLocalCnt
-- parsedLocalS3TodayQids
-- parsedLocalS3WrongTodayQids
-- parsedLocalWrongCnt
-- parsedW
-- part
-- path
-- pathname
-- payload
-- pending
-- pendingAfterPost
-- pendingBtn
-- pendingCard
-- pendingCollapsed
-- pendingDiffCounts
-- pendingH
-- pendingHead
-- pendingLastCorrectDay
-- pendingLastSeenDay
-- pendingLastWrongDay
-- pendingOncePerDayToday
-- pendingStreak3Today
-- pendingStreak3WrongToday
-- pendingText
-- pick
-- pickLocalOnlyQids
-- pointer
-- position
-- pre
-- prevOnceVal
-- preventDefault
-- previous
-- progress
-- promises
-- prototype
-- push
-- q
-- qid
-- qidForLastDay
-- qidForStreakWrong
-- qids
-- qidsLength
-- quad
-- querySelector
-- r
-- radius
-- raw
-- rawCnt
-- rawLocalCnt
-- rawLocalS3TodayQids
-- rawLocalS3WrongTodayQids
-- rawLocalWrongCnt
-- rawMode
-- rawQids
-- rawStatusFromPayload
-- rawW
-- read
-- readDayFromLocalStorage
-- readIntFromLocalStorage
-- readOncePerDayTodayFromLocal
-- readTotalQuestionsFromLocalStorage
-- readyState
-- recordStreak3TodayUnique
-- recordStreak3WrongTodayUnique
-- refresh
-- refreshAndSend
-- refreshHudAllValuesAfterManualSendClick
-- refreshed
-- refreshedDiffCorrect
-- refreshedDiffStreak3
-- refreshedDiffStreak3Wrong
-- refreshedDiffStreakLen
-- refreshedDiffWrong
-- refreshedDiffWrongStreakLen
-- refreshedServerCorrect
-- refreshedServerStreak3
-- refreshedServerStreak3Wrong
-- refreshedServerStreakLen
-- refreshedServerWrong
-- refreshedServerWrongStreakLen
-- removeChild
-- renderPanel
-- replace
-- request
-- requested
-- res
-- response
-- result
-- results
-- returned
-- rgba
-- right
-- rightText
-- row
-- rowKey
-- rows
-- runtime
-- s
-- s3
-- s3TodayDayLabel
-- s3TodayMissing
-- s3TodaySyncCnt
-- s3TodaySyncDay
-- s3TodaySyncQids
-- s3W
-- s3WrongTodayDayLabel
-- s3WrongTodayMissing
-- s3WrongTodaySyncCnt
-- s3WrongTodaySyncDay
-- s3WrongTodaySyncQids
-- s3w
-- s3wVal
-- sCor
-- sOnceAfter
-- sOnceBefore
-- sResultsAfter
-- sResultsBefore
-- sSeen
-- sVal
-- sWrong
-- sans
-- save
-- seenL
-- seenMax
-- seenS
-- self
-- send
-- sendDiffToServer
-- sending
-- serif
-- server
-- serverCorrect
-- serverCorrect2
-- serverLastCorrectDay
-- serverLastSeenDay
-- serverLastWrongDay
-- serverOnceDay
-- serverOnceVal
-- serverProgress
-- serverResults
-- serverStreak3
-- serverStreak3Wrong
-- serverStreak3Wrong2
-- serverStreak3_2
-- serverStreakLen
-- serverStreakLen_2
-- serverVal
-- serverWrong
-- serverWrong2
-- serverWrongProgress
-- serverWrongStreakLen
-- serverWrongStreakLen2
-- set
-- setAttribute
-- setItem
-- setTimeout
-- setW
-- shadow
-- show
-- showLabel
-- single
-- size
-- sizing
-- skip
-- slVal
-- slice
-- slides
-- slw
-- slwVal
-- snapshot
-- solid
-- space
-- spacing
-- span
-- srvCor
-- srvSeen
-- srvWro
-- st
-- stOnce
-- start
-- state
-- stateAfter
-- stateErrorOncePerDayStatus
-- stateForWrong
-- status
-- statusDiv
-- statusMsg
-- statusText
-- statusTextForRender
-- stopPropagation
-- streak
-- streak3
-- streak3Delta
-- streak3DeltaObj
-- streak3Today
-- streak3TodayDelta
-- streak3Wrong
-- streak3WrongDelta
-- streak3WrongDeltaObj
-- streak3WrongToday
-- streak3WrongTodayDelta
-- streakLen
-- streakLenDelta
-- streakLenDeltaObj
-- streakWrongLen
-- streakWrongLenDelta
-- streakWrongLenDeltaObj
-- streak_len
-- streak_max
-- stretch
-- strict
-- string
-- stringify
-- strong
-- strongLeft
-- strongRight
-- style
-- styleId
-- success
-- suf
-- suffix
-- suppressDiffSend
-- suppressed
-- svb
-- sync
-- syncArr
-- syncCnt
-- syncDay
-- syncDayW
-- syncNum
-- syncQids
-- syncQidsW
-- syncState
-- syncText
-- synced
-- syncedOncePerDay
-- system
-- t
-- tabular
-- template
-- test
-- text
-- textContent
-- then
-- tighter
-- time
-- title
-- titleText
-- to
-- toLowerCase
-- today
-- toggle
-- top
-- totalQuestions
-- transform
-- translateY
-- transparent
-- trim
-- ts
-- type
-- ui
-- undefined
-- under
-- unique
-- unique_count
-- unsent
-- updateOnceBtnLabel
-- updatePendingBtnLabel
-- updateSyncBodyGrid
-- updateSyncBodyText
-- updated
-- updatedAt
-- upsertStyleTag
-- use
-- uses
-- v
-- v1
-- v2
-- v3
-- valClass
-- valid
-- value
-- valueText
-- values
-- variant
-- verify
-- verifyModeOn
-- view
-- vs
-- w
-- wVal
-- warn
-- webkit
-- weight
-- white
-- wide
-- width
-- window
-- wrap
-- wroL
-- wroMax
-- wroS
-- wrong
-- x
-- y
-- z
-
-【DOM_IDS（getElementById の文字列）】
-- cscs_sync_view_b
-- cscs_sync_view_b_body
-- cscs_sync_view_b_send_btn
-- cscs_sync_view_b_status
-
-【DOM_CLASSES（getElementsByClassName の文字列）】
-
-【DOM_NAMES（getElementsByName の文字列）】
-
-【SELECTORS（querySelector/querySelectorAll の文字列）】
-- div.wrap
-
-【LOCALSTORAGE_KEYS】
-- cscs_once_per_day_today_day
-- cscs_once_per_day_today_results
-- cscs_streak3_today_day
-- cscs_streak3_today_qids
-- cscs_streak3_today_unique_count
-- cscs_streak3_wrong_today_day
-- cscs_streak3_wrong_today_qids
-- cscs_streak3_wrong_today_unique_count
-- cscs_sync_view_b_once_odoa_collapsed
-- cscs_sync_view_b_pending_collapsed
-
-【SESSIONSTORAGE_KEYS】
-
-【出力仕様（パッチ規約：厳守）】
-- 参照元のコードから「確実に検索できる」形で提示すること（検索しやすい連続行を含める）
-- 必ず参照元と「同じインデント」で提示すること
-- 「置換前／置換後」を明確に分けること（それぞれ別のコードブロック）
-- 「...」「（中略）」「省略」などの省略表現は禁止（置換対象行は省略なし）
-- 出力は「フル」ではなく「置換部分のみ」
-- 置換前コードブロック内に「参照元本文に無いコメント」を追加しないこと
-- フォールバックの設定・保険・自動互換コードの追加は基本的に禁止（必要なら理由と影響を明示して停止し確認を取る）
-- 追加した処理には、処理ごとに『何をしているか』の補足コメントを置換後側に入れること
-
-【ChatGPT 実行ルール（強制）】
-・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。
-・SCOPE_CHECK は原則として OK / WARN の2段階のみ（FAIL を返して停止することは禁止）。
-・識別子/DOM/関数が『SCOPE_INDEX に見当たらない』場合でも、ただちに停止しない。まず次を必ず実施する：
-  1) SCOPE_INDEX の確認（スペル違い/大文字小文字/略称を含め再確認）
-  2) 受領した各パート本文の範囲で全文検索（Partごとの PART_SCOPE_HINT も活用）
-  3) 近似一致の探索（例：大小文字差 / _-差 / 前後の接頭辞差）を試し、最も近い候補を採用する
-  4) EXEC_TASK は『可能な範囲で推測して前進』する（作業を止めない）
-・見つからない場合は SCOPE_CHECK: WARN を返し、次を必ず出力する：
-  - NOT_FOUND: 見つからなかった識別子/DOM/関数（名称をそのまま列挙）
-  - SEARCHED_IN: 検索した範囲（SCOPE_INDEX / PartID一覧 / 具体的キーワード）
-  - INFERRED_ACTION: 推測で行った判断（どの候補に寄せたか / どこに挿入したか）
-  - EXEC_CONTINUED: 続行できた作業内容（未実施があれば『未実施』として明示）
-・重要：SCOPE_CHECK: WARN でも『ユーザーへ追加情報を要求する行為』は禁止。
-・重要：SCOPE_CHECK: WARN の場合でも、最終アウトプットは必ず提示する（停止しない）。
-
-【分割コード(1)の終了】→ これで最後です（全1分割）
-
-【分割終了宣言】
-これで分割コードは最後です。直後の RECEIPT_INPUT（このメッセージ内）を用いて受領確認を実施してください。
-
-【ChatGPTへの最終手順（強制）】
-1) このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS を受領一覧として採用する（会話履歴参照は禁止）。
-2) このメッセージ内の EXPECTED_PARTIDS と照合し、欠落/重複/不一致を判定する。
-3) 判定結果を以下の形式で必ず返す：
-   RECEIPT_CHECK: OK もしくは NG
-   RECEIPT_MISSING: （不足があれば列挙、なければ EMPTY）
-   RECEIPT_DUPLICATE: （重複があれば列挙、なければ EMPTY）
-   RECEIPT_MISMATCH: （不一致があれば列挙、なければ EMPTY）
-
-4) 重要：RECEIPT_CHECK: OK の場合、同じ返答の中で必ず続けて次も出力し、直ちに実行する：
-   JOIN_READY: YES
-   JOIN_ACTION: P01→P02→...→Pn の順に全パートを連結して完全なJSを構築する
-   EXEC_START: このメッセージ内の EXEC_TASK（唯一の実行指示）を完全なJSに対して実行し、結果を提示する
-
-5) 重要：RECEIPT_CHECK: NG の場合、同じ返答の中で必ず続けて次も出力して終了する：
-   JOIN_READY: NO
-   RESEND_REQUEST: 不足/重複/不一致の PartID をそのまま列挙して再送要求する
-   EXEC_START: BLOCKED
-
-【禁止事項（再掲）】
-・受領確認OK前に、コードの要約/推測/修正提案/作業開始をしない。
-・RECEIPT_CHECK: OK の場合でも、上記の JOIN_READY/JOIN_ACTION/EXEC_START を同じ返答で出す前に止まらない。
-・実行根拠は最終メッセージ内 EXEC_TASK のみ。PART_01の文を理由に別作業を開始しない。
-
