@@ -1350,24 +1350,6 @@
 
     // --- OncePerDayToday / O.D.O.A Mode（ワイドカード：折りたたみ対応） ---
     (function appendOncePerDayAndOdoaWideCard() {
-      // ★ 何をしているか:
-      //   旧「OncePerDayToday / O.D.O.A Mode」ワイドカード（3枚目）を生成せず、
-      //   clearSyncBody() で退避した SYNC/local の2枚を“この位置”に差し戻す。
-      //   これにより、SYNC/local がステータスの先頭に居座るのを防ぎ、元の配置へ戻す。
-      try {
-        var keep = window.__cscs_keep_once_odoa_cards || null;
-        var s = keep && keep.sync ? keep.sync : null;
-        var l = keep && keep.local ? keep.local : null;
-
-        if (s && s.parentNode) s.parentNode.removeChild(s);
-        if (l && l.parentNode) l.parentNode.removeChild(l);
-
-        if (s) body.appendChild(s);
-        if (l) body.appendChild(l);
-
-        return;
-      } catch (_eInsOnce) {}
-
       var card = document.createElement("div");
       card.className = "cscs-svb-card is-wide svb-once-odoa-card";
 
