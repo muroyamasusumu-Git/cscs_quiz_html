@@ -96,8 +96,9 @@
    *       → "1" のとき OncePerDayToday / O.D.O.A Mode を折りたたみ表示にする（見出し＋1行目のみ）
    */
 
-  // ★ HUD 用：直近に表示した O.D.O.A ステータス文字列を保持しておく
-  var LAST_ODOA_STATUS = "";
+  // ★ 何をしているか:
+  //   OncePerDayToday / O.D.O.A Mode の表示は「body 専用」に一本化するため、
+  //   status(#cscs_sync_view_b_status) 用の表示状態保持は廃止する。
 
   // ★ このファイル内で管理する CSS（ここにどんどん追記していく）
   //   - #cscs_sync_view_b が現行のパネルID
@@ -535,6 +536,10 @@
     "  justify-self: center;",
     "}",
     "",
+    "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
+    "#cscs_sync_view_b_status {",
+    "  display: none !important;",
+    "}",
     "/* --- SYNC send button (manual) --- */",
     "#cscs_sync_view_b_send_btn {",
     "  margin-top: 6px;",
@@ -2514,30 +2519,12 @@
       });
 
       // ★ 何をしているか:
-      //   OncePerDayToday / O.D.O.A Mode は “body 専用” に一本化するため、
-      //   #cscs_sync_view_b_status（最上段）には once/odoa を一切「生成しない／挿入しない」。
-      //   念のため、過去DOMが status 配下に残っていたら「掃除」として削除する（保険フォールバックではない）。
-      (function clearOnceOdoaFromStatusOnly() {
-        var statusDiv = document.getElementById("cscs_sync_view_b_status");
-        if (!statusDiv) return;
-
-        // ① 何をしているか: status のテキスト表示を必ず空にする（once/odoa 表示を根絶）
-        if (statusDiv.textContent !== "") {
-          statusDiv.textContent = "";
-        }
-
-        // ② 何をしているか: もし status 配下に once/odoa カードDOMが残っていたら削除する（掃除）
-        try {
-          var bad = statusDiv.querySelectorAll(".svb-once-odoa-card, .svb-once-odoa-card-local");
-          if (bad && bad.length > 0) {
-            for (var i = 0; i < bad.length; i++) {
-              if (bad[i] && bad[i].parentNode) {
-                bad[i].parentNode.removeChild(bad[i]);
-              }
-            }
-          }
-        } catch (_eClearStatus) {}
-      })();
+      //   OncePerDayToday / O.D.O.A Mode は「body(#cscs_sync_view_b_body) 専用」に一本化する。
+      //   status(#cscs_sync_view_b_status) には once/odoa を一切生成/挿入しない（重複・ちらつき根絶）。
+      var statusDiv = document.getElementById("cscs_sync_view_b_status");
+      if (statusDiv) {
+        statusDiv.textContent = "";
+      }
 
       // 内部用の statusText はログとして残すだけ
       if (statusText) {
@@ -2547,10 +2534,11 @@
       var errorText = "SYNC(B) " + info.qid + "  error: " + (e && e.message ? e.message : e);
       updateSyncBodyText(errorText);
 
+      // ★ 何をしているか:
+      //   エラー時でも status(#cscs_sync_view_b_status) に once/odoa を出さない（body専用の原則維持）。
       var statusDiv = document.getElementById("cscs_sync_view_b_status");
       if (statusDiv) {
-        // エラー時もフォーマットは崩さず OFF として出す
-        statusDiv.textContent = "O.D.O.A Mode : OFF";
+        statusDiv.textContent = "";
       }
 
       console.error("[SYNC-B] renderPanel error:", e);
