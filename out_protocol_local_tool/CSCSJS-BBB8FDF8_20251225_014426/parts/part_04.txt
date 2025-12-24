@@ -1,13 +1,44 @@
 <<<PART_BEGIN>>>
 【分割コード(4)の開始】
-PartID: CSCSJS-F07A6B02-P04-of-04
-PartSHA256: 5d368cce2ff780fa8f28910e703824aef45dcb13dc1d593a27489eea06907ff2
-Range: chars 130215..148083 (len=17868)
-FirstLine:           localCorrect: localCorrect,
+PartID: CSCSJS-BBB8FDF8-P04-of-04
+PartSHA256: 77dd3efb5af023113a2ae92d33a831a98c409b28a084566f142b0fb6eba71dbb
+Range: chars 129585..159195 (len=29610)
+FirstLine:         // ★ 自動検証モード（CSCS_VERIFY_MODE=on）のときは、
 LastLine: })();
 EndNewline: NO
 
 ```javascript
+        // ★ 自動検証モード（CSCS_VERIFY_MODE=on）のときは、
+        //   b_judge_record.js と同じく「計測ガード中」であることが分かるように
+        //   statusText に明示しておく（diff の送信自体は後段でブロックする）
+        var verifyModeOn =
+          typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+        if (!suppressDiffSend && verifyModeOn) {
+          statusTextForRender = "state ok / verify-mode: 計測ガード中(diff送信なし)";
+        }
+
+        // 初期表示や diff 送信前の HUD:
+        //   - suppressDiffSend===true のときは "__keep__" を渡し、既存表示を維持
+        //   - 通常モードでは「ON nocount」/「OFF」で初期表示を行う
+        var odoaStatusTextForPanelInit;
+        if (suppressDiffSend) {
+          odoaStatusTextForPanelInit = "__keep__";
+          console.log("[SYNC-B] ODOA HUD: suppressDiffSend=true → '__keep__' で再描画要求");
+        } else {
+          if (odoaModeText === "ON") {
+            odoaStatusTextForPanelInit = "O.D.O.A Mode : ON nocount";
+          } else {
+            odoaStatusTextForPanelInit = "O.D.O.A Mode : OFF";
+          }
+          console.log("[SYNC-B] ODOA HUD: initial status set from mode:", odoaStatusTextForPanelInit);
+        }
+
+        var pending = computePendingFlags(state, info.qid);
+        pending.pendingDiffCounts = (diffCorrect > 0 || diffWrong > 0 || diffStreak3 > 0 || diffStreakLen > 0 || diffStreak3Wrong > 0 || diffWrongStreakLen > 0);
+
+        renderPanel(box, {
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
           localCorrect: localCorrect,
           localWrong: localWrong,
           diffCorrect: diffCorrect,
@@ -22,6 +53,20 @@ EndNewline: NO
           odoaModeText: odoaModeText,
           odoaStatusText: odoaStatusTextForPanelInit,
           pending: pending
+        });
+
+        // ★ 何をしているか:
+        //   renderPanel() により OncePerDayToday / O.D.O.A Mode（SYNC）カードがDOMに生成された「直後」に、
+        //   見出しの "(SYNC)" 付与と、直下への "(local)" カードの追加を確実に実行する
+        ensureOnceOdoaWideTitles(box);
+        ensureLocalOnceOdoaWideCard(box);
+
+        // ★ 何をしているか:
+        //   localStorage 由来の OncePerDayToday / O.D.O.A Mode を「local専用カード」に反映する
+        //   （SYNCカードとは独立した表示。diff送信の有無に関係なく、毎回更新する）
+        refreshLocalOnceOdoaCard(box, {
+          qid: info.qid,
+          odoaModeText: odoaModeText
         });
 
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
@@ -116,7 +161,275 @@ EndNewline: NO
           odoaModeText: odoaModeText,
           odoaStatusText: odoaStatusTextForPanelStateError
         });
+
+        // ★ 何をしているか:
+        //   state取得失敗でも OncePerDayToday / O.D.O.A Mode カード自体は renderPanel() で生成されるため、
+        //   見出し "(SYNC)" と "(local)" カード追加はここでも確実に実行する
+        ensureOnceOdoaWideTitles(box);
+        ensureLocalOnceOdoaWideCard(box);
+
       });
+  }
+
+  function ensureOnceOdoaWideTitles(box) {
+    // ★ 何をしているか:
+    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しを
+    //   必ず "OncePerDayToday / O.D.O.A Mode (SYNC)" の表記に揃える（既存表記ゆれ吸収・二重付与防止）
+    //   既存カードは class="svb-once-odoa-card" を持つ前提で、そのうち先頭を SYNC 扱いにする
+    try {
+      if (!box) return;
+      var cards = box.querySelectorAll(".svb-once-odoa-card");
+      if (!cards || cards.length === 0) return;
+
+      var syncCard = cards[0];
+      var title = syncCard.querySelector(".cscs-svb-card-title");
+      if (title) {
+        var base = "OncePerDayToday / O.D.O.A Mode";
+        var desired = "OncePerDayToday / O.D.O.A Mode (SYNC)";
+
+        // ★ 何をしているか:
+        //   既存見出しが base を含む限り、最終表記を desired に固定する（完全一致に揃える）
+        //   すでに desired の場合は何もしない
+        if (title.textContent && title.textContent.indexOf(base) >= 0) {
+          if (title.textContent !== desired) {
+            title.textContent = desired;
+          }
+        }
+      }
+    } catch (_e) {}
+  }
+
+  function ensureLocalOnceOdoaWideCard(box) {
+    // ★ 何をしているか:
+    //   SYNCカードの直下に、localStorage由来の値だけを表示する「local専用ワイドカード」を1枚作る（重複作成しない）
+    try {
+      if (!box) return;
+
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      // 既存の once/odoa カード（SYNC）を探し、その直後に差し込む
+      var syncCard = body.querySelector(".svb-once-odoa-card");
+      if (!syncCard) return;
+
+      // すでに local 用が存在するなら何もしない
+      if (body.querySelector(".svb-once-odoa-card-local")) return;
+
+      var card = document.createElement("div");
+
+      // ★ 何をしているか:
+      //   既存の (SYNC) OncePerDayToday / O.D.O.A Mode カードと「完全に同じ className」をコピーして、
+      //   local カードにも “同じスタイル（中身含む）” を確実に適用する。
+      //   そのうえで、検索・更新のための識別子として svb-once-odoa-card-local を必ず付与する（重複付与はしない）。
+      var baseClass = (syncCard && typeof syncCard.className === "string") ? syncCard.className : "cscs-svb-card is-wide svb-once-odoa-card";
+      if (baseClass.indexOf("svb-once-odoa-card-local") < 0) {
+        baseClass = baseClass + " svb-once-odoa-card-local";
+      }
+      card.className = baseClass;
+
+      // ★ 何をしているか:
+      //   localカードの「中身DOM」を (SYNC)カードと同じ構造・同じクラス名に寄せる。
+      //   これにより、OncePerDayToday / O.D.O.A Mode 用の既存CSSが local 側にも完全に効く。
+      var head = document.createElement("div");
+      head.className = "svb-once-odoa-head";
+
+      var title = document.createElement("div");
+      title.className = "cscs-svb-card-title";
+      title.textContent = "OncePerDayToday / O.D.O.A Mode (local)";
+
+      var btn = document.createElement("button");
+      btn.className = "svb-once-odoa-toggle";
+      btn.type = "button";
+      btn.setAttribute("aria-expanded", "true");
+
+      var chev = document.createElement("span");
+      chev.className = "svb-once-odoa-chev";
+      chev.textContent = "▼";
+
+      var btnText = document.createTextNode("hide");
+      btn.appendChild(chev);
+      btn.appendChild(btnText);
+
+      // ★ 何をしているか:
+      //   (SYNC)と同じ「内容コンテナ」を作る（2列×3行 + 単行ODOA）
+      var details = document.createElement("div");
+      details.className = "svb-wide-dual-grid";
+
+      var collapsedKey = "cscs_sync_view_b_once_odoa_local_collapsed";
+      var isCollapsed = false;
+      try {
+        isCollapsed = (localStorage.getItem(collapsedKey) === "1");
+      } catch (_e0) {
+        isCollapsed = false;
+      }
+
+      function applyCollapsed() {
+        // ★ 何をしているか:
+        //   (SYNC)と同じ「▼/▶︎ + hide/show + aria-expanded」を再現する
+        if (isCollapsed) {
+          details.style.display = "none";
+          btn.setAttribute("aria-expanded", "false");
+          chev.textContent = "▶︎";
+          while (btn.childNodes.length > 1) btn.removeChild(btn.lastChild);
+          btn.appendChild(document.createTextNode("show"));
+        } else {
+          details.style.display = "";
+          btn.setAttribute("aria-expanded", "true");
+          chev.textContent = "▼";
+          while (btn.childNodes.length > 1) btn.removeChild(btn.lastChild);
+          btn.appendChild(document.createTextNode("hide"));
+        }
+      }
+
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        isCollapsed = !isCollapsed;
+        try {
+          localStorage.setItem(collapsedKey, isCollapsed ? "1" : "0");
+        } catch (_e1) {}
+        applyCollapsed();
+      });
+
+      // ★ 何をしているか:
+      //   (SYNC)と同じセルクラスで「表示行」を作る（後で refreshLocalOnceOdoaCard() がこの行テキストを上書きする）
+      function makeCell(text, className) {
+        var d = document.createElement("div");
+        d.className = className;
+        d.textContent = text;
+        return d;
+      }
+
+      // 2列×3行（SYNC同型）
+      details.appendChild(makeCell("oncePerDayToday   -", "svb-wide-dual-cell svb-wide-dual-strong"));
+      details.appendChild(makeCell("計測: - ｜結果: -", "svb-wide-dual-cell is-right"));
+
+      details.appendChild(makeCell("Today             -", "svb-wide-dual-cell"));
+      details.appendChild(makeCell("qid: -", "svb-wide-dual-cell is-right"));
+
+      details.appendChild(makeCell("count対象         -", "svb-wide-dual-cell"));
+      details.appendChild(makeCell("記録: -", "svb-wide-dual-cell is-right"));
+
+      // ODOA（単行SYNC同型）
+      var odoaLine = makeCell("ODOA              -", "svb-wide-single");
+      details.appendChild(odoaLine);
+
+      head.appendChild(title);
+      head.appendChild(btn);
+
+      card.appendChild(head);
+
+      // ★ 何をしているか:
+      //   (SYNC)は head の下に grid 本体が直で来ているため、local も同じ並びにする
+      card.appendChild(details);
+
+      // SYNCカードの直後に挿入
+      if (syncCard.nextSibling) {
+        body.insertBefore(card, syncCard.nextSibling);
+      } else {
+        body.appendChild(card);
+      }
+
+      applyCollapsed();
+    } catch (_e) {}
+  }
+
+  function refreshLocalOnceOdoaCard(box, params) {
+    // ★ 何をしているか:
+    //   local専用カードの行テキストを、localStorage由来の値だけで更新する
+    try {
+      if (!box) return;
+
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      var card = body.querySelector(".svb-once-odoa-card-local");
+      if (!card) return;
+
+      var qid = (params && typeof params.qid === "string") ? params.qid : "";
+      var odoaModeText = (params && typeof params.odoaModeText === "string") ? params.odoaModeText : "OFF";
+
+      // local oncePerDayToday を読む（既存ヘルパーがあればそれを優先）
+      var localOnceDay = null;
+      var localOnceVal = null;
+
+      try {
+        if (typeof readOncePerDayTodayFromLocal === "function") {
+          var localOnce = readOncePerDayTodayFromLocal();
+          if (localOnce && typeof localOnce.day === "number") {
+            localOnceDay = localOnce.day;
+          }
+          if (localOnce && localOnce.results && typeof localOnce.results === "object" && qid) {
+            if (Object.prototype.hasOwnProperty.call(localOnce.results, qid)) {
+              localOnceVal = localOnce.results[qid];
+            }
+          }
+        }
+      } catch (_eOnce) {
+        localOnceDay = null;
+        localOnceVal = null;
+      }
+
+      function fmtDay8ToDateText(dayNum) {
+        if (typeof dayNum !== "number" || !Number.isFinite(dayNum) || dayNum <= 0) return "-";
+        var s = String(dayNum);
+        if (s.length !== 8) return s;
+        return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8);
+      }
+
+      var onceStateLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "計測済" : "未開始";
+      var onceTodayDateLabel = (localOnceDay != null) ? fmtDay8ToDateText(localOnceDay) : "-";
+      var onceQidLabel = qid || "-";
+      var onceCountableLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "No（計測済）" : "Yes（未計測）";
+      var onceRecordLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? String(localOnceVal) : "-";
+
+      var onceOdoaLabel = "-";
+      if (odoaModeText === "ON") {
+        if (onceRecordLabel !== "-") {
+          onceOdoaLabel = "ON（累計加算: No）  " + onceRecordLabel;
+        } else {
+          onceOdoaLabel = "ON（累計加算: No）";
+        }
+      } else if (odoaModeText === "OFF") {
+        onceOdoaLabel = "OFF（累計加算: Yes）";
+      } else {
+        onceOdoaLabel = String(odoaModeText);
+      }
+
+      // ★ 何をしているか:
+      //   local専用カードの「SYNC同型DOM（svb-wide-dual-grid）」を前提に、
+      //   行単位（左セル/右セル + 最下段 single）でテキストを上書き更新する
+      var grid = card.querySelector(".svb-wide-dual-grid");
+      if (!grid) return;
+
+      var dualCells = grid.querySelectorAll(".svb-wide-dual-cell");
+      var singleCell = grid.querySelector(".svb-wide-single");
+
+      // ★ 何をしているか:
+      //   必要なセル数（dual: 6セル = 3行×2列、single: 1セル）を満たさない場合は更新しない
+      if (!dualCells || dualCells.length < 6) return;
+      if (!singleCell) return;
+
+      // ★ 何をしているか:
+      //   SYNCカードと同じ表示並びで、local由来の内容を行単位で反映する
+      //   0: oncePerDayToday（左） / 1: 計測＋結果（右）
+      dualCells[0].textContent = "oncePerDayToday   " + onceStateLabel;
+      dualCells[1].textContent = "計測: " + ((onceRecordLabel !== "-") ? "OK" : "NG") + " ｜結果: " + onceRecordLabel;
+
+      //   2: Today（左） / 3: qid（右）
+      dualCells[2].textContent = "Today             " + onceTodayDateLabel;
+      dualCells[3].textContent = "qid: " + onceQidLabel;
+
+      //   4: count対象（左） / 5: 記録（右）
+      dualCells[4].textContent = "count対象         " + onceCountableLabel;
+      dualCells[5].textContent = "記録: " + onceRecordLabel;
+
+      // ★ 何をしているか:
+      //   最下段の single 行（ODOA）を更新する
+      singleCell.textContent = "ODOA              " + onceOdoaLabel;
+
+    } catch (_e) {}
   }
 
   function init() {
@@ -136,6 +449,12 @@ EndNewline: NO
           document.body.appendChild(box);
         }
       }
+
+      // ★ 何をしているか:
+      //   既存(SYNC)カードの見出しを "(SYNC)" にし、直下に local専用カードを追加する
+      ensureOnceOdoaWideTitles(box);
+      ensureLocalOnceOdoaWideCard(box);
+
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {
         btn.addEventListener("click", function (ev) {
@@ -526,16 +845,16 @@ EXPECTED_TOTAL: 4
 RECEIVED_TOTAL: 4
 
 CUMULATIVE_RECEIVED_PARTIDS:
-- CSCSJS-F07A6B02-P01-of-04
-- CSCSJS-F07A6B02-P02-of-04
-- CSCSJS-F07A6B02-P03-of-04
-- CSCSJS-F07A6B02-P04-of-04
+- CSCSJS-BBB8FDF8-P01-of-04
+- CSCSJS-BBB8FDF8-P02-of-04
+- CSCSJS-BBB8FDF8-P03-of-04
+- CSCSJS-BBB8FDF8-P04-of-04
 
 EXPECTED_PARTIDS_WITH_SHA256:
-- CSCSJS-F07A6B02-P01-of-04 | f1154e7dd39771999b7b8e20d6c4b93d77625617525366bd8a37f8734d2d5bce
-- CSCSJS-F07A6B02-P02-of-04 | 09cc6c3ed2254e5b7e3c0247363283e9b20c436fb2708955d4fa0273e705d68c
-- CSCSJS-F07A6B02-P03-of-04 | 99b0cfb4a2032025688fed4d7e68dbe5ec641dbe9b84b0ac66d9ec3e0886ec7a
-- CSCSJS-F07A6B02-P04-of-04 | 5d368cce2ff780fa8f28910e703824aef45dcb13dc1d593a27489eea06907ff2
+- CSCSJS-BBB8FDF8-P01-of-04 | 0dc4063964fbd56bb71979463ed46d19f959634f4f50ee6390b2e50df566f3b5
+- CSCSJS-BBB8FDF8-P02-of-04 | a8504262b9621c79c96918f46d6c83c2250a3a9c2f1d9377bb2f6de1fd61493e
+- CSCSJS-BBB8FDF8-P03-of-04 | c64b6174afa5a4b115839fef42bfb3f40a4a0f2a781a1b3194d0d061e2bcfc2f
+- CSCSJS-BBB8FDF8-P04-of-04 | 77dd3efb5af023113a2ae92d33a831a98c409b28a084566f142b0fb6eba71dbb
 
 【ChatGPTへの強制ルール】
 ・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
@@ -546,15 +865,13 @@ RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
 ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
 
 【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
-既存の<div class="cscs-svb-card is-wide svb-once-odoa-card">の下に、
-全ての値をLocalstage由来にした<div class="cscs-svb-card is-wide svb-once-odoa-card">をもう一つ追加したい。
-その際に既存の新規のカードの見出しテキストの表記がそれぞれ以下になるようにしたい
-
-  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　
-　　　※既存のワイドカードの見出しに”SYNC"と追記
-
-  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　
-　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる
+現状　ステータスに「OncePerDayToday / O.D.O.A Mode」のカードが3枚出ていて、
+しかも「　OncePerDayToday / O.D.O.A Mode (SYNC)」と
+「OncePerDayToday / O.D.O.A Mode (local)」が
+ステータスで一番上に出るようになっちゃったから、　
+元の場所（現状の3枚目の「OncePerDayToday / O.D.O.A Mode」のカードがある場所）に
+(SYNC)と(local)のカードを戻して欲しいのと、
+3枚目の「OncePerDayToday / O.D.O.A Mode」のカードは表示されないようにしてほしい。
 
 【SCOPE_INDEX（連結後JSの探索用索引）】
 ・この索引は、分割前の元JS全文（= 連結後JS）から抽出しています。
@@ -562,95 +879,95 @@ ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
 ・識別子だけでなく DOM/selector/storage key も含めています。
 
 【SUMMARY】
-TOTAL_IDENTIFIERS_UNIQ: 917
+TOTAL_IDENTIFIERS_UNIQ: 948
 TOTAL_DOM_IDS_UNIQ: 4
 TOTAL_DOM_CLASSES_UNIQ: 0
 TOTAL_DOM_NAMES_UNIQ: 0
-TOTAL_SELECTORS_UNIQ: 1
+TOTAL_SELECTORS_UNIQ: 7
 TOTAL_LOCALSTORAGE_KEYS_UNIQ: 10
 TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 
 【IDENTIFIERS_TOP_FREQUENT（頻出上位）】
-- qid (307)
-- svb (161)
-- SYNC (146)
+- qid (319)
+- svb (193)
+- SYNC (162)
 - state (127)
+- card (126)
 - console (115)
-- card (101)
+- O (102)
 - B (97)
 - window (94)
+- grid (90)
+- document (87)
 - model (86)
-- O (82)
-- grid (82)
-- day (79)
-- localStorage (77)
+- local (84)
+- appendChild (83)
+- day (81)
+- localStorage (80)
+- className (79)
 - syncState (76)
-- document (75)
 - payload (73)
+- String (71)
+- createElement (69)
 - log (69)
-- local (68)
-- String (68)
 - st (68)
-- appendChild (67)
-- className (67)
-- info (65)
-- createElement (62)
+- info (66)
+- odoaModeText (63)
+- div (59)
+- cscs_sync_view_b_body (57)
+- box (57)
 - streak3Today (56)
 - __cscs_sync_state (56)
-- cscs_sync_view_b_body (55)
-- odoaModeText (55)
 - streak3WrongToday (54)
-- div (54)
+- oncePerDayToday (54)
+- correct (53)
+- head (53)
 - localStreakLen (53)
-- correct (50)
-- oncePerDayToday (50)
+- A (52)
+- D (51)
 - freshState (50)
-- object (47)
+- textContent (48)
+- object (48)
+- Number (47)
 - localCorrect (47)
 - localWrong (47)
-- head (46)
-- Number (46)
+- cscs (46)
 - qids (45)
+- isFinite (45)
 - serverStreakLen (45)
 - pending (44)
-- isFinite (44)
 - diffCorrect (44)
 - diffWrong (44)
-- box (43)
-- cscs (43)
 - error (43)
 - diffStreak3 (43)
-- A (42)
 - HUD (42)
+- body (42)
+- number (42)
 - serverCorrect (42)
 - serverWrong (42)
 - localWrongStreakLen (42)
-- D (41)
 - localStreak3 (41)
+- btn (41)
 - stateAfter (41)
 - lastday (40)
-- number (40)
 - data (40)
+- Mode (39)
 - max (39)
+- params (39)
+- wide (38)
 - serverStreak3 (37)
+- results (36)
 - serverWrongStreakLen (36)
+- ON (36)
 - diffStreakLen (35)
 - streakWrongLen (34)
 - Math (34)
 - merge (33)
 - streak3Wrong (33)
-- ON (33)
-- results (32)
-- textContent (32)
+- title (33)
+- s (33)
+- text (32)
 - server (32)
-- params (32)
-- body (31)
-- text (30)
-- streak (30)
-- k (30)
-- x (30)
-- diffStreak3Wrong (30)
-- Mode (29)
 
 【IDENTIFIERS_ALL（ユニーク識別子一覧）】
 - A
@@ -710,6 +1027,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - OK
 - ON
 - Object
+- Once
 - OncePerDayToday
 - POST
 - Pending
@@ -749,6 +1067,8 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - _b
 - _build_cscs_
 - _e
+- _e0
+- _e1
 - _e2
 - _e3
 - _e4
@@ -757,6 +1077,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - _eAssignFresh
 - _eDate
 - _eForce
+- _eKeep
 - _eLast
 - _eLocalS3TodayQids
 - _eLocalS3WrongTodayQids
@@ -809,6 +1130,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - appended
 - apple
 - application
+- applyCollapsed
 - aria
 - arr
 - as
@@ -822,6 +1144,8 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - b
 - b_judge_record
 - background
+- base
+- baseClass
 - baseline
 - because
 - before
@@ -835,6 +1159,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - bottom
 - box
 - btn
+- btnText
 - build
 - buildCorrectCard
 - buildOncePerDayTodayDelta
@@ -845,6 +1170,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - cVal
 - call
 - card
+- cards
 - cell
 - center
 - chev
@@ -857,6 +1183,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - cnt
 - col
 - collapsed
+- collapsedKey
 - collapsible
 - color
 - column
@@ -877,6 +1204,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - create
 - createElement
 - createPanel
+- createTextNode
 - cscs
 - cscs_once_per_day_today_day
 - cscs_once_per_day_today_results
@@ -905,6 +1233,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - cscs_sync_view_b_correct_streak_collapsed
 - cscs_sync_view_b_inline_css
 - cscs_sync_view_b_once_odoa_collapsed
+- cscs_sync_view_b_once_odoa_local_collapsed
 - cscs_sync_view_b_pending_collapsed
 - cscs_sync_view_b_send_btn
 - cscs_sync_view_b_status
@@ -922,6 +1251,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - debug
 - delta
 - deltaResults
+- desired
 - details
 - detectInfo
 - detected
@@ -947,6 +1277,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - document
 - done
 - dual
+- dualCells
 - e
 - e2
 - e4
@@ -962,6 +1293,8 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - el
 - ellipsis
 - end
+- ensureLocalOnceOdoaWideCard
+- ensureOnceOdoaWideTitles
 - ensureSyncViewBStyles
 - error
 - errorText
@@ -979,6 +1312,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - fixed
 - flags
 - flex
+- fmtDay8ToDateText
 - fmtDayPair
 - fmtNumPair
 - fmtQidsPreview
@@ -1052,11 +1386,13 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - injected
 - inline
 - innerHTML
+- insertBefore
 - inset
 - int
 - internal
 - is
 - isArray
+- isCollapsed
 - isFinite
 - isMuted
 - items
@@ -1067,6 +1403,8 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - justify
 - k
 - kText
+- keepLocal
+- keepSync
 - keepalive
 - kept
 - key
@@ -1075,6 +1413,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - l
 - label
 - last
+- lastChild
 - lastCorrect
 - lastCorrectDay
 - lastCorrectDayDelta
@@ -1151,6 +1490,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - log
 - m
 - makeCard
+- makeCell
 - makeTodayCard
 - manifest
 - manual
@@ -1195,8 +1535,11 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - newServerStreakLen
 - newServerWrong
 - newServerWrongStreakLen
+- next
+- nextSibling
 - no
 - nocount
+- node
 - non
 - none
 - not
@@ -1210,6 +1553,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - object
 - odoa
 - odoaIsOn
+- odoaLine
 - odoaLower
 - odoaMode
 - odoaModeRaw
@@ -1308,6 +1652,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - qidsLength
 - quad
 - querySelector
+- querySelectorAll
 - r
 - radius
 - raw
@@ -1331,6 +1676,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - refresh
 - refreshAndSend
 - refreshHudAllValuesAfterManualSendClick
+- refreshLocalOnceOdoaCard
 - refreshed
 - refreshedDiffCorrect
 - refreshedDiffStreak3
@@ -1425,6 +1771,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - show
 - showLabel
 - single
+- singleCell
 - size
 - sizing
 - skip
@@ -1490,6 +1837,7 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 - svb
 - sync
 - syncArr
+- syncCard
 - syncCnt
 - syncDay
 - syncDayW
@@ -1582,6 +1930,12 @@ TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
 【DOM_NAMES（getElementsByName の文字列）】
 
 【SELECTORS（querySelector/querySelectorAll の文字列）】
+- .cscs-svb-card-title
+- .svb-once-odoa-card
+- .svb-once-odoa-card-local
+- .svb-wide-dual-cell
+- .svb-wide-dual-grid
+- .svb-wide-single
 - div.wrap
 
 【LOCALSTORAGE_KEYS】

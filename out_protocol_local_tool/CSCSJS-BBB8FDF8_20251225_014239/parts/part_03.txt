@@ -1,13 +1,44 @@
 <<<PART_BEGIN>>>
 【分割コード(3)の開始】
-PartID: CSCSJS-F07A6B02-P03-of-04
-PartSHA256: 99b0cfb4a2032025688fed4d7e68dbe5ec641dbe9b84b0ac66d9ec3e0886ec7a
-Range: chars 82328..130215 (len=47887)
-FirstLine:           onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
-LastLine:           serverWrong: serverWrong,
+PartID: CSCSJS-BBB8FDF8-P03-of-04
+PartSHA256: c64b6174afa5a4b115839fef42bfb3f40a4a0f2a781a1b3194d0d061e2bcfc2f
+Range: chars 82129..129585 (len=47456)
+FirstLine: 
+LastLine: 
 EndNewline: YES
 
 ```javascript
+
+        // --- 何をしているか:
+        //   count対象は「計測済」「VERIFY」「ODOA」で No、それ以外のみ Yes
+        if (alreadyCounted) {
+          onceCountableLabel = "No（計測済）";
+        } else if (verifyModeOn) {
+          onceCountableLabel = "No（ガード）";
+        } else if (odoaIsOn) {
+          onceCountableLabel = "No（ガード）";
+        } else {
+          onceCountableLabel = "Yes（未計測）";
+        }
+
+        // --- 何をしているか:
+        //   ODOA行の末尾ステータスは「oncePerDayToday の結果」だけを採用（フォールバックしない）
+        var odoaResultSuffix = "nocount";
+        if (serverOnceVal === "correct") {
+          odoaResultSuffix = "Correct";
+        } else if (serverOnceVal === "wrong") {
+          odoaResultSuffix = "Wrong";
+        }
+
+        // --- 何をしているか:
+        //   VERIFY/ODOA は累計加算 No として表示する（ガード理由の明示）
+        var addNo = false;
+        if (verifyModeOn) addNo = true;
+        if (odoaIsOn) addNo = true;
+
+        if (odoaIsOn) {
+          onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
+        } else {
           onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
         }
       } catch (_eOnceAll) {
@@ -1177,37 +1208,6 @@ EndNewline: YES
 
         var statusTextForRender = suppressDiffSend ? "__keep__" : "state ok";
 
-        // ★ 自動検証モード（CSCS_VERIFY_MODE=on）のときは、
-        //   b_judge_record.js と同じく「計測ガード中」であることが分かるように
-        //   statusText に明示しておく（diff の送信自体は後段でブロックする）
-        var verifyModeOn =
-          typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
-        if (!suppressDiffSend && verifyModeOn) {
-          statusTextForRender = "state ok / verify-mode: 計測ガード中(diff送信なし)";
-        }
-
-        // 初期表示や diff 送信前の HUD:
-        //   - suppressDiffSend===true のときは "__keep__" を渡し、既存表示を維持
-        //   - 通常モードでは「ON nocount」/「OFF」で初期表示を行う
-        var odoaStatusTextForPanelInit;
-        if (suppressDiffSend) {
-          odoaStatusTextForPanelInit = "__keep__";
-          console.log("[SYNC-B] ODOA HUD: suppressDiffSend=true → '__keep__' で再描画要求");
-        } else {
-          if (odoaModeText === "ON") {
-            odoaStatusTextForPanelInit = "O.D.O.A Mode : ON nocount";
-          } else {
-            odoaStatusTextForPanelInit = "O.D.O.A Mode : OFF";
-          }
-          console.log("[SYNC-B] ODOA HUD: initial status set from mode:", odoaStatusTextForPanelInit);
-        }
-
-        var pending = computePendingFlags(state, info.qid);
-        pending.pendingDiffCounts = (diffCorrect > 0 || diffWrong > 0 || diffStreak3 > 0 || diffStreakLen > 0 || diffStreak3Wrong > 0 || diffWrongStreakLen > 0);
-
-        renderPanel(box, {
-          serverCorrect: serverCorrect,
-          serverWrong: serverWrong,
 
 ```
 <<<PART_END>>>
@@ -1216,9 +1216,9 @@ EXPECTED_TOTAL: 4
 RECEIVED_TOTAL: 3
 
 CUMULATIVE_RECEIVED_PARTIDS:
-- CSCSJS-F07A6B02-P01-of-04
-- CSCSJS-F07A6B02-P02-of-04
-- CSCSJS-F07A6B02-P03-of-04
+- CSCSJS-BBB8FDF8-P01-of-04
+- CSCSJS-BBB8FDF8-P02-of-04
+- CSCSJS-BBB8FDF8-P03-of-04
 
 【ChatGPTへの強制ルール】
 ・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。

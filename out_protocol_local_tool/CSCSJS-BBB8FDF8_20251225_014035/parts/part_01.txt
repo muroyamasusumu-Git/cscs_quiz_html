@@ -1,14 +1,14 @@
 <<<PART_BEGIN>>>
 【分割コード(1)の開始】
-PartID: CSCSJS-CBA125D1-P01-of-04
-PartSHA256: f1154e7dd39771999b7b8e20d6c4b93d77625617525366bd8a37f8734d2d5bce
-Range: chars 0..37482 (len=37482)
+PartID: CSCSJS-BBB8FDF8-P01-of-04
+PartSHA256: 0dc4063964fbd56bb71979463ed46d19f959634f4f50ee6390b2e50df566f3b5
+Range: chars 0..37325 (len=37325)
 FirstLine: // assets/cscs_sync_view_b.js
-LastLine:       pair.appendChild(
+LastLine:     })();
 EndNewline: YES
 
 【プロトコル宣言（PART_01=宣言 / LAST_PART=EXEC_TASK）】
-SessionID: CSCSJS-CBA125D1
+SessionID: CSCSJS-BBB8FDF8
 TargetFile: cscs_sync_view_b.js
 Split: total_parts=4, max_chars_per_part=60000, max_lines_per_part=1200
 
@@ -27,15 +27,13 @@ Split: total_parts=4, max_chars_per_part=60000, max_lines_per_part=1200
    - 各パートには EndNewline: YES/NO が付く。境界が連続行かどうかはこれを唯一の根拠として判定する。
 
 【指示内容（概要：参考用／実行根拠にしない）】
-既存の<div class="cscs-svb-card is-wide svb-once-odoa-card">の下に、
-全ての値をLocalstage由来にした<div class="cscs-svb-card is-wide svb-once-odoa-card">をもう一つ追加したい。
-その際に既存の新規のカードの見出しテキストの表記がそれぞれ以下になるようにしたい
-
-  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　
-　　　※既存のワイドカードの見出しに”SYNC"と追記
-
-  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　
-　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる
+現状　ステータスにOncePerDayToday / O.D.O.A Modeのカードが3枚出ていて、
+しかも　OncePerDayToday / O.D.O.A Mode (SYNC)と
+OncePerDayToday / O.D.O.A Mode (local)が
+ステータスで一番上に出るようになっちゃったから、　
+元の場所（現状の3枚目の「OncePerDayToday / O.D.O.A Mode」のカードがある場所）に
+(SYNC)と(local)のカードを戻して欲しいのと、
+3枚目の「OncePerDayToday / O.D.O.A Mode」のカードは表示されないようにしてほしい。
 
 【分割コード貼り付け開始】
 以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。
@@ -1009,9 +1007,40 @@ Split: total_parts=4, max_chars_per_part=60000, max_lines_per_part=1200
     var body = document.getElementById("cscs_sync_view_b_body");
     if (!body) return null;
 
-    while (body.firstChild) {
-      body.removeChild(body.firstChild);
+    // ★ 何をしているか:
+    //   リロード時の再描画で body を全消しすると Once/ODOA の2枚（SYNC/local）が一瞬消える（ちらつく）ため、
+    //   ".svb-once-odoa-card"（先頭=SYNC想定）と ".svb-once-odoa-card-local" の2枚だけは DOM 上に残し、
+    //   それ以外の子要素のみ削除する。
+    var keepSync = null;
+    var keepLocal = null;
+    try {
+      var cards = body.querySelectorAll(".svb-once-odoa-card");
+      if (cards && cards.length > 0) {
+        keepSync = cards[0];
+      }
+      keepLocal = body.querySelector(".svb-once-odoa-card-local");
+    } catch (_eKeep) {
+      keepSync = null;
+      keepLocal = null;
     }
+
+    var node = body.firstChild;
+    while (node) {
+      var next = node.nextSibling;
+
+      if (keepSync && node === keepSync) {
+        node = next;
+        continue;
+      }
+      if (keepLocal && node === keepLocal) {
+        node = next;
+        continue;
+      }
+
+      body.removeChild(node);
+      node = next;
+    }
+
     return body;
   }
 
@@ -1211,37 +1240,6 @@ Split: total_parts=4, max_chars_per_part=60000, max_lines_per_part=1200
       body.appendChild(quad);
     })();
 
-    // --- Today Unique（左右2列：左=Streak3TodayUnique / 右=Streak3WrongTodayUq） ---
-    (function appendTodayUniquePair() {
-      var pair = document.createElement("div");
-      pair.className = "svb-streak-quad";
-
-      function makeTodayCard(titleText, dayLabel, syncCnt, localCnt) {
-        var card = document.createElement("div");
-        card.className = "cscs-svb-card svb-streak-card";
-
-        var h = document.createElement("div");
-        h.className = "cscs-svb-card-title";
-        h.textContent = titleText;
-
-        var grid = document.createElement("div");
-        grid.className = "cscs-svb-card-grid";
-
-        appendGridRow(grid, "day", String(dayLabel));
-        appendGridRow(
-          grid,
-          "unique",
-          "sync " + String(syncCnt) + " / local " + String(localCnt)
-        );
-
-        card.appendChild(h);
-        card.appendChild(grid);
-        return card;
-      }
-
-      // 左：Streak3TodayUnique
-      pair.appendChild(
-
 ```
 <<<PART_END>>>
 【RECEIPT_INPUT（このメッセージ内だけを真とする）】
@@ -1249,7 +1247,7 @@ EXPECTED_TOTAL: 4
 RECEIVED_TOTAL: 1
 
 CUMULATIVE_RECEIVED_PARTIDS:
-- CSCSJS-CBA125D1-P01-of-04
+- CSCSJS-BBB8FDF8-P01-of-04
 
 【ChatGPTへの強制ルール】
 ・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。

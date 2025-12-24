@@ -3763,28 +3763,76 @@
 
   function ensureOnceOdoaWideTitles(box) {
     // ★ 何をしているか:
-    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しを
-    //   必ず "OncePerDayToday / O.D.O.A Mode (SYNC)" の表記に揃える（既存表記ゆれ吸収・二重付与防止）
-    //   既存カードは class="svb-once-odoa-card" を持つ前提で、そのうち先頭を SYNC 扱いにする
+    //   OncePerDayToday / O.D.O.A Mode のカードが複数存在する場合でも、
+    //   「(SYNC)/(local) は“元の場所（現在3枚目が出ている場所）”」に集約し、
+    //   余分に出ている“元カード（現在3枚目）”は非表示にする。
+    //   - 表示位置の基準: svb-once-odoa-card（local以外）のうち「最後の1枚」を“元の場所”とみなす
+    //   - 先頭に出てしまった(SYNC)カードは、その“元の場所”の直前へ移動する
+    //   - localカード（svb-once-odoa-card-local）がある場合は(SYNC)の直後へ移動する
+    //   - “元の場所”として使っていた最後のカード（=元カード）は display:none で非表示にする
     try {
       if (!box) return;
-      var cards = box.querySelectorAll(".svb-once-odoa-card");
-      if (!cards || cards.length === 0) return;
 
-      var syncCard = cards[0];
-      var title = syncCard.querySelector(".cscs-svb-card-title");
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      var all = body.querySelectorAll(".svb-once-odoa-card");
+      if (!all || all.length === 0) return;
+
+      // ★ 何をしているか:
+      //   localカードは別扱い（ベースクラスに svb-once-odoa-card を含むため除外する）
+      var syncCards = [];
+      for (var i = 0; i < all.length; i++) {
+        var c = all[i];
+        if (c && c.className && String(c.className).indexOf("svb-once-odoa-card-local") >= 0) {
+          continue;
+        }
+        syncCards.push(c);
+      }
+      if (syncCards.length === 0) return;
+
+      // ★ 何をしているか:
+      //   “元の場所”扱いにするカード（= local以外の once/odoa の最後の1枚）
+      var anchorCard = syncCards[syncCards.length - 1];
+
+      // ★ 何をしているか:
+      //   先頭に出てしまっている(SYNC)カード（= local以外の once/odoa の最初の1枚）
+      var syncCard = syncCards[0];
+
+      // ★ 何をしているか:
+      //   見出しは常に "(SYNC)" に正規化する（表記ゆれ吸収）
+      var title = syncCard ? syncCard.querySelector(".cscs-svb-card-title") : null;
       if (title) {
         var base = "OncePerDayToday / O.D.O.A Mode";
         var desired = "OncePerDayToday / O.D.O.A Mode (SYNC)";
-
-        // ★ 何をしているか:
-        //   既存見出しが base を含む限り、最終表記を desired に固定する（完全一致に揃える）
-        //   すでに desired の場合は何もしない
         if (title.textContent && title.textContent.indexOf(base) >= 0) {
           if (title.textContent !== desired) {
             title.textContent = desired;
           }
         }
+      }
+
+      // ★ 何をしているか:
+      //   (SYNC)カードを“元の場所（anchorCard）”の直前へ移動し、
+      //   localカードがある場合は(SYNC)の直後へ移動する。
+      if (syncCard && anchorCard && syncCard !== anchorCard) {
+        body.insertBefore(syncCard, anchorCard);
+
+        var localCard = body.querySelector(".svb-once-odoa-card-local");
+        if (localCard) {
+          if (syncCard.nextSibling) {
+            body.insertBefore(localCard, syncCard.nextSibling);
+          } else {
+            body.appendChild(localCard);
+          }
+        }
+
+        // ★ 何をしているか:
+        //   “元の場所”として利用していた（現在3枚目として出てしまっている）カードは非表示にして、
+        //   二重表示を完全に止める。
+        try {
+          anchorCard.style.display = "none";
+        } catch (_eHide) {}
       }
     } catch (_e) {}
   }
@@ -3798,8 +3846,22 @@
       var body = document.getElementById("cscs_sync_view_b_body");
       if (!body) return;
 
-      // 既存の once/odoa カード（SYNC）を探し、その直後に差し込む
-      var syncCard = body.querySelector(".svb-once-odoa-card");
+      // ★ 何をしているか:
+      //   localカードの差し込み先は「現在の(SYNC)カード直後」に固定する。
+      //   ただし、once/odoa が複数ある場合に先頭を拾うと“ステータス最上段”に刺さってしまうため、
+      //   local以外の once/odoa のうち「最初の1枚（= (SYNC)扱い）」を基準にする。
+      var allCards = body.querySelectorAll(".svb-once-odoa-card");
+      if (!allCards || allCards.length === 0) return;
+
+      var syncCard = null;
+      for (var i = 0; i < allCards.length; i++) {
+        var c = allCards[i];
+        if (c && c.className && String(c.className).indexOf("svb-once-odoa-card-local") >= 0) {
+          continue;
+        }
+        syncCard = c;
+        break;
+      }
       if (!syncCard) return;
 
       // すでに local 用が存在するなら何もしない
