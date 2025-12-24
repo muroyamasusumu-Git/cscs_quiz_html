@@ -3767,9 +3767,6 @@
             <div class="sync-title">Streak3TodayUnique</div>
             <div class="sync-body sync-streak3today">
               <div class="mini-grid">
-                <div class="mini-label">day</div>
-                <div class="mini-val"><span class="sync-streak3today-day">-</span></div>
-
                 <div class="mini-label">unique</div>
                 <div class="mini-val">sync <span class="sync-streak3today-sync">0</span> / local <span class="sync-streak3today-local">0</span></div>
               </div>
@@ -3780,9 +3777,6 @@
             <div class="sync-title">Streak3WrongTodayUq</div>
             <div class="sync-body sync-streak3wrongtoday">
               <div class="mini-grid">
-                <div class="mini-label">day</div>
-                <div class="mini-val"><span class="sync-streak3wrongtoday-day">-</span></div>
-
                 <div class="mini-label">unique</div>
                 <div class="mini-val">sync <span class="sync-streak3wrongtoday-sync">0</span> / local <span class="sync-streak3wrongtoday-local">0</span></div>
               </div>
