@@ -1651,7 +1651,7 @@
       // ===== localカード（localStorageの値だけで組む） =====
       var localOnceModel = buildLocalOnceModel();
       clearEl(localCard);
-      localCard.appendChild(buildHeader(localCard, "OncePerDayToday / O.D.O.A Mode (local)", false));
+      localCard.appendChild(buildHeader(localCard, "OncePerDayToday / O.D.O.A Mode (local)", true));
       localCard.appendChild(buildGridRowsFromModel(localCard, localOnceModel));
 
       console.log("[SYNC-B:view] refreshed once/odoa cards in body (sync+local)", {
