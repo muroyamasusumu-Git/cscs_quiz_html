@@ -1,0 +1,59 @@
+{
+  "session_id": "CSCSJS-BBB8FDF8",
+  "created_at": "2025-12-25T00:49:33",
+  "instruction": "clearSyncBody() では **SYNC/local を「残す」んじゃなくて「一旦退避」**させる（DOMから外す）\nbody はいつも通りクリアして、元の順序で他カードを作り直す\n最後に 退避してた SYNC/local を “元の位置（インデックス）” に差し戻す\nさらに 重複してる Once/ODOA カードは追加で消す（保険じゃなく、現に出てる不具合の修正）",
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 159195,
+    "sha256": "bbb8fdf8250239d34b3ecd460a7710239c45cbb19bea6cf29bfbdff8af4fd177",
+    "saved_copy": "original/cscs_sync_view_b.js"
+  },
+  "split": {
+    "total_parts": 4,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 4,
+      "part_id": "CSCSJS-BBB8FDF8-P01-of-04",
+      "part_sha256": "0dc4063964fbd56bb71979463ed46d19f959634f4f50ee6390b2e50df566f3b5",
+      "start_offset": 0,
+      "end_offset": 37325,
+      "len_chars": 37325,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 4,
+      "part_id": "CSCSJS-BBB8FDF8-P02-of-04",
+      "part_sha256": "a8504262b9621c79c96918f46d6c83c2250a3a9c2f1d9377bb2f6de1fd61493e",
+      "start_offset": 37325,
+      "end_offset": 82129,
+      "len_chars": 44804,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 4,
+      "part_id": "CSCSJS-BBB8FDF8-P03-of-04",
+      "part_sha256": "c64b6174afa5a4b115839fef42bfb3f40a4a0f2a781a1b3194d0d061e2bcfc2f",
+      "start_offset": 82129,
+      "end_offset": 129585,
+      "len_chars": 47456,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 4,
+      "part_id": "CSCSJS-BBB8FDF8-P04-of-04",
+      "part_sha256": "77dd3efb5af023113a2ae92d33a831a98c409b28a084566f142b0fb6eba71dbb",
+      "start_offset": 129585,
+      "end_offset": 159195,
+      "len_chars": 29610,
+      "file": "parts/part_04.txt"
+    }
+  ]
+}

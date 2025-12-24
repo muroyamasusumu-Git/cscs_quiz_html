@@ -1212,7 +1212,7 @@ HTML_PAGE = r"""<!doctype html>
     }
 
     /* extract: カンマ区切り入力は「大きめ」にする（打ちやすさ優先） */
-    input#extractSymbols, input#extractNeedles, input#extractSessionId, input#extractPurpose, input#extractDepends {
+    input#extractSymbols, input#extractNeedles, input#extractPurpose, input#extractDepends {
       box-sizing: border-box;
       width: 100%;
       font-size: 14px;
@@ -1615,15 +1615,6 @@ HTML_PAGE = r"""<!doctype html>
       overflow: auto;
       resize: vertical;
     }
-
-    /* 追加した処理: EXEC_TASK（instruction原文）入力欄は長文になりやすいので高さを確保し、折り返して見やすくする */
-    textarea#extractExecTask {
-      min-height: 160px;
-      overflow: auto;
-      resize: vertical;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
     
   </style>
 </head>
@@ -1745,18 +1736,6 @@ HTML_PAGE = r"""<!doctype html>
             <input id="extractNeedles" value="" placeholder="例: SCOPE_INDEX, RECEIPT_CHECK" />
           </div>
 
-          <!-- 追加した処理: split直後の result.session_id を受け取り、extractヘッダへ必ず出すための入力欄 -->
-          <div class="advItem extractWide">
-            <div class="muted">SESSION_ID（split直後に自動入力 / 手入力・コピペ可）</div>
-            <input id="extractSessionId" value="" placeholder="例: CSCSJS-1A2B3C4D" />
-          </div>
-
-          <!-- 追加した処理: split直後の instruction 原文（EXEC_TASK）を保持し、extractヘッダへ必ず出すための入力欄 -->
-          <div class="advItem extractWide" style="grid-column: 1 / -1;">
-            <div class="muted">EXEC_TASK（split直後に自動入力 / 手入力・コピペ可）</div>
-            <textarea id="extractExecTask" placeholder="例: ここに split の指示（--instruction 原文）が入る（EXEC_TASK）"></textarea>
-          </div>
-
           <!-- 追加した処理: 抽出の目的（LLMの判断ブレ低減）を1行で添える -->
           <div class="advItem extractWide">
             <div class="muted">PURPOSE（1行）</div>
@@ -1876,10 +1855,6 @@ HTML_PAGE = r"""<!doctype html>
         uiMode: String((window.__uiMode || "split")),
         extractSymbols: String(($("extractSymbols") && $("extractSymbols").value) || ""),
         extractNeedles: String(($("extractNeedles") && $("extractNeedles").value) || ""),
-        /* 追加した処理: splitで得た session_id を extractヘッダへ必ず出すため、UI状態として保存 */
-        extractSessionId: String(($("extractSessionId") && $("extractSessionId").value) || ""),
-        /* 追加した処理: splitの instruction 原文（EXEC_TASK）を extractヘッダへ必ず出すため、UI状態として保存 */
-        extractExecTask: String(($("extractExecTask") && $("extractExecTask").value) || ""),
         /* 追加した処理: 抽出結果に PURPOSE を確実に添えるため、UI状態として保存 */
         extractPurpose: String(($("extractPurpose") && $("extractPurpose").value) || ""),
         /* 追加した処理: 抽出結果に DEPENDS を確実に添えるため、UI状態として保存 */
@@ -1933,13 +1908,6 @@ HTML_PAGE = r"""<!doctype html>
     }
     if ($("extractNeedles") && typeof s.extractNeedles === "string") {
       $("extractNeedles").value = s.extractNeedles;
-    }
-    /* 追加した処理: SESSION_ID / EXEC_TASK も復元して、split→extract の往復で情報が消えないようにする */
-    if ($("extractSessionId") && typeof s.extractSessionId === "string") {
-      $("extractSessionId").value = s.extractSessionId;
-    }
-    if ($("extractExecTask") && typeof s.extractExecTask === "string") {
-      $("extractExecTask").value = s.extractExecTask;
     }
     /* 追加した処理: PURPOSE / DEPENDS も復元して、抽出コピーの定型が崩れないようにする */
     if ($("extractPurpose") && typeof s.extractPurpose === "string") {
@@ -2840,17 +2808,6 @@ HTML_PAGE = r"""<!doctype html>
     renderCurrent();
     renderInstructionHistory();
     autosizeInstruction();
-
-    /* 追加した処理: split直後の result.session_id を extract用 SESSION_ID に自動入力する（手入力も可） */
-    if ($("extractSessionId") && result && typeof result.session_id === "string") {
-      $("extractSessionId").value = String(result.session_id || "");
-    }
-
-    /* 追加した処理: split直後の instruction 原文（EXEC_TASK）を extract用に自動入力する（手入力も可） */
-    if ($("extractExecTask")) {
-      $("extractExecTask").value = String(instr || "");
-    }
-
     saveUiState();
 
     if ($("resetGen")) {
@@ -2878,13 +2835,6 @@ HTML_PAGE = r"""<!doctype html>
   }
   if ($("extractNeedles")) {
     $("extractNeedles").addEventListener("input", () => saveUiState());
-  }
-  /* 追加した処理: SESSION_ID / EXEC_TASK も入力変更で即保存（split後の自動入力→手修正も保持） */
-  if ($("extractSessionId")) {
-    $("extractSessionId").addEventListener("input", () => saveUiState());
-  }
-  if ($("extractExecTask")) {
-    $("extractExecTask").addEventListener("input", () => saveUiState());
   }
   /* 追加した処理: PURPOSE / DEPENDS も入力変更で即保存 */
   if ($("extractPurpose")) {
@@ -2976,17 +2926,6 @@ HTML_PAGE = r"""<!doctype html>
       outLines.push("FILE: " + String(data.filename || ""));
       outLines.push("SYMBOLS: " + String((data.symbols || []).join(", ")));
       outLines.push("NEEDLES: " + String((data.needles || []).join(", ")));
-
-      /* 追加した処理: split直後の result.session_id を extractヘッダへ必ず出す（手入力/コピペも可） */
-      outLines.push("SESSION_ID: " + String((($("extractSessionId") && $("extractSessionId").value) || "")).trim());
-
-      /* 追加した処理: split直後の instruction 原文（EXEC_TASK）を extractヘッダへ必ず出す
-         ※ ヘッダを1行=1項目で崩さないため、改行は \\n にエスケープして1行化する */
-      (function(){
-        const raw = String((($("extractExecTask") && $("extractExecTask").value) || ""));
-        const one = raw.replace(/\r\n/g, "\n").replace(/\n/g, "\\n");
-        outLines.push("EXEC_TASK: " + one);
-      })();
 
       /* 追加した処理: “抽出の目的”を1行で明示（LLMの判断がブレにくくなる） */
       outLines.push("PURPOSE: " + String((($("extractPurpose") && $("extractPurpose").value) || "")).trim());
