@@ -1347,119 +1347,289 @@
       });
     })();
 
-    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード：折りたたみ対応） ---
-    (function appendOncePerDayAndOdoaWideCard() {
-      var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide svb-once-odoa-card";
+    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード：body配下の既存カードのみ更新／生成は最初の1回だけ） ---
+    (function refreshOncePerDayAndOdoaWideCardsInBody() {
+      // ★ 何をしているか:
+      //   once/odoa は body(#cscs_sync_view_b_body) 配下に「SYNCカード1枚 + localカード1枚」を置き、
+      //   updateSyncBodyGrid() では “追加” せず “既存DOMを更新” だけ行う（唯一の真＝body）。
+      var root = body;
 
-      // 折りたたみ状態（永続）
+      // ★ 何をしているか:
+      //   既存カードを body 配下だけで探索する（探索範囲固定）。
+      var syncCard = null;
+      var localCard = null;
+      try {
+        syncCard = root.querySelector(".svb-once-odoa-card:not(.svb-once-odoa-card-local)");
+        localCard = root.querySelector(".svb-once-odoa-card-local");
+      } catch (_eFindOnceCards) {
+        syncCard = null;
+        localCard = null;
+      }
+
+      // ★ 何をしているか:
+      //   生成は “最初の1回だけ”。
+      //   - init()->append() の確定地点で作るのが理想だが、
+      //     updateSyncBodyGrid() は body が確実に存在するので、ここで「未生成なら作る」に一本化する。
+      function ensureCard(cardKind) {
+        var c = document.createElement("div");
+        if (cardKind === "local") {
+          c.className = "cscs-svb-card is-wide svb-once-odoa-card svb-once-odoa-card-local";
+        } else {
+          c.className = "cscs-svb-card is-wide svb-once-odoa-card";
+        }
+        return c;
+      }
+
+      if (!syncCard) {
+        syncCard = ensureCard("sync");
+        root.appendChild(syncCard);
+      }
+      if (!localCard) {
+        localCard = ensureCard("local");
+        root.appendChild(localCard);
+      }
+
+      // ★ 何をしているか:
+      //   折りたたみ状態は once/odoa で共通（2枚とも同じ状態にする）。
       var onceCollapsed = false;
       try {
         onceCollapsed = (localStorage.getItem("cscs_sync_view_b_once_odoa_collapsed") === "1");
-      } catch (_eOnceCollapsed) {
+      } catch (_eOnceCollapsed2) {
         onceCollapsed = false;
       }
 
-      if (onceCollapsed) {
-        card.className += " is-collapsed";
-      }
-
-      // ヘッダー行（タイトル + トグル）
-      var head = document.createElement("div");
-      head.className = "svb-once-odoa-head";
-
-      var h = document.createElement("div");
-      h.className = "cscs-svb-card-title";
-      h.textContent = "OncePerDayToday / O.D.O.A Mode";
-
-      var btn = document.createElement("button");
-      btn.className = "svb-once-odoa-toggle";
-      btn.type = "button";
-      btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
-
-      function updateOnceBtnLabel() {
-        var chev = onceCollapsed ? "▶" : "▼";
-        var label = onceCollapsed ? "show" : "hide";
-        btn.innerHTML = "<span class=\"svb-once-odoa-chev\">" + chev + "</span>" + label;
-        btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
-      }
-
-      updateOnceBtnLabel();
-
-      btn.addEventListener("click", function () {
-        onceCollapsed = !onceCollapsed;
-
+      function applyCollapsedClass(cardEl) {
+        if (!cardEl) return;
         if (onceCollapsed) {
-          if (card.className.indexOf("is-collapsed") === -1) {
-            card.className += " is-collapsed";
+          if (cardEl.className.indexOf("is-collapsed") === -1) {
+            cardEl.className += " is-collapsed";
           }
         } else {
-          card.className = card.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+          cardEl.className = cardEl.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
         }
-
-        try {
-          localStorage.setItem("cscs_sync_view_b_once_odoa_collapsed", onceCollapsed ? "1" : "0");
-        } catch (_eSaveOnce) {}
-
-        updateOnceBtnLabel();
-      });
-
-      head.appendChild(h);
-      head.appendChild(btn);
-
-      var grid = document.createElement("div");
-      grid.className = "svb-wide-dual-grid";
-
-      function addRow(leftText, rightText, strongLeft, strongRight) {
-        var l = document.createElement("div");
-        l.className = "svb-wide-dual-cell" + (strongLeft ? " svb-wide-dual-strong" : "");
-        l.textContent = leftText;
-
-        var r = document.createElement("div");
-        r.className = "svb-wide-dual-cell is-right" + (strongRight ? " svb-wide-dual-strong" : "");
-        r.textContent = rightText;
-
-        grid.appendChild(l);
-        grid.appendChild(r);
       }
 
-      // 1行目（折りたたみ時も表示される行）
-      addRow(
-        "oncePerDayToday   " + String(model.onceStateLabel),
-        "計測: " + String(model.onceMeasureOkLabel) + " ｜結果: " + String(model.onceResultLabel),
-        true,
-        false
-      );
+      applyCollapsedClass(syncCard);
+      applyCollapsedClass(localCard);
 
-      // 2行目以降（折りたたみ時はCSSで非表示）
-      addRow(
-        "Today             " + String(model.onceTodayDateLabel),
-        "qid: " + String(model.onceQidLabel),
-        false,
-        false
-      );
-      addRow(
-        "count対象         " + String(model.onceCountableLabel),
-        "記録: " + String(model.onceRecordLabel),
-        false,
-        false
-      );
+      function clearEl(el) {
+        while (el && el.firstChild) el.removeChild(el.firstChild);
+      }
 
-      // ODOA 行は「右カラム無し」で全幅1行にする（右側ブロック削除）
-      (function addOdoaSingleRow() {
-        var line = document.createElement("div");
-        line.className = "svb-wide-single";
-        line.textContent = "ODOA              " + String(model.onceOdoaLabel);
-        grid.appendChild(line);
-      })();
+      function buildHeader(cardEl, titleText, allowToggle) {
+        var head = document.createElement("div");
+        head.className = "svb-once-odoa-head";
 
-      card.appendChild(head);
-      card.appendChild(grid);
-      body.appendChild(card);
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
+
+        head.appendChild(h);
+
+        if (allowToggle) {
+          var btn = document.createElement("button");
+          btn.className = "svb-once-odoa-toggle";
+          btn.type = "button";
+          btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
+
+          function updateOnceBtnLabel() {
+            var chev = onceCollapsed ? "▶" : "▼";
+            var label = onceCollapsed ? "show" : "hide";
+            btn.innerHTML = "<span class=\"svb-once-odoa-chev\">" + chev + "</span>" + label;
+            btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
+          }
+
+          updateOnceBtnLabel();
+
+          btn.addEventListener("click", function () {
+            onceCollapsed = !onceCollapsed;
+
+            try {
+              localStorage.setItem("cscs_sync_view_b_once_odoa_collapsed", onceCollapsed ? "1" : "0");
+            } catch (_eSaveOnce2) {}
+
+            applyCollapsedClass(syncCard);
+            applyCollapsedClass(localCard);
+            updateOnceBtnLabel();
+          });
+
+          head.appendChild(btn);
+        }
+
+        return head;
+      }
+
+      function buildGridRowsFromModel(cardEl, modelForCard) {
+        var grid = document.createElement("div");
+        grid.className = "svb-wide-dual-grid";
+
+        function addRow(leftText, rightText, strongLeft, strongRight) {
+          var l = document.createElement("div");
+          l.className = "svb-wide-dual-cell" + (strongLeft ? " svb-wide-dual-strong" : "");
+          l.textContent = leftText;
+
+          var r = document.createElement("div");
+          r.className = "svb-wide-dual-cell is-right" + (strongRight ? " svb-wide-dual-strong" : "");
+          r.textContent = rightText;
+
+          grid.appendChild(l);
+          grid.appendChild(r);
+        }
+
+        addRow(
+          "oncePerDayToday   " + String(modelForCard.onceStateLabel),
+          "計測: " + String(modelForCard.onceMeasureOkLabel) + " ｜結果: " + String(modelForCard.onceResultLabel),
+          true,
+          false
+        );
+
+        addRow(
+          "Today             " + String(modelForCard.onceTodayDateLabel),
+          "qid: " + String(modelForCard.onceQidLabel),
+          false,
+          false
+        );
+
+        addRow(
+          "count対象         " + String(modelForCard.onceCountableLabel),
+          "記録: " + String(modelForCard.onceRecordLabel),
+          false,
+          false
+        );
+
+        (function addOdoaSingleRow() {
+          var line = document.createElement("div");
+          line.className = "svb-wide-single";
+          line.textContent = "ODOA              " + String(modelForCard.onceOdoaLabel);
+          grid.appendChild(line);
+        })();
+
+        return grid;
+      }
 
       // ★ 何をしているか:
-      //   カードの追加位置が「連続正解/連続不正解ペアの直下」になったことをログで確認する
-      console.log("[SYNC-B:view] appended OncePerDayToday / O.D.O.A card (moved under streak pair)", {
+      //   localカードは localStorage の oncePerDayToday を “表示専用” に読む（判定元にはしない）。
+      //   - 参照元は localStorage の確定キーのみ（フォールバック無し）。
+      function buildLocalOnceModel() {
+        var out = {
+          onceStateLabel: "未開始",
+          onceMeasureOkLabel: "-",
+          onceResultLabel: "-",
+          onceTodayDateLabel: "-",
+          onceQidLabel: (info && info.qid) ? info.qid : "-",
+          onceCountableLabel: "-",
+          onceRecordLabel: "-",
+          onceOdoaLabel: "-"
+        };
+
+        try {
+          try {
+            var now = new Date();
+            var y = now.getFullYear();
+            var m = String(now.getMonth() + 1).padStart(2, "0");
+            var d = String(now.getDate()).padStart(2, "0");
+            out.onceTodayDateLabel = String(y) + "-" + String(m) + "-" + String(d);
+          } catch (_eDate2) {
+            out.onceTodayDateLabel = "-";
+          }
+
+          var localOnce = readOncePerDayTodayFromLocal();
+          var localOnceVal = null;
+          if (localOnce &&
+              typeof localOnce.day === "number" &&
+              Number.isFinite(localOnce.day) &&
+              localOnce.results &&
+              typeof localOnce.results === "object") {
+            if (Object.prototype.hasOwnProperty.call(localOnce.results, out.onceQidLabel)) {
+              localOnceVal = localOnce.results[out.onceQidLabel];
+            }
+          }
+
+          if (localOnceVal === "correct" || localOnceVal === "wrong") {
+            out.onceStateLabel = "計測済";
+            out.onceResultLabel = String(localOnceVal);
+            out.onceMeasureOkLabel = "OK";
+            out.onceRecordLabel = String(localOnceVal);
+            out.onceCountableLabel = "No（計測済）";
+          } else {
+            out.onceStateLabel = "未開始";
+            out.onceResultLabel = "-";
+            out.onceMeasureOkLabel = "NG";
+            out.onceRecordLabel = "-";
+            out.onceCountableLabel = "Yes（未計測）";
+          }
+
+          var verifyModeOn =
+            typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+
+          var odoaRaw = null;
+          try {
+            if (typeof window.CSCS_ODOA_MODE === "string") {
+              odoaRaw = window.CSCS_ODOA_MODE;
+            }
+          } catch (_eOdoaPick2) {
+            odoaRaw = null;
+          }
+
+          var odoaLower = "";
+          try {
+            odoaLower = (odoaRaw == null ? "" : String(odoaRaw)).trim().toLowerCase();
+          } catch (_eOdoaLower2) {
+            odoaLower = "";
+          }
+
+          var odoaIsOn = (odoaLower === "on");
+
+          if (verifyModeOn) {
+            out.onceCountableLabel = "No（ガード）";
+          }
+          if (odoaIsOn) {
+            out.onceCountableLabel = "No（ガード）";
+          }
+
+          var odoaResultSuffix = "nocount";
+          if (localOnceVal === "correct") {
+            odoaResultSuffix = "Correct";
+          } else if (localOnceVal === "wrong") {
+            odoaResultSuffix = "Wrong";
+          }
+
+          var addNo = false;
+          if (verifyModeOn) addNo = true;
+          if (odoaIsOn) addNo = true;
+
+          if (odoaIsOn) {
+            out.onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
+          } else {
+            out.onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
+          }
+
+        } catch (_eLocalOnceModel) {}
+
+        return out;
+      }
+
+      // ===== SYNCカード（modelの値をそのまま） =====
+      clearEl(syncCard);
+      syncCard.appendChild(buildHeader(syncCard, "OncePerDayToday / O.D.O.A Mode (SYNC)", true));
+      syncCard.appendChild(buildGridRowsFromModel(syncCard, {
+        onceStateLabel: model.onceStateLabel,
+        onceMeasureOkLabel: model.onceMeasureOkLabel,
+        onceResultLabel: model.onceResultLabel,
+        onceTodayDateLabel: model.onceTodayDateLabel,
+        onceQidLabel: model.onceQidLabel,
+        onceCountableLabel: model.onceCountableLabel,
+        onceRecordLabel: model.onceRecordLabel,
+        onceOdoaLabel: model.onceOdoaLabel
+      }));
+
+      // ===== localカード（localStorageの値だけで組む） =====
+      var localOnceModel = buildLocalOnceModel();
+      clearEl(localCard);
+      localCard.appendChild(buildHeader(localCard, "OncePerDayToday / O.D.O.A Mode (local)", false));
+      localCard.appendChild(buildGridRowsFromModel(localCard, localOnceModel));
+
+      console.log("[SYNC-B:view] refreshed once/odoa cards in body (sync+local)", {
         qid: (info && info.qid) ? info.qid : "-"
       });
     })();
