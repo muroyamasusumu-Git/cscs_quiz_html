@@ -1,0 +1,39 @@
+{
+  "session_id": "CSCSJS-F07A6B02",
+  "created_at": "2025-12-24T17:15:13",
+  "instruction": "OncePerDayToday / O.D.O.A Mode　ブロックの値を全て　Local由来　にしたカードを追加したい\n  OncePerDayToday / O.D.O.A Mode (SYNC)          ▶︎show　　　　※既存のワイドカードの見出しに”SYNC\"と追記\n  OncePerDayToday / O.D.O.A Mode (local)         ▶︎show　　　　※新規で折りたためるワイドカードを作る。既存のワイドカードとは分離させる",
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 148083,
+    "sha256": "f07a6b02df72c24173358111e90f0e61146aa6a67731cd8d07a0b93f7d700980",
+    "saved_copy": "original/cscs_sync_view_b.js"
+  },
+  "split": {
+    "total_parts": 2,
+    "max_chars_per_part": 100000,
+    "max_lines_per_part": 2000,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 2,
+      "part_id": "CSCSJS-F07A6B02-P01-of-02",
+      "part_sha256": "dc13f3b45bf8058489ad71b688afffff8894a2b37ddb67c35f7d2bbcaadb1832",
+      "start_offset": 0,
+      "end_offset": 66283,
+      "len_chars": 66283,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 2,
+      "part_id": "CSCSJS-F07A6B02-P02-of-02",
+      "part_sha256": "032da0bb17da19213d940c08bc30c5c2a8ff78cf04f507f7d0b63a58cae28023",
+      "start_offset": 66283,
+      "end_offset": 148083,
+      "len_chars": 81800,
+      "file": "parts/part_02.txt"
+    }
+  ]
+}

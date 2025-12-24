@@ -23,6 +23,20 @@ DEFAULT_LANG = "javascript"
 DEFAULT_MAXCHARS = 60000
 DEFAULT_MAXLINES = 1200
 
+# extract（抽出）設定（必要ならここだけ変えればOK）
+DEFAULT_EXTRACT_CONTEXT_LINES = 25
+DEFAULT_EXTRACT_MAX_MATCHES = 50
+
+# split モード:
+#   C = 通常（現状）
+#   A = IIFE終端優先（上限は“目安”扱い寄り）
+#   B = IIFE終端優先だが、一定距離内に無ければ妥協して改行分割（ハイブリッド）
+DEFAULT_SPLIT_MODE = "C"
+
+# モードBの「粘る」距離（maxchars に対する比率）
+# 例: 0.30 → 上限から +30% まで IIFE終端を探す
+DEFAULT_IIFE_GRACE_RATIO = 0.30
+
 # ローカル出力先（このスクリプトが置かれているフォルダ基準）
 DEFAULT_OUTROOT = "out_protocol_local_tool"
 
@@ -78,11 +92,28 @@ def safe_mkdir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def split_by_limits(text: str, max_chars: int, max_lines: int) -> List[Tuple[int, int, str]]:
+def split_by_limits(
+    text: str,
+    max_chars: int,
+    max_lines: int,
+    split_mode: str = "C",
+    iife_grace_ratio: float = 0.30,
+) -> List[Tuple[int, int, str]]:
     if max_chars <= 0:
         raise ValueError("max_chars must be > 0")
     if max_lines <= 0:
         raise ValueError("max_lines must be > 0")
+
+    mode = str(split_mode or "C").strip().upper()
+    if mode not in ("A", "B", "C"):
+        mode = "C"
+
+    try:
+        grace = float(iife_grace_ratio)
+    except Exception:
+        grace = 0.30
+    if not (grace >= 0.0):
+        grace = 0.30
 
     n = len(text)
     if n == 0:
@@ -91,7 +122,48 @@ def split_by_limits(text: str, max_chars: int, max_lines: int) -> List[Tuple[int
     parts: List[Tuple[int, int, str]] = []
     start = 0
 
+    # IIFE終端として扱う候補（モードA/Bはこれだけを“強く”探す）
+    iife_tokens = [
+        "\n})();\n",
+        "})();\n",
+        "\n})();",
+        "})();",
+    ]
+
     while start < n:
+        # ------------------------------------------------------------
+        # 連続行（1行）をパート境界で絶対に切らないための補助関数
+        # ------------------------------------------------------------
+        def _snap_end_to_newline(start_pos: int, end_pos: int) -> int:
+            """
+            end_pos を「改行境界（\\n の直後）」へ丸める。
+            - 行の途中で分割しないことを保証する。
+            - end_pos が行途中なら、次の \\n まで前進して含める（見つからなければ n）。
+            - start_pos と同じ位置に戻ってしまう場合は、最低でも次の改行または n へ進める。
+            """
+            e = int(end_pos)
+            if e <= start_pos:
+                # ここで止まると無限ループになるため、必ず前進させる
+                nl2 = text.find("\n", start_pos, n)
+                if nl2 != -1:
+                    return nl2 + 1
+                return n
+
+            if e >= n:
+                return n
+
+            # すでに改行境界（直前が \n）ならそのまま
+            if text[e - 1] == "\n":
+                return e
+
+            # 行途中なら、次の改行まで進めて「改行を含める」
+            nl = text.find("\n", e, n)
+            if nl != -1:
+                return nl + 1
+
+            # もう改行が無い（= 最終行が超長行など）なら末尾まで
+            return n
+
         end_by_chars = min(start + max_chars, n)
 
         end_by_lines = n
@@ -114,33 +186,80 @@ def split_by_limits(text: str, max_chars: int, max_lines: int) -> List[Tuple[int
         if tentative_end == n:
             end = n
         else:
-            # --- 境界優先分割 ---
-            # ChatGPT が理解しやすいように、関数/即時関数境界を優先して探す
-            boundary_candidates = [
-                "\n})();\n",
-                "\n});\n",
-                "\n}\n",
-            ]
+            # ============================================================
+            # 分割戦略（A/B/C）
+            # ------------------------------------------------------------
+            # A: IIFE終端優先 + 上限は“目安”に降格（巨大IIFEは巨大パートになり得る）
+            # B: IIFE終端を +grace まで探し、無ければ妥協して改行分割
+            # C: 現状（複数の境界候補→無ければ改行優先）
+            # ============================================================
 
-            boundary_found = -1
-            search_from = max(start, tentative_end - 2000)
-            search_to = tentative_end
-
-            for token in boundary_candidates:
-                pos = text.rfind(token, search_from, search_to)
-                if pos != -1:
-                    boundary_found = pos + len(token)
-                    break
-
-            if boundary_found != -1:
-                end = boundary_found
-            else:
-                # 境界が見つからなければ従来通り改行優先
-                nl = text.rfind("\n", start, tentative_end)
-                if nl == -1 or nl <= start:
-                    end = tentative_end
+            if mode in ("A", "B"):
+                if mode == "A":
+                    search_from = tentative_end
+                    search_to = n
                 else:
-                    end = nl + 1
+                    extra = int(max_chars * grace)
+                    if extra < 0:
+                        extra = 0
+                    search_from = tentative_end
+                    search_to = min(tentative_end + extra, n)
+
+                found_end = -1
+                best_pos = -1
+                best_len = 0
+
+                for token in iife_tokens:
+                    pos = text.find(token, search_from, search_to)
+                    if pos != -1:
+                        if best_pos == -1 or pos < best_pos:
+                            best_pos = pos
+                            best_len = len(token)
+
+                if best_pos != -1:
+                    found_end = best_pos + best_len
+
+                if found_end != -1:
+                    end = found_end
+                else:
+                    # IIFE終端が見つからない場合の扱い
+                    # A: ファイル末尾までに見つからないなら、仕方ないので従来の改行優先へ戻す
+                    # B: 既定どおり妥協して改行優先へ戻す
+                    nl = text.rfind("\n", start, tentative_end)
+                    if nl == -1 or nl <= start:
+                        end = tentative_end
+                    else:
+                        end = nl + 1
+
+            else:
+                # --- 境界優先分割（従来） ---
+                boundary_candidates = [
+                    "\n})();\n",
+                    "\n});\n",
+                    "\n}\n",
+                ]
+
+                boundary_found = -1
+                search_from = max(start, tentative_end - 2000)
+                search_to = tentative_end
+
+                for token in boundary_candidates:
+                    pos = text.rfind(token, search_from, search_to)
+                    if pos != -1:
+                        boundary_found = pos + len(token)
+                        break
+
+                if boundary_found != -1:
+                    end = boundary_found
+                else:
+                    nl = text.rfind("\n", start, tentative_end)
+                    if nl == -1 or nl <= start:
+                        end = tentative_end
+                    else:
+                        end = nl + 1
+
+            # ★ 追加した処理: 最終的な end は必ず「改行境界」に丸めて、行の途中で切らない
+            end = _snap_end_to_newline(start, end)
 
         chunk = text[start:end]
         parts.append((start, end, chunk))
@@ -153,6 +272,361 @@ def build_part_id(session_id: str, idx: int, total: int) -> str:
     return f"{session_id}-P{idx:02d}-of-{total:02d}"
 
 
+def _line_start_offsets(s: str) -> List[int]:
+    """
+    各行の開始オフセット配列を作る（行番号→オフセット変換用）
+    """
+    offs = [0]
+    i = 0
+    n = len(s)
+    while i < n:
+        j = s.find("\n", i)
+        if j == -1:
+            break
+        offs.append(j + 1)
+        i = j + 1
+    return offs
+
+
+def _offset_to_line_index(line_starts: List[int], offset: int) -> int:
+    """
+    offset が属する行（0-based）を返す
+    """
+    lo = 0
+    hi = len(line_starts) - 1
+    if hi < 0:
+        return 0
+    if offset <= 0:
+        return 0
+    if offset >= line_starts[hi]:
+        # 最終行以降は最終行扱い
+        return hi
+
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        a = line_starts[mid]
+        b = line_starts[mid + 1] if mid + 1 < len(line_starts) else 10**18
+        if a <= offset < b:
+            return mid
+        if offset < a:
+            hi = mid - 1
+        else:
+            lo = mid + 1
+    return max(0, min(len(line_starts) - 1, lo))
+
+
+def _find_matching_brace_end(s: str, start_pos: int) -> int:
+    """
+    start_pos 以降で最初に現れる '{' を起点に、対応する '}' の直後位置を返す。
+    - 文字列 / テンプレ / コメント を極力避けて数える（簡易）。
+    - 見つからない場合は -1。
+    """
+    n = len(s)
+    i = start_pos
+
+    # 1) まず最初の '{' を探す（コメント/文字列はざっくりスキップ）
+    in_squote = False
+    in_dquote = False
+    in_tpl = False
+    in_line_cmt = False
+    in_block_cmt = False
+    esc = False
+
+    while i < n:
+        ch = s[i]
+
+        if in_line_cmt:
+            if ch == "\n":
+                in_line_cmt = False
+            i += 1
+            continue
+
+        if in_block_cmt:
+            if ch == "*" and i + 1 < n and s[i + 1] == "/":
+                in_block_cmt = False
+                i += 2
+                continue
+            i += 1
+            continue
+
+        if in_squote:
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == "'":
+                in_squote = False
+            i += 1
+            continue
+
+        if in_dquote:
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == '"':
+                in_dquote = False
+            i += 1
+            continue
+
+        if in_tpl:
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == "`":
+                in_tpl = False
+            i += 1
+            continue
+
+        # 文字列/コメント外
+        if ch == "/" and i + 1 < n and s[i + 1] == "/":
+            in_line_cmt = True
+            i += 2
+            continue
+        if ch == "/" and i + 1 < n and s[i + 1] == "*":
+            in_block_cmt = True
+            i += 2
+            continue
+        if ch == "'":
+            in_squote = True
+            i += 1
+            continue
+        if ch == '"':
+            in_dquote = True
+            i += 1
+            continue
+        if ch == "`":
+            in_tpl = True
+            i += 1
+            continue
+
+        if ch == "{":
+            break
+
+        i += 1
+
+    if i >= n or s[i] != "{":
+        return -1
+
+    # 2) 対応する '}' を探す
+    depth = 0
+    in_squote = False
+    in_dquote = False
+    in_tpl = False
+    in_line_cmt = False
+    in_block_cmt = False
+    esc = False
+
+    while i < n:
+        ch = s[i]
+
+        if in_line_cmt:
+            if ch == "\n":
+                in_line_cmt = False
+            i += 1
+            continue
+
+        if in_block_cmt:
+            if ch == "*" and i + 1 < n and s[i + 1] == "/":
+                in_block_cmt = False
+                i += 2
+                continue
+            i += 1
+            continue
+
+        if in_squote:
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == "'":
+                in_squote = False
+            i += 1
+            continue
+
+        if in_dquote:
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == '"':
+                in_dquote = False
+            i += 1
+            continue
+
+        if in_tpl:
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if ch == "\\":
+                esc = True
+                i += 1
+                continue
+            if ch == "`":
+                in_tpl = False
+            i += 1
+            continue
+
+        # 文字列/コメント外
+        if ch == "/" and i + 1 < n and s[i + 1] == "/":
+            in_line_cmt = True
+            i += 2
+            continue
+        if ch == "/" and i + 1 < n and s[i + 1] == "*":
+            in_block_cmt = True
+            i += 2
+            continue
+        if ch == "'":
+            in_squote = True
+            i += 1
+            continue
+        if ch == '"':
+            in_dquote = True
+            i += 1
+            continue
+        if ch == "`":
+            in_tpl = True
+            i += 1
+            continue
+
+        if ch == "{":
+            depth += 1
+            i += 1
+            continue
+        if ch == "}":
+            depth -= 1
+            i += 1
+            if depth == 0:
+                return i
+            continue
+
+        i += 1
+
+    return -1
+
+
+def extract_function_whole(js_text: str, name: str) -> Tuple[bool, str, str]:
+    """
+    関数 “まるごと” 抽出（簡易）
+    - function NAME(...) {...}
+    - var NAME = function(...) {...}
+    - const NAME = (...) => {...}
+    - let NAME = (...) => {...}
+    戻り値: (found, header, body)
+    """
+    s = str(js_text or "")
+    target = str(name or "").strip()
+    if target == "":
+        return (False, "name is empty", "")
+
+    import re
+
+    patterns = [
+        re.compile(r"(^|\n)\s*function\s+" + re.escape(target) + r"\s*\(", re.MULTILINE),
+        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*function\s*\(", re.MULTILINE),
+        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*\([^)]*\)\s*=>\s*{", re.MULTILINE),
+        re.compile(r"(^|\n)\s*(?:var|let|const)\s+" + re.escape(target) + r"\s*=\s*[A-Za-z_$][A-Za-z0-9_$]*\s*=>\s*{", re.MULTILINE),
+    ]
+
+    best = None
+    for rg in patterns:
+        m = rg.search(s)
+        if m:
+            best = m
+            break
+
+    if not best:
+        return (False, "not found", "")
+
+    start_pos = best.start(0)
+    # start_pos が "\n" を含むマッチの場合、行頭から取る
+    if start_pos > 0 and s[start_pos] == "\n":
+        start_pos = start_pos + 1
+
+    end_pos = _find_matching_brace_end(s, best.end(0))
+    if end_pos == -1:
+        return (False, "found start but brace not closed", "")
+
+    body = s[start_pos:end_pos]
+    header = f"EXTRACT_FUNCTION: {target} (chars {start_pos}..{end_pos})"
+    return (True, header, body)
+
+
+def extract_context_around(js_text: str, needle: str, context_lines: int, max_matches: int) -> Tuple[int, List[Tuple[str, str]]]:
+    """
+    文字列 needle のヒット行を中心に ±context_lines 行を抽出する。
+    戻り値: (hit_count, blocks[(header, body)])
+    """
+    s = str(js_text or "")
+    nd = str(needle or "")
+    try:
+        ctx = int(context_lines)
+    except Exception:
+        ctx = DEFAULT_EXTRACT_CONTEXT_LINES
+    if ctx < 0:
+        ctx = 0
+
+    try:
+        mm = int(max_matches)
+    except Exception:
+        mm = DEFAULT_EXTRACT_MAX_MATCHES
+    if mm <= 0:
+        mm = DEFAULT_EXTRACT_MAX_MATCHES
+
+    line_starts = _line_start_offsets(s)
+    lines = s.splitlines(True)
+
+    blocks: List[Tuple[str, str]] = []
+    hit_count = 0
+
+    pos = 0
+    n = len(s)
+    while pos < n:
+        j = s.find(nd, pos)
+        if j == -1:
+            break
+
+        hit_count += 1
+        if hit_count <= mm:
+            li = _offset_to_line_index(line_starts, j)
+            a = max(0, li - ctx)
+            b = min(len(lines), li + ctx + 1)
+
+            body = "".join(lines[a:b])
+            header = f"EXTRACT_CONTEXT: '{nd}' hit_line={li + 1} range_lines={a + 1}..{b}"
+            blocks.append((header, body))
+
+        pos = j + max(1, len(nd))
+
+        if hit_count >= mm:
+            # max_matches 以上はカウントだけ進めず終了
+            break
+
+    return (hit_count, blocks)
+
+
 def build_expected_partids(parts: List[SplitPart]) -> List[str]:
     return [p.part_id for p in parts]
 
@@ -161,7 +635,194 @@ def build_cumulative_partids(parts: List[SplitPart], upto_index_inclusive: int) 
     return [p.part_id for p in parts if p.index <= upto_index_inclusive]
 
 
-def build_exec_task_block(exec_task_text: str) -> str:
+def build_scope_index_block(full_js_text: str) -> str:
+    """
+    連結後JS（= 元のフルJS）に「探索用の索引」を埋め込む。
+
+    目的:
+      - ChatGPT が全文探索せずとも、SCOPE_INDEX を見て「ある/ない」を先に確定できるようにする。
+      - 見落とし由来の「無い判定」や「追加要求」を減らす。
+      - 文字列由来の重要情報（DOM id / CSS selector / localStorage key 等）も索引化し、検索コストを下げる。
+
+    方針:
+      - 厳密な構文解析（AST）はしない（速度優先・依存ゼロ）。
+      - 「存在確認/検索補助」用途に徹し、過剰な出力は上限で抑える。
+    """
+    s = str(full_js_text or "")
+
+    import re
+    from collections import Counter
+
+    # ----------------------------
+    # 1) JS識別子（宣言/参照問わず）
+    # ----------------------------
+    tokens = re.findall(r"\b[A-Za-z_$][A-Za-z0-9_$]*\b", s)
+
+    reserved = {
+        "await","break","case","catch","class","const","continue","debugger","default","delete",
+        "do","else","enum","export","extends","false","finally","for","function","if","import",
+        "in","instanceof","let","new","null","return","super","switch","this","throw","true",
+        "try","typeof","var","void","while","with","yield",
+        "implements","interface","package","private","protected","public","static",
+    }
+
+    ident_list = [t for t in tokens if t and t not in reserved]
+    ident_counter = Counter(ident_list)
+    ident_uniq = sorted(set(ident_list))
+
+    # ----------------------------
+    # 2) DOM / selector / localStorage key（文字列抽出）
+    #    ※「見落としやすいが、実作業で必要になりがち」なので索引化する
+    # ----------------------------
+    def _uniq_sorted(xs):
+        return sorted({str(x) for x in xs if str(x).strip() != ""})
+
+    # getElementById("...") / getElementsByClassName("...") / getElementsByName("...")
+    dom_ids = re.findall(r"getElementById\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+    dom_classes = re.findall(r"getElementsByClassName\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+    dom_names = re.findall(r"getElementsByName\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+
+    # querySelector("...") / querySelectorAll("...")
+    qs_1 = re.findall(r"querySelector\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+    qs_all = re.findall(r"querySelectorAll\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+
+    # localStorage/sessionStorage keys
+    ls_get = re.findall(r"localStorage\.getItem\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+    ls_set = re.findall(r"localStorage\.setItem\(\s*['\"]([^'\"]+)['\"]\s*,", s)
+    ls_rm = re.findall(r"localStorage\.removeItem\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+
+    ss_get = re.findall(r"sessionStorage\.getItem\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+    ss_set = re.findall(r"sessionStorage\.setItem\(\s*['\"]([^'\"]+)['\"]\s*,", s)
+    ss_rm = re.findall(r"sessionStorage\.removeItem\(\s*['\"]([^'\"]+)['\"]\s*\)", s)
+
+    dom_ids_u = _uniq_sorted(dom_ids)
+    dom_classes_u = _uniq_sorted(dom_classes)
+    dom_names_u = _uniq_sorted(dom_names)
+    qs_1_u = _uniq_sorted(qs_1)
+    qs_all_u = _uniq_sorted(qs_all)
+
+    ls_keys_u = _uniq_sorted(ls_get + ls_set + ls_rm)
+    ss_keys_u = _uniq_sorted(ss_get + ss_set + ss_rm)
+
+    # ----------------------------
+    # 3) 出力（上限付き）
+    # ----------------------------
+    MAX_IDENTIFIERS = 6000
+    MAX_DOM = 1500
+    MAX_SELECTORS = 1500
+    MAX_KEYS = 2000
+
+    lines: List[str] = []
+    lines.append("【SCOPE_INDEX（連結後JSの探索用索引）】")
+    lines.append("・この索引は、分割前の元JS全文（= 連結後JS）から抽出しています。")
+    lines.append("・まずここを見て「存在する/しない」を確定し、不要な全文探索や見落としを減らしてください。")
+    lines.append("・識別子だけでなく DOM/selector/storage key も含めています。")
+    lines.append("")
+
+    # 概要
+    lines.append("【SUMMARY】")
+    lines.append(f"TOTAL_IDENTIFIERS_UNIQ: {len(ident_uniq)}")
+    lines.append(f"TOTAL_DOM_IDS_UNIQ: {len(dom_ids_u)}")
+    lines.append(f"TOTAL_DOM_CLASSES_UNIQ: {len(dom_classes_u)}")
+    lines.append(f"TOTAL_DOM_NAMES_UNIQ: {len(dom_names_u)}")
+    lines.append(f"TOTAL_SELECTORS_UNIQ: {len(sorted(set(qs_1_u + qs_all_u)))}")
+    lines.append(f"TOTAL_LOCALSTORAGE_KEYS_UNIQ: {len(ls_keys_u)}")
+    lines.append(f"TOTAL_SESSIONSTORAGE_KEYS_UNIQ: {len(ss_keys_u)}")
+    lines.append("")
+
+    # よく出てくる識別子（ChatGPTが「重要っぽいのに見落とす」パターンを減らす）
+    lines.append("【IDENTIFIERS_TOP_FREQUENT（頻出上位）】")
+    for name, cnt in ident_counter.most_common(80):
+        lines.append(f"- {name} ({cnt})")
+    lines.append("")
+
+    # 識別子一覧
+    lines.append("【IDENTIFIERS_ALL（ユニーク識別子一覧）】")
+    if len(ident_uniq) <= MAX_IDENTIFIERS:
+        for name in ident_uniq:
+            lines.append(f"- {name}")
+    else:
+        head = ident_uniq[:MAX_IDENTIFIERS]
+        for name in head:
+            lines.append(f"- {name}")
+        lines.append(f"（注）識別子が多すぎるため先頭 {MAX_IDENTIFIERS} 件のみ表示。")
+        lines.append("")
+
+    # DOM ids
+    lines.append("")
+    lines.append("【DOM_IDS（getElementById の文字列）】")
+    if len(dom_ids_u) <= MAX_DOM:
+        for x in dom_ids_u:
+            lines.append(f"- {x}")
+    else:
+        head = dom_ids_u[:MAX_DOM]
+        for x in head:
+            lines.append(f"- {x}")
+        lines.append(f"（注）DOM id が多すぎるため先頭 {MAX_DOM} 件のみ表示。")
+
+    # DOM class/name
+    lines.append("")
+    lines.append("【DOM_CLASSES（getElementsByClassName の文字列）】")
+    if len(dom_classes_u) <= MAX_DOM:
+        for x in dom_classes_u:
+            lines.append(f"- {x}")
+    else:
+        head = dom_classes_u[:MAX_DOM]
+        for x in head:
+            lines.append(f"- {x}")
+        lines.append(f"（注）DOM class が多すぎるため先頭 {MAX_DOM} 件のみ表示。")
+
+    lines.append("")
+    lines.append("【DOM_NAMES（getElementsByName の文字列）】")
+    if len(dom_names_u) <= MAX_DOM:
+        for x in dom_names_u:
+            lines.append(f"- {x}")
+    else:
+        head = dom_names_u[:MAX_DOM]
+        for x in head:
+            lines.append(f"- {x}")
+        lines.append(f"（注）DOM name が多すぎるため先頭 {MAX_DOM} 件のみ表示。")
+
+    # selectors
+    lines.append("")
+    lines.append("【SELECTORS（querySelector/querySelectorAll の文字列）】")
+    selectors_u = sorted(set(qs_1_u + qs_all_u))
+    if len(selectors_u) <= MAX_SELECTORS:
+        for x in selectors_u:
+            lines.append(f"- {x}")
+    else:
+        head = selectors_u[:MAX_SELECTORS]
+        for x in head:
+            lines.append(f"- {x}")
+        lines.append(f"（注）selector が多すぎるため先頭 {MAX_SELECTORS} 件のみ表示。")
+
+    # storage keys
+    lines.append("")
+    lines.append("【LOCALSTORAGE_KEYS】")
+    if len(ls_keys_u) <= MAX_KEYS:
+        for x in ls_keys_u:
+            lines.append(f"- {x}")
+    else:
+        head = ls_keys_u[:MAX_KEYS]
+        for x in head:
+            lines.append(f"- {x}")
+        lines.append(f"（注）localStorage key が多すぎるため先頭 {MAX_KEYS} 件のみ表示。")
+
+    lines.append("")
+    lines.append("【SESSIONSTORAGE_KEYS】")
+    if len(ss_keys_u) <= MAX_KEYS:
+        for x in ss_keys_u:
+            lines.append(f"- {x}")
+    else:
+        head = ss_keys_u[:MAX_KEYS]
+        for x in head:
+            lines.append(f"- {x}")
+        lines.append(f"（注）sessionStorage key が多すぎるため先頭 {MAX_KEYS} 件のみ表示。")
+
+    return "\n".join(lines)
+
+
+def build_exec_task_block(exec_task_text: str, scope_index_block: str) -> str:
     lines: List[str] = []
     lines.append("【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】")
     if exec_task_text.strip():
@@ -170,14 +831,39 @@ def build_exec_task_block(exec_task_text: str) -> str:
         lines.append("（EXEC_TASK が空です。ユーザー指示が不足しています。）")
 
     lines.append("")
+    # 追加した処理: 最終パートに SCOPE_INDEX を埋め込み、識別子の有無確認を先に確定できるようにする
+    if scope_index_block.strip():
+        lines.append(scope_index_block.rstrip())
+        lines.append("")
+
     lines.append(EXEC_TASK_PATCH_RULES.rstrip())
 
     lines.append("")
     lines.append("【ChatGPT 実行ルール（強制）】")
     lines.append("・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。")
-    lines.append("・EXEC_TASK の実現に必要な識別子/DOM/関数が連結JS内に見当たらない場合は、SCOPE_CHECK: FAIL を返して停止し、")
-    lines.append("  『どのファイル/どの箇所が必要か』を具体的に要求する（推測で別作業を開始しない）。")
-    lines.append("・SCOPE_CHECK: FAIL の場合は、修正案や改善案を勝手に提示しない。まず不足情報を要求する。")
+
+    # SCOPE_CHECK を柔軟化（FAIL禁止 / 追加要求禁止 / 推測で前進）
+    # 追加した処理: SCOPE_CHECK: FAIL を“仕様として不可能”にし、見つからない場合でも WARN で作業を止めずに推測で前進させる
+    lines.append("・SCOPE_CHECK は原則として OK / WARN の2段階のみ（FAIL を返して停止することは禁止）。")
+    lines.append("・識別子/DOM/関数が『SCOPE_INDEX に見当たらない』場合でも、ただちに停止しない。まず次を必ず実施する：")
+    lines.append("  1) SCOPE_INDEX の確認（スペル違い/大文字小文字/略称を含め再確認）")
+    lines.append("  2) 受領した各パート本文の範囲で全文検索（Partごとの PART_SCOPE_HINT も活用）")
+    lines.append("  3) 近似一致の探索（例：大小文字差 / _-差 / 前後の接頭辞差）を試し、最も近い候補を採用する")
+    lines.append("  4) EXEC_TASK は『可能な範囲で推測して前進』する（作業を止めない）")
+    lines.append("・見つからない場合は SCOPE_CHECK: WARN を返し、次を必ず出力する：")
+    lines.append("  - NOT_FOUND: 見つからなかった識別子/DOM/関数（名称をそのまま列挙）")
+    lines.append("  - SEARCHED_IN: 検索した範囲（SCOPE_INDEX / PartID一覧 / 具体的キーワード）")
+    lines.append("  - INFERRED_ACTION: 推測で行った判断（どの候補に寄せたか / どこに挿入したか）")
+    lines.append("  - EXEC_CONTINUED: 続行できた作業内容（未実施があれば『未実施』として明示）")
+    lines.append("  - USER_EXTRACT_REQUEST: 次の4項目を、ユーザーが『元のJS』から抽出して提示するよう要求する（この4項目のみ例外的に要求を許可）")
+    lines.append("    * EXTRACT_SYMBOLS: 抽出したい関数名/識別子（カンマ区切り）")
+    lines.append("    * EXTRACT_NEEDLES: 抽出したい検索語（カンマ区切り）")
+    lines.append("    * PURPOSE: 抽出の目的（1行）")
+    lines.append("    * DEPENDS: 依存関数/依存データの存在列挙（カンマ区切り）")
+    lines.append("    （追加した処理: WARN時にユーザーへ extract 実行を誘導し、必要メタ4項目の“値”を確実に回収する）")
+    lines.append("・重要：SCOPE_CHECK: WARN でも『ユーザーへ追加情報を要求する行為』は禁止。")
+    lines.append("  （追加した処理: ただし EXTRACT_SYMBOLS / EXTRACT_NEEDLES / PURPOSE / DEPENDS の4項目の提示要求だけは例外として許可する）")
+    lines.append("・重要：SCOPE_CHECK: WARN の場合でも、最終アウトプットは必ず提示する（停止しない）。")
     return "\n".join(lines)
 
 
@@ -187,6 +873,7 @@ def build_receipt_input_block(
     is_last: bool,
     exec_task_text: str,
     parts: List[SplitPart],
+    scope_index_block: str,
 ) -> str:
     lines: List[str] = []
     lines.append("【RECEIPT_INPUT（このメッセージ内だけを真とする）】")
@@ -216,7 +903,8 @@ def build_receipt_input_block(
 
     if is_last:
         lines.append("")
-        lines.append(build_exec_task_block(exec_task_text))
+        # 追加した処理: 最終パートの EXEC_TASK ブロック内に SCOPE_INDEX を埋め込む
+        lines.append(build_exec_task_block(exec_task_text, scope_index_block))
 
     lines.append("")
     return "\n".join(lines)
@@ -244,12 +932,19 @@ def build_protocol_preamble(
     lines.append("3) 受領確認は、最終メッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用（会話履歴参照は禁止）。")
     lines.append("4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の文は参考であり実行根拠にしない。")
     lines.append("5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。")
+    lines.append("6) JOIN（連結）ルール（強制）:")
+    lines.append("   - 分割コードを連結して“完全なJS”を作る際、パート境界に改行や空白を勝手に追加してはならない。")
+    lines.append("   - 各パート本文は『提示された文字列をそのまま』連結する（パート間に暗黙の改行は存在しない）。")
+    lines.append("   - したがって、分割コード同士の間に改行の明記が無い限りは『必ず連続行として読み取る』こと。")
+    lines.append("   - 各パートには EndNewline: YES/NO が付く。境界が連続行かどうかはこれを唯一の根拠として判定する。")
     lines.append("")
     lines.append("【指示内容（概要：参考用／実行根拠にしない）】")
     if overview_text.strip():
         lines.append(overview_text.strip())
     else:
-        lines.append("（未設定：実行は最終パートの EXEC_TASK に依存する。EXEC_TASK が空なら SCOPE_CHECK: FAIL で停止する。）")
+        # 追加した処理: 「SCOPE_CHECK: FAIL で停止」をプロトコル文言から排除する
+        # 目的: ChatGPT 側が“停止”を正当化しないようにし、常に前進（OK/WARN）に寄せる
+        lines.append("（未設定：実行は最終パートの EXEC_TASK に依存する。EXEC_TASK が空の場合は WARN として前進可能な範囲で続行する。）")
     lines.append("")
     lines.append("【分割コード貼り付け開始】")
     lines.append("以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。")
@@ -305,6 +1000,8 @@ def make_part_payload(
     header_lines.append(f"Range: chars {part.start_offset}..{part.end_offset} (len={len(part.text)})")
     header_lines.append(f"FirstLine: {part.first_line}")
     header_lines.append(f"LastLine: {part.last_line}")
+    # 追加した処理: パート末尾に“実際の改行”が存在するかを明記し、JOIN時に暗黙改行を挿入させないための根拠にする
+    header_lines.append(f"EndNewline: {'YES' if part.text.endswith(chr(10)) else 'NO'}")
     header_lines.append("")
 
     if part.index == 1:
@@ -425,12 +1122,6 @@ HTML_PAGE = r"""<!doctype html>
       padding: 12px;
       margin: 12px 0;
 
-    /* JSファイルブロックのカードだけ、ほんの少し明るくする */
-    .card.card-file {
-      --card-panel:  #16202a;
-      --card-panel2: #141d27;
-    }
-
       /* 各 card ごとの色味調整用（デフォルト） */
       background: linear-gradient(
         180deg,
@@ -439,6 +1130,12 @@ HTML_PAGE = r"""<!doctype html>
       );
 
       box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    /* JSファイルブロックのカードだけ、ほんの少し明るくする */
+    .card.card-file {
+      --card-panel:  #16202a;
+      --card-panel2: #141d27;
     }
 
     /* ============================================================
@@ -502,13 +1199,44 @@ HTML_PAGE = r"""<!doctype html>
       height: 34px;
     }
 
+    /* extract: カンマ区切り入力は「大きめ」にする（打ちやすさ優先） */
+    input#extractSymbols, input#extractNeedles, input#extractPurpose, input#extractDepends {
+      box-sizing: border-box;
+      width: 100%;
+      font-size: 14px;
+      line-height: 1.4;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      outline: none;
+      height: 44px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Noto Sans Mono";
+    }
+
+    /* extract: 数値2つは「小さめ」にする（面積を取りすぎない） */
+    input#extractContextLines, input#extractMaxMatches {
+      box-sizing: border-box;
+      width: 100%;
+      font-size: 12px;
+      line-height: 1.2;
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      outline: none;
+      height: 30px;
+    }
+
     input[type="file"] {
       color: var(--muted);
     }
 
     textarea:focus, select:focus, input[type="number"]:focus, input#prefix:focus {
-      border-color: rgba(59,130,246,0.85);
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
     }
 
     button {
@@ -525,9 +1253,9 @@ HTML_PAGE = r"""<!doctype html>
       cursor: pointer;
     }
 
-    /* 指定ボタン（生成 / このパートをコピー / 次のパートを表示）：横幅を大きくして押しやすくする */
-    #run, #copyCurrent, #copyNext {
-      min-width: 200px;     /* 横幅を確保（画面幅が狭い時は折り返しに任せる） */
+    /* 指定ボタン（生成 / 抽出 / 入力モード切替 / このパートをコピー / 次のパートを表示）：横幅を大きくして押しやすくする */
+    #run, #runExtract, #copyCurrent, #copyNext, #copyExtract, #modeSplitBtn, #modeExtractBtn {
+      min-width: 220px;     /* 横幅を確保（画面幅が狭い時は折り返しに任せる） */
       padding-left: 16px;   /* 見た目の“横に大きい”感を出す */
       padding-right: 16px;  /* 同上 */
     }
@@ -564,6 +1292,26 @@ HTML_PAGE = r"""<!doctype html>
     button.flash-ng {
       border-color: rgba(239,68,68,0.9);
       box-shadow: 0 0 0 3px rgba(239,68,68,0.18), 0 12px 26px rgba(0,0,0,0.45);
+    }
+
+    @keyframes partSwitchPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(125,211,252,0.00);
+        border-color: var(--border);
+      }
+      40% {
+        box-shadow: 0 0 0 4px rgba(125,211,252,0.20);
+        border-color: var(--accent);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(125,211,252,0.00);
+        border-color: var(--border);
+      }
+    }
+
+    .flash-part-switch {
+      animation: partSwitchPulse 520ms ease-out 1;
+      border-radius: 14px;
     }
 
     pre {
@@ -718,6 +1466,32 @@ HTML_PAGE = r"""<!doctype html>
       min-width: 0; /* grid内で要素がはみ出すのを防ぐ */
     }
 
+    .splitModePick {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      min-height: 34px;
+      box-sizing: border-box;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .splitModePick input[type="radio"] {
+      transform: translateY(1px);
+    }
+
+    .splitModeDesc {
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: rgba(154,164,178,0.86);
+    }
+
     /* ============================================================
        履歴（過去の指示）だけ：視認性を下げて“詰める”
        ------------------------------------------------------------
@@ -784,6 +1558,32 @@ HTML_PAGE = r"""<!doctype html>
     #instructionHistory button {
       color: rgba(231,234,240,0.78); /* ボタン文字も少し薄く */
     }
+
+    /* extract 専用グリッド：2行×2列 */
+    .extractGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-auto-rows: auto;
+      gap: 10px 14px;
+    }
+
+    /* 上段（symbols / needles）は少し広く見せたい */
+    .extractWide {
+      min-height: 72px;
+    }
+
+    /* 下段（数値）はコンパクトに */
+    .extractNarrow {
+      min-height: 48px;
+    }
+    
+    /* extract結果表示専用：長文なのでスクロール可＋高さを確保 */
+    textarea#extractPreview {
+      min-height: 340px;
+      overflow: auto;
+      resize: vertical;
+    }
+    
   </style>
 </head>
 <body>
@@ -826,23 +1626,126 @@ HTML_PAGE = r"""<!doctype html>
           <div class="muted">maxlogs</div>
           <input id="maxlogs" type="number" value="50" />
         </div>
+
+        <div class="advItem">
+          <div class="muted">splitMode (C)</div>
+          <label class="splitModePick">
+            <input type="radio" name="splitModeRadio" value="C">
+            <span>C: 通常</span>
+          </label>
+          <div class="muted splitModeDesc">
+            上限（maxchars/maxlines）をまず守る方針。上限内の末尾付近で
+            <code style="color:rgba(231,234,240,0.88);">})();</code> /
+            <code style="color:rgba(231,234,240,0.88);">});</code> /
+            <code style="color:rgba(231,234,240,0.88);">}</code>
+            など“境界っぽい行”を後方探索し、見つからなければ改行で切る。
+            サイズは安定するが、IIFEの途中で切れる可能性がある。
+          </div>
+        </div>
+
+        <div class="advItem">
+          <div class="muted">splitMode (B)</div>
+          <label class="splitModePick">
+            <input type="radio" name="splitModeRadio" value="B">
+            <span>B: ハイブリッド</span>
+          </label>
+          <div class="muted splitModeDesc">
+            上限付近から <b style="color:rgba(231,234,240,0.88);">上限+30%</b> まで「少し粘って」
+            IIFE終端 <code style="color:rgba(231,234,240,0.88);">})();</code> を探す。
+            見つかれば“キレイに切る”、見つからなければ改行で切ってサイズを安定させる。
+            運用が一番バランス良く、破綻しにくい。
+          </div>
+        </div>
+
+        <div class="advItem">
+          <div class="muted">splitMode (A)</div>
+          <label class="splitModePick">
+            <input type="radio" name="splitModeRadio" value="A">
+            <span>A: IIFE終端最優先</span>
+          </label>
+
+          <input type="hidden" id="splitMode" value="C" />
+
+          <div class="muted splitModeDesc">
+            IIFE終端 <code style="color:rgba(231,234,240,0.88);">})();</code> を最優先で探して「そこで切る」。
+            上限は“目安”になりやすく、巨大IIFEだと 1パートが上限を大幅に超えて大きくなることがある。
+            その代わり「IIFE途中で切って壊す」リスクを強く避けられる。
+          </div>
+        </div>
       </div>
     </details>
 
     <div style="margin-top:12px;">
-      <div class="muted sectionTitle">指示（--instruction）</div>
-      <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
+      <div class="row" style="align-items:center;">
+        <div class="muted sectionTitle" style="margin-bottom:0;">入力モード</div>
+        <button class="primary" id="modeSplitBtn" type="button">指示（--instruction）</button>
+        <button id="modeExtractBtn" type="button">symbols / needles</button>
+      </div>
+
+      <!-- Split（指示）入力欄 -->
+      <div id="modeSplitBox" style="margin-top:10px;">
+        <div class="muted sectionTitle">指示（--instruction）</div>
+        <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
+      </div>
+
+      <!-- Extract（symbols/needles）入力欄 -->
+      <div id="modeExtractBox" style="margin-top:10px; display:none;">
+        <div class="muted sectionTitle">symbols / needles（extract用）</div>
+
+        <div class="advGrid extractGrid" style="margin-top:10px;">
+          <!-- 上段：文字系（横2列） -->
+          <div class="advItem extractWide">
+            <div class="muted">EXTRACT_SYMBOLS（カンマ区切り）</div>
+            <input id="extractSymbols" value="" placeholder="例: split_by_limits, build_exec_task_block" />
+          </div>
+
+          <div class="advItem extractWide">
+            <div class="muted">EXTRACT_NEEDLES（カンマ区切り / 空も可）</div>
+            <input id="extractNeedles" value="" placeholder="例: SCOPE_INDEX, RECEIPT_CHECK" />
+          </div>
+
+          <!-- 追加した処理: 抽出の目的（LLMの判断ブレ低減）を1行で添える -->
+          <div class="advItem extractWide">
+            <div class="muted">PURPOSE（1行）</div>
+            <input id="extractPurpose" value="" placeholder="例: createPanel 内の「手動送信クリック後HUD再描画」周辺を修正したい" />
+          </div>
+
+          <!-- 追加した処理: 依存関数/依存データの“存在だけ”をメタで列挙（中身不要） -->
+          <div class="advItem extractWide">
+            <div class="muted">DEPENDS（カンマ区切り / 任意）</div>
+            <input id="extractDepends" value="" placeholder="例: fetchState, renderPanel, readIntFromLocalStorage, computePendingFlags, info.qid" />
+          </div>
+
+          <!-- 下段：数値系（横2列） -->
+          <div class="advItem extractNarrow">
+            <div class="muted">EXTRACT_CONTEXT_LINES</div>
+            <input id="extractContextLines" type="number" value="25" />
+          </div>
+
+          <div class="advItem extractNarrow">
+            <div class="muted">EXTRACT_MAX_MATCHES</div>
+            <input id="extractMaxMatches" type="number" value="50" />
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top:8px;">
+          ※ symbols は「関数まるごと抽出」対象、needles は「周辺行抽出」対象（複数指定OK）
+        </div>
+      </div>
     </div>
 
     <div class="row" style="margin-top:12px;">
       <button class="primary" id="run">生成（split）</button>
+      <button id="runExtract" style="display:none;">抽出（extract）</button>
+      <button id="copyExtract" style="display:none;" disabled>抽出結果をコピー</button>
       <button id="copyNext" disabled>次のパートを表示</button>
       <button id="resetGen" disabled>生成をリセット</button>
       <span class="muted" id="status" style="display:none;"></span>
     </div>
   </div>
 
-  <div class="card">
+  <!-- Split（分割）モード用：現在のパート -->
+  <div class="card" id="currentPartCard">
     <div class="partTitleRow">
       <div class="muted sectionTitle" id="currentPartTitle">
         <span class="currentPartLabel">現在のパート</span>
@@ -860,6 +1763,13 @@ HTML_PAGE = r"""<!doctype html>
       <button id="toggleAll" disabled>ALL: OFF</button>
     </div>
     <pre id="preview">(まだ生成していません)</pre>
+  </div>
+
+  <!-- Extract（抽出）モード用：抽出結果専用 -->
+  <div class="card" id="extractResultCard" style="display:none;">
+    <div class="muted sectionTitle">抽出結果（extract）</div>
+    <div class="muted" style="margin-top:6px;">※ ここに <<<EXTRACT_BEGIN>>> から全部出ます（そのままコピペ用途）</div>
+    <textarea id="extractPreview" readonly placeholder="(まだ抽出していません)"></textarea>
   </div>
 
   <div class="card">
@@ -902,7 +1812,17 @@ HTML_PAGE = r"""<!doctype html>
         maxchars: Number(($("maxchars") && $("maxchars").value) || 0),
         maxlines: Number(($("maxlines") && $("maxlines").value) || 0),
         maxlogs: Number(($("maxlogs") && $("maxlogs").value) || 0),
+        splitMode: String(($("splitMode") && $("splitMode").value) || "C"),
         instruction: String(($("instruction") && $("instruction").value) || ""),
+        uiMode: String((window.__uiMode || "split")),
+        extractSymbols: String(($("extractSymbols") && $("extractSymbols").value) || ""),
+        extractNeedles: String(($("extractNeedles") && $("extractNeedles").value) || ""),
+        /* 追加した処理: 抽出結果に PURPOSE を確実に添えるため、UI状態として保存 */
+        extractPurpose: String(($("extractPurpose") && $("extractPurpose").value) || ""),
+        /* 追加した処理: 抽出結果に DEPENDS を確実に添えるため、UI状態として保存 */
+        extractDepends: String(($("extractDepends") && $("extractDepends").value) || ""),
+        extractContextLines: Number(($("extractContextLines") && $("extractContextLines").value) || 25),
+        extractMaxMatches: Number(($("extractMaxMatches") && $("extractMaxMatches").value) || 50),
         currentIndex: Number(currentIndex || 0),
         previewAllOn: !!previewAllOn,
       };
@@ -930,12 +1850,51 @@ HTML_PAGE = r"""<!doctype html>
       $("maxlogs").value = String(s.maxlogs);
     }
 
+    if ($("splitMode") && typeof s.splitMode === "string" && s.splitMode) {
+      $("splitMode").value = s.splitMode;
+
+      const radios = document.querySelectorAll('input[name="splitModeRadio"]');
+      for (let i = 0; i < radios.length; i++) {
+        const r = radios[i];
+        const v = String(r && r.value ? r.value : "");
+        r.checked = (v === s.splitMode);
+      }
+    }
+
     if ($("instruction") && typeof s.instruction === "string") {
       $("instruction").value = s.instruction;
     }
 
+    if ($("extractSymbols") && typeof s.extractSymbols === "string") {
+      $("extractSymbols").value = s.extractSymbols;
+    }
+    if ($("extractNeedles") && typeof s.extractNeedles === "string") {
+      $("extractNeedles").value = s.extractNeedles;
+    }
+    /* 追加した処理: PURPOSE / DEPENDS も復元して、抽出コピーの定型が崩れないようにする */
+    if ($("extractPurpose") && typeof s.extractPurpose === "string") {
+      $("extractPurpose").value = s.extractPurpose;
+    }
+    if ($("extractDepends") && typeof s.extractDepends === "string") {
+      $("extractDepends").value = s.extractDepends;
+    }
+    if ($("extractContextLines") && (typeof s.extractContextLines === "number" || typeof s.extractContextLines === "string")) {
+      const v = Number(s.extractContextLines);
+      if (isFinite(v) && v >= 0) $("extractContextLines").value = String(v);
+    }
+    if ($("extractMaxMatches") && (typeof s.extractMaxMatches === "number" || typeof s.extractMaxMatches === "string")) {
+      const v = Number(s.extractMaxMatches);
+      if (isFinite(v) && v > 0) $("extractMaxMatches").value = String(v);
+    }
+
     if (typeof s.previewAllOn === "boolean") {
       previewAllOn = s.previewAllOn;
+    }
+
+    if (typeof s.uiMode === "string" && s.uiMode) {
+      window.__uiMode = s.uiMode;
+    } else {
+      window.__uiMode = "split";
     }
   }
 
@@ -1008,6 +1967,63 @@ HTML_PAGE = r"""<!doctype html>
   let currentIndex = 0;
 
   let previewAllOn = false;
+
+  /* extract結果（<<<EXTRACT_BEGIN>>>..<<<EXTRACT_END>>>）を保持してコピーできるようにする */
+  let lastExtractText = "";
+  
+  window.__uiMode = "split";
+
+  function applyUIMode(nextMode) {
+    const mode = (String(nextMode || "") === "extract") ? "extract" : "split";
+    window.__uiMode = mode;
+
+    const splitBox = $("modeSplitBox");
+    const extractBox = $("modeExtractBox");
+    const btnSplit = $("modeSplitBtn");
+    const btnExtract = $("modeExtractBtn");
+
+    const btnRunSplit = $("run");
+    const btnRunExtract = $("runExtract");
+
+    if (splitBox) splitBox.style.display = (mode === "split") ? "" : "none";
+    if (extractBox) extractBox.style.display = (mode === "extract") ? "" : "none";
+
+    if (btnRunSplit) btnRunSplit.style.display = (mode === "split") ? "" : "none";
+    if (btnRunExtract) btnRunExtract.style.display = (mode === "extract") ? "" : "none";
+
+    const btnCopyExtract = $("copyExtract");
+    if (btnCopyExtract) btnCopyExtract.style.display = (mode === "extract") ? "" : "none";
+
+    if (btnSplit) {
+      if (mode === "split") btnSplit.classList.add("primary");
+      else btnSplit.classList.remove("primary");
+    }
+    if (btnExtract) {
+      if (mode === "extract") btnExtract.classList.add("primary");
+      else btnExtract.classList.remove("primary");
+    }
+
+    /* 追加した処理: extractモード時は「現在のパート」カードを非表示にし、抽出結果カードに切り替える */
+    const currentPartCard = $("currentPartCard");
+    const extractResultCard = $("extractResultCard");
+    if (currentPartCard) currentPartCard.style.display = (mode === "split") ? "" : "none";
+    if (extractResultCard) extractResultCard.style.display = (mode === "extract") ? "" : "none";
+
+    /* 追加した処理: extractモードでは split操作ボタンを無効化して誤操作を防ぐ */
+    const btnCopyCurrent = $("copyCurrent");
+    const btnCopyNext = $("copyNext");
+    const btnToggleAll = $("toggleAll");
+    if (btnCopyCurrent) btnCopyCurrent.disabled = (mode === "extract") ? true : !!(btnCopyCurrent.disabled && false);
+    if (btnCopyNext) btnCopyNext.disabled = (mode === "extract") ? true : !!(btnCopyNext.disabled && false);
+    if (btnToggleAll) btnToggleAll.disabled = (mode === "extract") ? true : !!(btnToggleAll.disabled && false);
+
+    saveUiState();
+
+    try {
+      if (mode === "split" && $("instruction")) $("instruction").focus();
+      if (mode === "extract" && $("extractSymbols")) $("extractSymbols").focus();
+    } catch (e) {}
+  }
 
   /* 折りたたみ時の縦サイズ上限（= 先頭何行まで見せるか） */
   const PREVIEW_HEAD_MAX_LINES = 18;
@@ -1369,6 +2385,23 @@ HTML_PAGE = r"""<!doctype html>
       header.appendChild(btnDel);
       header.appendChild(btnCopySrc);
 
+      // 追加した処理: 「元JSコピー」ボタンの右に、対象JSのファイル名を表示する
+      const jsNamePill = document.createElement("span");
+      jsNamePill.className = "pill";
+      (function(){
+        const targetFile = String(it.target_file || "").trim();
+        const savedCopy  = String(it.original_saved_copy || "").trim();
+
+        let name = targetFile;
+        if (!name && savedCopy) {
+          const parts = savedCopy.split(/[\\/]/);
+          name = parts.length ? String(parts[parts.length - 1] || "").trim() : "";
+        }
+
+        jsNamePill.textContent = name ? ("JS: " + name) : "JS: (unknown)";
+      })();
+      header.appendChild(jsNamePill);
+
       const pre = document.createElement("pre");
       if (instr) {
         pre.dataset.fullInstruction = instr;
@@ -1417,6 +2450,58 @@ HTML_PAGE = r"""<!doctype html>
     window.setTimeout(() => btn.classList.remove(cls), 220);
   }
 
+  function flashPartSwitchCue(options) {
+    const title = $("currentPartTitle");
+    const pre = $("preview");
+
+    const opt = (options && typeof options === "object") ? options : {};
+    const doScroll = (opt.scroll === false) ? false : true;
+
+    if (title) {
+      title.classList.add("flash-part-switch");
+      window.setTimeout(() => title.classList.remove("flash-part-switch"), 560);
+    }
+    if (pre) {
+      pre.classList.add("flash-part-switch");
+      window.setTimeout(() => pre.classList.remove("flash-part-switch"), 560);
+    }
+
+    /* 追加した処理: スクロール（ページ内ジャンプ）を抑止できるようにする */
+    if (!doScroll) return;
+
+    /* 追加した処理: 切替直後に「今どこを見れば良いか」を明確にするため、プレビューへスクロールする */
+    try {
+      if (pre && typeof pre.scrollIntoView === "function") {
+        pre.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } catch (e) {}
+  }
+
+  function goNextPartWithCue(originLabel, options) {
+    if (!result || !result.parts || result.parts.length === 0) return false;
+
+    if (currentIndex < result.parts.length - 1) {
+      const prev = result.parts[currentIndex];
+      currentIndex += 1;
+      const next = result.parts[currentIndex];
+
+      /* 追加した処理: 表示を切り替える（次のパート） */
+      renderCurrent();
+      saveUiState();
+
+      /* 追加した処理: 切り替わったことを水色フラッシュで明示する（必要ならスクロール抑止） */
+      flashPartSwitchCue(options);
+
+      /* 追加した処理: 状態表示に「コピー→次へ」等の由来を含め、何が起きたか分かるようにする */
+      const origin = String(originLabel || "操作");
+      setStatus(origin + "：表示を切替（" + prev.part_id + " → " + next.part_id + "）");
+
+      return true;
+    }
+
+    return false;
+  }
+
   async function copyCurrent() {
     if (!result) return;
     const p = result.parts[currentIndex];
@@ -1424,7 +2509,14 @@ HTML_PAGE = r"""<!doctype html>
     try {
       await navigator.clipboard.writeText(p.payload);
       flashButton(btn, "ok");
-      setStatus("コピーしました: " + p.part_id);
+
+      /* 追加した処理: コピー成功後、次のパートへ自動で切り替える（ただしスクロールはしない） */
+      const moved = goNextPartWithCue("コピー→次のパートへ", { scroll: false });
+
+      if (!moved) {
+        setStatus("コピーしました（最後のパート）: " + p.part_id);
+      }
+
       const old = btn.textContent;
       btn.textContent = "Copied ✓";
       window.setTimeout(() => (btn.textContent = old), 650);
@@ -1439,11 +2531,11 @@ HTML_PAGE = r"""<!doctype html>
     const btn = $("copyNext");
 
     if (currentIndex < result.parts.length - 1) {
-      currentIndex += 1;
-      renderCurrent();
-      saveUiState();
       flashButton(btn, "ok");
-      setStatus("次のパートを表示: " + result.parts[currentIndex].part_id);
+
+      /* 追加した処理: 「次のパートを表示」でも同じ強い明示（フラッシュ＋ステータス）を出す */
+      goNextPartWithCue("次のパートを表示");
+
       const old = btn.textContent;
       btn.textContent = "表示 ✓";
       window.setTimeout(() => (btn.textContent = old), 650);
@@ -1627,6 +2719,8 @@ HTML_PAGE = r"""<!doctype html>
       maxchars: Number($("maxchars").value || 60000),
       maxlines: Number($("maxlines").value || 1200),
       maxlogs: Number($("maxlogs").value || 50),
+      split_mode: ($("splitMode") && $("splitMode").value) ? String($("splitMode").value) : "C",
+      iife_grace_ratio: 0.30,
       instruction: instr
     };
 
@@ -1666,8 +2760,208 @@ HTML_PAGE = r"""<!doctype html>
   }
 
   $("run").onclick = doSplit;
+  
+  if ($("modeSplitBtn")) {
+    $("modeSplitBtn").onclick = () => applyUIMode("split");
+  }
+  if ($("modeExtractBtn")) {
+    $("modeExtractBtn").onclick = () => applyUIMode("extract");
+  }
+
+  if ($("extractSymbols")) {
+    $("extractSymbols").addEventListener("input", () => saveUiState());
+  }
+  if ($("extractNeedles")) {
+    $("extractNeedles").addEventListener("input", () => saveUiState());
+  }
+  /* 追加した処理: PURPOSE / DEPENDS も入力変更で即保存 */
+  if ($("extractPurpose")) {
+    $("extractPurpose").addEventListener("input", () => saveUiState());
+  }
+  if ($("extractDepends")) {
+    $("extractDepends").addEventListener("input", () => saveUiState());
+  }
+  if ($("extractContextLines")) {
+    $("extractContextLines").addEventListener("input", () => saveUiState());
+  }
+  if ($("extractMaxMatches")) {
+    $("extractMaxMatches").addEventListener("input", () => saveUiState());
+  }
+
+  async function doExtract() {
+    const f = $("file").files[0];
+    if (!f) {
+      setStatus("JSファイルを選んでください");
+      return;
+    }
+
+    if (lastSyntaxCheckOk === false) {
+      setStatus("構文チェックNGのため抽出を中止します: " + String(lastSyntaxCheckMessage || ""));
+      return;
+    }
+
+    const sym = String(($("extractSymbols") && $("extractSymbols").value) || "").trim();
+    const ndl = String(($("extractNeedles") && $("extractNeedles").value) || "").trim();
+
+    const ctxRaw = String(($("extractContextLines") && $("extractContextLines").value) || "25").trim();
+    const mxmRaw = String(($("extractMaxMatches") && $("extractMaxMatches").value) || "50").trim();
+
+    const symbols = sym ? sym.split(",").map(s => String(s).trim()).filter(s => s) : [];
+    const needles = ndl ? ndl.split(",").map(s => String(s)).filter(s => s !== "") : [];
+
+    const context_lines = ctxRaw ? Number(ctxRaw) : 25;
+    const max_matches = mxmRaw ? Number(mxmRaw) : 50;
+
+    const text = await f.text();
+
+    const payload = {
+      filename: f.name,
+      content: text,
+      symbols: symbols,
+      needles: needles,
+      context_lines: context_lines,
+      max_matches: max_matches
+    };
+
+    setStatus("抽出中...");
+    $("run").disabled = true;
+    if ($("runExtract")) $("runExtract").disabled = true;
+
+    try {
+      const res = await fetch("/api/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      $("run").disabled = false;
+      if ($("runExtract")) $("runExtract").disabled = false;
+
+      if (!res.ok) {
+        const t = await res.text();
+        setStatus("抽出エラー: " + t);
+        return;
+      }
+
+      const data = await res.json();
+      if (!data || !data.ok) {
+        setStatus("抽出失敗: " + String((data && data.error) || "unknown"));
+        return;
+      }
+
+      /* 追加した処理: コードブロック先頭の空行だけを除去し、```javascript の直後が必ず実コード行になるようにする */
+      function trimLeadingBlankLinesForFence(codeText) {
+        const s = String(codeText || "");
+        return s.replace(/^\n+/, "");
+      }
+
+      const outLines = [];
+      outLines.push("<<<EXTRACT_BEGIN>>>");
+      outLines.push("FILE: " + String(data.filename || ""));
+      outLines.push("SYMBOLS: " + String((data.symbols || []).join(", ")));
+      outLines.push("NEEDLES: " + String((data.needles || []).join(", ")));
+
+      /* 追加した処理: “抽出の目的”を1行で明示（LLMの判断がブレにくくなる） */
+      outLines.push("PURPOSE: " + String((($("extractPurpose") && $("extractPurpose").value) || "")).trim());
+
+      /* 追加した処理: 依存の“存在だけ”をメタで列挙（中身不要 / 推測を減らす） */
+      outLines.push("DEPENDS: " + String((($("extractDepends") && $("extractDepends").value) || "")).trim());
+
+      outLines.push("");
+
+      const blocks = data.blocks || [];
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i] || {};
+        if (b.kind === "function_whole") {
+          outLines.push("【FUNCTION_WHOLE】 " + String(b.name || ""));
+          outLines.push("FOUND: " + String(!!b.found));
+          outLines.push("HEADER: " + String(b.header || ""));
+          outLines.push("SHA256: " + String(b.sha256 || ""));
+          outLines.push("```javascript");
+          outLines.push(trimLeadingBlankLinesForFence(b.text));
+          outLines.push("```");
+          outLines.push("");
+          continue;
+        }
+
+        if (b.kind === "context") {
+          outLines.push("【CONTEXT】 " + String(b.needle || ""));
+          outLines.push("HITS: " + String(b.hit_count || 0));
+          outLines.push("LINES: ±" + String(b.context_lines || 0));
+          outLines.push("MAX_MATCHES: " + String(b.max_matches || 0));
+          outLines.push("");
+
+          const items = b.items || [];
+          for (let k = 0; k < items.length; k++) {
+            const it = items[k] || {};
+            outLines.push("HEADER: " + String(it.header || ""));
+            outLines.push("SHA256: " + String(it.sha256 || ""));
+            outLines.push("```javascript");
+            outLines.push(trimLeadingBlankLinesForFence(it.text));
+            outLines.push("```");
+            outLines.push("");
+          }
+        }
+      }
+
+      outLines.push("<<<EXTRACT_END>>>");
+
+      lastExtractText = outLines.join("\n");
+
+      /* 追加した処理: 抽出結果は専用textareaへ表示（splitの「現在のパート」カードは触らない） */
+      const ex = $("extractPreview");
+      if (ex) {
+        ex.value = lastExtractText;
+        try { ex.scrollTop = 0; } catch (e) {}
+      }
+
+      const btnCopyExtract = $("copyExtract");
+      if (btnCopyExtract) {
+        btnCopyExtract.disabled = !lastExtractText;
+      }
+
+      setStatus("抽出完了（抽出結果カードに出しました）。「抽出結果をコピー」でそのまま貼れます。");
+    } catch (e) {
+      $("run").disabled = false;
+      if ($("runExtract")) $("runExtract").disabled = false;
+      setStatus("抽出例外: " + String(e));
+    }
+  }
+
+  if ($("runExtract")) {
+    $("runExtract").onclick = doExtract;
+  }
+
   $("copyCurrent").onclick = copyCurrent;
   $("copyNext").onclick = copyNext;
+
+  async function copyExtract() {
+    const btn = $("copyExtract");
+    try {
+      const text = String(lastExtractText || "");
+      if (!text.trim()) {
+        flashButton(btn, "ng");
+        setStatus("抽出結果が空です（先に「抽出（extract）」を実行してください）");
+        return;
+      }
+
+      await navigator.clipboard.writeText(text);
+      flashButton(btn, "ok");
+
+      const old = btn.textContent;
+      btn.textContent = "Copied ✓";
+      window.setTimeout(() => (btn.textContent = old), 650);
+
+      setStatus("抽出結果をコピーしました（<<<EXTRACT_BEGIN>>> から全部）");
+    } catch (e) {
+      flashButton(btn, "ng");
+      setStatus("抽出結果コピー失敗（ブラウザ権限/HTTPS制約の可能性）: " + String(e));
+    }
+  }
+
+  if ($("copyExtract")) {
+    $("copyExtract").onclick = copyExtract;
+  }
 
   if ($("instruction")) {
     $("instruction").addEventListener("input", () => {
@@ -1715,6 +3009,26 @@ HTML_PAGE = r"""<!doctype html>
     });
   }
 
+  (function(){
+    const hidden = $("splitMode");
+    const radios = document.querySelectorAll('input[name="splitModeRadio"]');
+
+    if (radios && radios.length > 0) {
+      for (let i = 0; i < radios.length; i++) {
+        const r = radios[i];
+        r.addEventListener("change", () => {
+          if (!r.checked) return;
+
+          const v = String(r.value || "C");
+          if (hidden) {
+            hidden.value = v;
+          }
+          saveUiState();
+        });
+      }
+    }
+  })();
+
   if ($("file")) {
     $("file").addEventListener("change", async () => {
       const f = $("file").files && $("file").files[0] ? $("file").files[0] : null;
@@ -1733,6 +3047,19 @@ HTML_PAGE = r"""<!doctype html>
   }
 
   restoreUiState();
+  applyUIMode(window.__uiMode || "split");
+
+  (function(){
+    const hidden = $("splitMode");
+    const v = String(hidden && hidden.value ? hidden.value : "C");
+    const radios = document.querySelectorAll('input[name="splitModeRadio"]');
+    for (let i = 0; i < radios.length; i++) {
+      const r = radios[i];
+      const rv = String(r && r.value ? r.value : "");
+      r.checked = (rv === v);
+    }
+  })();
+
   autosizeInstruction();
   updateToggleAllButton();
   renderCurrent();
@@ -1872,9 +3199,17 @@ def generate_parts(
     instruction: str,
     outroot: Path,
     max_keep_logs: int,
+    split_mode: str,
+    iife_grace_ratio: float,
 ) -> Tuple[str, Path, List[SplitPart], List[str]]:
     session_id = make_session_id(prefix, content)
-    chunks = split_by_limits(content, maxchars, maxlines)
+    chunks = split_by_limits(
+        content,
+        maxchars,
+        maxlines,
+        split_mode=split_mode,
+        iife_grace_ratio=iife_grace_ratio,
+    )
     total = len(chunks)
 
     out_dir = outroot / f"{session_id}_{now_tag()}"
@@ -1915,6 +3250,9 @@ def generate_parts(
     )
     protocol_epilogue = build_protocol_epilogue()
 
+    # 追加した処理: 連結後JS（= 元の全文）から SCOPE_INDEX を一度だけ生成し、最終パートへ埋め込む
+    scope_index_block = build_scope_index_block(content)
+
     payloads: List[str] = []
     for p in parts:
         cumulative_ids = build_cumulative_partids(parts, p.index)
@@ -1924,6 +3262,7 @@ def generate_parts(
             is_last=(p.index == p.total),
             exec_task_text=instruction,
             parts=parts,
+            scope_index_block=scope_index_block,
         )
         payload = make_part_payload(
             part=p,
@@ -2083,7 +3422,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"Not Found", "text/plain; charset=utf-8")
 
     def do_POST(self) -> None:
-        if self.path != "/api/split" and self.path != "/api/check" and self.path != "/api/instructions/delete":
+        if self.path != "/api/split" and self.path != "/api/check" and self.path != "/api/instructions/delete" and self.path != "/api/extract":
             self._send(404, b"Not Found", "text/plain; charset=utf-8")
             return
 
@@ -2156,6 +3495,95 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, body, "application/json; charset=utf-8")
             return
 
+        if self.path == "/api/extract":
+            # 抽出は「ファイル全文」から行う（splitとは別）
+            if content == "":
+                body = json.dumps({"ok": False, "error": "content is empty"}, ensure_ascii=False).encode("utf-8")
+                self._send(200, body, "application/json; charset=utf-8")
+                return
+
+            symbols_raw = req.get("symbols")
+            needles_raw = req.get("needles")
+
+            symbols = []
+            needles = []
+
+            if isinstance(symbols_raw, list):
+                symbols = [str(x).strip() for x in symbols_raw if str(x).strip() != ""]
+            elif isinstance(symbols_raw, str):
+                symbols = [x.strip() for x in symbols_raw.split(",") if x.strip() != ""]
+
+            if isinstance(needles_raw, list):
+                needles = [str(x) for x in needles_raw if str(x) != ""]
+            elif isinstance(needles_raw, str):
+                needles = [x for x in needles_raw.split(",") if x != ""]
+
+            try:
+                ctx_lines = int(req.get("context_lines") if req.get("context_lines") is not None else DEFAULT_EXTRACT_CONTEXT_LINES)
+            except Exception:
+                ctx_lines = DEFAULT_EXTRACT_CONTEXT_LINES
+            if ctx_lines < 0:
+                ctx_lines = 0
+
+            try:
+                max_matches = int(req.get("max_matches") if req.get("max_matches") is not None else DEFAULT_EXTRACT_MAX_MATCHES)
+            except Exception:
+                max_matches = DEFAULT_EXTRACT_MAX_MATCHES
+            if max_matches <= 0:
+                max_matches = DEFAULT_EXTRACT_MAX_MATCHES
+
+            blocks = []
+
+            # 1) 関数まるごと抽出
+            for name in symbols:
+                found, header, body = extract_function_whole(js_text=content, name=name)
+                blocks.append({
+                    "kind": "function_whole",
+                    "name": name,
+                    "found": bool(found),
+                    "header": str(header),
+                    "text": str(body),
+                    "sha256": sha256_hex(str(body)) if found else "",
+                })
+
+            # 2) 呼び出し周辺抽出
+            for nd in needles:
+                hit_count, ctx_blocks = extract_context_around(
+                    js_text=content,
+                    needle=nd,
+                    context_lines=ctx_lines,
+                    max_matches=max_matches,
+                )
+                blocks.append({
+                    "kind": "context",
+                    "needle": nd,
+                    "hit_count": int(hit_count),
+                    "context_lines": int(ctx_lines),
+                    "max_matches": int(max_matches),
+                    "items": [
+                        {
+                            "header": str(h),
+                            "text": str(t),
+                            "sha256": sha256_hex(str(t)),
+                        }
+                        for (h, t) in ctx_blocks
+                    ],
+                })
+
+            resp = {
+                "ok": True,
+                "filename": filename,
+                "symbols": symbols,
+                "needles": needles,
+                "context_lines": int(ctx_lines),
+                "max_matches": int(max_matches),
+                "blocks": blocks,
+            }
+
+            body = json.dumps(resp, ensure_ascii=False).encode("utf-8")
+            self._send(200, body, "application/json; charset=utf-8")
+            return
+
         prefix = str(req.get("prefix") or DEFAULT_PREFIX)
         lang = str(req.get("lang") or DEFAULT_LANG)
 
@@ -2166,6 +3594,15 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self._send(400, b"maxchars/maxlines/maxlogs must be integers", "text/plain; charset=utf-8")
             return
+
+        split_mode = str(req.get("split_mode") or DEFAULT_SPLIT_MODE).strip().upper()
+        if split_mode not in ("A", "B", "C"):
+            split_mode = DEFAULT_SPLIT_MODE
+
+        try:
+            iife_grace_ratio = float(req.get("iife_grace_ratio") if req.get("iife_grace_ratio") is not None else DEFAULT_IIFE_GRACE_RATIO)
+        except Exception:
+            iife_grace_ratio = DEFAULT_IIFE_GRACE_RATIO
 
         instruction = str(req.get("instruction") or "")
 
@@ -2192,6 +3629,8 @@ class Handler(BaseHTTPRequestHandler):
                 instruction=instruction,
                 outroot=outroot,
                 max_keep_logs=maxlogs,
+                split_mode=split_mode,
+                iife_grace_ratio=iife_grace_ratio,
             )
         except Exception as e:
             self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
