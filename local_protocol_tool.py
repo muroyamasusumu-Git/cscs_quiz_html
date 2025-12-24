@@ -1123,6 +1123,7 @@ HTML_PAGE = r"""<!doctype html>
       font-size: 20px; /* 見出しとして視認性を上げる */
       line-height: 1.25; /* 見出しの詰まりを防ぐ */
       letter-spacing: 0.02em; /* 見出しは少し字間を広げる */
+      text-align: center;
     }
 
     .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }

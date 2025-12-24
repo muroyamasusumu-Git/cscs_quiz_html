@@ -3767,12 +3767,31 @@
       var body = document.getElementById("cscs_sync_view_b_body");
       if (!body) return;
 
-      // 既存の once/odoa カード（SYNC）を探し、その直後に差し込む
+      // ★ 何をしているか:
+      //   #cscs_sync_view_b_body の「外側」に local専用カード用のコンテナを用意する。
+      //   renderPanel() が body の中身を消しても、このコンテナは消えないため localカードが残る。
+      var localArea = document.getElementById("cscs_sync_view_b_local_area");
+      if (!localArea) {
+        localArea = document.createElement("div");
+        localArea.id = "cscs_sync_view_b_local_area";
+
+        // ★ 何をしているか:
+        //   body と同じ親の直後（兄弟要素）として差し込み、body の「外」に配置する。
+        var parent = body.parentNode;
+        if (!parent) return;
+        if (body.nextSibling) {
+          parent.insertBefore(localArea, body.nextSibling);
+        } else {
+          parent.appendChild(localArea);
+        }
+      }
+
+      // 既存の once/odoa カード（SYNC）を探す（これは body 内にある）
       var syncCard = body.querySelector(".svb-once-odoa-card");
       if (!syncCard) return;
 
-      // すでに local 用が存在するなら何もしない
-      if (body.querySelector(".svb-once-odoa-card-local")) return;
+      // すでに local 用が存在するなら何もしない（localArea 内だけを判定）
+      if (localArea.querySelector(".svb-once-odoa-card-local")) return;
 
       var card = document.createElement("div");
 
@@ -3883,12 +3902,9 @@
       //   (SYNC)は head の下に grid 本体が直で来ているため、local も同じ並びにする
       card.appendChild(details);
 
-      // SYNCカードの直後に挿入
-      if (syncCard.nextSibling) {
-        body.insertBefore(card, syncCard.nextSibling);
-      } else {
-        body.appendChild(card);
-      }
+      // ★ 何をしているか:
+      //   localカードは body の外（localArea）に置く。これにより renderPanel() の body 再生成で消えない。
+      localArea.appendChild(card);
 
       applyCollapsed();
     } catch (_e) {}
@@ -3903,7 +3919,12 @@
       var body = document.getElementById("cscs_sync_view_b_body");
       if (!body) return;
 
-      var card = body.querySelector(".svb-once-odoa-card-local");
+      // ★ 何をしているか:
+      //   local専用カードは body の外（localArea）に配置されるため、探索先も localArea に切り替える。
+      var localArea = document.getElementById("cscs_sync_view_b_local_area");
+      if (!localArea) return;
+
+      var card = localArea.querySelector(".svb-once-odoa-card-local");
       if (!card) return;
 
       var qid = (params && typeof params.qid === "string") ? params.qid : "";
