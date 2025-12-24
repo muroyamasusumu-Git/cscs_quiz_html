@@ -3956,16 +3956,37 @@
         onceOdoaLabel = String(odoaModeText);
       }
 
-      // grid の 2列を先頭から順に上書き
-      var values = card.querySelectorAll(".cscs-svb-grid2-value");
-      if (!values || values.length < 6) return;
+      // ★ 何をしているか:
+      //   local専用カードの「SYNC同型DOM（svb-wide-dual-grid）」を前提に、
+      //   行単位（左セル/右セル + 最下段 single）でテキストを上書き更新する
+      var grid = card.querySelector(".svb-wide-dual-grid");
+      if (!grid) return;
 
-      values[0].textContent = onceStateLabel;
-      values[1].textContent = onceTodayDateLabel;
-      values[2].textContent = onceQidLabel;
-      values[3].textContent = onceCountableLabel;
-      values[4].textContent = onceRecordLabel;
-      values[5].textContent = onceOdoaLabel;
+      var dualCells = grid.querySelectorAll(".svb-wide-dual-cell");
+      var singleCell = grid.querySelector(".svb-wide-single");
+
+      // ★ 何をしているか:
+      //   必要なセル数（dual: 6セル = 3行×2列、single: 1セル）を満たさない場合は更新しない
+      if (!dualCells || dualCells.length < 6) return;
+      if (!singleCell) return;
+
+      // ★ 何をしているか:
+      //   SYNCカードと同じ表示並びで、local由来の内容を行単位で反映する
+      //   0: oncePerDayToday（左） / 1: 計測＋結果（右）
+      dualCells[0].textContent = "oncePerDayToday   " + onceStateLabel;
+      dualCells[1].textContent = "計測: " + ((onceRecordLabel !== "-") ? "OK" : "NG") + " ｜結果: " + onceRecordLabel;
+
+      //   2: Today（左） / 3: qid（右）
+      dualCells[2].textContent = "Today             " + onceTodayDateLabel;
+      dualCells[3].textContent = "qid: " + onceQidLabel;
+
+      //   4: count対象（左） / 5: 記録（右）
+      dualCells[4].textContent = "count対象         " + onceCountableLabel;
+      dualCells[5].textContent = "記録: " + onceRecordLabel;
+
+      // ★ 何をしているか:
+      //   最下段の single 行（ODOA）を更新する
+      singleCell.textContent = "ODOA              " + onceOdoaLabel;
 
     } catch (_e) {}
   }
