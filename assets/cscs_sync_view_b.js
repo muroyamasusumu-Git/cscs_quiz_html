@@ -3615,6 +3615,12 @@
         });
 
         // ★ 何をしているか:
+        //   renderPanel() により OncePerDayToday / O.D.O.A Mode（SYNC）カードがDOMに生成された「直後」に、
+        //   見出しの "(SYNC)" 付与と、直下への "(local)" カードの追加を確実に実行する
+        ensureOnceOdoaWideTitles(box);
+        ensureLocalOnceOdoaWideCard(box);
+
+        // ★ 何をしているか:
         //   localStorage 由来の OncePerDayToday / O.D.O.A Mode を「local専用カード」に反映する
         //   （SYNCカードとは独立した表示。diff送信の有無に関係なく、毎回更新する）
         refreshLocalOnceOdoaCard(box, {
@@ -3714,6 +3720,13 @@
           odoaModeText: odoaModeText,
           odoaStatusText: odoaStatusTextForPanelStateError
         });
+
+        // ★ 何をしているか:
+        //   state取得失敗でも OncePerDayToday / O.D.O.A Mode カード自体は renderPanel() で生成されるため、
+        //   見出し "(SYNC)" と "(local)" カード追加はここでも確実に実行する
+        ensureOnceOdoaWideTitles(box);
+        ensureLocalOnceOdoaWideCard(box);
+
       });
   }
 
