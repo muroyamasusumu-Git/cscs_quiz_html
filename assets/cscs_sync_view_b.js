@@ -4088,6 +4088,33 @@
     // ★ パネル生成より先にCSSを注入（初回表示から確実に適用）
     ensureSyncViewBStyles();
 
+    // ★ 何をしているか:
+    //   リロード直後に OncePerDayToday / O.D.O.A Mode が「一瞬だけ最上段に出る」チラつきを防ぐため、
+    //   once/odoa 系カードを一旦 visibility:hidden にしておく（移動・整理が終わったら解除する）
+    function ensureOnceOdoaNoFlashStyle() {
+      try {
+        var id = "cscs_sync_view_b_once_odoa_no_flash";
+        if (document.getElementById(id)) return;
+        var st = document.createElement("style");
+        st.id = id;
+        st.type = "text/css";
+        st.textContent =
+          "#cscs_sync_view_b_body .svb-once-odoa-card{visibility:hidden;}" +
+          "#cscs_sync_view_b_body .svb-once-odoa-card-local{visibility:hidden;}";
+        document.head.appendChild(st);
+      } catch (_e) {}
+    }
+
+    function clearOnceOdoaNoFlashStyle() {
+      try {
+        var id = "cscs_sync_view_b_once_odoa_no_flash";
+        var st = document.getElementById(id);
+        if (st && st.parentNode) st.parentNode.removeChild(st);
+      } catch (_e) {}
+    }
+
+    ensureOnceOdoaNoFlashStyle();
+
     var box = createPanel();
 
     function append() {
@@ -4106,6 +4133,14 @@
       //   既存(SYNC)カードの見出しを "(SYNC)" にし、直下に local専用カードを追加する
       ensureOnceOdoaWideTitles(box);
       ensureLocalOnceOdoaWideCard(box);
+
+      // ★ 何をしているか:
+      //   once/odoa 系カードの移動・整理が完了したので、チラつき防止の非表示を解除する
+      try {
+        var id = "cscs_sync_view_b_once_odoa_no_flash";
+        var st = document.getElementById(id);
+        if (st && st.parentNode) st.parentNode.removeChild(st);
+      } catch (_eNF) {}
 
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {
