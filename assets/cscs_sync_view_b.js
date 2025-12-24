@@ -1078,6 +1078,11 @@
       return;
     }
 
+    // ★ 何をしているか:
+    //   Once/ODOA 2枚（SYNC+local）を「毎回同じ位置」に置くためのアンカー（直前の要素）を保持する。
+    //   refreshOncePerDayAndOdoaWideCardsInBody() でこの直後に insert する。
+    var onceOdoaAnchorEl = null;
+
     // --- Counts（1行表示：Counts + SYNC/local/diff を横一列） ---
     (function appendCountsSectionInline() {
       // ① ワイドカード（Counts行を収めるコンテナ）
@@ -1341,6 +1346,10 @@
       body.appendChild(pair);
 
       // ★ 何をしているか:
+      //   Once/ODOA 2枚は「このペアの直下」に固定するため、この要素をアンカーとして保持する。
+      onceOdoaAnchorEl = pair;
+
+      // ★ 何をしているか:
       //   2列ペア全体の追加が完了したことをログで確認できるようにする
       console.log("[SYNC-B:view] appended Streak Max pair (correct/wrong)", {
         qid: (info && info.qid) ? info.qid : "-"
@@ -1380,14 +1389,30 @@
         return c;
       }
 
+      // ★ 何をしているか:
+      //   カードを「アンカー直後」に必ず配置する（初回生成でも、再描画で残っていても位置を揃える）。
+      function placeAfterAnchor(cardEl) {
+        if (!cardEl) return;
+        var anchor = onceOdoaAnchorEl;
+        if (anchor && anchor.parentNode === root) {
+          var insertPos = anchor.nextSibling;
+          if (insertPos !== cardEl) {
+            root.insertBefore(cardEl, insertPos);
+          }
+        } else {
+          root.appendChild(cardEl);
+        }
+      }
+
       if (!syncCard) {
         syncCard = ensureCard("sync");
-        root.appendChild(syncCard);
       }
       if (!localCard) {
         localCard = ensureCard("local");
-        root.appendChild(localCard);
       }
+
+      placeAfterAnchor(syncCard);
+      placeAfterAnchor(localCard);
 
       // ★ 何をしているか:
       //   折りたたみ状態は once/odoa で共通（2枚とも同じ状態にする）。
