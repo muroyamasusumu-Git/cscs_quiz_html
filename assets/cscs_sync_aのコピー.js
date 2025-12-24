@@ -770,7 +770,7 @@
         });
       }
 
-      // ★ UI表示用：SYNC側は “取れた時だけ” 値を採用（取れなければ空→-）
+      // ★ UI表示用：SYNC側は “取れた時だけ” 値を採用（取れなければ空→（データなし））
       const streak3TodayDayForUi =
         (streak3Today && Object.prototype.hasOwnProperty.call(streak3Today, "day"))
           ? streak3Today.day
@@ -784,7 +784,7 @@
       let localStreakDay = "";
       let localStreakCount = null;
       try{
-        // ★ 処理1: day は “無いなら無い” を正として空文字（UI側で "-" / -に落とす）
+        // ★ 処理1: day は “無いなら無い” を正として空文字（UI側で "-" / （データなし）に落とす）
         localStreakDay = localStorage.getItem("cscs_streak3_today_day") || "";
 
         // ★ 処理2: unique_count は欠損なら null（0埋め禁止）
@@ -853,7 +853,7 @@
         });
       }
 
-      // ★ UI表示用：SYNC側は “取れた時だけ” 値を採用（取れなければ空→-）
+      // ★ UI表示用：SYNC側は “取れた時だけ” 値を採用（取れなければ空→（データなし））
       const streak3WrongTodayDayForUi =
         (streak3WrongToday && Object.prototype.hasOwnProperty.call(streak3WrongToday, "day"))
           ? streak3WrongToday.day
@@ -1015,17 +1015,17 @@
         const lastdaySummaryLocalEl = box.querySelector(".sync-lastday-summary-local");
 
         if (s3tDayEl) {
-          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→-）
-          s3tDayEl.textContent = toDisplayText(streak3TodayDayForUi, "-");
+          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3tDayEl.textContent = toDisplayText(streak3TodayDayForUi, "（データなし）");
         }
         if (s3tSyncEl) {
-          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→-）
-          s3tSyncEl.textContent = toDisplayText(streak3TodayCountForUi, "-");
+          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3tSyncEl.textContent = toDisplayText(streak3TodayCountForUi, "（データなし）");
         }
         if (s3tLocalEl) {
           s3tLocalEl.textContent = toDisplayText(
             Number.isFinite(localStreakCount) ? localStreakCount : "",
-            "-"
+            "（データなし）"
           );
         }
 
@@ -1036,17 +1036,17 @@
         const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
         const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
         if (s3wtDayEl) {
-          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→-）
-          s3wtDayEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "-");
+          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3wtDayEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "（データなし）");
         }
         if (s3wtSyncEl) {
-          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→-）
-          s3wtSyncEl.textContent = toDisplayText(streak3WrongTodayCountForUi, "-");
+          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→（データなし））
+          s3wtSyncEl.textContent = toDisplayText(streak3WrongTodayCountForUi, "（データなし）");
         }
         if (s3wtLocalEl) {
           s3wtLocalEl.textContent = toDisplayText(
             Number.isFinite(localWrongStreakCount) ? localWrongStreakCount : "",
-            "-"
+            "（データなし）"
           );
         }
 
@@ -1100,12 +1100,12 @@
 
         // ★ 処理1: SYNC day は “取れた値だけ” を使う（null/欠損でオブジェクト参照しない）
         // ★ 処理2: isToday 判定も同じ入力（streak3TodayDayForUi / streak3WrongTodayDayForUi）で統一する
-        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3TodayDayForUi, "-");
-        if (s3tDayLocalEl)   s3tDayLocalEl.textContent = toDisplayText(localStreakDayRaw, "-");
+        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3TodayDayForUi, "（データなし）");
+        if (s3tDayLocalEl)   s3tDayLocalEl.textContent = toDisplayText(localStreakDayRaw, "（データなし）");
         if (s3tDayIsTodayEl) s3tDayIsTodayEl.textContent = isTodayYmdString(streak3TodayDayForUi);
 
-        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "-");
-        if (s3wtDayLocalEl)  s3wtDayLocalEl.textContent = toDisplayText(localWrongStreakDayRaw, "-");
+        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "（データなし）");
+        if (s3wtDayLocalEl)  s3wtDayLocalEl.textContent = toDisplayText(localWrongStreakDayRaw, "（データなし）");
         if (s3wtDayIsTodayEl) s3wtDayIsTodayEl.textContent = isTodayYmdString(streak3WrongTodayDayForUi);
 
         // ★ 処理3: 反映成功ログ（「例外でUI更新が止まってない」ことを確実に確認）
@@ -1115,28 +1115,28 @@
           streak3WrongToday: { syncDay: streak3WrongTodayDayForUi, localDay: localWrongStreakDayRaw }
         });
 
-        if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "-");
-        if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "-");
+        if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "（データなし）");
+        if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "（データなし）");
         if (onceDayIsTodayEl) onceDayIsTodayEl.textContent = isTodayYmdString(syncOnceDayRaw);
 
         // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映（詳細テーブル）
         if (lastSeenSyncEl) {
-          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "-");
+          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "（データなし）");
         }
         if (lastCorrectSyncEl) {
-          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "-");
+          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "（データなし）");
         }
         if (lastWrongSyncEl) {
-          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "-");
+          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "（データなし）");
         }
         if (lastSeenLocalEl) {
-          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "-");
+          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "（データなし）");
         }
         if (lastCorrectLocalEl) {
-          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "-");
+          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "（データなし）");
         }
         if (lastWrongLocalEl) {
-          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "-");
+          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "（データなし）");
         }
 
         // ★ 追加: lastday の「最新正誤記録」を 1行サマリーに反映
@@ -1197,12 +1197,12 @@
         if (lastdaySummarySyncEl) {
           // ★ summary の SYNC 値（8桁日付 or データなし）
           //   - 表示は「SYNC 20251210」のようにラベル込みにする
-          lastdaySummarySyncEl.textContent = "SYNC " + toDisplayText(latestSyncVal, "-");
+          lastdaySummarySyncEl.textContent = "SYNC " + toDisplayText(latestSyncVal, "（データなし）");
         }
         if (lastdaySummaryLocalEl) {
           // ★ summary の local 値（8桁日付 or データなし）
           //   - 表示は「local 20251210」のようにラベル込みにする
-          lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "-");
+          lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "（データなし）");
         }
 
         // ★ 追加: 見出しと下の詳細が “同じ情報で二重表示” にならないように調整する
@@ -1244,7 +1244,7 @@
         const slwsProgEl = box.querySelector(".sync-wrong-streaklen-server-progress");
         const sllwProgEl = box.querySelector(".sync-wrong-streaklen-local-progress");
 
-        if (qEl)   qEl.textContent  = QID ? QID : "-";
+        if (qEl)   qEl.textContent  = QID ? QID : "（データなし）";
         if (lEl) {
           // ★ 処理1: null は "-" 表示（0埋め禁止）
           const lcText = (lc === null) ? "-" : String(lc);
@@ -1281,17 +1281,17 @@
         //   - len: 現在の連続正解数（cscs_q_correct_streak_len:{qid}）
         //   - max: 最高連続正解数（cscs_q_correct_streak_max:{qid}）
         //   - day: 最高を更新した日（cscs_q_correct_streak_max_day:{qid}）
-        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? ll : "", "-");
-        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "-");
-        if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "-");
+        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? ll : "", "（データなし）");
+        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "（データなし）");
+        if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "（データなし）");
 
         // ★ 追加: 不正解 streak max カード（A）に localStorage の値を反映
         //   - len: 現在の連続不正解数（cscs_q_wrong_streak_len:{qid}）
         //   - max: 最高連続不正解数（cscs_q_wrong_streak_max:{qid}）
         //   - day: 最高を更新した日（cscs_q_wrong_streak_max_day:{qid}）
-        if (wrongStreakMaxLenEl) wrongStreakMaxLenEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? llWrong : "", "-");
-        if (wrongStreakMaxValEl) wrongStreakMaxValEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? lWrongMax : "", "-");
-        if (wrongStreakMaxDayEl) wrongStreakMaxDayEl.textContent = toDisplayText(lWrongMaxDay, "-");
+        if (wrongStreakMaxLenEl) wrongStreakMaxLenEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? llWrong : "", "（データなし）");
+        if (wrongStreakMaxValEl) wrongStreakMaxValEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? lWrongMax : "", "（データなし）");
+        if (wrongStreakMaxDayEl) wrongStreakMaxDayEl.textContent = toDisplayText(lWrongMaxDay, "（データなし）");
 
         // ★ 追加: 初回だけ「UI反映に成功した」ログを出す（コンソールで確認可能）
         if (!loggedStreakMaxUiOnce) {
@@ -1392,14 +1392,14 @@
         const qdCor  = Object.prototype.hasOwnProperty.call(queue.lastCorrectDayDelta, QID) ? queue.lastCorrectDayDelta[QID] : "";
         const qdWrg  = Object.prototype.hasOwnProperty.call(queue.lastWrongDayDelta, QID) ? queue.lastWrongDayDelta[QID] : "";
 
-        // ★ 処理1: 欠損（null/undefined）を "0" で埋めず、「-」として可視化する
-        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "-") + " / " + toDisplayText(dI, "-");
-        // ★ 処理2: 欠損（null/undefined）を "0" で埋めず、「-」として可視化する
-        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "-");
+        // ★ 処理1: 欠損（null/undefined）を "0" で埋めず、「（データなし）」として可視化する
+        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "（データなし）") + " / " + toDisplayText(dI, "（データなし）");
+        // ★ 処理2: 欠損（null/undefined）を "0" で埋めず、「（データなし）」として可視化する
+        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "（データなし）");
         // ★ 処理3: streakLenDelta は「最新値」なので、欠損時のみ「（なし）」を表示する（推測で数値化しない）
         if (qdSLel)   qdSLel.textContent   = toDisplayText(qdSL !== null && qdSL !== undefined ? qdSL : "", "（なし）");
-        // ★ 処理4: 欠損（null/undefined）を "0" で埋めず、「-」として可視化する
-        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "-");
+        // ★ 処理4: 欠損（null/undefined）を "0" で埋めず、「（データなし）」として可視化する
+        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "（データなし）");
         // ★ 処理5: streakWrongLenDelta は「最新値」なので、欠損時のみ「（なし）」を表示する（推測で数値化しない）
         if (qdSLwEl)  qdSLwEl.textContent  = toDisplayText(qdSLW !== null && qdSLW !== undefined ? qdSLW : "", "（なし）");
 
@@ -1683,12 +1683,12 @@
 
           if (!isTodayOnce) {
             line1 = "oncePerDayToday: 未開始";
-            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "-");
+            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "（データなし）");
             line3 = "count対象: 判定可能";
             line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
           } else {
             line1 = "oncePerDayToday: 計測中";
-            line2 = "Today: " + (onceDayIso ? onceDayIso : "-");
+            line2 = "Today: " + (onceDayIso ? onceDayIso : "（データなし）");
 
             if (measuredResult === "correct" || measuredResult === "wrong") {
               line3 = "count対象: No 計測済(" + measuredResult + ")";
@@ -1851,12 +1851,12 @@
           if (!isTodayOnce) {
             // ★ 処理: localの oncePerDayToday が今日でない（または欠損）場合は未開始扱いで表示する
             line1 = "oncePerDayToday: 未開始";
-            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "-");
+            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "（データなし）");
             line3 = "count対象: 判定可能";
             line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
           } else {
             line1 = "oncePerDayToday: 計測中";
-            line2 = "Today: " + (onceDayIso ? onceDayIso : "-");
+            line2 = "Today: " + (onceDayIso ? onceDayIso : "（データなし）");
 
             // ★ 処理: VERIFY_MODE は常に count対象: NO として表示する
             if (verifyModeOn) {
@@ -3801,13 +3801,13 @@
             <div class="sync-body">
               <div class="mini-grid">
                 <div class="mini-label">streak_len</div>
-                <div class="mini-val"><span class="sync-streakmax-len-local">-</span></div>
+                <div class="mini-val"><span class="sync-streakmax-len-local">（データなし）</span></div>
 
                 <div class="mini-label">streak_max</div>
-                <div class="mini-val"><span class="sync-streakmax-max-local">-</span></div>
+                <div class="mini-val"><span class="sync-streakmax-max-local">（データなし）</span></div>
 
                 <div class="mini-label">max_day</div>
-                <div class="mini-val"><span class="sync-streakmax-maxday-local">-</span></div>
+                <div class="mini-val"><span class="sync-streakmax-maxday-local">（データなし）</span></div>
               </div>
             </div>
           </div>
@@ -3817,13 +3817,13 @@
             <div class="sync-body">
               <div class="mini-grid">
                 <div class="mini-label">streak_len</div>
-                <div class="mini-val"><span class="sync-wrong-streakmax-len-local">-</span></div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-len-local">（データなし）</span></div>
 
                 <div class="mini-label">streak_max</div>
-                <div class="mini-val"><span class="sync-wrong-streakmax-max-local">-</span></div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-max-local">（データなし）</span></div>
 
                 <div class="mini-label">max_day</div>
-                <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">-</span></div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">（データなし）</span></div>
               </div>
             </div>
           </div>
@@ -3833,7 +3833,7 @@
               <span class="once-title-text">OncePerDayToday / O.D.O.A Mode (SYNC)</span>
               <button type="button" class="once-fold-btn" data-once-fold="sync">▶show</button>
             </div>
-            <div class="sync-body sync-onceperday sync">oncePerDayToday: -</div>
+            <div class="sync-body sync-onceperday sync">oncePerDayToday: （データなし）</div>
           </div>
 
           <div class="sync-card sync-span-2 once-card once-card-local">
@@ -3841,29 +3841,29 @@
               <span class="once-title-text">OncePerDayToday / O.D.O.A Mode (local)</span>
               <button type="button" class="once-fold-btn" data-once-fold="local">▶show</button>
             </div>
-            <div class="sync-body sync-onceperday local">oncePerDayToday: -</div>
+            <div class="sync-body sync-onceperday local">oncePerDayToday: （データなし）</div>
           </div>
 
           <div class="sync-card sync-span-2">
             <div class="sync-lastday-headline">
               <span class="sync-lastday-summary-type">LastCorrect</span>
-              <span class="sync-lastday-summary-sync">SYNC -</span>
-              <span class="sync-lastday-summary-local">local -</span>
+              <span class="sync-lastday-summary-sync">SYNC （データなし）</span>
+              <span class="sync-lastday-summary-local">local （データなし）</span>
             </div>
 
             <div class="sync-body sync-lastday">
               <div class="lastday-grid">
                 <div class="ld-label ld-row-lastseen">lastSeen</div>
-                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">-</span></div>
-                <div class="ld-row-lastseen"><span class="sync-last-seen-local">-</span></div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-sync">（データなし）</span></div>
+                <div class="ld-row-lastseen"><span class="sync-last-seen-local">（データなし）</span></div>
 
                 <div class="ld-label ld-row-lastcorrect">lastCorrect</div>
-                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">-</span></div>
-                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">-</span></div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-sync">（データなし）</span></div>
+                <div class="ld-row-lastcorrect"><span class="sync-last-correct-local">（データなし）</span></div>
 
                 <div class="ld-label ld-row-lastwrong">lastWrong</div>
-                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">-</span></div>
-                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">-</span></div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-sync">（データなし）</span></div>
+                <div class="ld-row-lastwrong"><span class="sync-last-wrong-local">（データなし）</span></div>
               </div>
             </div>
           </div>
