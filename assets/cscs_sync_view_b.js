@@ -4099,8 +4099,8 @@
         st.id = id;
         st.type = "text/css";
         st.textContent =
-          "#cscs_sync_view_b_body .svb-once-odoa-card{visibility:hidden;}" +
-          "#cscs_sync_view_b_body .svb-once-odoa-card-local{visibility:hidden;}";
+          "#cscs_sync_view_b_status .svb-once-odoa-card{display:none !important;}" +
+          "#cscs_sync_view_b_status .svb-once-odoa-card-local{display:none !important;}";
         document.head.appendChild(st);
       } catch (_e) {}
     }
