@@ -1015,8 +1015,9 @@
         const lastdaySummaryLocalEl = box.querySelector(".sync-lastday-summary-local");
 
         if (s3tDayEl) {
-          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→-）
-          s3tDayEl.textContent = toDisplayText(streak3TodayDayForUi, "-");
+          // ★ 変更: Streak3TodayUnique の day 項目は UI から削除（非表示）
+          s3tDayEl.textContent = "";
+          s3tDayEl.style.display = "none";
         }
         if (s3tSyncEl) {
           // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→-）
@@ -1030,14 +1031,14 @@
         }
 
         // ★ 今日の3連続不正解ユニーク数をモニタUIに反映する
-        //   - day: state.streak3WrongToday.day
         //   - unique: sync 側 unique_count と localStorage 側の値を並列表記
         const s3wtDayEl   = box.querySelector(".sync-streak3wrongtoday-day");
         const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
         const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
         if (s3wtDayEl) {
-          // ★ 処理: SYNC側 day は「取れた時だけ」採用（無ければ欠損→-）
-          s3wtDayEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "-");
+          // ★ 変更: Streak3WrongTodayUq の day 項目は UI から削除（非表示）
+          s3wtDayEl.textContent = "";
+          s3wtDayEl.style.display = "none";
         }
         if (s3wtSyncEl) {
           // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→-）
@@ -1098,22 +1099,14 @@
           }
         }
 
-        // ★ 処理1: SYNC day は “取れた値だけ” を使う（null/欠損でオブジェクト参照しない）
-        // ★ 処理2: isToday 判定も同じ入力（streak3TodayDayForUi / streak3WrongTodayDayForUi）で統一する
-        if (s3tDaySyncEl)    s3tDaySyncEl.textContent  = toDisplayText(streak3TodayDayForUi, "-");
-        if (s3tDayLocalEl)   s3tDayLocalEl.textContent = toDisplayText(localStreakDayRaw, "-");
-        if (s3tDayIsTodayEl) s3tDayIsTodayEl.textContent = isTodayYmdString(streak3TodayDayForUi);
+        // ★ 変更: Streak3TodayUnique / Streak3WrongTodayUq の day 比較欄は UI から削除（非表示）
+        if (s3tDaySyncEl)    { s3tDaySyncEl.textContent = "";  s3tDaySyncEl.style.display = "none"; }
+        if (s3tDayLocalEl)   { s3tDayLocalEl.textContent = ""; s3tDayLocalEl.style.display = "none"; }
+        if (s3tDayIsTodayEl) { s3tDayIsTodayEl.textContent = ""; s3tDayIsTodayEl.style.display = "none"; }
 
-        if (s3wtDaySyncEl)   s3wtDaySyncEl.textContent = toDisplayText(streak3WrongTodayDayForUi, "-");
-        if (s3wtDayLocalEl)  s3wtDayLocalEl.textContent = toDisplayText(localWrongStreakDayRaw, "-");
-        if (s3wtDayIsTodayEl) s3wtDayIsTodayEl.textContent = isTodayYmdString(streak3WrongTodayDayForUi);
-
-        // ★ 処理3: 反映成功ログ（「例外でUI更新が止まってない」ことを確実に確認）
-        console.log("[SYNC-A][OK][UI] day compare updated (no-fallback)", {
-          qid: QID,
-          streak3Today: { syncDay: streak3TodayDayForUi, localDay: localStreakDayRaw },
-          streak3WrongToday: { syncDay: streak3WrongTodayDayForUi, localDay: localWrongStreakDayRaw }
-        });
+        if (s3wtDaySyncEl)    { s3wtDaySyncEl.textContent = "";  s3wtDaySyncEl.style.display = "none"; }
+        if (s3wtDayLocalEl)   { s3wtDayLocalEl.textContent = ""; s3wtDayLocalEl.style.display = "none"; }
+        if (s3wtDayIsTodayEl) { s3wtDayIsTodayEl.textContent = ""; s3wtDayIsTodayEl.style.display = "none"; }
 
         if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "-");
         if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "-");
