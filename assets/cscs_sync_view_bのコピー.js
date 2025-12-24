@@ -2227,9 +2227,9 @@
 
       // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続正解数 / 更新日）を読み出す
       //   何をしているか: localStorage の確定キーから「現在/最高/達成日」を取得し、HUD model に載せる
-      //   フォールバックはしない（キーが無い/不正なら 0 または -）
+      //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
       var localCorrectStreakMax = 0;
-      var localCorrectStreakMaxDayLabel = "-";
+      var localCorrectStreakMaxDayLabel = "（データなし）";
       try {
         localCorrectStreakMax = readIntFromLocalStorage("cscs_q_correct_streak_max:" + info.qid);
         var maxDayNum = readDayFromLocalStorage("cscs_q_correct_streak_max_day:" + info.qid);
@@ -2249,9 +2249,9 @@
 
       // ★ 追加: b_judge_record.js のローカル計測（問題別：最高連続不正解数 / 達成日）を読み出す
       //   何をしているか: localStorage の確定キーから「最高/達成日」を取得し、HUD model に載せる
-      //   フォールバックはしない（キーが無い/不正なら 0 または -）
+      //   フォールバックはしない（キーが無い/不正なら 0 または （データなし））
       var localWrongStreakMax = 0;
-      var localWrongStreakMaxDayLabel = "-";
+      var localWrongStreakMaxDayLabel = "（データなし）";
       try {
         localWrongStreakMax = readIntFromLocalStorage("cscs_q_wrong_streak_max:" + info.qid);
         var maxWrongDayNum = readDayFromLocalStorage("cscs_q_wrong_streak_max_day:" + info.qid);
@@ -2439,18 +2439,18 @@
         localS3WrongTodayQids = [];
       }
 
-      // ★ 計測記録がない場合は「-」、それ以外は day をそのまま表示
-      var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "-" : String(s3TodaySyncDay));
-      var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "-" : String(s3WrongTodaySyncDay));
+      // ★ 計測記録がない場合は「（データなし）」、それ以外は day をそのまま表示
+      var s3TodayDayLabel = (s3TodaySyncDay === "-" ? "（データなし）" : String(s3TodaySyncDay));
+      var s3WrongTodayDayLabel = (s3WrongTodaySyncDay === "-" ? "（データなし）" : String(s3WrongTodaySyncDay));
 
       // ★ ここから：問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を HUD に追加
-      var lastSeenSyncLabel = "-";
-      var lastCorrectSyncLabel = "-";
-      var lastWrongSyncLabel = "-";
+      var lastSeenSyncLabel = "（データなし）";
+      var lastCorrectSyncLabel = "（データなし）";
+      var lastWrongSyncLabel = "（データなし）";
 
-      var lastSeenLocalLabel = "-";
-      var lastCorrectLocalLabel = "-";
-      var lastWrongLocalLabel = "-";
+      var lastSeenLocalLabel = "（データなし）";
+      var lastCorrectLocalLabel = "（データなし）";
+      var lastWrongLocalLabel = "（データなし）";
 
       try {
         var qidForLastDay = info && info.qid ? info.qid : null;
