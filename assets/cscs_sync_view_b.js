@@ -3773,24 +3773,6 @@
     try {
       if (!box) return;
 
-      // ★ 何をしているか:
-      //   最上段のステータス領域（#cscs_sync_view_b_status）に誤って生成された
-      //   once/odoa の (SYNC)/(local) を「完全に消す」。
-      //   EXEC_TASK の要件は「上段の2枚を削除して、下段（body側）の2枚だけにする」ため、
-      //   status側に存在する once/odoa はすべて display:none にする。
-      var status = document.getElementById("cscs_sync_view_b_status");
-      if (status) {
-        var topCards = status.querySelectorAll(".svb-once-odoa-card, .svb-once-odoa-card-local");
-        if (topCards && topCards.length > 0) {
-          for (var ti = 0; ti < topCards.length; ti++) {
-            var tc = topCards[ti];
-            if (tc && tc.style) {
-              tc.style.display = "none";
-            }
-          }
-        }
-      }
-
       var body = document.getElementById("cscs_sync_view_b_body");
       if (!body) return;
 
