@@ -3786,20 +3786,33 @@
       }
       card.className = baseClass;
 
+      // ★ 何をしているか:
+      //   localカードの「中身DOM」を (SYNC)カードと同じ構造・同じクラス名に寄せる。
+      //   これにより、OncePerDayToday / O.D.O.A Mode 用の既存CSSが local 側にも完全に効く。
       var head = document.createElement("div");
-      head.className = "cscs-svb-card-head";
+      head.className = "svb-once-odoa-head";
 
       var title = document.createElement("div");
       title.className = "cscs-svb-card-title";
       title.textContent = "OncePerDayToday / O.D.O.A Mode (local)";
 
       var btn = document.createElement("button");
-      btn.className = "cscs-svb-mini-btn";
+      btn.className = "svb-once-odoa-toggle";
       btn.type = "button";
-      btn.textContent = "▶︎show";
+      btn.setAttribute("aria-expanded", "true");
 
+      var chev = document.createElement("span");
+      chev.className = "svb-once-odoa-chev";
+      chev.textContent = "▼";
+
+      var btnText = document.createTextNode("hide");
+      btn.appendChild(chev);
+      btn.appendChild(btnText);
+
+      // ★ 何をしているか:
+      //   (SYNC)と同じ「内容コンテナ」を作る（2列×3行 + 単行ODOA）
       var details = document.createElement("div");
-      details.className = "cscs-svb-card-details";
+      details.className = "svb-wide-dual-grid";
 
       var collapsedKey = "cscs_sync_view_b_once_odoa_local_collapsed";
       var isCollapsed = false;
@@ -3810,12 +3823,20 @@
       }
 
       function applyCollapsed() {
+        // ★ 何をしているか:
+        //   (SYNC)と同じ「▼/▶︎ + hide/show + aria-expanded」を再現する
         if (isCollapsed) {
           details.style.display = "none";
-          btn.textContent = "▶︎show";
+          btn.setAttribute("aria-expanded", "false");
+          chev.textContent = "▶︎";
+          while (btn.childNodes.length > 1) btn.removeChild(btn.lastChild);
+          btn.appendChild(document.createTextNode("show"));
         } else {
           details.style.display = "";
-          btn.textContent = "▼hide";
+          btn.setAttribute("aria-expanded", "true");
+          chev.textContent = "▼";
+          while (btn.childNodes.length > 1) btn.removeChild(btn.lastChild);
+          btn.appendChild(document.createTextNode("hide"));
         }
       }
 
@@ -3830,36 +3851,36 @@
         applyCollapsed();
       });
 
-      // グリッド（2列）
-      var grid = document.createElement("div");
-      grid.className = "cscs-svb-grid2";
-
-      function addRow(labelText, valueText) {
-        var l = document.createElement("div");
-        l.className = "cscs-svb-grid2-label";
-        l.textContent = labelText;
-
-        var v = document.createElement("div");
-        v.className = "cscs-svb-grid2-value";
-        v.textContent = valueText;
-
-        grid.appendChild(l);
-        grid.appendChild(v);
+      // ★ 何をしているか:
+      //   (SYNC)と同じセルクラスで「表示行」を作る（後で refreshLocalOnceOdoaCard() がこの行テキストを上書きする）
+      function makeCell(text, className) {
+        var d = document.createElement("div");
+        d.className = className;
+        d.textContent = text;
+        return d;
       }
 
-      addRow("oncePerDayToday", "-");
-      addRow("Today", "-");
-      addRow("qid", "-");
-      addRow("count対象", "-");
-      addRow("記録", "-");
-      addRow("ODOA", "-");
+      // 2列×3行（SYNC同型）
+      details.appendChild(makeCell("oncePerDayToday   -", "svb-wide-dual-cell svb-wide-dual-strong"));
+      details.appendChild(makeCell("計測: - ｜結果: -", "svb-wide-dual-cell is-right"));
 
-      details.appendChild(grid);
+      details.appendChild(makeCell("Today             -", "svb-wide-dual-cell"));
+      details.appendChild(makeCell("qid: -", "svb-wide-dual-cell is-right"));
+
+      details.appendChild(makeCell("count対象         -", "svb-wide-dual-cell"));
+      details.appendChild(makeCell("記録: -", "svb-wide-dual-cell is-right"));
+
+      // ODOA（単行SYNC同型）
+      var odoaLine = makeCell("ODOA              -", "svb-wide-single");
+      details.appendChild(odoaLine);
 
       head.appendChild(title);
       head.appendChild(btn);
 
       card.appendChild(head);
+
+      // ★ 何をしているか:
+      //   (SYNC)は head の下に grid 本体が直で来ているため、local も同じ並びにする
       card.appendChild(details);
 
       // SYNCカードの直後に挿入
