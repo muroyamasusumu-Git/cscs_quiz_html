@@ -961,43 +961,131 @@
       return null;
     }
   }
+  
+  function restoreOnceOdoaCards(body) {
+    // ★ 何をしているか:
+    //   clearSyncBody() で退避した Once/ODOA の SYNC/local を「元の位置」に戻し、
+    //   さらに重複している Once/ODOA カードがあれば削除して1セットに正規化する。
+    try {
+      if (!body) return;
+
+      var keep = null;
+      try {
+        keep = window.__cscs_once_odoa_keep || null;
+      } catch (_e0) {
+        keep = null;
+      }
+      if (!keep) return;
+
+      var syncCard = keep.sync || null;
+      var localCard = keep.local || null;
+      var idx = (typeof keep.syncIndex === "number") ? keep.syncIndex : -1;
+
+      // 1) まず重複している once/odoa を掃除（今表示されちゃってる3枚目対策）
+      //    - 既存DOM内の ".svb-once-odoa-card" が複数ある場合、先頭以外を消す
+      //    - local は ".svb-once-odoa-card-local" を1つだけ許容
+      try {
+        var existing = body.querySelectorAll(".svb-once-odoa-card");
+        if (existing && existing.length > 0) {
+          // ここで見つかるのは「作り直しで新規生成されたもの」なので、原則削除して
+          // 退避していたカードを採用する（順序と中身の一貫性を保つ）
+          for (var i = 0; i < existing.length; i++) {
+            body.removeChild(existing[i]);
+          }
+        }
+      } catch (_e1) {}
+
+      // 2) SYNCカードを元の index に挿入（index が不明なら末尾）
+      if (syncCard) {
+        var ref = null;
+        if (idx >= 0 && idx < body.childNodes.length) {
+          ref = body.childNodes[idx];
+        }
+        if (ref) {
+          body.insertBefore(syncCard, ref);
+        } else {
+          body.appendChild(syncCard);
+        }
+      }
+
+      // 3) localカードは SYNC の直後に置く（存在すれば）
+      if (localCard) {
+        if (syncCard && syncCard.parentNode === body) {
+          if (syncCard.nextSibling) {
+            body.insertBefore(localCard, syncCard.nextSibling);
+          } else {
+            body.appendChild(localCard);
+          }
+        } else {
+          body.appendChild(localCard);
+        }
+      }
+
+    } catch (_eAll) {}
+  }  
 
   function clearSyncBody() {
     var body = document.getElementById("cscs_sync_view_b_body");
     if (!body) return null;
 
     // ★ 何をしているか:
-    //   リロード時の再描画で body を全消しすると Once/ODOA の2枚（SYNC/local）が一瞬消える（ちらつく）ため、
-    //   ".svb-once-odoa-card"（先頭=SYNC想定）と ".svb-once-odoa-card-local" の2枚だけは DOM 上に残し、
-    //   それ以外の子要素のみ削除する。
+    //   Once/ODOA の SYNC/local カードを「残す」のではなく「退避」する。
+    //   - 残す方式だと、再描画のたびに2枚が先頭に固定されやすく、並びが崩れる。
+    //   - 退避しておけば、あとで「元の位置（index）」に戻せる。
     var keepSync = null;
     var keepLocal = null;
+    var keepSyncIndex = -1;
+
     try {
       var cards = body.querySelectorAll(".svb-once-odoa-card");
       if (cards && cards.length > 0) {
         keepSync = cards[0];
       }
       keepLocal = body.querySelector(".svb-once-odoa-card-local");
+
+      if (keepSync) {
+        var idx = 0;
+        var n = body.firstChild;
+        while (n) {
+          if (n === keepSync) {
+            keepSyncIndex = idx;
+            break;
+          }
+          idx += 1;
+          n = n.nextSibling;
+        }
+      }
     } catch (_eKeep) {
       keepSync = null;
       keepLocal = null;
+      keepSyncIndex = -1;
     }
 
-    var node = body.firstChild;
-    while (node) {
-      var next = node.nextSibling;
+    try {
+      window.__cscs_once_odoa_keep = {
+        sync: keepSync,
+        local: keepLocal,
+        syncIndex: keepSyncIndex
+      };
+    } catch (_eStore) {}
 
-      if (keepSync && node === keepSync) {
-        node = next;
-        continue;
+    // ★ 何をしているか:
+    //   退避対象は DOM から外しておく（この時点で body を全消しできるようにする）
+    try {
+      if (keepLocal && keepLocal.parentNode === body) {
+        body.removeChild(keepLocal);
       }
-      if (keepLocal && node === keepLocal) {
-        node = next;
-        continue;
+    } catch (_eRm0) {}
+    try {
+      if (keepSync && keepSync.parentNode === body) {
+        body.removeChild(keepSync);
       }
+    } catch (_eRm1) {}
 
-      body.removeChild(node);
-      node = next;
+    // ★ 何をしているか:
+    //   body は一旦まっさらにする（他カードは通常通り作り直す）
+    while (body.firstChild) {
+      body.removeChild(body.firstChild);
     }
 
     return body;
@@ -1198,6 +1286,8 @@
 
       body.appendChild(quad);
     })();
+
+    restoreOnceOdoaCards(body);
 
     // --- Today Unique（左右2列：左=Streak3TodayUnique / 右=Streak3WrongTodayUq） ---
     (function appendTodayUniquePair() {
