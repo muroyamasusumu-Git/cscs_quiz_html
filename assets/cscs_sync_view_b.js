@@ -4117,8 +4117,15 @@
         st.id = id;
         st.type = "text/css";
         st.textContent =
-          "#cscs_sync_view_b_status .svb-once-odoa-card{display:none !important;}" +
-          "#cscs_sync_view_b_status .svb-once-odoa-card-local{display:none !important;}";
+          // ★ 何をしているか:
+          //   「最上段に出てしまう once/odoa」を“確実に消す”ために、
+          //   まず #cscs_sync_view_b 配下の once/odoa を全て非表示にし、
+          //   正しい表示場所（#cscs_sync_view_b_body）にある分だけ再表示する。
+          //   これにより、status 以外（上部/別コンテナ）に出てしまう重複も確実に消える。
+          "#cscs_sync_view_b .svb-once-odoa-card{display:none !important;}" +
+          "#cscs_sync_view_b .svb-once-odoa-card-local{display:none !important;}" +
+          "#cscs_sync_view_b_body .svb-once-odoa-card{display:block !important;}" +
+          "#cscs_sync_view_b_body .svb-once-odoa-card-local{display:block !important;}";
         document.head.appendChild(st);
       } catch (_e) {}
     }
@@ -4153,11 +4160,14 @@
       ensureLocalOnceOdoaWideCard(box);
 
       // ★ 何をしているか:
-      //   once/odoa 系カードの移動・整理が完了したので、チラつき防止の非表示を解除する
+      //   once/odoa は「上段に出る重複を完全に消す」ための永続CSSで制御する。
+      //   ここで style を削除すると、重複が復活するため削除しない。
       try {
         var id = "cscs_sync_view_b_once_odoa_no_flash";
         var st = document.getElementById(id);
-        if (st && st.parentNode) st.parentNode.removeChild(st);
+        if (st) {
+          // keep
+        }
       } catch (_eNF) {}
 
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
