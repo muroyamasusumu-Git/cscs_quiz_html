@@ -967,9 +967,9 @@
     if (!body) return null;
 
     // ★ 何をしているか:
-    //   Once/ODOA の SYNC/local 2枚を「DOM上に残す」方式だと、再描画後に先頭へ取り残されやすい。
-    //   そこで clear 時点で 2枚を一旦 detach（退避）し、後段の updateSyncBodyGrid() 側で
-    //   “本来の場所”に差し戻すため、グローバル退避領域に保持する。
+    //   リロード時の再描画で body を全消しすると Once/ODOA の2枚（SYNC/local）が一瞬消える（ちらつく）ため、
+    //   ".svb-once-odoa-card"（先頭=SYNC想定）と ".svb-once-odoa-card-local" の2枚だけは DOM 上に残し、
+    //   それ以外の子要素のみ削除する。
     var keepSync = null;
     var keepLocal = null;
     try {
@@ -983,25 +983,23 @@
       keepLocal = null;
     }
 
-    try {
-      window.__cscs_keep_once_odoa_cards = {
-        sync: keepSync || null,
-        local: keepLocal || null
-      };
-    } catch (_eStore) {}
+    var node = body.firstChild;
+    while (node) {
+      var next = node.nextSibling;
 
-    // ★ 何をしているか:
-    //   退避対象は先に DOM から外しておく（全消しループで巻き込まないため）
-    try {
-      if (keepLocal && keepLocal.parentNode === body) body.removeChild(keepLocal);
-    } catch (_eRmL) {}
-    try {
-      if (keepSync && keepSync.parentNode === body) body.removeChild(keepSync);
-    } catch (_eRmS) {}
+      if (keepSync && node === keepSync) {
+        node = next;
+        continue;
+      }
+      if (keepLocal && node === keepLocal) {
+        node = next;
+        continue;
+      }
 
-    while (body.firstChild) {
-      body.removeChild(body.firstChild);
+      body.removeChild(node);
+      node = next;
     }
+
     return body;
   }
 
@@ -1350,24 +1348,6 @@
 
     // --- OncePerDayToday / O.D.O.A Mode（ワイドカード：折りたたみ対応） ---
     (function appendOncePerDayAndOdoaWideCard() {
-      // ★ 何をしているか:
-      //   旧「OncePerDayToday / O.D.O.A Mode」ワイドカード（3枚目）を生成せず、
-      //   clearSyncBody() で退避した SYNC/local の2枚を“この位置”に差し戻す。
-      //   これにより、SYNC/local がステータスの先頭に居座るのを防ぎ、元の配置へ戻す。
-      try {
-        var keep = window.__cscs_keep_once_odoa_cards || null;
-        var s = keep && keep.sync ? keep.sync : null;
-        var l = keep && keep.local ? keep.local : null;
-
-        if (s && s.parentNode) s.parentNode.removeChild(s);
-        if (l && l.parentNode) l.parentNode.removeChild(l);
-
-        if (s) body.appendChild(s);
-        if (l) body.appendChild(l);
-
-        return;
-      } catch (_eInsOnce) {}
-
       var card = document.createElement("div");
       card.className = "cscs-svb-card is-wide svb-once-odoa-card";
 
