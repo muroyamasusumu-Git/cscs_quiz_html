@@ -1391,17 +1391,21 @@
 
       // ★ 何をしているか:
       //   カードを「アンカー直後」に必ず配置する（初回生成でも、再描画で残っていても位置を揃える）。
-      function placeAfterAnchor(cardEl) {
-        if (!cardEl) return;
-        var anchor = onceOdoaAnchorEl;
-        if (anchor && anchor.parentNode === root) {
-          var insertPos = anchor.nextSibling;
-          if (insertPos !== cardEl) {
-            root.insertBefore(cardEl, insertPos);
+      // ★ 何をしているか:
+      //   「アンカー直後」ではなく「直前に置いた要素の直後」に順番に差し込むことで、
+      //   2回目の insert が1回目を“追い越して上に来る”問題を防ぐ（SYNC→local の順を保証）。
+      function placeAfter(refEl, cardEl) {
+        if (!cardEl) return refEl;
+
+        if (refEl && refEl.parentNode === root) {
+          if (refEl.nextSibling !== cardEl) {
+            root.insertBefore(cardEl, refEl.nextSibling);
           }
-        } else {
-          root.appendChild(cardEl);
+          return cardEl;
         }
+
+        root.appendChild(cardEl);
+        return cardEl;
       }
 
       if (!syncCard) {
@@ -1411,8 +1415,16 @@
         localCard = ensureCard("local");
       }
 
-      placeAfterAnchor(syncCard);
-      placeAfterAnchor(localCard);
+      // ★ 何をしているか:
+      //   onceOdoaAnchorEl の直後に、SYNC→local の順で必ず並べる
+      var ref = (onceOdoaAnchorEl && onceOdoaAnchorEl.parentNode === root) ? onceOdoaAnchorEl : null;
+      if (ref) {
+        ref = placeAfter(ref, syncCard);
+        ref = placeAfter(ref, localCard);
+      } else {
+        root.appendChild(syncCard);
+        root.appendChild(localCard);
+      }
 
       // ★ 何をしているか:
       //   折りたたみ状態は once/odoa で共通（2枚とも同じ状態にする）。
