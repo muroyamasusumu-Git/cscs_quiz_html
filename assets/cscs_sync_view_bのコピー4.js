@@ -966,9 +966,40 @@
     var body = document.getElementById("cscs_sync_view_b_body");
     if (!body) return null;
 
-    while (body.firstChild) {
-      body.removeChild(body.firstChild);
+    // ★ 何をしているか:
+    //   リロード時の再描画で body を全消しすると Once/ODOA の2枚（SYNC/local）が一瞬消える（ちらつく）ため、
+    //   ".svb-once-odoa-card"（先頭=SYNC想定）と ".svb-once-odoa-card-local" の2枚だけは DOM 上に残し、
+    //   それ以外の子要素のみ削除する。
+    var keepSync = null;
+    var keepLocal = null;
+    try {
+      var cards = body.querySelectorAll(".svb-once-odoa-card");
+      if (cards && cards.length > 0) {
+        keepSync = cards[0];
+      }
+      keepLocal = body.querySelector(".svb-once-odoa-card-local");
+    } catch (_eKeep) {
+      keepSync = null;
+      keepLocal = null;
     }
+
+    var node = body.firstChild;
+    while (node) {
+      var next = node.nextSibling;
+
+      if (keepSync && node === keepSync) {
+        node = next;
+        continue;
+      }
+      if (keepLocal && node === keepLocal) {
+        node = next;
+        continue;
+      }
+
+      body.removeChild(node);
+      node = next;
+    }
+
     return body;
   }
 
@@ -3732,28 +3763,76 @@
 
   function ensureOnceOdoaWideTitles(box) {
     // ★ 何をしているか:
-    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しを
-    //   必ず "OncePerDayToday / O.D.O.A Mode (SYNC)" の表記に揃える（既存表記ゆれ吸収・二重付与防止）
-    //   既存カードは class="svb-once-odoa-card" を持つ前提で、そのうち先頭を SYNC 扱いにする
+    //   OncePerDayToday / O.D.O.A Mode のカードが複数存在する場合でも、
+    //   「(SYNC)/(local) は“元の場所（現在3枚目が出ている場所）”」に集約し、
+    //   余分に出ている“元カード（現在3枚目）”は非表示にする。
+    //   - 表示位置の基準: svb-once-odoa-card（local以外）のうち「最後の1枚」を“元の場所”とみなす
+    //   - 先頭に出てしまった(SYNC)カードは、その“元の場所”の直前へ移動する
+    //   - localカード（svb-once-odoa-card-local）がある場合は(SYNC)の直後へ移動する
+    //   - “元の場所”として使っていた最後のカード（=元カード）は display:none で非表示にする
     try {
       if (!box) return;
-      var cards = box.querySelectorAll(".svb-once-odoa-card");
-      if (!cards || cards.length === 0) return;
 
-      var syncCard = cards[0];
-      var title = syncCard.querySelector(".cscs-svb-card-title");
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      var all = body.querySelectorAll(".svb-once-odoa-card");
+      if (!all || all.length === 0) return;
+
+      // ★ 何をしているか:
+      //   localカードは別扱い（ベースクラスに svb-once-odoa-card を含むため除外する）
+      var syncCards = [];
+      for (var i = 0; i < all.length; i++) {
+        var c = all[i];
+        if (c && c.className && String(c.className).indexOf("svb-once-odoa-card-local") >= 0) {
+          continue;
+        }
+        syncCards.push(c);
+      }
+      if (syncCards.length === 0) return;
+
+      // ★ 何をしているか:
+      //   “元の場所”扱いにするカード（= local以外の once/odoa の最後の1枚）
+      var anchorCard = syncCards[syncCards.length - 1];
+
+      // ★ 何をしているか:
+      //   先頭に出てしまっている(SYNC)カード（= local以外の once/odoa の最初の1枚）
+      var syncCard = syncCards[0];
+
+      // ★ 何をしているか:
+      //   見出しは常に "(SYNC)" に正規化する（表記ゆれ吸収）
+      var title = syncCard ? syncCard.querySelector(".cscs-svb-card-title") : null;
       if (title) {
         var base = "OncePerDayToday / O.D.O.A Mode";
         var desired = "OncePerDayToday / O.D.O.A Mode (SYNC)";
-
-        // ★ 何をしているか:
-        //   既存見出しが base を含む限り、最終表記を desired に固定する（完全一致に揃える）
-        //   すでに desired の場合は何もしない
         if (title.textContent && title.textContent.indexOf(base) >= 0) {
           if (title.textContent !== desired) {
             title.textContent = desired;
           }
         }
+      }
+
+      // ★ 何をしているか:
+      //   (SYNC)カードを“元の場所（anchorCard）”の直前へ移動し、
+      //   localカードがある場合は(SYNC)の直後へ移動する。
+      if (syncCard && anchorCard && syncCard !== anchorCard) {
+        body.insertBefore(syncCard, anchorCard);
+
+        var localCard = body.querySelector(".svb-once-odoa-card-local");
+        if (localCard) {
+          if (syncCard.nextSibling) {
+            body.insertBefore(localCard, syncCard.nextSibling);
+          } else {
+            body.appendChild(localCard);
+          }
+        }
+
+        // ★ 何をしているか:
+        //   “元の場所”として利用していた（現在3枚目として出てしまっている）カードは非表示にして、
+        //   二重表示を完全に止める。
+        try {
+          anchorCard.style.display = "none";
+        } catch (_eHide) {}
       }
     } catch (_e) {}
   }
@@ -3767,30 +3846,66 @@
       var body = document.getElementById("cscs_sync_view_b_body");
       if (!body) return;
 
-      // 既存の once/odoa カード（SYNC）を探し、その直後に差し込む
-      var syncCard = body.querySelector(".svb-once-odoa-card");
+      // ★ 何をしているか:
+      //   localカードの差し込み先は「現在の(SYNC)カード直後」に固定する。
+      //   ただし、once/odoa が複数ある場合に先頭を拾うと“ステータス最上段”に刺さってしまうため、
+      //   local以外の once/odoa のうち「最初の1枚（= (SYNC)扱い）」を基準にする。
+      var allCards = body.querySelectorAll(".svb-once-odoa-card");
+      if (!allCards || allCards.length === 0) return;
+
+      var syncCard = null;
+      for (var i = 0; i < allCards.length; i++) {
+        var c = allCards[i];
+        if (c && c.className && String(c.className).indexOf("svb-once-odoa-card-local") >= 0) {
+          continue;
+        }
+        syncCard = c;
+        break;
+      }
       if (!syncCard) return;
 
       // すでに local 用が存在するなら何もしない
       if (body.querySelector(".svb-once-odoa-card-local")) return;
 
       var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide svb-once-odoa-card svb-once-odoa-card-local";
 
+      // ★ 何をしているか:
+      //   既存の (SYNC) OncePerDayToday / O.D.O.A Mode カードと「完全に同じ className」をコピーして、
+      //   local カードにも “同じスタイル（中身含む）” を確実に適用する。
+      //   そのうえで、検索・更新のための識別子として svb-once-odoa-card-local を必ず付与する（重複付与はしない）。
+      var baseClass = (syncCard && typeof syncCard.className === "string") ? syncCard.className : "cscs-svb-card is-wide svb-once-odoa-card";
+      if (baseClass.indexOf("svb-once-odoa-card-local") < 0) {
+        baseClass = baseClass + " svb-once-odoa-card-local";
+      }
+      card.className = baseClass;
+
+      // ★ 何をしているか:
+      //   localカードの「中身DOM」を (SYNC)カードと同じ構造・同じクラス名に寄せる。
+      //   これにより、OncePerDayToday / O.D.O.A Mode 用の既存CSSが local 側にも完全に効く。
       var head = document.createElement("div");
-      head.className = "cscs-svb-card-head";
+      head.className = "svb-once-odoa-head";
 
       var title = document.createElement("div");
       title.className = "cscs-svb-card-title";
       title.textContent = "OncePerDayToday / O.D.O.A Mode (local)";
 
       var btn = document.createElement("button");
-      btn.className = "cscs-svb-mini-btn";
+      btn.className = "svb-once-odoa-toggle";
       btn.type = "button";
-      btn.textContent = "▶︎show";
+      btn.setAttribute("aria-expanded", "true");
 
+      var chev = document.createElement("span");
+      chev.className = "svb-once-odoa-chev";
+      chev.textContent = "▼";
+
+      var btnText = document.createTextNode("hide");
+      btn.appendChild(chev);
+      btn.appendChild(btnText);
+
+      // ★ 何をしているか:
+      //   (SYNC)と同じ「内容コンテナ」を作る（2列×3行 + 単行ODOA）
       var details = document.createElement("div");
-      details.className = "cscs-svb-card-details";
+      details.className = "svb-wide-dual-grid";
 
       var collapsedKey = "cscs_sync_view_b_once_odoa_local_collapsed";
       var isCollapsed = false;
@@ -3801,12 +3916,20 @@
       }
 
       function applyCollapsed() {
+        // ★ 何をしているか:
+        //   (SYNC)と同じ「▼/▶︎ + hide/show + aria-expanded」を再現する
         if (isCollapsed) {
           details.style.display = "none";
-          btn.textContent = "▶︎show";
+          btn.setAttribute("aria-expanded", "false");
+          chev.textContent = "▶︎";
+          while (btn.childNodes.length > 1) btn.removeChild(btn.lastChild);
+          btn.appendChild(document.createTextNode("show"));
         } else {
           details.style.display = "";
-          btn.textContent = "▼hide";
+          btn.setAttribute("aria-expanded", "true");
+          chev.textContent = "▼";
+          while (btn.childNodes.length > 1) btn.removeChild(btn.lastChild);
+          btn.appendChild(document.createTextNode("hide"));
         }
       }
 
@@ -3821,36 +3944,36 @@
         applyCollapsed();
       });
 
-      // グリッド（2列）
-      var grid = document.createElement("div");
-      grid.className = "cscs-svb-grid2";
-
-      function addRow(labelText, valueText) {
-        var l = document.createElement("div");
-        l.className = "cscs-svb-grid2-label";
-        l.textContent = labelText;
-
-        var v = document.createElement("div");
-        v.className = "cscs-svb-grid2-value";
-        v.textContent = valueText;
-
-        grid.appendChild(l);
-        grid.appendChild(v);
+      // ★ 何をしているか:
+      //   (SYNC)と同じセルクラスで「表示行」を作る（後で refreshLocalOnceOdoaCard() がこの行テキストを上書きする）
+      function makeCell(text, className) {
+        var d = document.createElement("div");
+        d.className = className;
+        d.textContent = text;
+        return d;
       }
 
-      addRow("oncePerDayToday", "-");
-      addRow("Today", "-");
-      addRow("qid", "-");
-      addRow("count対象", "-");
-      addRow("記録", "-");
-      addRow("ODOA", "-");
+      // 2列×3行（SYNC同型）
+      details.appendChild(makeCell("oncePerDayToday   -", "svb-wide-dual-cell svb-wide-dual-strong"));
+      details.appendChild(makeCell("計測: - ｜結果: -", "svb-wide-dual-cell is-right"));
 
-      details.appendChild(grid);
+      details.appendChild(makeCell("Today             -", "svb-wide-dual-cell"));
+      details.appendChild(makeCell("qid: -", "svb-wide-dual-cell is-right"));
+
+      details.appendChild(makeCell("count対象         -", "svb-wide-dual-cell"));
+      details.appendChild(makeCell("記録: -", "svb-wide-dual-cell is-right"));
+
+      // ODOA（単行SYNC同型）
+      var odoaLine = makeCell("ODOA              -", "svb-wide-single");
+      details.appendChild(odoaLine);
 
       head.appendChild(title);
       head.appendChild(btn);
 
       card.appendChild(head);
+
+      // ★ 何をしているか:
+      //   (SYNC)は head の下に grid 本体が直で来ているため、local も同じ並びにする
       card.appendChild(details);
 
       // SYNCカードの直後に挿入
@@ -3926,16 +4049,37 @@
         onceOdoaLabel = String(odoaModeText);
       }
 
-      // grid の 2列を先頭から順に上書き
-      var values = card.querySelectorAll(".cscs-svb-grid2-value");
-      if (!values || values.length < 6) return;
+      // ★ 何をしているか:
+      //   local専用カードの「SYNC同型DOM（svb-wide-dual-grid）」を前提に、
+      //   行単位（左セル/右セル + 最下段 single）でテキストを上書き更新する
+      var grid = card.querySelector(".svb-wide-dual-grid");
+      if (!grid) return;
 
-      values[0].textContent = onceStateLabel;
-      values[1].textContent = onceTodayDateLabel;
-      values[2].textContent = onceQidLabel;
-      values[3].textContent = onceCountableLabel;
-      values[4].textContent = onceRecordLabel;
-      values[5].textContent = onceOdoaLabel;
+      var dualCells = grid.querySelectorAll(".svb-wide-dual-cell");
+      var singleCell = grid.querySelector(".svb-wide-single");
+
+      // ★ 何をしているか:
+      //   必要なセル数（dual: 6セル = 3行×2列、single: 1セル）を満たさない場合は更新しない
+      if (!dualCells || dualCells.length < 6) return;
+      if (!singleCell) return;
+
+      // ★ 何をしているか:
+      //   SYNCカードと同じ表示並びで、local由来の内容を行単位で反映する
+      //   0: oncePerDayToday（左） / 1: 計測＋結果（右）
+      dualCells[0].textContent = "oncePerDayToday   " + onceStateLabel;
+      dualCells[1].textContent = "計測: " + ((onceRecordLabel !== "-") ? "OK" : "NG") + " ｜結果: " + onceRecordLabel;
+
+      //   2: Today（左） / 3: qid（右）
+      dualCells[2].textContent = "Today             " + onceTodayDateLabel;
+      dualCells[3].textContent = "qid: " + onceQidLabel;
+
+      //   4: count対象（左） / 5: 記録（右）
+      dualCells[4].textContent = "count対象         " + onceCountableLabel;
+      dualCells[5].textContent = "記録: " + onceRecordLabel;
+
+      // ★ 何をしているか:
+      //   最下段の single 行（ODOA）を更新する
+      singleCell.textContent = "ODOA              " + onceOdoaLabel;
 
     } catch (_e) {}
   }
@@ -3943,6 +4087,33 @@
   function init() {
     // ★ パネル生成より先にCSSを注入（初回表示から確実に適用）
     ensureSyncViewBStyles();
+
+    // ★ 何をしているか:
+    //   リロード直後に OncePerDayToday / O.D.O.A Mode が「一瞬だけ最上段に出る」チラつきを防ぐため、
+    //   once/odoa 系カードを一旦 visibility:hidden にしておく（移動・整理が終わったら解除する）
+    function ensureOnceOdoaNoFlashStyle() {
+      try {
+        var id = "cscs_sync_view_b_once_odoa_no_flash";
+        if (document.getElementById(id)) return;
+        var st = document.createElement("style");
+        st.id = id;
+        st.type = "text/css";
+        st.textContent =
+          "#cscs_sync_view_b_status .svb-once-odoa-card{display:none !important;}" +
+          "#cscs_sync_view_b_status .svb-once-odoa-card-local{display:none !important;}";
+        document.head.appendChild(st);
+      } catch (_e) {}
+    }
+
+    function clearOnceOdoaNoFlashStyle() {
+      try {
+        var id = "cscs_sync_view_b_once_odoa_no_flash";
+        var st = document.getElementById(id);
+        if (st && st.parentNode) st.parentNode.removeChild(st);
+      } catch (_e) {}
+    }
+
+    ensureOnceOdoaNoFlashStyle();
 
     var box = createPanel();
 
@@ -3962,6 +4133,14 @@
       //   既存(SYNC)カードの見出しを "(SYNC)" にし、直下に local専用カードを追加する
       ensureOnceOdoaWideTitles(box);
       ensureLocalOnceOdoaWideCard(box);
+
+      // ★ 何をしているか:
+      //   once/odoa 系カードの移動・整理が完了したので、チラつき防止の非表示を解除する
+      try {
+        var id = "cscs_sync_view_b_once_odoa_no_flash";
+        var st = document.getElementById(id);
+        if (st && st.parentNode) st.parentNode.removeChild(st);
+      } catch (_eNF) {}
 
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {

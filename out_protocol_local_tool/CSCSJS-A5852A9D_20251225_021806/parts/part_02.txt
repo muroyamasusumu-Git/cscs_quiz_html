@@ -1,13 +1,44 @@
 <<<PART_BEGIN>>>
 【分割コード(2)の開始】
-PartID: CSCSJS-9BD39A76-P02-of-04
-PartSHA256: 09cc6c3ed2254e5b7e3c0247363283e9b20c436fb2708955d4fa0273e705d68c
-Range: chars 37482..82328 (len=44846)
-FirstLine:         makeTodayCard(
-LastLine:         } else {
+PartID: CSCSJS-A5852A9D-P02-of-04
+PartSHA256: a8504262b9621c79c96918f46d6c83c2250a3a9c2f1d9377bb2f6de1fd61493e
+Range: chars 37325..82129 (len=44804)
+FirstLine: 
+LastLine:         var odoaIsOn = (odoaLower === "on");
 EndNewline: YES
 
 ```javascript
+
+    // --- Today Unique（左右2列：左=Streak3TodayUnique / 右=Streak3WrongTodayUq） ---
+    (function appendTodayUniquePair() {
+      var pair = document.createElement("div");
+      pair.className = "svb-streak-quad";
+
+      function makeTodayCard(titleText, dayLabel, syncCnt, localCnt) {
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-streak-card";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(grid, "day", String(dayLabel));
+        appendGridRow(
+          grid,
+          "unique",
+          "sync " + String(syncCnt) + " / local " + String(localCnt)
+        );
+
+        card.appendChild(h);
+        card.appendChild(grid);
+        return card;
+      }
+
+      // 左：Streak3TodayUnique
+      pair.appendChild(
         makeTodayCard(
           "Streak3TodayUnique",
           model.s3TodayDayLabel,
@@ -1178,37 +1209,6 @@ EndNewline: YES
         //   "on"/"off" 以外は未知扱いにせず OFF に寄せる（参照元は変えない）
         var odoaIsOn = (odoaLower === "on");
 
-        // --- 何をしているか:
-        //   count対象は「計測済」「VERIFY」「ODOA」で No、それ以外のみ Yes
-        if (alreadyCounted) {
-          onceCountableLabel = "No（計測済）";
-        } else if (verifyModeOn) {
-          onceCountableLabel = "No（ガード）";
-        } else if (odoaIsOn) {
-          onceCountableLabel = "No（ガード）";
-        } else {
-          onceCountableLabel = "Yes（未計測）";
-        }
-
-        // --- 何をしているか:
-        //   ODOA行の末尾ステータスは「oncePerDayToday の結果」だけを採用（フォールバックしない）
-        var odoaResultSuffix = "nocount";
-        if (serverOnceVal === "correct") {
-          odoaResultSuffix = "Correct";
-        } else if (serverOnceVal === "wrong") {
-          odoaResultSuffix = "Wrong";
-        }
-
-        // --- 何をしているか:
-        //   VERIFY/ODOA は累計加算 No として表示する（ガード理由の明示）
-        var addNo = false;
-        if (verifyModeOn) addNo = true;
-        if (odoaIsOn) addNo = true;
-
-        if (odoaIsOn) {
-          onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
-        } else {
-
 ```
 <<<PART_END>>>
 【RECEIPT_INPUT（このメッセージ内だけを真とする）】
@@ -1216,8 +1216,8 @@ EXPECTED_TOTAL: 4
 RECEIVED_TOTAL: 2
 
 CUMULATIVE_RECEIVED_PARTIDS:
-- CSCSJS-9BD39A76-P01-of-04
-- CSCSJS-9BD39A76-P02-of-04
+- CSCSJS-A5852A9D-P01-of-04
+- CSCSJS-A5852A9D-P02-of-04
 
 【ChatGPTへの強制ルール】
 ・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
