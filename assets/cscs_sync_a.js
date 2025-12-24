@@ -3618,8 +3618,8 @@
     font-size: 9px;
     font-weight: 800;
     opacity: 0.7;
+    text-shadow: none !impotant;
 }
-
 /* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
    once-grid の子要素は 8個（label/val ×4行）
    3行目は 5番目(label) と 6番目(val) */

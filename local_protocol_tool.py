@@ -1113,14 +1113,14 @@ HTML_PAGE = r"""<!doctype html>
       font-size: 15px; /* 全体の基準文字サイズを少し上げて読みやすくする */
       line-height: 1.65; /* 行間を広げて可読性を上げる */
       letter-spacing: 0.01em; /* わずかに字間を広げて読みやすくする */
-      margin: 16px;
+      margin: 16px 20px;
       background: radial-gradient(1200px 600px at 30% -10%, #111827 0%, var(--bg) 55%);
       color: var(--text);
     }
 
     h2 {
       margin: 6px 0 10px;
-      font-size: 20px; /* 見出しとして視認性を上げる */
+      font-size: 24px; /* 見出しとして視認性を上げる */
       line-height: 1.25; /* 見出しの詰まりを防ぐ */
       letter-spacing: 0.02em; /* 見出しは少し字間を広げる */
       text-align: center;
@@ -1131,7 +1131,7 @@ HTML_PAGE = r"""<!doctype html>
     .card {
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 12px;
+      padding: 12px 15px;
       margin: 12px 0;
 
       /* 各 card ごとの色味調整用（デフォルト） */
