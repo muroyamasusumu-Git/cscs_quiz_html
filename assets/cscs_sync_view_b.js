@@ -3775,7 +3775,16 @@
       if (body.querySelector(".svb-once-odoa-card-local")) return;
 
       var card = document.createElement("div");
-      card.className = "cscs-svb-card is-wide svb-once-odoa-card svb-once-odoa-card-local";
+
+      // ★ 何をしているか:
+      //   既存の (SYNC) OncePerDayToday / O.D.O.A Mode カードと「完全に同じ className」をコピーして、
+      //   local カードにも “同じスタイル（中身含む）” を確実に適用する。
+      //   そのうえで、検索・更新のための識別子として svb-once-odoa-card-local を必ず付与する（重複付与はしない）。
+      var baseClass = (syncCard && typeof syncCard.className === "string") ? syncCard.className : "cscs-svb-card is-wide svb-once-odoa-card";
+      if (baseClass.indexOf("svb-once-odoa-card-local") < 0) {
+        baseClass = baseClass + " svb-once-odoa-card-local";
+      }
+      card.className = baseClass;
 
       var head = document.createElement("div");
       head.className = "cscs-svb-card-head";

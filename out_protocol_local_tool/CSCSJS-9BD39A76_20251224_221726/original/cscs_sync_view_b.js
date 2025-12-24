@@ -3614,6 +3614,20 @@
           pending: pending
         });
 
+        // ★ 何をしているか:
+        //   renderPanel() により OncePerDayToday / O.D.O.A Mode（SYNC）カードがDOMに生成された「直後」に、
+        //   見出しの "(SYNC)" 付与と、直下への "(local)" カードの追加を確実に実行する
+        ensureOnceOdoaWideTitles(box);
+        ensureLocalOnceOdoaWideCard(box);
+
+        // ★ 何をしているか:
+        //   localStorage 由来の OncePerDayToday / O.D.O.A Mode を「local専用カード」に反映する
+        //   （SYNCカードとは独立した表示。diff送信の有無に関係なく、毎回更新する）
+        refreshLocalOnceOdoaCard(box, {
+          qid: info.qid,
+          odoaModeText: odoaModeText
+        });
+
         // ★ suppressDiffSend===true の場合は diff の POST を完全に止め、
         //    HUD 表示のみ更新した状態で終了する（手動 streak3Today テスト用）
         if (suppressDiffSend) {
@@ -3706,7 +3720,224 @@
           odoaModeText: odoaModeText,
           odoaStatusText: odoaStatusTextForPanelStateError
         });
+
+        // ★ 何をしているか:
+        //   state取得失敗でも OncePerDayToday / O.D.O.A Mode カード自体は renderPanel() で生成されるため、
+        //   見出し "(SYNC)" と "(local)" カード追加はここでも確実に実行する
+        ensureOnceOdoaWideTitles(box);
+        ensureLocalOnceOdoaWideCard(box);
+
       });
+  }
+
+  function ensureOnceOdoaWideTitles(box) {
+    // ★ 何をしているか:
+    //   既存の（SYNC由来）OncePerDayToday / O.D.O.A Mode ワイドカードの見出しを
+    //   必ず "OncePerDayToday / O.D.O.A Mode (SYNC)" の表記に揃える（既存表記ゆれ吸収・二重付与防止）
+    //   既存カードは class="svb-once-odoa-card" を持つ前提で、そのうち先頭を SYNC 扱いにする
+    try {
+      if (!box) return;
+      var cards = box.querySelectorAll(".svb-once-odoa-card");
+      if (!cards || cards.length === 0) return;
+
+      var syncCard = cards[0];
+      var title = syncCard.querySelector(".cscs-svb-card-title");
+      if (title) {
+        var base = "OncePerDayToday / O.D.O.A Mode";
+        var desired = "OncePerDayToday / O.D.O.A Mode (SYNC)";
+
+        // ★ 何をしているか:
+        //   既存見出しが base を含む限り、最終表記を desired に固定する（完全一致に揃える）
+        //   すでに desired の場合は何もしない
+        if (title.textContent && title.textContent.indexOf(base) >= 0) {
+          if (title.textContent !== desired) {
+            title.textContent = desired;
+          }
+        }
+      }
+    } catch (_e) {}
+  }
+
+  function ensureLocalOnceOdoaWideCard(box) {
+    // ★ 何をしているか:
+    //   SYNCカードの直下に、localStorage由来の値だけを表示する「local専用ワイドカード」を1枚作る（重複作成しない）
+    try {
+      if (!box) return;
+
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      // 既存の once/odoa カード（SYNC）を探し、その直後に差し込む
+      var syncCard = body.querySelector(".svb-once-odoa-card");
+      if (!syncCard) return;
+
+      // すでに local 用が存在するなら何もしない
+      if (body.querySelector(".svb-once-odoa-card-local")) return;
+
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide svb-once-odoa-card svb-once-odoa-card-local";
+
+      var head = document.createElement("div");
+      head.className = "cscs-svb-card-head";
+
+      var title = document.createElement("div");
+      title.className = "cscs-svb-card-title";
+      title.textContent = "OncePerDayToday / O.D.O.A Mode (local)";
+
+      var btn = document.createElement("button");
+      btn.className = "cscs-svb-mini-btn";
+      btn.type = "button";
+      btn.textContent = "▶︎show";
+
+      var details = document.createElement("div");
+      details.className = "cscs-svb-card-details";
+
+      var collapsedKey = "cscs_sync_view_b_once_odoa_local_collapsed";
+      var isCollapsed = false;
+      try {
+        isCollapsed = (localStorage.getItem(collapsedKey) === "1");
+      } catch (_e0) {
+        isCollapsed = false;
+      }
+
+      function applyCollapsed() {
+        if (isCollapsed) {
+          details.style.display = "none";
+          btn.textContent = "▶︎show";
+        } else {
+          details.style.display = "";
+          btn.textContent = "▼hide";
+        }
+      }
+
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        isCollapsed = !isCollapsed;
+        try {
+          localStorage.setItem(collapsedKey, isCollapsed ? "1" : "0");
+        } catch (_e1) {}
+        applyCollapsed();
+      });
+
+      // グリッド（2列）
+      var grid = document.createElement("div");
+      grid.className = "cscs-svb-grid2";
+
+      function addRow(labelText, valueText) {
+        var l = document.createElement("div");
+        l.className = "cscs-svb-grid2-label";
+        l.textContent = labelText;
+
+        var v = document.createElement("div");
+        v.className = "cscs-svb-grid2-value";
+        v.textContent = valueText;
+
+        grid.appendChild(l);
+        grid.appendChild(v);
+      }
+
+      addRow("oncePerDayToday", "-");
+      addRow("Today", "-");
+      addRow("qid", "-");
+      addRow("count対象", "-");
+      addRow("記録", "-");
+      addRow("ODOA", "-");
+
+      details.appendChild(grid);
+
+      head.appendChild(title);
+      head.appendChild(btn);
+
+      card.appendChild(head);
+      card.appendChild(details);
+
+      // SYNCカードの直後に挿入
+      if (syncCard.nextSibling) {
+        body.insertBefore(card, syncCard.nextSibling);
+      } else {
+        body.appendChild(card);
+      }
+
+      applyCollapsed();
+    } catch (_e) {}
+  }
+
+  function refreshLocalOnceOdoaCard(box, params) {
+    // ★ 何をしているか:
+    //   local専用カードの行テキストを、localStorage由来の値だけで更新する
+    try {
+      if (!box) return;
+
+      var body = document.getElementById("cscs_sync_view_b_body");
+      if (!body) return;
+
+      var card = body.querySelector(".svb-once-odoa-card-local");
+      if (!card) return;
+
+      var qid = (params && typeof params.qid === "string") ? params.qid : "";
+      var odoaModeText = (params && typeof params.odoaModeText === "string") ? params.odoaModeText : "OFF";
+
+      // local oncePerDayToday を読む（既存ヘルパーがあればそれを優先）
+      var localOnceDay = null;
+      var localOnceVal = null;
+
+      try {
+        if (typeof readOncePerDayTodayFromLocal === "function") {
+          var localOnce = readOncePerDayTodayFromLocal();
+          if (localOnce && typeof localOnce.day === "number") {
+            localOnceDay = localOnce.day;
+          }
+          if (localOnce && localOnce.results && typeof localOnce.results === "object" && qid) {
+            if (Object.prototype.hasOwnProperty.call(localOnce.results, qid)) {
+              localOnceVal = localOnce.results[qid];
+            }
+          }
+        }
+      } catch (_eOnce) {
+        localOnceDay = null;
+        localOnceVal = null;
+      }
+
+      function fmtDay8ToDateText(dayNum) {
+        if (typeof dayNum !== "number" || !Number.isFinite(dayNum) || dayNum <= 0) return "-";
+        var s = String(dayNum);
+        if (s.length !== 8) return s;
+        return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8);
+      }
+
+      var onceStateLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "計測済" : "未開始";
+      var onceTodayDateLabel = (localOnceDay != null) ? fmtDay8ToDateText(localOnceDay) : "-";
+      var onceQidLabel = qid || "-";
+      var onceCountableLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "No（計測済）" : "Yes（未計測）";
+      var onceRecordLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? String(localOnceVal) : "-";
+
+      var onceOdoaLabel = "-";
+      if (odoaModeText === "ON") {
+        if (onceRecordLabel !== "-") {
+          onceOdoaLabel = "ON（累計加算: No）  " + onceRecordLabel;
+        } else {
+          onceOdoaLabel = "ON（累計加算: No）";
+        }
+      } else if (odoaModeText === "OFF") {
+        onceOdoaLabel = "OFF（累計加算: Yes）";
+      } else {
+        onceOdoaLabel = String(odoaModeText);
+      }
+
+      // grid の 2列を先頭から順に上書き
+      var values = card.querySelectorAll(".cscs-svb-grid2-value");
+      if (!values || values.length < 6) return;
+
+      values[0].textContent = onceStateLabel;
+      values[1].textContent = onceTodayDateLabel;
+      values[2].textContent = onceQidLabel;
+      values[3].textContent = onceCountableLabel;
+      values[4].textContent = onceRecordLabel;
+      values[5].textContent = onceOdoaLabel;
+
+    } catch (_e) {}
   }
 
   function init() {
@@ -3726,6 +3957,12 @@
           document.body.appendChild(box);
         }
       }
+
+      // ★ 何をしているか:
+      //   既存(SYNC)カードの見出しを "(SYNC)" にし、直下に local専用カードを追加する
+      ensureOnceOdoaWideTitles(box);
+      ensureLocalOnceOdoaWideCard(box);
+
       var btn = document.getElementById("cscs_sync_view_b_send_btn");
       if (btn) {
         btn.addEventListener("click", function (ev) {
