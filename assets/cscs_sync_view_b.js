@@ -966,9 +966,27 @@
     var body = document.getElementById("cscs_sync_view_b_body");
     if (!body) return null;
 
-    while (body.firstChild) {
-      body.removeChild(body.firstChild);
+    // ★ 何をしているか:
+    //   リロード時の再描画で body を全消しすると localカードが一瞬消える（ちらつく）ため、
+    //   ".svb-once-odoa-card-local" だけは DOM 上に残し、それ以外の子要素のみ削除する。
+    var keepLocal = null;
+    try {
+      keepLocal = body.querySelector(".svb-once-odoa-card-local");
+    } catch (_eKeep) {
+      keepLocal = null;
     }
+
+    var node = body.firstChild;
+    while (node) {
+      var next = node.nextSibling;
+      if (keepLocal && node === keepLocal) {
+        node = next;
+        continue;
+      }
+      body.removeChild(node);
+      node = next;
+    }
+
     return body;
   }
 
