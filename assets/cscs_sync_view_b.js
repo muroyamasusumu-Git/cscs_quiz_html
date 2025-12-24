@@ -967,22 +967,35 @@
     if (!body) return null;
 
     // ★ 何をしているか:
-    //   リロード時の再描画で body を全消しすると localカードが一瞬消える（ちらつく）ため、
-    //   ".svb-once-odoa-card-local" だけは DOM 上に残し、それ以外の子要素のみ削除する。
+    //   リロード時の再描画で body を全消しすると Once/ODOA の2枚（SYNC/local）が一瞬消える（ちらつく）ため、
+    //   ".svb-once-odoa-card"（先頭=SYNC想定）と ".svb-once-odoa-card-local" の2枚だけは DOM 上に残し、
+    //   それ以外の子要素のみ削除する。
+    var keepSync = null;
     var keepLocal = null;
     try {
+      var cards = body.querySelectorAll(".svb-once-odoa-card");
+      if (cards && cards.length > 0) {
+        keepSync = cards[0];
+      }
       keepLocal = body.querySelector(".svb-once-odoa-card-local");
     } catch (_eKeep) {
+      keepSync = null;
       keepLocal = null;
     }
 
     var node = body.firstChild;
     while (node) {
       var next = node.nextSibling;
+
+      if (keepSync && node === keepSync) {
+        node = next;
+        continue;
+      }
       if (keepLocal && node === keepLocal) {
         node = next;
         continue;
       }
+
       body.removeChild(node);
       node = next;
     }
