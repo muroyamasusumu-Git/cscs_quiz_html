@@ -535,6 +535,10 @@
     "  justify-self: center;",
     "}",
     "",
+    "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
+    "#cscs_sync_view_b_status {",
+    "  display: none !important;",
+    "}",
     "/* --- SYNC send button (manual) --- */",
     "#cscs_sync_view_b_send_btn {",
     "  margin-top: 6px;",
@@ -2513,31 +2517,70 @@
         localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel
       });
 
-      // ★ 何をしているか:
-      //   OncePerDayToday / O.D.O.A Mode は “body 専用” に一本化するため、
-      //   #cscs_sync_view_b_status（最上段）には once/odoa を一切「生成しない／挿入しない」。
-      //   念のため、過去DOMが status 配下に残っていたら「掃除」として削除する（保険フォールバックではない）。
-      (function clearOnceOdoaFromStatusOnly() {
-        var statusDiv = document.getElementById("cscs_sync_view_b_status");
-        if (!statusDiv) return;
+      // ★ ここから O.D.O.A Mode 表示専用ロジック
 
-        // ① 何をしているか: status のテキスト表示を必ず空にする（once/odoa 表示を根絶）
-        if (statusDiv.textContent !== "") {
-          statusDiv.textContent = "";
+      // デフォルトは OFF とし、/api/sync/state の otoa_mode を参照して上書き
+      var odoaModeText = "OFF";
+      try {
+        var state = window.__cscs_sync_state || null;
+        var rawMode = null;
+
+        // 1) payload 経由の odoaModeText があれば優先
+        if (payload && typeof payload.odoaModeText === "string" && payload.odoaModeText) {
+          rawMode = payload.odoaModeText;
+        } else if (state && typeof state.odoa_mode === "string") {
+          // 2) SYNC state のトップレベルキー odoa_mode
+          rawMode = state.odoa_mode;
         }
 
-        // ② 何をしているか: もし status 配下に once/odoa カードDOMが残っていたら削除する（掃除）
-        try {
-          var bad = statusDiv.querySelectorAll(".svb-once-odoa-card, .svb-once-odoa-card-local");
-          if (bad && bad.length > 0) {
-            for (var i = 0; i < bad.length; i++) {
-              if (bad[i] && bad[i].parentNode) {
-                bad[i].parentNode.removeChild(bad[i]);
-              }
-            }
-          }
-        } catch (_eClearStatus) {}
-      })();
+        if (rawMode === "ON" || rawMode === "on") {
+          odoaModeText = "ON";
+        } else if (rawMode === "OFF" || rawMode === "off") {
+          odoaModeText = "OFF";
+        } else if (rawMode === "on ") {
+          odoaModeText = "ON";
+        }
+      } catch (_ignore) {
+        odoaModeText = "OFF";
+      }
+
+      // ★ パネルに出す最終文字列（「O.D.O.A Mode : ON correct」など）
+      //   - payload.odoaStatusText が "__keep__" のときは前回表示を維持
+      //   - それ以外の文字列のときはその文字列で更新
+      //   - 空や未指定のときはモードからデフォルト文字列を組み立てる
+      var odoaStatusText = "";
+      var rawStatusFromPayload = "";
+      if (payload && typeof payload.odoaStatusText === "string") {
+        rawStatusFromPayload = payload.odoaStatusText;
+      }
+
+      if (rawStatusFromPayload === "__keep__") {
+        // 前回の HUD 表示をそのまま使う
+        if (LAST_ODOA_STATUS) {
+          odoaStatusText = LAST_ODOA_STATUS;
+          console.log("[SYNC-B] ODOA HUD status kept as-is:", odoaStatusText);
+        } else {
+          // まだ一度も表示していない場合はモードから初期値を作る
+          odoaStatusText = "O.D.O.A Mode : " + odoaModeText;
+          LAST_ODOA_STATUS = odoaStatusText;
+          console.log("[SYNC-B] ODOA HUD status initialized (no previous):", odoaStatusText);
+        }
+      } else if (rawStatusFromPayload) {
+        // 新しいステータス文字列に更新
+        odoaStatusText = rawStatusFromPayload;
+        LAST_ODOA_STATUS = odoaStatusText;
+        console.log("[SYNC-B] ODOA HUD status updated from payload:", odoaStatusText);
+      } else {
+        // 明示指定なし → モードからデフォルトを生成して保存
+        odoaStatusText = "O.D.O.A Mode : " + odoaModeText;
+        LAST_ODOA_STATUS = odoaStatusText;
+        console.log("[SYNC-B] ODOA HUD status set from mode:", odoaStatusText);
+      }
+
+      var statusDiv = document.getElementById("cscs_sync_view_b_status");
+      if (statusDiv) {
+        statusDiv.textContent = odoaStatusText;
+      }
 
       // 内部用の statusText はログとして残すだけ
       if (statusText) {

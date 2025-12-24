@@ -1611,7 +1611,7 @@ HTML_PAGE = r"""<!doctype html>
     
     /* extract結果表示専用：長文なのでスクロール可＋高さを確保 */
     textarea#extractPreview {
-      min-height: 340px;
+      min-height: 500px;
       overflow: auto;
       resize: vertical;
     }
@@ -1751,6 +1751,15 @@ HTML_PAGE = r"""<!doctype html>
             <input id="extractSessionId" value="" placeholder="例: CSCSJS-1A2B3C4D" />
           </div>
 
+          <!-- 追加した処理: CODE_ONLY を SESSION_ID の隣に移動し、抽出実行前に“表示モード”を並べて確認できるようにする -->
+          <div class="advItem extractNarrow">
+            <div class="muted">CODE_ONLY（厳格 / 抽出コード以外を表示しない）</div>
+            <label class="splitModePick" style="height: 44px; padding:6px 13px; margin-bottom: 4px;">
+              <input id="extractCodeOnly" type="checkbox" />
+              <span>ON</span>
+            </label>
+          </div>
+
           <!-- 追加した処理: split直後の instruction 原文（EXEC_TASK）を保持し、extractヘッダへ必ず出すための入力欄 -->
           <div class="advItem extractWide" style="grid-column: 1 / -1;">
             <div class="muted">EXEC_TASK（split直後に自動入力 / 手入力・コピペ可）</div>
@@ -1821,7 +1830,14 @@ HTML_PAGE = r"""<!doctype html>
 
   <!-- Extract（抽出）モード用：抽出結果専用 -->
   <div class="card" id="extractResultCard" style="display:none;">
-    <div class="muted sectionTitle">抽出結果（extract）</div>
+    <!-- 追加した処理: 抽出結果も split と同様に「ALL: OFF/ON」で全文/一部表示を切替できるようにする -->
+    <div class="partHeader" style="justify-content:space-between; gap:10px;">
+      <div class="muted sectionTitle" style="margin-bottom:0;">抽出結果（extract）</div>
+      <div class="row" style="align-items:center; margin:0;">
+        <button id="toggleExtractAll" disabled>ALL: OFF</button>
+      </div>
+    </div>
+
     <div class="muted" style="margin-top:6px;">※ ここに <<<EXTRACT_BEGIN>>> から全部出ます（そのままコピペ用途）</div>
     <textarea id="extractPreview" readonly placeholder="(まだ抽出していません)"></textarea>
 
@@ -1886,8 +1902,12 @@ HTML_PAGE = r"""<!doctype html>
         extractDepends: String(($("extractDepends") && $("extractDepends").value) || ""),
         extractContextLines: Number(($("extractContextLines") && $("extractContextLines").value) || 25),
         extractMaxMatches: Number(($("extractMaxMatches") && $("extractMaxMatches").value) || 50),
+        /* 追加した処理: 「コードのみ（厳格）」スイッチもUI状態として保存し、毎回の操作ブレを防ぐ */
+        extractCodeOnly: !!(($("extractCodeOnly") && $("extractCodeOnly").checked) ? true : false),
         currentIndex: Number(currentIndex || 0),
         previewAllOn: !!previewAllOn,
+        /* 追加した処理: extract結果の全文表示/一部表示（ALL: OFF/ON）状態も保存する */
+        extractPreviewAllOn: !!extractPreviewAllOn,
       };
       localStorage.setItem(UI_STATE_KEY, JSON.stringify(s));
     } catch (e) {}
@@ -1957,8 +1977,18 @@ HTML_PAGE = r"""<!doctype html>
       if (isFinite(v) && v > 0) $("extractMaxMatches").value = String(v);
     }
 
+    /* 追加した処理: 「コードのみ（厳格）」スイッチも復元する（ON/OFFを保持） */
+    if ($("extractCodeOnly") && typeof s.extractCodeOnly === "boolean") {
+      $("extractCodeOnly").checked = !!s.extractCodeOnly;
+    }
+
     if (typeof s.previewAllOn === "boolean") {
       previewAllOn = s.previewAllOn;
+    }
+
+    /* 追加した処理: extract結果の全文表示/一部表示（ALL: OFF/ON）状態も復元する */
+    if (typeof s.extractPreviewAllOn === "boolean") {
+      extractPreviewAllOn = s.extractPreviewAllOn;
     }
 
     if (typeof s.uiMode === "string" && s.uiMode) {
@@ -2038,8 +2068,86 @@ HTML_PAGE = r"""<!doctype html>
 
   let previewAllOn = false;
 
+  /* 追加した処理: extract結果は常に全文表示にする（折りたたみ無し） */
+  let extractPreviewAllOn = true;
+
   /* extract結果（<<<EXTRACT_BEGIN>>>..<<<EXTRACT_END>>>）を保持してコピーできるようにする */
   let lastExtractText = "";
+
+  /* extract表示の折りたたみ上限（先頭何行まで見せるか） */
+  const EXTRACT_PREVIEW_HEAD_MAX_LINES = 18;
+
+  /* extract表示の折りたたみ上限（行数で切った後の保険：文字数） */
+  const EXTRACT_PREVIEW_HEAD_MAX_CHARS = 1800;
+
+  function buildExtractPreviewText(fullText) {
+    /*
+     * 何をしているか:
+     *   - extract結果は常に全文表示に固定する（折りたたみ無し）。
+     *   - 既存の ALL: OFF/ON ロジックは保持していても表示は常に全文になる。
+     */
+    const s = String(fullText || "");
+    return s;
+  }
+
+  function updateToggleExtractAllButton() {
+    const btn = $("toggleExtractAll");
+    if (!btn) return;
+
+    /*
+     * 何をしているか:
+     *   - extract結果は常に全文表示に固定するため、ALL切替ボタンは常に無効化する。
+     *   - ただし「コピー」「リセット」は抽出結果がある時だけ押せるように維持する。
+     */
+    const ta = $("extractPreview");
+    const hasLast = (String(lastExtractText || "").length > 0);
+    const hasTA = !!(ta && String(ta.value || "").trim() !== "");
+
+    const enabled = (hasLast || hasTA);
+
+    /* ALL 切替は使わない（常に全文表示） */
+    btn.disabled = true;
+    btn.textContent = "ALL: ON";
+
+    /* extractPreviewAllOn も常に true に寄せる（UI状態復元で false になっても戻す） */
+    extractPreviewAllOn = true;
+
+    /* 追加した処理: extract結果がある時だけ Copy/Reset も押せるようにする */
+    const btnCopy = $("copyExtract");
+    if (btnCopy) btnCopy.disabled = !enabled;
+
+    const btnReset = $("resetExtract");
+    if (btnReset) btnReset.disabled = !enabled;
+  }
+
+  function renderExtractPreview() {
+    const ta = $("extractPreview");
+    if (!ta) return;
+
+    /* 追加した処理: extract結果の表示は「全文 or 先頭のみ」を buildExtractPreviewText で統一する */
+    ta.value = buildExtractPreviewText(lastExtractText);
+
+    updateToggleExtractAllButton();
+  }
+
+  /* 追加した処理: extract結果カードの ALL: OFF/ON ボタンを動作させる */
+  (function(){
+    const btn = $("toggleExtractAll");
+    if (!btn) return;
+
+    btn.onclick = () => {
+      /*
+       * 何をしているか:
+       *   - extractPreviewAllOn を反転
+       *   - textarea 表示を再描画
+       *   - UI状態を保存
+       */
+      extractPreviewAllOn = !extractPreviewAllOn;
+      renderExtractPreview();
+      saveUiState();
+      setStatus("extract：ALL 表示を切替（" + (extractPreviewAllOn ? "ON" : "OFF") + "）");
+    };
+  })();
   
   window.__uiMode = "split";
 
@@ -2204,7 +2312,18 @@ HTML_PAGE = r"""<!doctype html>
     const btn = $("toggleAll");
     if (!btn) return;
 
-    const enabled = !!(result && result.parts && result.parts.length > 0);
+    /*
+     * 何をしているか:
+     *   - Split結果があるか（result.parts）に加えて、
+     *     現在プレビューに表示している文字列が空でないかも判定に含める。
+     *   - result の参照タイミングや render の順序がズレても、
+     *     「表示が出ているなら ALL は押せる」を保証する。
+     */
+    const pre = $("preview");
+    const hasResult = !!(result && result.parts && result.parts.length > 0);
+    const hasPreviewText = !!(pre && String(pre.textContent || "").trim() !== "");
+
+    const enabled = (hasResult || hasPreviewText);
     btn.disabled = !enabled;
 
     if (!enabled) {
@@ -2214,6 +2333,25 @@ HTML_PAGE = r"""<!doctype html>
 
     btn.textContent = previewAllOn ? "ALL: ON" : "ALL: OFF";
   }
+
+  /* 追加した処理: split側（現在のパート）の ALL: OFF/ON ボタンを動作させる */
+  (function(){
+    const btn = $("toggleAll");
+    if (!btn) return;
+
+    btn.onclick = () => {
+      /*
+       * 何をしているか:
+       *   - previewAllOn を反転
+       *   - 現在表示中パートの描画をやり直す
+       *   - UI状態を保存
+       */
+      previewAllOn = !previewAllOn;
+      renderCurrent();
+      saveUiState();
+      setStatus("split：ALL 表示を切替（" + (previewAllOn ? "ON" : "OFF") + "）");
+    };
+  })();
 
   let lastSyntaxCheckOk = null;
   let lastSyntaxCheckMessage = "";
@@ -2764,17 +2902,34 @@ HTML_PAGE = r"""<!doctype html>
   }
 
   function resetExtractOnly() {
-    /* 抽出結果だけをリセット（symbols/needles入力は触らない） */
-    lastExtractText = "";
+    /*
+     * 何をしているか:
+     *   extract結果だけを完全に初期状態へ戻す。
+     *   - 抽出テキストを消す
+     *   - ALL を OFF に戻す
+     *   - 表示・ボタン状態を render 系に一本化して同期する
+     *   ※ symbols / needles 入力は一切触らない
+     */
 
-    const ta = $("extractPreview");
-    if (ta) ta.value = "";
+    lastExtractText = "";
+    extractPreviewAllOn = false;
+
+    /*
+     * 表示更新は renderExtractPreview に委譲する
+     * （textarea への直書きは行わない）
+     */
+    renderExtractPreview();
 
     const btnCopyExtract = $("copyExtract");
     if (btnCopyExtract) btnCopyExtract.disabled = true;
 
     const btnResetExtract = $("resetExtract");
     if (btnResetExtract) btnResetExtract.disabled = true;
+
+    /*
+     * ALL トグルボタンの有効状態とラベルを同期
+     */
+    updateToggleExtractAllButton();
 
     saveUiState();
     setStatus("抽出結果をリセットしました（入力は保持）");
@@ -2873,6 +3028,16 @@ HTML_PAGE = r"""<!doctype html>
     $("modeExtractBtn").onclick = () => applyUIMode("extract");
   }
 
+  /* 追加した処理: extract結果も「ALL: OFF/ON」で全文/一部表示を切替する */
+  if ($("toggleExtractAll")) {
+    $("toggleExtractAll").onclick = () => {
+      extractPreviewAllOn = !extractPreviewAllOn;
+      renderExtractPreview();
+      saveUiState();
+      setStatus("extract表示: " + (extractPreviewAllOn ? "ALL: ON（全文）" : "ALL: OFF（一部）"));
+    };
+  }
+
   if ($("extractSymbols")) {
     $("extractSymbols").addEventListener("input", () => saveUiState());
   }
@@ -2900,6 +3065,11 @@ HTML_PAGE = r"""<!doctype html>
     $("extractMaxMatches").addEventListener("input", () => saveUiState());
   }
 
+  /* 追加した処理: 「コードのみ（厳格）」切替でも即保存し、意図しない表示混入を防ぐ */
+  if ($("extractCodeOnly")) {
+    $("extractCodeOnly").addEventListener("change", () => saveUiState());
+  }
+
   async function doExtract() {
     const f = $("file").files[0];
     if (!f) {
@@ -2917,6 +3087,9 @@ HTML_PAGE = r"""<!doctype html>
 
     const ctxRaw = String(($("extractContextLines") && $("extractContextLines").value) || "25").trim();
     const mxmRaw = String(($("extractMaxMatches") && $("extractMaxMatches").value) || "50").trim();
+
+    /* 追加した処理: 「抽出したコード以外は一切表示しない」厳格モード（メタ/ログ/フェンスも禁止） */
+    const codeOnly = !!(($("extractCodeOnly") && $("extractCodeOnly").checked) ? true : false);
 
     const symbols = sym ? sym.split(",").map(s => String(s).trim()).filter(s => s) : [];
     const needles = ndl ? ndl.split(",").map(s => String(s)).filter(s => s !== "") : [];
@@ -2972,29 +3145,68 @@ HTML_PAGE = r"""<!doctype html>
       }
 
       const outLines = [];
-      outLines.push("<<<EXTRACT_BEGIN>>>");
-      outLines.push("FILE: " + String(data.filename || ""));
-      outLines.push("SYMBOLS: " + String((data.symbols || []).join(", ")));
-      outLines.push("NEEDLES: " + String((data.needles || []).join(", ")));
 
-      /* 追加した処理: split直後の result.session_id を extractヘッダへ必ず出す（手入力/コピペも可） */
-      outLines.push("SESSION_ID: " + String((($("extractSessionId") && $("extractSessionId").value) || "")).trim());
+      /* 追加した処理:
+         codeOnly=ON のときは「抽出コード以外は一切表示しない」ため、ヘッダ行の生成自体をスキップする */
+      if (!codeOnly) {
+        outLines.push("<<<EXTRACT_BEGIN>>>");
+        outLines.push("FILE: " + String(data.filename || ""));
+        outLines.push("SYMBOLS: " + String((data.symbols || []).join(", ")));
+        outLines.push("NEEDLES: " + String((data.needles || []).join(", ")));
 
-      /* 追加した処理: split直後の instruction 原文（EXEC_TASK）を extractヘッダへ必ず出す
-         ※ ヘッダを1行=1項目で崩さないため、改行は \\n にエスケープして1行化する */
-      (function(){
-        const raw = String((($("extractExecTask") && $("extractExecTask").value) || ""));
-        const one = raw.replace(/\r\n/g, "\n").replace(/\n/g, "\\n");
-        outLines.push("EXEC_TASK: " + one);
-      })();
+        /* 追加した処理: split直後の result.session_id を extractヘッダへ必ず出す（手入力/コピペも可） */
+        outLines.push("SESSION_ID: " + String((($("extractSessionId") && $("extractSessionId").value) || "")).trim());
 
-      /* 追加した処理: “抽出の目的”を1行で明示（LLMの判断がブレにくくなる） */
-      outLines.push("PURPOSE: " + String((($("extractPurpose") && $("extractPurpose").value) || "")).trim());
+        /* 追加した処理: split直後の instruction 原文（EXEC_TASK）を extractヘッダへ必ず出す
+           ※ ヘッダを1行=1項目で崩さないため、改行は \\n にエスケープして1行化する */
+        (function(){
+          const raw = String((($("extractExecTask") && $("extractExecTask").value) || ""));
+          const one = raw.replace(/\r\n/g, "\n").replace(/\n/g, "\\n");
+          outLines.push("EXEC_TASK: " + one);
+        })();
 
-      /* 追加した処理: 依存の“存在だけ”をメタで列挙（中身不要 / 推測を減らす） */
-      outLines.push("DEPENDS: " + String((($("extractDepends") && $("extractDepends").value) || "")).trim());
+        /* 追加した処理: “抽出の目的”を1行で明示（LLMの判断がブレにくくなる） */
+        outLines.push("PURPOSE: " + String((($("extractPurpose") && $("extractPurpose").value) || "")).trim());
 
-      outLines.push("");
+        /* 追加した処理: 依存の“存在だけ”をメタで列挙（中身不要 / 推測を減らす） */
+        outLines.push("DEPENDS: " + String((($("extractDepends") && $("extractDepends").value) || "")).trim());
+
+        outLines.push("");
+      }
+
+      /* 追加した処理: 「FOUND:true（コピー対象）」テキストから、コードフェンス内部だけを抽出して連結する */
+      function extractOnlyCodeBlocks(foundText) {
+        const s = String(foundText || "");
+        const lines = s.split("\n");
+
+        const blocks = [];
+        let inFence = false;
+        let cur = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+
+          // ```lang または ``` でトグル（langは不問）
+          if (/^\s*```/.test(line)) {
+            if (!inFence) {
+              inFence = true;
+              cur = [];
+            } else {
+              inFence = false;
+              const body = cur.join("\n").replace(/^\n+/, "").replace(/\n+$/, "");
+              if (body.trim() !== "") blocks.push(body);
+              cur = [];
+            }
+            continue;
+          }
+
+          if (inFence) {
+            cur.push(line);
+          }
+        }
+
+        return blocks.join("\n\n");
+      }
 
       /* 追加した処理: 出力テキストを後処理で「FOUND:true（コピー対象）」と
          「FOUND:false（コピー対象外ログ）」に振り分ける（data構造に依存しない） */
@@ -3005,21 +3217,41 @@ HTML_PAGE = r"""<!doctype html>
         const keep = [];      // textarea（コピー対象）
         const nf = [];        // textarea外ログ（コピー対象外）
 
+        // textarea 側に「絶対に残さない」行（FOUND:false / HEADER:not found）
+        function stripForbiddenLines(blockText) {
+          const t = String(blockText || "");
+          return t
+            .replace(/^\s*FOUND:\s*false\b.*$/gmi, "")
+            .replace(/^\s*HEADER:\s*not\s+found\b.*$/gmi, "")
+            .replace(/\n{3,}/g, "\n\n")
+            .trimEnd();
+        }
+
         // ブロック単位： "【...】" で開始する塊をひとまず作る
         let cur = [];
         function flush() {
           if (!cur.length) return;
 
           const blockText = cur.join("\n");
-          const isFoundFalse = /\nFOUND:\s*false\b/.test("\n" + blockText);
-          const isFoundTrue  = /\nFOUND:\s*true\b/.test("\n" + blockText);
 
-          if (isFoundFalse && !isFoundTrue) {
-            nf.push(blockText);
+          // ★ 追加した処理:
+          // textarea に出したくない判定を FOUND:false だけに限定せず、
+          // HEADER:not found も同様に “コピー対象外ログ” へ退避する
+          const hasFoundFalse = /\nFOUND:\s*false\b/i.test("\n" + blockText);
+          const hasHeaderNotFound = /\nHEADER:\s*not\s+found\b/i.test("\n" + blockText);
+
+          // FOUND:true があっても「禁則行」は textarea に残さない（= strip は必ず通す）
+          const cleaned = stripForbiddenLines(blockText);
+
+          if (hasFoundFalse || hasHeaderNotFound) {
+            // ★ 追加した処理: コピー対象外ログにも、見やすさのため禁則行除去後を入れる
+            // （FOUND:false/HEADER:not found 自体を見せたくない運用なら、ここも同様に消える）
+            if (cleaned.trim()) nf.push(cleaned);
           } else {
-            // FOUND:true（または FOUND 行が無いメタ部）は textarea 側へ残す
-            keep.push(blockText);
+            // ★ 追加した処理: textarea 側も必ず禁則行を除去してから入れる（残留を物理的に防ぐ）
+            if (cleaned.trim()) keep.push(cleaned);
           }
+
           cur = [];
         }
 
@@ -3034,9 +3266,12 @@ HTML_PAGE = r"""<!doctype html>
         }
         flush();
 
+        // ★ 追加した処理: keep 側全体にも最終防波堤を掛けて、混入を “絶対” に潰す
+        const keepTextFinal = stripForbiddenLines(keep.join("\n"));
+
         return {
-          keepText: keep.join("\n"),
-          notFoundText: nf.join("\n")
+          keepText: keepTextFinal,
+          notFoundText: nf.join("\n").trim()
         };
       }
 

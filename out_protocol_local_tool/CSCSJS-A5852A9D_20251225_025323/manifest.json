@@ -1,0 +1,59 @@
+{
+  "session_id": "CSCSJS-A5852A9D",
+  "created_at": "2025-12-25T02:53:23",
+  "instruction": "【実行タスク：OncePerDayToday / O.D.O.A Mode を body 専用に一本化する】\n\nTASK-0（前提確認）\n- 対象DOM:\n  - status: #cscs_sync_view_b_status\n  - body  : #cscs_sync_view_b_body\n- once/odoa の正式表示場所は body のみとする。\n\nTASK-1（status 側の生成ルート遮断）\n- 以下の「status にカードを追加する処理」から once/odoa 生成を完全に除外する：\n  - renderPanel()\n  - appendCountsSectionInline()\n  - updateSyncBodyText()\n- 上記処理内で once/odoa 生成関数（例: appendOncePerDayAndOdoaWideCard）が呼ばれていたら削除する。\n- 共通ビルド関数を使っている場合は、呼び出しを分離するか、\n  target === \"status\" の場合は once/odoa を生成しない分岐を追加する。\n\nTASK-2（body 側での唯一生成ポイント確立）\n- init() → append() の流れの中で、body が DOM に確実に存在した後にのみ once/odoa を生成する。\n- body 側で以下を 1 回だけ実行する：\n  - (SYNC) OncePerDayToday / O.D.O.A Mode カードを生成\n  - (local) OncePerDayToday / O.D.O.A Mode カードを生成\n- 生成関数は body 配下に append することを保証する（status 参照禁止）。\n\nTASK-3（更新・補助関数の探索範囲固定）\n- 以下の関数は body 配下のみを対象にする：\n  - refreshLocalOnceOdoaCard()\n  - ensureOnceOdoaWideTitles()\n  - ensureLocalOnceOdoaWideCard()\n- querySelector / querySelectorAll は必ず\n  document.getElementById(\"cscs_sync_view_b_body\") を起点に探索する。\n\nTASK-4（status 側の残骸DOMを初回のみ掃除）\n- init() の早い段階で以下を実行する：\n  - #cscs_sync_view_b_status 配下に存在する\n    .svb-once-odoa-card\n    .svb-once-odoa-card-local\n    をすべて remove() する。\n- これは「フォールバック」ではなく、過去実装の後始末として一度だけ行う。\n\nTASK-5（CSS 目隠しコードの撤廃）\n- 以下の関数・スタイル注入を完全に削除する：\n  - ensureOnceOdoaNoFlashStyle()\n  - clearOnceOdoaNoFlashStyle()\n- once/odoa の表示制御は DOM 生成ロジックのみで行う。\n\n完了条件（DONE）\n- ページロード時に status 最上段へ once/odoa が一切出ない。\n- body の元の位置に (SYNC)/(local) の 2 枚のみが安定表示される。\n- リロード・再描画・手動送信時にもチラつき・重複が発生しない。",
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 162463,
+    "sha256": "a5852a9d19616c6ce51be5f5e4f8152ac8ea92705c203e54706d5b1cca976228",
+    "saved_copy": "original/cscs_sync_view_b.js"
+  },
+  "split": {
+    "total_parts": 4,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 4,
+      "part_id": "CSCSJS-A5852A9D-P01-of-04",
+      "part_sha256": "0dc4063964fbd56bb71979463ed46d19f959634f4f50ee6390b2e50df566f3b5",
+      "start_offset": 0,
+      "end_offset": 37325,
+      "len_chars": 37325,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 4,
+      "part_id": "CSCSJS-A5852A9D-P02-of-04",
+      "part_sha256": "a8504262b9621c79c96918f46d6c83c2250a3a9c2f1d9377bb2f6de1fd61493e",
+      "start_offset": 37325,
+      "end_offset": 82129,
+      "len_chars": 44804,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 4,
+      "part_id": "CSCSJS-A5852A9D-P03-of-04",
+      "part_sha256": "c64b6174afa5a4b115839fef42bfb3f40a4a0f2a781a1b3194d0d061e2bcfc2f",
+      "start_offset": 82129,
+      "end_offset": 129585,
+      "len_chars": 47456,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 4,
+      "part_id": "CSCSJS-A5852A9D-P04-of-04",
+      "part_sha256": "5b0274417b35ca0b5c274637a89bd7e4bc1278881ed1d21b15c752663d6a1cf8",
+      "start_offset": 129585,
+      "end_offset": 162463,
+      "len_chars": 32878,
+      "file": "parts/part_04.txt"
+    }
+  ]
+}
