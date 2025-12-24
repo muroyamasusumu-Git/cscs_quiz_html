@@ -1210,7 +1210,7 @@
       var pair = document.createElement("div");
       pair.className = "svb-streak-quad";
 
-      function makeTodayCard(titleText, syncCnt, localCnt) {
+      function makeTodayCard(titleText, dayLabel, syncCnt, localCnt) {
         var card = document.createElement("div");
         card.className = "cscs-svb-card svb-streak-card";
 
@@ -1221,6 +1221,7 @@
         var grid = document.createElement("div");
         grid.className = "cscs-svb-card-grid";
 
+        appendGridRow(grid, "day", String(dayLabel));
         appendGridRow(
           grid,
           "unique",
@@ -1236,6 +1237,7 @@
       pair.appendChild(
         makeTodayCard(
           "Streak3TodayUnique",
+          model.s3TodayDayLabel,
           model.s3TodaySyncCnt,
           model.localS3TodayCnt
         )
@@ -1245,6 +1247,7 @@
       pair.appendChild(
         makeTodayCard(
           "Streak3WrongTodayUq",
+          model.s3WrongTodayDayLabel,
           model.s3WrongTodaySyncCnt,
           model.localS3WrongTodayCnt
         )
