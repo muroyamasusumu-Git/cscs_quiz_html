@@ -231,10 +231,15 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   // 1) KV から読み出し
   // -----------------------------
+
+  // ★ text get（json が null でも text が取れるかを見る）
+  let dataText: string | null = null;
+  let textGetError: any = null;
+
   try {
-    console.log("[STATE][KV RAW]", await env.SYNC.get(key, { type: "json", cacheTtl: 0 }));
+    dataText = await env.SYNC.get(key, "text");
   } catch (e) {
-    console.log("[STATE][KV RAW] error", String(e));
+    textGetError = e;
   }
 
   // ★ json get
@@ -247,15 +252,17 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     jsonGetError = e;
   }
 
-  // ★ text get（json が null でも text が取れるかを見る）
-  let dataText: string | null = null;
-  let textGetError: any = null;
-
-  try {
-    dataText = await env.SYNC.get(key, "text");
-  } catch (e) {
-    textGetError = e;
-  }
+  // ★ RAW（検索しやすい形で確定）
+  // - JSONは「実オブジェクト」を出す（null/empty/型崩れの判定が一発）
+  // - textは「長さ＋冒頭」を出す（“実際に入ってるのにjsonでnull”の切り分け）
+  console.log("[STATE][KV RAW]", {
+    key,
+    json: dataJson,
+    textBytes: dataText ? dataText.length : 0,
+    textHead: dataText ? dataText.slice(0, 300) : null,
+    jsonGetError: jsonGetError ? String(jsonGetError) : null,
+    textGetError: textGetError ? String(textGetError) : null
+  });
 
   // ★ 結果を1行で確定
   console.log("[SYNC/state][GET] result", {
