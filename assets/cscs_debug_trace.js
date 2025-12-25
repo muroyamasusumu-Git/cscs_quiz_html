@@ -619,7 +619,7 @@
  * ========================================================================== */
 
 #cscs-trace-ui {
-    position: fixed;
+    position: fixed !important;
     right: 15px;
     bottom: 55px;
     z-index: 2147483647;
