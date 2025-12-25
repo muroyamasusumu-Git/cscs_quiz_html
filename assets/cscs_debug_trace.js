@@ -41,6 +41,7 @@
   // -----------------------------
   var STORAGE_KEY = "__CSCS_TRACE_BUFFER__";
   var HEADER_KEY = "__CSCS_TRACE_HEADER__";
+  var ENABLED_KEY = "__CSCS_TRACE_ENABLED__"; // ★追加: enabled 状態をタブ内で保持する
 
   // 取りすぎると重いので上限（必要なら増やせる）
   var MAX_LINES = 20000;
@@ -65,7 +66,7 @@
 
   function loadHeader() {
     try {
-      var raw = sessionStorage.getItem(HEADER_KEY);
+      var raw = localStorage.getItem(HEADER_KEY);
       if (!raw) {
         return {
           url: location.href,
@@ -98,7 +99,7 @@
 
   function saveHeader(h) {
     try {
-      sessionStorage.setItem(HEADER_KEY, JSON.stringify(h));
+      localStorage.setItem(HEADER_KEY, JSON.stringify(h));
     } catch (e) {
       // 失敗しても動作継続（ログ収集は可能）
     }
@@ -106,7 +107,7 @@
 
   function loadLines() {
     try {
-      var raw = sessionStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       var parsed = safeJsonParse(raw);
       if (!parsed.ok || !Array.isArray(parsed.json)) return [];
@@ -118,9 +119,27 @@
 
   function saveLines(lines) {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
     } catch (e) {
       // 容量超過などでも落とさない
+    }
+  }
+
+  // ★追加: enabled 状態を sessionStorage から復元/保存する
+  function loadEnabled() {
+    try {
+      var v = sessionStorage.getItem(ENABLED_KEY);
+      return v === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveEnabled(v) {
+    try {
+      sessionStorage.setItem(ENABLED_KEY, v ? "1" : "0");
+    } catch (e) {
+      // 失敗しても動作継続（ログ収集自体は可能）
     }
   }
 
@@ -230,7 +249,7 @@
   // -----------------------------
   // 状態
   // -----------------------------
-  var enabled = false;
+  var enabled = loadEnabled(); // ★変更: A→B遷移後もトレースON/OFFを復元
   var header = loadHeader();
   var lines = loadLines();
 
@@ -356,7 +375,9 @@
     installed: true,
 
     start: function () {
+      // ★変更: トレースを ON にして、その状態を sessionStorage に保存する
       enabled = true;
+      saveEnabled(true);
 
       header.url = location.href;
       saveHeader(header);
@@ -366,14 +387,15 @@
     },
 
     stop: async function () {
-      // ① まず「完全なスナップショット」を作る（以後 lines を触らない）
+      // ★処理1: まず「完全なスナップショット」を作る（以後 lines を触らない）
       var snapshot = this.exportText();
 
-      // ② スナップショットをコピー（非同期完了を必ず待つ）
+      // ★処理2: スナップショットをコピー（非同期完了を必ず待つ）
       var ok = await copyToClipboard(snapshot);
 
-      // ③ コピー完了後にトレース停止のみ（ログは保持）
+      // ★処理3: コピー完了後にトレース停止のみ（ログは保持）
       enabled = false;
+      saveEnabled(false);
 
       console.log(
         "[CSCS][TRACE] STOP (copied=" +
@@ -450,7 +472,7 @@
     // - console.log を使わない（enabled=true の時にクリアログが再混入するのを防ぐ）
     clearStored: function () {
       lines.length = 0;
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e0) {}
       return true;
     },
 
@@ -463,9 +485,9 @@
 
     status: function () {
       var headerRaw = "";
-      try { headerRaw = sessionStorage.getItem(HEADER_KEY) || ""; } catch (e1) { headerRaw = ""; }
+      try { headerRaw = localStorage.getItem(HEADER_KEY) || ""; } catch (e1) { headerRaw = ""; }
       var bufRaw = "";
-      try { bufRaw = sessionStorage.getItem(STORAGE_KEY) || ""; } catch (e2) { bufRaw = ""; }
+      try { bufRaw = localStorage.getItem(STORAGE_KEY) || ""; } catch (e2) { bufRaw = ""; }
 
       console.log("[CSCS][TRACE] status =", {
         enabled: enabled,
