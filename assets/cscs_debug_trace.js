@@ -624,20 +624,15 @@
     right: 10px;
     top: 10px;
     z-index: 2147483647;
-
     background: rgba(0, 0, 0, 0.70);
     border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 10px;
-
     padding: 10px 10px 5px;
-    width: 220px;
-
+    width: 280px;
     color: #eaeaea;
     font: 12px/1.35 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-
     opacity: 0.6;
 }
 
