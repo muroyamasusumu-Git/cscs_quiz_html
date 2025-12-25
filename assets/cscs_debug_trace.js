@@ -638,7 +638,7 @@
 #cscs-trace-ui .t {
     font-weight: 600;
     text-align: center;
-    margin: 0 0 5px 0;
+    margin: 0 0 4px 0;
 
     color: #f0f0f0;
     opacity: 0.9;
