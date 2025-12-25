@@ -41,7 +41,7 @@
   // -----------------------------
   var STORAGE_KEY = "__CSCS_TRACE_BUFFER__";
   var HEADER_KEY = "__CSCS_TRACE_HEADER__";
-  var ENABLED_KEY = "__CSCS_TRACE_ENABLED__"; // ★ enabled 状態も localStorage に保持（リロード/遷移でも維持）
+  var ENABLED_KEY = "__CSCS_TRACE_ENABLED__"; // ★追加: enabled 状態をタブ内で保持する
 
   // 取りすぎると重いので上限（必要なら増やせる）
   var MAX_LINES = 20000;
@@ -125,10 +125,10 @@
     }
   }
 
-  // ★ enabled 状態を localStorage から復元/保存する（ローカルストレージのみ）
+  // ★追加: enabled 状態を sessionStorage から復元/保存する
   function loadEnabled() {
     try {
-      var v = localStorage.getItem(ENABLED_KEY);
+      var v = sessionStorage.getItem(ENABLED_KEY);
       return v === "1";
     } catch (e) {
       return false;
@@ -137,7 +137,7 @@
 
   function saveEnabled(v) {
     try {
-      localStorage.setItem(ENABLED_KEY, v ? "1" : "0");
+      sessionStorage.setItem(ENABLED_KEY, v ? "1" : "0");
     } catch (e) {
       // 失敗しても動作継続（ログ収集自体は可能）
     }
@@ -493,7 +493,6 @@
         enabled: enabled,
         lines: lines.length,
         maxLines: MAX_LINES,
-        storage: "localStorage",
         headerBytes: headerRaw.length,
         bufferBytes: bufRaw.length,
         url: header.url,
@@ -522,194 +521,8 @@
     }
   };
 
-  // -----------------------------
-  // UI（常駐ミニパネル）
-  // -----------------------------
-  var ui = {
-    root: null,
-    statusEl: null,
-    btnStart: null,
-    btnStop: null,
-    btnReset: null,
-    btnStatus: null
-  };
-
-  function formatBytes(n) {
-    if (!n || n <= 0) return "0B";
-    if (n < 1024) return n + "B";
-    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + "KB";
-    return (n / (1024 * 1024)).toFixed(1) + "MB";
-  }
-
-  function computeBufferBytes() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY) || "";
-      return raw.length;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  function updateTraceUi() {
-    if (!ui.root || !ui.statusEl) return;
-
-    var stateText = enabled ? "RUNNING" : "STOPPED";
-    var lineCount = lines.length;
-    var bytes = computeBufferBytes();
-
-    ui.statusEl.textContent =
-      "TRACE: " + stateText + "\n" +
-      "lines: " + lineCount + " / " + MAX_LINES + "\n" +
-      "storage: localStorage (" + formatBytes(bytes) + ")";
-  }
-
-  async function onUiStart() {
-    try {
-      window.__CSCS_TRACE__.start();
-    } finally {
-      updateTraceUi();
-    }
-  }
-
-  async function onUiStop() {
-    try {
-      await window.__CSCS_TRACE__.stop();
-    } finally {
-      updateTraceUi();
-    }
-  }
-
-  async function onUiReset() {
-    // ★処理1: トレース停止（以後増えないようにする）
-    enabled = false;
-    saveEnabled(false);
-
-    // ★処理2: ログ本体を無言で消す（localStorage）
-    lines.length = 0;
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e0) {}
-
-    // ★処理3: ヘッダ(Action/Reset/URL)を初期化して保存
-    header.url = location.href;
-    header.action = "";
-    header.reset = "";
-    saveHeader(header);
-
-    // ★処理4: UI表示更新
-    updateTraceUi();
-
-    // ★処理5: ログとして残したい場合のみ（STOP状態なので保存されない）
-    origConsole.log("[CSCS][TRACE] RESET by UI (enabled=false, buffer cleared, header reset)");
-    return true;
-  }
-
-  function onUiStatus() {
-    try {
-      window.__CSCS_TRACE__.status();
-    } finally {
-      updateTraceUi();
-    }
-  }
-
-  function mountTraceUi() {
-    if (ui.root) return;
-    if (!document || !document.body) return;
-
-    var css =
-      "#cscs-trace-ui{position:fixed;right:10px;bottom:10px;z-index:2147483647;" +
-      "background:rgba(0,0,0,0.72);border:1px solid rgba(255,255,255,0.18);" +
-      "border-radius:10px;padding:10px 10px;color:#fff;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" +
-      "backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);width:220px}" +
-      "#cscs-trace-ui .t{font-weight:600;opacity:.92;margin:0 0 6px 0}" +
-      "#cscs-trace-ui pre{margin:0 0 8px 0;white-space:pre-wrap;word-break:break-word;" +
-      "background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);" +
-      "border-radius:8px;padding:8px;max-height:120px;overflow:auto}" +
-      "#cscs-trace-ui .row{display:flex;gap:6px;flex-wrap:wrap}" +
-      "#cscs-trace-ui button{flex:1 1 auto;min-width:90px;appearance:none;border:1px solid rgba(255,255,255,0.18);" +
-      "background:rgba(255,255,255,0.08);color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer}" +
-      "#cscs-trace-ui button:hover{background:rgba(255,255,255,0.14)}" +
-      "#cscs-trace-ui button:active{transform:translateY(1px)}";
-
-    var style = document.createElement("style");
-    style.textContent = css;
-    document.head.appendChild(style);
-
-    var root = document.createElement("div");
-    root.id = "cscs-trace-ui";
-
-    var title = document.createElement("div");
-    title.className = "t";
-    title.textContent = "CSCS TRACE";
-    root.appendChild(title);
-
-    var pre = document.createElement("pre");
-    pre.id = "cscs-trace-ui-status";
-    pre.textContent = "";
-    root.appendChild(pre);
-
-    var row1 = document.createElement("div");
-    row1.className = "row";
-
-    var btnStatus = document.createElement("button");
-    btnStatus.id = "cscs-trace-ui-btn-status";
-    btnStatus.textContent = "Status";
-    row1.appendChild(btnStatus);
-
-    var btnStart = document.createElement("button");
-    btnStart.id = "cscs-trace-ui-btn-start";
-    btnStart.textContent = "Start";
-    row1.appendChild(btnStart);
-
-    root.appendChild(row1);
-
-    var row2 = document.createElement("div");
-    row2.className = "row";
-
-    var btnStop = document.createElement("button");
-    btnStop.id = "cscs-trace-ui-btn-stop";
-    btnStop.textContent = "Stop (Copy)";
-    row2.appendChild(btnStop);
-
-    var btnReset = document.createElement("button");
-    btnReset.id = "cscs-trace-ui-btn-reset";
-    btnReset.textContent = "Reset";
-    row2.appendChild(btnReset);
-
-    root.appendChild(row2);
-
-    document.body.appendChild(root);
-
-    ui.root = root;
-    ui.statusEl = pre;
-    ui.btnStart = btnStart;
-    ui.btnStop = btnStop;
-    ui.btnReset = btnReset;
-    ui.btnStatus = btnStatus;
-
-    btnStart.addEventListener("click", function () { onUiStart(); });
-    btnStop.addEventListener("click", function () { onUiStop(); });
-    btnReset.addEventListener("click", function () { onUiReset(); });
-    btnStatus.addEventListener("click", function () { onUiStatus(); });
-
-    updateTraceUi();
-  }
-
-  if (document && document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mountTraceUi);
-  } else {
-    mountTraceUi();
-  }
-
-  // ★UIの表示をログ発生に追従させる（pushLine時にも更新）
-  //   - ここは軽くするため、pushLineの最後で updateTraceUi() を呼ぶ
-  var _origPushLine = pushLine;
-  pushLine = function (linesArg, lineArg) {
-    var r = _origPushLine(linesArg, lineArg);
-    updateTraceUi();
-    return r;
-  };
-
   // “導入できた”ことを確実に残す（このログもバッファに入る）
-  console.log("[CSCS][TRACE] installed (resident, localStorage-backed)");
+  console.log("[CSCS][TRACE] installed (resident, sessionStorage-backed)");
   console.log("[CSCS][TRACE] try: window.__CSCS_TRACE__.setAction('...'); window.__CSCS_TRACE__.setReset('...');");
   console.log("[CSCS][TRACE] export: window.__CSCS_TRACE__.copy() or window.__CSCS_TRACE__.download()");
 })();
