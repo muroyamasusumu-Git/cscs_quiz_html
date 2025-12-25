@@ -627,7 +627,7 @@
     border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 10px;
     padding: 7px 14px 5px;
-    width: 280px;
+    width: 25.5%;
     color: #eaeaea;
     font: 12px/1.35 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     backdrop-filter: blur(6px);
