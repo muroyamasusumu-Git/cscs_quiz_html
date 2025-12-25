@@ -1161,6 +1161,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // マージ済みの server オブジェクトを KV に保存
     await env.SYNC.put(key, jsonStr);
+    console.log("[SYNC/merge] (3-0) ★KV write:", { key, bytes: jsonStr.length, updatedAt: (server as any).updatedAt, kv_identity: kvIdentityId });
     console.log("[SYNC/merge] (3) ★KV保存成功:", {
       key,
       streak3Today: (server as any).streak3Today

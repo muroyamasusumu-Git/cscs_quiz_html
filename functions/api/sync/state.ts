@@ -586,6 +586,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // - ねらい: Workersログを1行見るだけで「KV未取得」「out=empty」「empty返却宣言」を確定できるようにする
     // - 仕様固定: 第2引数に必ず { kv:"miss", template:"empty" } を渡す（検索性のため）
     if (isEmptyTemplate === "1") {
+      console.warn("[SYNC/state][EMPTY-REASON] reason:", data === null ? "KV.get returned null (miss/empty)" : "KV.get threw or returned falsy (read failed or invalid)", { hasData: !!data, dataType: typeof data });
       console.warn("[SYNC/state][EMPTY-TEMPLATE] KV state not available -> out=empty returned", { kv: "miss", template: "empty" }, { reqId, user, key });
     }
 
