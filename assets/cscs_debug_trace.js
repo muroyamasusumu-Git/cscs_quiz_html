@@ -619,7 +619,7 @@
       "background:rgba(0,0,0,0.72);border:1px solid rgba(255,255,255,0.18);" +
       "border-radius:10px;padding:10px 10px;color:#fff;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" +
       "backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);width:220px}" +
-      "#cscs-trace-ui .t{font-weight:600;opacity:.92;margin:0 0 6px 0}" +
+      "#cscs-trace-ui .t{font-weight:600;text-align:center;opacity:.92;margin:0 0 5px 0}" +
       "#cscs-trace-ui pre{margin:0 0 8px 0;white-space:pre-wrap;word-break:break-word;" +
       "background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);" +
       "border-radius:8px;padding:8px;max-height:120px;overflow:auto}" +
