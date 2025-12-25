@@ -629,7 +629,7 @@
     background: rgba(0,0,0,0.72);
     border: 1px solid rgba(255,255,255,0.18);
     border-radius: 10px;
-    padding: 10px 10px 0;
+    padding: 10px 10px 5px;
     color: #fff;
     font: 12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     backdrop-filter: blur(6px);
@@ -674,13 +674,14 @@
     flex: 1 1 auto;
     min-width: 90px;
     appearance: none;
-    padding: 6px 8px;
+    padding: 3px 8px;
     color: #fff;
     cursor: pointer;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 8px;
     margin-bottom: 5px;
+    font-size: 10px;
 }
 
 /* hover / active */
