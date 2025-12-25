@@ -1177,9 +1177,31 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       updatedAt: (server as any).updatedAt
     });
 
+    // ★ 追加: put 直前に「実際に put しようとしている object」を確定させてログを出す
+    // - beforePut は「KV に保存する元データ（server）」そのもの
+    // - payloadType/payloadKeys で「空テンプレしか入ってない」「期待キーが無い」を一発で切る
+    const beforePut = server; // 実際に put しようとしている object
+    console.log("[SYNC/merge][PUT TRY]", {
+      key,
+      hasPayload: !!beforePut,
+      payloadType: typeof beforePut,
+      payloadKeys: beforePut && typeof beforePut === "object" ? Object.keys(beforePut as any) : null,
+    });
+
     // ★ KV.put 本体（例外は絶対に潰さない）
     try {
-      await env.SYNC.put(key, jsonStr);
+      await env.SYNC.put(key, JSON.stringify(beforePut));
+
+      // ★ 追加: read-after-write で「本当に KV に入ったか」を即検証する
+      // - textBytes が 0 / not present なら、put が効いてないか key が違う
+      // - textHead で先頭だけ覗いて「テンプレしか入ってない」等を判定できる
+      const verify = await env.SYNC.get(key, "text");
+      console.log("[SYNC/merge][PUT VERIFY]", {
+        key,
+        textBytes: verify ? verify.length : 0,
+        textHead: verify ? verify.slice(0, 200) : null
+      });
+
       console.log("[SYNC/merge][PUT] OK", { key });
     } catch (e) {
       console.error("[SYNC/merge][PUT] FAILED", {
