@@ -358,13 +358,10 @@
     start: function () {
       enabled = true;
 
-      lines.length = 0;
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
-
       header.url = location.href;
       saveHeader(header);
 
-      console.log("[CSCS][TRACE] START (enabled=true, buffer cleared)");
+      console.log("[CSCS][TRACE] START (enabled=true)");
       return true;
     },
 
