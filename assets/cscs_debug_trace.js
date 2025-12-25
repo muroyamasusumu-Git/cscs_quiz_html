@@ -720,7 +720,7 @@
 
     var title = document.createElement("div");
     title.className = "t";
-    title.textContent = "CSCS TRACE";
+    title.textContent = "Console Log TRACE";
     root.appendChild(title);
 
     var pre = document.createElement("pre");
