@@ -667,13 +667,16 @@
 #cscs-trace-ui .row {
     display: flex;
     gap: 6px;
-    flex-wrap: wrap;
+
+    /* ★変更: 3ボタンを必ず1行に固定して均等割りにする */
+    flex-wrap: nowrap;
 }
 
 /* ボタン共通 */
 #cscs-trace-ui button {
-    flex: 1 1 auto;
-    min-width: 50px;
+    /* ★変更: 3つを完全に同率で均等割り */
+    flex: 1 1 0%;
+    min-width: 0;
 
     appearance: none;
     padding: 3px 8px;
