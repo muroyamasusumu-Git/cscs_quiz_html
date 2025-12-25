@@ -621,7 +621,7 @@
 
 #cscs-trace-ui {
     position: fixed;
-    right: 10px;
+    right: 15px;
     top: 10px;
     z-index: 2147483647;
     background: rgba(0, 0, 0, 0.70);
