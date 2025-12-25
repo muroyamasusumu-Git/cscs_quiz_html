@@ -3100,6 +3100,9 @@
 
     // ====== ⑥ 上記 delta 群をまとめて payload を構築 ======
     var payload = {
+      // ★ 追加: payload のトップレベルに種別を明示し、「diff（差分）」送信であることをサーバ側に伝える
+      payloadType: "diff",
+
       correctDelta:  correctDeltaObj,
       incorrectDelta: incorrectDeltaObj,
       streak3Delta:  streak3DeltaObj,

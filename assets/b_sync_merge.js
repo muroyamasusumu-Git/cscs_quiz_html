@@ -232,12 +232,20 @@
 
     // 4) /api/sync/merge へ「差分だけ」を送信
     const payload = {
+      // 追加: payload のトップレベルに種別を明示し、「diff（差分）」送信であることをサーバ側に伝える
+      payloadType: "diff",
+
+      // 既存: 差分（増分）で送るキー（qid→delta）
       correctDelta:         dc       > 0 ? { [info.qid]: dc       } : {},
       incorrectDelta:       dw       > 0 ? { [info.qid]: dw       } : {},
       streak3Delta:         ds3      > 0 ? { [info.qid]: ds3      } : {},
-      streakLenDelta:                      { [info.qid]: streakLenNow },
       streak3WrongDelta:    ds3Wrong > 0 ? { [info.qid]: ds3Wrong } : {},
+
+      // 既存: 「増分」ではなく “最新値” を送るキー（qid→current）
+      streakLenDelta:                      { [info.qid]: streakLenNow },
       streakWrongLenDelta:                { [info.qid]: streakWrongLenNow },
+
+      // 既存: 送信時刻
       updatedAt: Date.now()
     };
 
