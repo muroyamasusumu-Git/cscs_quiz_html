@@ -252,31 +252,69 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     jsonGetError = e;
   }
 
+  // ★ 追加した処理1: text の「UTF-8バイト長」を算出する
+  // - 何をしているか: dataText.length（文字数）ではなく、実際に KV に入っている JSON 文字列の「バイト感」を確認する
+  // - 目的: 「textは取れてるがサイズが0/異常」「巨大すぎる/途中で壊れてる」などをログだけで切り分ける
+  let textBytesUtf8 = 0;
+  try {
+    if (dataText !== null) {
+      textBytesUtf8 = new TextEncoder().encode(dataText).length;
+    }
+  } catch (_e) {
+    textBytesUtf8 = dataText ? dataText.length : 0;
+  }
+
+  // ★ 追加した処理2: text の冒頭/末尾を固定長で切り出す（検索性＆破損判定のため）
+  // - 何をしているか: 先頭300文字＋末尾200文字を出す
+  // - 目的: 「json型はnullなのにtextは取れている」ケースで、実際の中身がJSONっぽいか/途中欠損かを一発で見る
+  const textHead = dataText ? dataText.slice(0, 300) : null;
+  const textTail = dataText ? dataText.slice(Math.max(0, dataText.length - 200)) : null;
+
+  // ★ 追加した処理3: json の型情報も併記する（object / null / array など）
+  // - 何をしているか: dataJson の typeof と Array判定をログ化
+  // - 目的: KVのjson取得が「null」なのか「空オブジェクト」なのか「配列」なのかを即判定できるようにする
+  const jsonType =
+    dataJson === null
+      ? "null"
+      : Array.isArray(dataJson)
+        ? "array"
+        : typeof dataJson;
+
   // ★ RAW（検索しやすい形で確定）
   // - JSONは「実オブジェクト」を出す（null/empty/型崩れの判定が一発）
-  // - textは「長さ＋冒頭」を出す（“実際に入ってるのにjsonでnull”の切り分け）
+  // - textは「長さ＋冒頭＋末尾」を出す（“実際に入ってるのにjsonでnull”の切り分け）
+  // - error は必ず String 化して1行検索できる形に統一
   console.log("[STATE][KV RAW]", {
     key,
     json: dataJson,
-    textBytes: dataText ? dataText.length : 0,
-    textHead: dataText ? dataText.slice(0, 300) : null,
+    jsonType,
+    textChars: dataText ? dataText.length : 0,
+    textBytesUtf8,
+    textHead,
+    textTail,
     jsonGetError: jsonGetError ? String(jsonGetError) : null,
     textGetError: textGetError ? String(textGetError) : null
   });
 
   // ★ 結果を1行で確定
+  // - 何をしているか: KV.get(json) と KV.get(text) の成否を、必ず1行で確定させる
+  // - 目的: 「ログが多すぎて追えない」時でも、この1行だけ見れば “取れてる/取れてない” を判定できる
   console.log("[SYNC/state][GET] result", {
     key,
-    jsonGet: dataJson === null ? "null" : "object",
+    jsonGet: dataJson === null ? "null" : "non-null",
+    jsonType,
     jsonGetError: jsonGetError ? String(jsonGetError) : null,
-    textGet: dataText === null ? "null" : "text",
-    textBytes: dataText ? dataText.length : 0
+    textGet: dataText === null ? "null" : "non-null",
+    textChars: dataText ? dataText.length : 0,
+    textBytesUtf8
   });
 
   // ★ empty テンプレに落ちた理由を1行で明示
+  // - 何をしているか: json取得がnullだった事実だけを明示（埋め合わせはしない）
+  // - 目的: “emptyテンプレが返る条件” をログ検索で即特定する
   if (dataJson === null) {
     console.warn("[SYNC/state][EMPTY-TEMPLATE-REASON]", {
-      reason: "KV.get returned null",
+      reason: "KV.get(json) returned null",
       key
     });
   }
