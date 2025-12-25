@@ -631,7 +631,6 @@
     color: #eaeaea;
     font: 12px/1.35 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
     opacity: 0.4;
 }
 
