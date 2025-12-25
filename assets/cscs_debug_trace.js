@@ -616,9 +616,7 @@
 
     var css = `
 /* ============================================================================
- * CSCS Debug Trace UI
- *  - 追記・微調整しやすいようにブロック分割
- *  - ここに後から selector を安全に追加できる
+ * CSCS Debug Trace UI (Monochrome)
  * ========================================================================== */
 
 #cscs-trace-ui {
@@ -626,71 +624,85 @@
     right: 10px;
     top: 10px;
     z-index: 2147483647;
-    background: rgba(0,0,0,0.72);
-    border: 1px solid rgba(255,255,255,0.18);
+
+    background: rgba(0, 0, 0, 0.70);
+    border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 10px;
+
     padding: 10px 10px 5px;
-    color: #fff;
-    font: 12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    width: 220px;
+
+    color: #eaeaea;
+    font: 12px/1.35 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    width: 220px;
+
     opacity: 0.6;
 }
 
 /* タイトル */
 #cscs-trace-ui .t {
-  font-weight: 600;
-  text-align: center;
-  opacity: 0.92;
-  margin: 0 0 5px 0;
+    font-weight: 600;
+    text-align: center;
+    margin: 0 0 5px 0;
+
+    color: #f0f0f0;
+    opacity: 0.9;
 }
 
 /* ステータス表示 */
 #cscs-trace-ui pre {
-  margin: 0 0 8px 0;
-  padding: 8px;
+    margin: 0 0 8px 0;
+    padding: 8px;
 
-  white-space: pre-wrap;
-  word-break: break-word;
+    white-space: pre-wrap;
+    word-break: break-word;
 
-  max-height: 120px;
-  overflow: auto;
+    max-height: 120px;
+    overflow: auto;
 
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+
+    color: #dcdcdc;
 }
 
 /* ボタン行 */
 #cscs-trace-ui .row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 /* ボタン共通 */
 #cscs-trace-ui button {
     flex: 1 1 auto;
     min-width: 90px;
+
     appearance: none;
     padding: 3px 8px;
-    color: #fff;
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 8px;
     margin-bottom: 5px;
+
     font-size: 10px;
+    color: #eeeeee;
+
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 8px;
+
+    cursor: pointer;
 }
 
 /* hover / active */
 #cscs-trace-ui button:hover {
-  background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 #cscs-trace-ui button:active {
-  transform: translateY(1px);
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(1px);
 }
 
 /* ============================================================================
