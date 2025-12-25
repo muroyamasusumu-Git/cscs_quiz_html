@@ -673,7 +673,7 @@
 /* ボタン共通 */
 #cscs-trace-ui button {
     flex: 1 1 auto;
-    min-width: 90px;
+    min-width: 50px;
 
     appearance: none;
     padding: 3px 8px;
