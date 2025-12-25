@@ -614,20 +614,94 @@
     if (ui.root) return;
     if (!document || !document.body) return;
 
-    var css =
-      "#cscs-trace-ui{position:fixed;right:10px;bottom:10px;z-index:2147483647;" +
-      "background:rgba(0,0,0,0.72);border:1px solid rgba(255,255,255,0.18);" +
-      "border-radius:10px;padding:10px 10px;color:#fff;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" +
-      "backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);width:220px}" +
-      "#cscs-trace-ui .t{font-weight:600;text-align:center;opacity:.92;margin:0 0 5px 0}" +
-      "#cscs-trace-ui pre{margin:0 0 8px 0;white-space:pre-wrap;word-break:break-word;" +
-      "background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);" +
-      "border-radius:8px;padding:8px;max-height:120px;overflow:auto}" +
-      "#cscs-trace-ui .row{display:flex;gap:6px;flex-wrap:wrap}" +
-      "#cscs-trace-ui button{flex:1 1 auto;min-width:90px;appearance:none;border:1px solid rgba(255,255,255,0.18);" +
-      "background:rgba(255,255,255,0.08);color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer}" +
-      "#cscs-trace-ui button:hover{background:rgba(255,255,255,0.14)}" +
-      "#cscs-trace-ui button:active{transform:translateY(1px)}";
+    var css = `
+/* ============================================================================
+ * CSCS Debug Trace UI
+ *  - 追記・微調整しやすいようにブロック分割
+ *  - ここに後から selector を安全に追加できる
+ * ========================================================================== */
+
+#cscs-trace-ui {
+    position: fixed;
+    right: 10px;
+    top: 10px;
+    z-index: 2147483647;
+    background: rgba(0,0,0,0.72);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px;
+    padding: 10px 10px 0;
+    color: #fff;
+    font: 12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    width: 220px;
+    opacity: 0.6;
+}
+
+/* タイトル */
+#cscs-trace-ui .t {
+  font-weight: 600;
+  text-align: center;
+  opacity: 0.92;
+  margin: 0 0 5px 0;
+}
+
+/* ステータス表示 */
+#cscs-trace-ui pre {
+  margin: 0 0 8px 0;
+  padding: 8px;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  max-height: 120px;
+  overflow: auto;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+
+/* ボタン行 */
+#cscs-trace-ui .row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ボタン共通 */
+#cscs-trace-ui button {
+  flex: 1 1 auto;
+  min-width: 90px;
+
+  appearance: none;
+  padding: 6px 8px;
+
+  color: #fff;
+  cursor: pointer;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+
+/* hover / active */
+#cscs-trace-ui button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+#cscs-trace-ui button:active {
+  transform: translateY(1px);
+}
+
+/* ============================================================================
+ * 追記用エリア（将来拡張）
+ *
+ * 例:
+ * #cscs-trace-ui.is-running { outline: 1px solid #4caf50; }
+ * #cscs-trace-ui .btn-danger { background: rgba(255,0,0,0.2); }
+ * ========================================================================== */
+`;
 
     var style = document.createElement("style");
     style.textContent = css;
