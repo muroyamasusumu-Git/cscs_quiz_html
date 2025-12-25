@@ -118,7 +118,21 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       headers: { "content-type": "text/plain" }
     });
   }
-  const key = `sync:${user}`;
+
+  // =============================
+  // state.ts : KV read diagnosis
+  // =============================
+  // ★ user / key を確定させる（merge.ts と突き合わせるため）
+  const userRaw = user;
+  const userNormalized = typeof userRaw === "string" ? userRaw.trim().toLowerCase() : "";
+  const key = `sync:${userNormalized}`;
+
+  console.log("[SYNC/state][KEY] resolved", {
+    userRaw,
+    userNormalized,
+    key
+  });
+
   let kvIdentityId = "";
 
   try {
@@ -217,34 +231,46 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   // 1) KV から読み出し
   // -----------------------------
-  let data: any = null;
+  // ★ json get
+  let dataJson: any = null;
+  let jsonGetError: any = null;
+
   try {
-    // 【フォールバックに関与するポイント①: KV.get の戻り値と “null”】
-    // - env.SYNC.get() は「キーが存在しない」場合、通常 null を返す（例外ではない）。
-    // - つまり try が成功しても、data が null のままというケースが普通にある。
-    // - この data:null が、後段の out = data ? data : empty; を発動させ、
-    //   “テンプレ返却（= KV miss を empty に置換）” につながる。
-    //
-    // 【フォールバックに関与するポイント②: cacheTtl:0 の意味】
-    // - cacheTtl:0 は「エッジキャッシュで古い値を掴む確率を下げる」目的。
-    // - ただし cacheTtl:0 は “常に最新が取れる保証” ではなく、
-    //   単に「Workersランタイム側のキャッシュを使わない」方向に寄せるだけ。
-    // - したがって「KVが一時的に取りづらい」「読み出しが失敗/遅延」などが起きた場合、
-    //   data が null になり → out が empty になり → UIが初期値に戻ったように見える余地は残る。
-    //
-    // UI巻き戻り対策B:
-    // - KV.get の cacheTtl を 0 にして、エッジキャッシュ由来の「古いstate」を掴む確率を下げる
-    // - 成功確認: cacheTtl:0 で読めたことを明示ログ
-    data = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
-    console.log("[SYNC/state] ★KV.get(cacheTtl:0) OK");
-    console.log("[SYNC/state] RAW data from KV:", JSON.stringify(data));
+    dataJson = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
   } catch (e) {
-    // 【フォールバックに関与するポイント③: 例外時は “nullのまま”】
-    // - ここで読み出し例外が起きても data は初期値 null のまま。
-    // - その結果、後段で out は empty になり、「テンプレ返却」に見える。
-    // - つまり “例外 → empty” の流れも暗黙フォールバックの一種。
-    console.error("[SYNC/state] ★KV 読み出し失敗:", e);
+    jsonGetError = e;
   }
+
+  // ★ text get（json が null でも text が取れるかを見る）
+  let dataText: string | null = null;
+  let textGetError: any = null;
+
+  try {
+    dataText = await env.SYNC.get(key, "text");
+  } catch (e) {
+    textGetError = e;
+  }
+
+  // ★ 結果を1行で確定
+  console.log("[SYNC/state][GET] result", {
+    key,
+    jsonGet: dataJson === null ? "null" : "object",
+    jsonGetError: jsonGetError ? String(jsonGetError) : null,
+    textGet: dataText === null ? "null" : "text",
+    textBytes: dataText ? dataText.length : 0
+  });
+
+  // ★ empty テンプレに落ちた理由を1行で明示
+  if (dataJson === null) {
+    console.warn("[SYNC/state][EMPTY-TEMPLATE-REASON]", {
+      reason: "KV.get returned null",
+      key
+    });
+  }
+
+  // ★ 既存ロジック互換：以降は従来どおり data を参照する
+  // - out = data ? data : empty; の分岐を壊さないため、data は jsonGet の結果を採用する
+  let data: any = dataJson;
 
   // -----------------------------
   // 2) empty テンプレ（補完用）

@@ -119,7 +119,18 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       headers: { "content-type": "text/plain" }
     });
   }
-  const key = `sync:${user}`;
+
+  // ★ user / key を確定させる（state.ts と突き合わせるため）
+  const userRaw = user;
+  const userNormalized = typeof userRaw === "string" ? userRaw.trim().toLowerCase() : "";
+  const key = `sync:${userNormalized}`;
+
+  console.log("[SYNC/merge][KEY] resolved", {
+    userRaw,
+    userNormalized,
+    key
+  });
+
   let kvIdentityId = "";
 
   // (0) 受信 delta 全体をログ
@@ -1159,13 +1170,64 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     const jsonStr = JSON.stringify(server);
 
-    // マージ済みの server オブジェクトを KV に保存
-    await env.SYNC.put(key, jsonStr);
+    // ★ put 前ログ（payloadサイズと updatedAt）
+    console.log("[SYNC/merge][PUT] before", {
+      key,
+      bytes: jsonStr.length,
+      updatedAt: (server as any).updatedAt
+    });
+
+    // ★ KV.put 本体（例外は絶対に潰さない）
+    try {
+      await env.SYNC.put(key, jsonStr);
+      console.log("[SYNC/merge][PUT] OK", { key });
+    } catch (e) {
+      console.error("[SYNC/merge][PUT] FAILED", {
+        key,
+        error: e
+      });
+      throw e;
+    }
+
     console.log("[SYNC/merge] (3-0) ★KV write:", { key, bytes: jsonStr.length, updatedAt: (server as any).updatedAt, kv_identity: kvIdentityId });
     console.log("[SYNC/merge] (3) ★KV保存成功:", {
       key,
       streak3Today: (server as any).streak3Today
     });
+
+    // ★★★ 決定打：read-after-write（同じ key を即 get） ★★★
+    try {
+      const readBackText = await env.SYNC.get(key, "text");
+
+      if (readBackText === null) {
+        console.error("[SYNC/merge][READ-AFTER-WRITE] NULL", {
+          key,
+          note: "KV.put直後だが get(text) が null"
+        });
+      } else {
+        let parsedUpdatedAt: number | null = null;
+        try {
+          const parsed = JSON.parse(readBackText);
+          parsedUpdatedAt =
+            parsed && typeof parsed.updatedAt === "number"
+              ? parsed.updatedAt
+              : null;
+        } catch (_e) {}
+
+        console.log("[SYNC/merge][READ-AFTER-WRITE] OK", {
+          key,
+          textBytes: readBackText.length,
+          updatedAtWritten: (server as any).updatedAt,
+          updatedAtReadBack: parsedUpdatedAt,
+          sameUpdatedAt: parsedUpdatedAt === (server as any).updatedAt
+        });
+      }
+    } catch (e) {
+      console.error("[SYNC/merge][READ-AFTER-WRITE] FAILED", {
+        key,
+        error: e
+      });
+    }
 
     // streak3Today フィールドが「unique_count === qids.length」を満たしているかの自己整合性チェック
     // - 本日の3連続正解ユニーク数について、保存された配列長とカウント値が一致しているかを確認する
