@@ -110,6 +110,26 @@
         if (isTarget(path)) {
           var tag = path.endsWith("merge") ? "merge" : "state";
           store[tag] = pick(resp.headers);
+
+          if (tag === "merge" && (resp.status === 400 || resp.status === 401)) {
+            var text = "";
+            var json = null;
+            try {
+              text = await resp.clone().text();
+            } catch (_e1) {
+              text = "";
+            }
+            try {
+              json = JSON.parse(text);
+            } catch (_e2) {
+              json = null;
+            }
+
+            if (resp.status === 400 && json && json.error === "SYNC_KEY_REQUIRED") {
+              console.log("[CSCS][SYNC][merge] key missing (X-CSCS-Key header is required)");
+            }
+          }
+
           compareAndReport();
         }
       } catch (e) {}
