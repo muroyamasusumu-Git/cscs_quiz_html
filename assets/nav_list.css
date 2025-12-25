@@ -33,14 +33,14 @@
 /* オーバーレイ本体 */
 #nl-panel {
   position: fixed !important;
-  inset: 220px 10px 50px 0 !important;
+  inset: 220px 10px 190px 0 !important;
   opacity: 0.5 !important;
   display: block !important;
   flex-direction: column !important;
   margin-left: 70%;
   font-size: 0.85rem;
   width: auto !important;
-  height: 450px !important;
+  height: auto !important;
   overflow: hidden !important;
   background: none !important;
   border: 0 solid var(--nl-border) !important;
