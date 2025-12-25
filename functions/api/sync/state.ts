@@ -231,6 +231,12 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // -----------------------------
   // 1) KV から読み出し
   // -----------------------------
+  try {
+    console.log("[STATE][KV RAW]", await env.SYNC.get(key, { type: "json", cacheTtl: 0 }));
+  } catch (e) {
+    console.log("[STATE][KV RAW] error", String(e));
+  }
+
   // ★ json get
   let dataJson: any = null;
   let jsonGetError: any = null;
