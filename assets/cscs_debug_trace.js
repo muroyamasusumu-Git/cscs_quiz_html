@@ -530,8 +530,7 @@
     statusEl: null,
     btnStart: null,
     btnStop: null,
-    btnReset: null,
-    btnStatus: null
+    btnReset: null
   };
 
   function formatBytes(n) {
@@ -659,6 +658,9 @@
     border-radius: 8px;
     color: #dcdcdc;
     line-height: 1;
+
+    /* ★追加: クリック可能であることを示す（Statusボタン相当の操作をここに集約） */
+    cursor: pointer;
 }
 
 /* ボタン行 */
@@ -723,35 +725,25 @@
     pre.textContent = "";
     root.appendChild(pre);
 
-    var row1 = document.createElement("div");
-    row1.className = "row";
-
-    var btnStatus = document.createElement("button");
-    btnStatus.id = "cscs-trace-ui-btn-status";
-    btnStatus.textContent = "Status";
-    row1.appendChild(btnStatus);
+    var rowButtons = document.createElement("div");
+    rowButtons.className = "row";
 
     var btnStart = document.createElement("button");
     btnStart.id = "cscs-trace-ui-btn-start";
     btnStart.textContent = "Start";
-    row1.appendChild(btnStart);
-
-    root.appendChild(row1);
-
-    var row2 = document.createElement("div");
-    row2.className = "row";
+    rowButtons.appendChild(btnStart);
 
     var btnStop = document.createElement("button");
     btnStop.id = "cscs-trace-ui-btn-stop";
     btnStop.textContent = "Stop (Copy)";
-    row2.appendChild(btnStop);
+    rowButtons.appendChild(btnStop);
 
     var btnReset = document.createElement("button");
     btnReset.id = "cscs-trace-ui-btn-reset";
     btnReset.textContent = "Reset";
-    row2.appendChild(btnReset);
+    rowButtons.appendChild(btnReset);
 
-    root.appendChild(row2);
+    root.appendChild(rowButtons);
 
     document.body.appendChild(root);
 
@@ -760,12 +752,16 @@
     ui.btnStart = btnStart;
     ui.btnStop = btnStop;
     ui.btnReset = btnReset;
-    ui.btnStatus = btnStatus;
 
     btnStart.addEventListener("click", function () { onUiStart(); });
     btnStop.addEventListener("click", function () { onUiStop(); });
     btnReset.addEventListener("click", function () { onUiReset(); });
-    btnStatus.addEventListener("click", function () { onUiStatus(); });
+
+    /* ★追加: Statusボタンを廃止し、テキストエリアクリックを Status 相当にする
+       - consoleへ status() を出す（従来の onUiStatus と同じ）
+       - クリック後はUI表示も更新する（updateTraceUi は onUiStatus 側で実施）
+    */
+    pre.addEventListener("click", function () { onUiStatus(); });
 
     updateTraceUi();
   }
