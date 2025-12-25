@@ -1,7 +1,6 @@
 // assets/cscs_debug_trace.js
 (function () {
   "use strict";
-
   // ============================================================================
   // CSCS Debug Trace (Resident, sessionStorage-backed)
   //
@@ -12,22 +11,26 @@
   //   - リロード・A→B遷移などが起きても、同一タブ内ならログを保持する（sessionStorage）
   //
   // 重要な性質:
+  //   - デフォルトでは “トレースOFF”（enabled=false）で、ログは収集しない
   //   - “この JS が読み込まれた後” のログのみ収集できる（過去ログは回収不可）
   //   - sessionStorage は「同一タブ内」で保持される
   //     → タブを閉じると消える（デバッグ向け）
+  //   - STOP は「コピー → トレース停止」のみ（ログは保持する）
   //
   // 操作API（コンソールから使える）:
-  //   - window.__CSCS_TRACE__.setAction("...")  : ヘッダ Action を更新
-  //   - window.__CSCS_TRACE__.setReset("...")   : ヘッダ Reset を更新
-  //   - window.__CSCS_TRACE__.refreshUrl()      : ヘッダ URL を現URLへ更新
-  //   - window.__CSCS_TRACE__.exportText()      : 送信用テキスト生成（返り値=文字列）
-  //   - window.__CSCS_TRACE__.copy()            : exportText() をクリップボードへ
-  //   - window.__CSCS_TRACE__.download()        : txt ダウンロード（ブラウザ許可が必要な場合あり）
-  //   - window.__CSCS_TRACE__.clear()           : ログを全消去（sessionStorage含む）
-  //   - window.__CSCS_TRACE__.status()          : 現在の統計（行数等）
+  //   - window.__CSCS_TRACE__.start()            : トレース開始＋バッファクリア（保存ログも消す）
+  //   - window.__CSCS_TRACE__.stop()             : トレース停止＋ログをコピー（コピー後もログは保持）
+  //   - window.__CSCS_TRACE__.setAction("...")   : ヘッダ Action を更新
+  //   - window.__CSCS_TRACE__.setReset("...")    : ヘッダ Reset を更新
+  //   - window.__CSCS_TRACE__.refreshUrl()       : ヘッダ URL を現URLへ更新
+  //   - window.__CSCS_TRACE__.exportText()       : 送信用テキスト生成（返り値=文字列）
+  //   - window.__CSCS_TRACE__.copy()             : exportText() をクリップボードへ（トレース状態は変えない）
+  //   - window.__CSCS_TRACE__.download()         : txt ダウンロード（ブラウザ許可が必要な場合あり）
+  //   - window.__CSCS_TRACE__.clearStored()      : 保存されているログだけを “無言で” クリア（enabledは変えない）
+  //   - window.__CSCS_TRACE__.clear()            : 保存ログをクリア＋通知（通知はバッファに残さない）
+  //   - window.__CSCS_TRACE__.status()           : 現在の統計（行数等）
   //
   // ============================================================================
-
   // 二重初期化防止（同一ページで二度読み込まれてもフックが重ならない）
   if (window.__CSCS_TRACE__ && window.__CSCS_TRACE__.installed) {
     return;
@@ -366,15 +369,21 @@
     },
 
     stop: async function () {
-      var text = this.exportText();
-      var ok = await copyToClipboard(text);
+      // ① まず「完全なスナップショット」を作る（以後 lines を触らない）
+      var snapshot = this.exportText();
 
+      // ② スナップショットをコピー（非同期完了を必ず待つ）
+      var ok = await copyToClipboard(snapshot);
+
+      // ③ コピー完了後にトレース停止のみ（ログは保持）
       enabled = false;
 
-      lines.length = 0;
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
+      console.log(
+        "[CSCS][TRACE] STOP (copied=" +
+          (ok ? "YES" : "NO") +
+          ", enabled=false, buffer kept)"
+      );
 
-      console.log("[CSCS][TRACE] STOP (copied=" + (ok ? "YES" : "NO") + ", enabled=false, buffer cleared)");
       return ok;
     },
 
@@ -439,11 +448,20 @@
       return ok;
     },
 
-    clear: function () {
+    // 保存されているログ（sessionStorage）だけを “無言で” クリアする
+    // - enabled の ON/OFF は変えない
+    // - console.log を使わない（enabled=true の時にクリアログが再混入するのを防ぐ）
+    clearStored: function () {
       lines.length = 0;
       try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
-      console.log("[CSCS][TRACE] cleared (sessionStorage)");
       return true;
+    },
+
+    // 後方互換: クリアして、通知だけ出す（通知は origConsole なのでバッファに入らない）
+    clear: function () {
+      var ok = this.clearStored();
+      origConsole.log("[CSCS][TRACE] cleared (sessionStorage)");
+      return ok;
     },
 
     status: function () {
