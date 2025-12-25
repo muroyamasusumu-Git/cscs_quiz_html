@@ -177,6 +177,7 @@
   }
 
   function pushLine(lines, line) {
+    if (!enabled) return;
     lines.push(line);
     trimLines(lines);
     saveLines(lines);
@@ -226,6 +227,7 @@
   // -----------------------------
   // 状態
   // -----------------------------
+  var enabled = false;
   var header = loadHeader();
   var lines = loadLines();
 
@@ -350,6 +352,32 @@
   window.__CSCS_TRACE__ = {
     installed: true,
 
+    start: function () {
+      enabled = true;
+
+      lines.length = 0;
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
+
+      header.url = location.href;
+      saveHeader(header);
+
+      console.log("[CSCS][TRACE] START (enabled=true, buffer cleared)");
+      return true;
+    },
+
+    stop: async function () {
+      var text = this.exportText();
+      var ok = await copyToClipboard(text);
+
+      enabled = false;
+
+      lines.length = 0;
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
+
+      console.log("[CSCS][TRACE] STOP (copied=" + (ok ? "YES" : "NO") + ", enabled=false, buffer cleared)");
+      return ok;
+    },
+
     setAction: function (s) {
       header.action = String(s || "");
       saveHeader(header);
@@ -413,9 +441,9 @@
 
     clear: function () {
       lines.length = 0;
-      saveLines(lines);
-      pushLine(lines, "[" + nowISO() + "][TRACE] cleared buffer (sessionStorage)");
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e0) {}
       console.log("[CSCS][TRACE] cleared (sessionStorage)");
+      return true;
     },
 
     status: function () {
@@ -425,6 +453,7 @@
       try { bufRaw = sessionStorage.getItem(STORAGE_KEY) || ""; } catch (e2) { bufRaw = ""; }
 
       console.log("[CSCS][TRACE] status =", {
+        enabled: enabled,
         lines: lines.length,
         maxLines: MAX_LINES,
         headerBytes: headerRaw.length,
