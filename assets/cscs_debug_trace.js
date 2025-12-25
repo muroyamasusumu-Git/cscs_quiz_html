@@ -671,18 +671,16 @@
 
 /* ボタン共通 */
 #cscs-trace-ui button {
-  flex: 1 1 auto;
-  min-width: 90px;
-
-  appearance: none;
-  padding: 6px 8px;
-
-  color: #fff;
-  cursor: pointer;
-
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
+    flex: 1 1 auto;
+    min-width: 90px;
+    appearance: none;
+    padding: 6px 8px;
+    color: #fff;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    margin-bottom: 5px;
 }
 
 /* hover / active */
