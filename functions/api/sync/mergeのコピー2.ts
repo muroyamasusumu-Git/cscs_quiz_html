@@ -207,20 +207,12 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   const willPut = diffKeysCount > 0;
 
-  console.log("[MERGE] payloadType:", payloadType);
-  console.log("[MERGE] diffKeysCount:", diffKeysCount);
-
   // ★ 必須ログ（payloadType / diffKeysCount / willPut）
   console.log("[SYNC/merge][PAYLOAD] summary:", {
     payloadType,
     diffKeysCount,
     willPut
   });
-
-  if (payloadType === "diff" && diffKeysCount === 0) {
-    console.log("[MERGE] NO_DIFF_SKIP_PUT");
-    return new Response(JSON.stringify({ skipped: true }), { status: 200 });
-  }
 
   // ★ payloadType 必須チェック（フォールバック無し）
   if (!payloadType) {
