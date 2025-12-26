@@ -4502,6 +4502,7 @@
       //    - day: "YYYYMMDD" 形式
       //    - qids: その日に⭐️を初めて取った問題の qid 配列
       var payload = {
+        payloadType: "diff",
         streak3TodayDelta: {
           day: day,
           qids: qids
@@ -4677,6 +4678,7 @@
       //    - day: "YYYYMMDD" 形式
       //    - qids: その日に💣を初めて取った問題の qid 配列
       var payload = {
+        payloadType: "diff",
         streak3WrongTodayDelta: {
           day: day,
           qids: qids
