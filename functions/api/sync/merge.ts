@@ -133,6 +133,11 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
   let kvIdentityId = "";
 
+  // ★ レスポンス用：KV put が実行されたか（KV保存データには入れない）
+  let putExecuted = false;
+  let putDiagBefore: any = null;
+  let putDiagAfter: any = null;
+
   // (0) 受信 delta 全体をログ
   // - クライアント（A/B パートなど）から送られてきた差分データを JSON として受け取る
   // - ここでパースに失敗した場合は以降の処理は不可能なので 400 を返して終了
@@ -233,7 +238,12 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         reason: "NO_DIFF_SKIP_PUT",
         payloadType,
         diffKeysCount,
-        willPut: false
+        willPut: false,
+        __cscs_merge: {
+          putExecuted: false,
+          putBefore: null,
+          putAfter: null
+        }
       }),
       {
         status: 200,
@@ -1307,20 +1317,24 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       // ★ [STEP 3][証拠ログ] PUT 実行直前
       // - 本当に「これから KV.put を呼ぶ」瞬間を確定ログとして残す
       // - key / updatedAt / 書き込みサイズ(bytes) を必ず出す
-      console.log("[SYNC][MERGE][PUT][BEFORE]", {
+      putDiagBefore = {
         key,
         updatedAt: (server as any).updatedAt,
         bytes: JSON.stringify(beforePut).length
-      });
+      };
+      console.log("[SYNC][MERGE][PUT][BEFORE]", putDiagBefore);
 
       await env.SYNC.put(key, JSON.stringify(beforePut));
 
-      // ★ [STEP 3][証拠ログ] PUT 実行直後
-      // - await が正常に戻った＝put が「成功した」ことを確定させる
-      console.log("[SYNC][MERGE][PUT][AFTER]", {
+      putExecuted = true;
+      putDiagAfter = {
         key,
         updatedAt: (server as any).updatedAt
-      });
+      };
+
+      // ★ [STEP 3][証拠ログ] PUT 実行直後
+      // - await が正常に戻った＝put が「成功した」ことを確定させる
+      console.log("[SYNC][MERGE][PUT][AFTER]", putDiagAfter);
 
       // ★ 既存: read-after-write で「本当に KV に入ったか」を即検証する
       const verify = await env.SYNC.get(key, "text");
@@ -1455,7 +1469,15 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   //   キャッシュ禁止ヘッダを付けて返す（中継/ブラウザに古い返答を掴ませない）
   // - 成功確認: レスポンス直前に updatedAt / サイズ / 主要キーをログ出力する
   try {
-    const resJson = JSON.stringify(server);
+    const responseObj = Object.assign({}, server, {
+      __cscs_merge: {
+        putExecuted: putExecuted,
+        putBefore: putDiagBefore,
+        putAfter: putDiagAfter
+      }
+    });
+
+    const resJson = JSON.stringify(responseObj);
 
     const reqId = crypto.randomUUID();
     const cfAny: any = (request as any).cf || {};
