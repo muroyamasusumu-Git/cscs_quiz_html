@@ -1304,11 +1304,25 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // ★ KV.put 本体（例外は絶対に潰さない）
     try {
+      // ★ [STEP 3][証拠ログ] PUT 実行直前
+      // - 本当に「これから KV.put を呼ぶ」瞬間を確定ログとして残す
+      // - key / updatedAt / 書き込みサイズ(bytes) を必ず出す
+      console.log("[SYNC][MERGE][PUT][BEFORE]", {
+        key,
+        updatedAt: (server as any).updatedAt,
+        bytes: JSON.stringify(beforePut).length
+      });
+
       await env.SYNC.put(key, JSON.stringify(beforePut));
 
-      // ★ 追加: read-after-write で「本当に KV に入ったか」を即検証する
-      // - textBytes が 0 / not present なら、put が効いてないか key が違う
-      // - textHead で先頭だけ覗いて「テンプレしか入ってない」等を判定できる
+      // ★ [STEP 3][証拠ログ] PUT 実行直後
+      // - await が正常に戻った＝put が「成功した」ことを確定させる
+      console.log("[SYNC][MERGE][PUT][AFTER]", {
+        key,
+        updatedAt: (server as any).updatedAt
+      });
+
+      // ★ 既存: read-after-write で「本当に KV に入ったか」を即検証する
       const verify = await env.SYNC.get(key, "text");
       console.log("[SYNC/merge][PUT VERIFY]", {
         key,
