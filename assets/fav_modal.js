@@ -182,10 +182,25 @@
     }catch(_){}
 
     try{
+      var _syncKey = "";
+      try{
+        _syncKey = localStorage.getItem("cscs_sync_key") || "";
+      }catch(_){
+        _syncKey = "";
+      }
+
+      if (!_syncKey) {
+        try{
+          console.error("fav_modal.js: SYNC key missing. abort POST /api/sync/merge", { qid: qid, payload: payload });
+        }catch(_){}
+        return Promise.resolve(null);
+      }
+
       return fetch("/api/sync/merge", {
         method: "POST",
         headers: {
-          "content-type": "application/json"
+          "content-type": "application/json",
+          "X-CSCS-Key": String(_syncKey)
         },
         body: JSON.stringify(payload),
         credentials: "include"

@@ -317,9 +317,26 @@
           try{
             const payload = { odoa_mode: mode === "on" ? "on" : "off" };
             dlog("O.D.O.A: sending mode to SYNC:", payload);
+            var _syncKey = "";
+            try{
+              _syncKey = localStorage.getItem("cscs_sync_key") || "";
+            }catch(_){
+              _syncKey = "";
+            }
+
+            if (!_syncKey) {
+              dlog("O.D.O.A: SYNC key missing. abort POST /api/sync/merge", {
+                payload: payload
+              });
+              return;
+            }
+
             fetch("/api/sync/merge", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSCS-Key": String(_syncKey)
+              },
               body: JSON.stringify(payload)
             }).then(function(res){
               dlog("O.D.O.A: SYNC merge response status:", res.status);

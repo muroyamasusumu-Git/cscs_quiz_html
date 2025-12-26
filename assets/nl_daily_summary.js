@@ -875,10 +875,23 @@
 
       function sendExamDateToSync(dateStr){
         try{
+          var key = "";
+          try{
+            key = localStorage.getItem("cscs_sync_key") || "";
+          }catch(_){
+            key = "";
+          }
+
+          if (!key) {
+            console.log("[CSCS][SYNC][nl_daily_summary] X-CSCS-Key missing; skip POST /api/sync/merge");
+            return;
+          }
+
           fetch("/api/sync/merge", {
             method: "POST",
             headers: {
-              "content-type": "application/json"
+              "content-type": "application/json",
+              "X-CSCS-Key": String(key)
             },
             body: JSON.stringify({
               exam_date_iso: String(dateStr || "")

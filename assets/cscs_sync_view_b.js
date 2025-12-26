@@ -3207,13 +3207,59 @@
     console.log("[SYNC-B] sending diff payload:", payload);
 
     try {
+      // ★ 送信前に /api/sync/state の Response Header から X-CSCS-Key を確定させる
+      //   - 推測で key を作らない（必ず server が返した key を使う）
+      var keyForMerge = "";
+      try {
+        var stRes = await fetch("/api/sync/state", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include"
+        });
+        try {
+          keyForMerge = stRes && stRes.headers ? String(stRes.headers.get("X-CSCS-Key") || "") : "";
+        } catch (_e1) {
+          keyForMerge = "";
+        }
+        keyForMerge = String(keyForMerge || "").trim();
+      } catch (_e0) {
+        keyForMerge = "";
+      }
+
+      if (!keyForMerge) {
+        console.error("[SYNC-B] ❌ X-CSCS-Key missing → abort merge POST", {
+          endpoint: SYNC_MERGE_ENDPOINT,
+          qid: qid,
+          forceSend: !!forceSend
+        });
+        renderPanel(box, {
+          serverCorrect: serverCorrect,
+          serverWrong: serverWrong,
+          localCorrect: localCorrect,
+          localWrong: localWrong,
+          diffCorrect: diffCorrect,
+          diffWrong: diffWrong,
+          serverStreak3: serverStreak3,
+          localStreak3: localStreak3,
+          diffStreak3: diffStreak3,
+          serverStreakLen: serverStreakLen,
+          localStreakLen: localStreakLen,
+          diffStreakLen: diffStreakLen,
+          statusText: "X-CSCS-Key missing (merge送信中止)",
+          odoaModeText: odoaModeText
+        });
+        return;
+      }
+
       var response = await fetch(SYNC_MERGE_ENDPOINT, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-CSCS-Key": keyForMerge
         },
         body: JSON.stringify(payload),
-        keepalive: true
+        keepalive: true,
+        credentials: "include"
       });
 
       // サーバーまで届かなかった／保存に失敗した可能性
@@ -4469,13 +4515,42 @@
       console.groupEnd();
 
       // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
+      //   - 送信前に /api/sync/state の Response Header から X-CSCS-Key を確定して必ず付与する
+      var keyForMerge = "";
+      try {
+        var stRes = await fetch("/api/sync/state", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include"
+        });
+        try {
+          keyForMerge = stRes && stRes.headers ? String(stRes.headers.get("X-CSCS-Key") || "") : "";
+        } catch (_e1) {
+          keyForMerge = "";
+        }
+        keyForMerge = String(keyForMerge || "").trim();
+      } catch (_e0) {
+        keyForMerge = "";
+      }
+
+      if (!keyForMerge) {
+        console.error("[SYNC-B:streak3Today] ❌ X-CSCS-Key missing → abort merge POST", {
+          endpoint: SYNC_MERGE_ENDPOINT,
+          day: day,
+          qidsLength: qids.length
+        });
+        return;
+      }
+
       var res = await fetch(SYNC_MERGE_ENDPOINT, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-CSCS-Key": keyForMerge
         },
         body: JSON.stringify(payload),
-        keepalive: true
+        keepalive: true,
+        credentials: "include"
       });
 
       // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）
@@ -4615,13 +4690,42 @@
       console.groupEnd();
 
       // 7) /api/sync/merge に対して streak3WrongTodayDelta 専用のリクエストを送信
+      //   - 送信前に /api/sync/state の Response Header から X-CSCS-Key を確定して必ず付与する
+      var keyForMerge = "";
+      try {
+        var stRes = await fetch("/api/sync/state", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include"
+        });
+        try {
+          keyForMerge = stRes && stRes.headers ? String(stRes.headers.get("X-CSCS-Key") || "") : "";
+        } catch (_e1) {
+          keyForMerge = "";
+        }
+        keyForMerge = String(keyForMerge || "").trim();
+      } catch (_e0) {
+        keyForMerge = "";
+      }
+
+      if (!keyForMerge) {
+        console.error("[SYNC-B:streak3WrongToday] ❌ X-CSCS-Key missing → abort merge POST", {
+          endpoint: SYNC_MERGE_ENDPOINT,
+          day: day,
+          qidsLength: qids.length
+        });
+        return;
+      }
+
       var res = await fetch(SYNC_MERGE_ENDPOINT, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-CSCS-Key": keyForMerge
         },
         body: JSON.stringify(payload),
-        keepalive: true
+        keepalive: true,
+        credentials: "include"
       });
 
       // 8) HTTP レベルでエラーならここで終了（サーバー保存失敗の可能性）

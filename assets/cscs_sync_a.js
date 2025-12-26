@@ -1985,9 +1985,20 @@
 
     try{
       // ★ 処理1: merge を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      let _syncKey = "";
+      try{
+        _syncKey = localStorage.getItem("cscs_sync_key") || "";
+      }catch(_){
+        _syncKey = "";
+      }
+
+      if (!_syncKey) {
+        throw new Error("SYNC_KEY_MISSING_LOCAL");
+      }
+
       const res = await fetch("/api/sync/merge", {
         method:"POST",
-        headers:{ "content-type":"application/json" },
+        headers:{ "content-type":"application/json", "X-CSCS-Key": String(_syncKey) },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(String(res.status));
