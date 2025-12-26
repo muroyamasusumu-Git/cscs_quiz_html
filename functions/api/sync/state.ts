@@ -292,25 +292,6 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     jsonGetError = e;
   }
 
-  // ★ 追加した処理0: 「json が null だが text は取れている」ズレを正す（同一KV内で完結）
-  // - 何をしているか: KV.get(json) が null/例外でも、同じ key の KV.get(text) が non-null なら JSON.parse を試みる
-  // - 目的: 「KVに実データが入っているのに state が empty を返す」状況を排除する（別ソースのフォールバックではなく、同一KVの別取得方式で整合させる）
-  // - 注意: parse に失敗した場合は“埋め合わせ”はしない（dataJson は null のまま）→ 以降の empty 判定が働く
-  if (dataJson === null && dataText !== null) {
-    try {
-      const parsedFromText = JSON.parse(dataText);
-      dataJson = parsedFromText;
-      console.log("[SYNC/state][JSON-SALVAGE] json was null -> parsed from text OK", {
-        key
-      });
-    } catch (e) {
-      console.warn("[SYNC/state][JSON-SALVAGE] json was null -> JSON.parse(text) FAILED", {
-        key,
-        error: String(e)
-      });
-    }
-  }
-
   // ★ 追加した処理1: text の「UTF-8バイト長」を算出する
   // - 何をしているか: dataText.length（文字数）ではなく、実際に KV に入っている JSON 文字列の「バイト感」を確認する
   // - 目的: 「textは取れてるがサイズが0/異常」「巨大すぎる/途中で壊れてる」などをログだけで切り分ける
@@ -373,13 +354,13 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // - 目的: “emptyテンプレが返る条件” をログ検索で即特定する
   if (dataJson === null) {
     console.warn("[SYNC/state][EMPTY-TEMPLATE-REASON]", {
-      reason: "KV.get(json) returned null (and JSON.parse(text) salvage did not produce json)",
+      reason: "KV.get(json) returned null",
       key
     });
   }
 
   // ★ 既存ロジック互換：以降は従来どおり data を参照する
-  // - out = data ? data : empty; の分岐を壊さないため、data は最終的な json（salvage後）を採用する
+  // - out = data ? data : empty; の分岐を壊さないため、data は jsonGet の結果を採用する
   let data: any = dataJson;
 
   // -----------------------------
