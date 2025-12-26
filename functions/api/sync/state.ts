@@ -120,12 +120,52 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   }
 
   // =============================
-  // state.ts : KV read diagnosis
+  // state.ts : KEY MUST BE PROVIDED (align with merge.ts)
   // =============================
+  // ★ /api/sync/state も必ず key を要求する（空テンプレで誤魔化さない）
+  const headerKeyRaw = request.headers.get("X-CSCS-Key") || "";
+  const headerKey = typeof headerKeyRaw === "string" ? headerKeyRaw.trim() : "";
+
+  if (!headerKey) {
+    const body = JSON.stringify({
+      ok: false,
+      __cscs_warn: { code: "SYNC_STATE_MISSING_KEY", message: "X-CSCS-Key is required for /api/sync/state" }
+    });
+    return new Response(body, {
+      status: 400,
+      headers: {
+        "content-type": "application/json",
+        "Cache-Control": "no-store",
+        "X-CSCS-IsEmptyTemplate": "1",
+        "X-CSCS-Warn": "SYNC_STATE_MISSING_KEY"
+      }
+    });
+  }
+
   // ★ user / key を確定させる（merge.ts と突き合わせるため）
   const userRaw = user;
   const userNormalized = typeof userRaw === "string" ? userRaw.trim().toLowerCase() : "";
-  const key = `sync:${userNormalized}`;
+  const expectedKey = `sync:${userNormalized}`;
+
+  // ★ 不一致なら拒否（別keyで読まれたら事故る）
+  if (headerKey !== expectedKey) {
+    const body = JSON.stringify({
+      ok: false,
+      __cscs_warn: { code: "SYNC_STATE_KEY_MISMATCH", message: "X-CSCS-Key does not match authenticated user" }
+    });
+    return new Response(body, {
+      status: 403,
+      headers: {
+        "content-type": "application/json",
+        "Cache-Control": "no-store",
+        "X-CSCS-Warn": "SYNC_STATE_KEY_MISMATCH",
+        "X-CSCS-Key": headerKey,
+        "X-CSCS-ExpectedKey": expectedKey
+      }
+    });
+  }
+
+  const key = headerKey;
 
   console.log("[SYNC/state][KEY] resolved", {
     userRaw,
