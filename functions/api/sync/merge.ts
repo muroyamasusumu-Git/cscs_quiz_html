@@ -233,10 +233,95 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.log("[MERGE] diffKeysCount: 0");
     console.log("[MERGE] NO_DIFF_SKIP_PUT");
 
+    // ★ (1) Pages メタを early return 前に確定（diag:kv_identity の作成payloadにも使う）
+    const envAny: any = env as any;
+    const pagesDeploymentId =
+      typeof (envAny as any).CF_PAGES_DEPLOYMENT_ID === "string"
+        ? String((envAny as any).CF_PAGES_DEPLOYMENT_ID)
+        : "";
+    const pagesCommitSha =
+      typeof (envAny as any).CF_PAGES_COMMIT_SHA === "string"
+        ? String((envAny as any).CF_PAGES_COMMIT_SHA)
+        : "";
+    const pagesBranch =
+      typeof (envAny as any).CF_PAGES_BRANCH === "string"
+        ? String((envAny as any).CF_PAGES_BRANCH)
+        : "";
+    const pagesProject =
+      typeof (envAny as any).CF_PAGES_PROJECT_NAME === "string"
+        ? String((envAny as any).CF_PAGES_PROJECT_NAME)
+        : "";
+
+    // ★ (2) request route を early return 前に確定（colo / ray を診断ヘッダとログに使う）
     const reqId = crypto.randomUUID();
     const cfAny: any = (request as any).cf || {};
     const colo = typeof cfAny.colo === "string" ? cfAny.colo : "";
     const ray = request.headers.get("CF-Ray") || "";
+
+    // ★ (3) KV identity を early return 前に確定（NO_DIFFでも X-CSCS-KV-Identity を非空にする）
+    const kvIdentityKey = "diag:kv_identity";
+    let kvIdentityRaw: string | null = null;
+
+    try {
+      kvIdentityRaw = await env.SYNC.get(kvIdentityKey, "text");
+      console.log("[SYNC/merge][KV-IDENTITY][NO_DIFF] get OK:", {
+        hasValue: !!kvIdentityRaw
+      });
+    } catch (e) {
+      console.error("[SYNC/merge][KV-IDENTITY][NO_DIFF] get FAILED:", e);
+      kvIdentityRaw = null;
+    }
+
+    if (!kvIdentityRaw) {
+      const identityObj = {
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        pages: {
+          project: pagesProject,
+          branch: pagesBranch,
+          commit: pagesCommitSha,
+          deployment: pagesDeploymentId
+        }
+      };
+
+      try {
+        await env.SYNC.put(kvIdentityKey, JSON.stringify(identityObj));
+        kvIdentityId = identityObj.id;
+        console.log("[SYNC/merge][KV-IDENTITY][NO_DIFF] put OK (created):", {
+          key: kvIdentityKey,
+          id: kvIdentityId
+        });
+      } catch (e) {
+        console.error("[SYNC/merge][KV-IDENTITY][NO_DIFF] put FAILED:", e);
+      }
+    } else {
+      try {
+        const parsed = JSON.parse(kvIdentityRaw);
+        kvIdentityId = parsed && typeof parsed.id === "string" ? parsed.id : "";
+        console.log("[SYNC/merge][KV-IDENTITY][NO_DIFF] use existing:", {
+          key: kvIdentityKey,
+          id: kvIdentityId
+        });
+      } catch (e) {
+        console.error("[SYNC/merge][KV-IDENTITY][NO_DIFF] parse FAILED:", e);
+        kvIdentityId = "";
+      }
+    }
+
+    console.log("[SYNC/merge][diag][NO_DIFF] response headers snapshot:", {
+      reqId,
+      user,
+      key,
+      colo,
+      ray,
+      kv_identity: kvIdentityId,
+      pages: {
+        project: pagesProject,
+        branch: pagesBranch,
+        commit: pagesCommitSha,
+        deployment: pagesDeploymentId
+      }
+    });
 
     return new Response(
       JSON.stringify({
@@ -260,10 +345,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
           "X-CSCS-KV-Binding": "SYNC",
           "X-CSCS-KV-Identity": kvIdentityId,
 
-          "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
-          "X-CSCS-Pages-Branch": typeof (env as any).CF_PAGES_BRANCH === "string" ? String((env as any).CF_PAGES_BRANCH) : "",
-          "X-CSCS-Pages-Commit": typeof (env as any).CF_PAGES_COMMIT_SHA === "string" ? String((env as any).CF_PAGES_COMMIT_SHA) : "",
-          "X-CSCS-Pages-Deploy": typeof (env as any).CF_PAGES_DEPLOYMENT_ID === "string" ? String((env as any).CF_PAGES_DEPLOYMENT_ID) : "",
+          "X-CSCS-Pages-Project": pagesProject,
+          "X-CSCS-Pages-Branch": pagesBranch,
+          "X-CSCS-Pages-Commit": pagesCommitSha,
+          "X-CSCS-Pages-Deploy": pagesDeploymentId,
 
           "X-CSCS-KV-HasEnvSYNC": (env as any).SYNC ? "1" : "0",
           "X-CSCS-KV-HasGet": (env as any).SYNC && typeof (env as any).SYNC.get === "function" ? "1" : "0",
