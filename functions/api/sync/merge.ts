@@ -131,35 +131,6 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     key
   });
 
-  // ★ 追加: クライアントが X-CSCS-Key を明示していない場合は即失敗（成功扱いにしない）
-  // - 目的: key無しで 200 が返り「merge が実質 state 化」する事故を止める
-  // - 処理: X-CSCS-Key ヘッダ必須。無い場合は 400 を返して以降の処理(KV.get/put含む)へ入らない
-  // - 処理: 送信された X-CSCS-Key が、このリクエストの解決済み key と一致しない場合は 403（なりすまし防止）
-  const reqKey = request.headers.get("X-CSCS-Key");
-  if (!reqKey) {
-    console.log("[SYNC/merge][KEY] missing X-CSCS-Key header → reject");
-    return new Response(JSON.stringify({ error: "SYNC_KEY_REQUIRED" }), {
-      status: 400,
-      headers: {
-        "content-type": "application/json",
-        "Cache-Control": "no-store"
-      }
-    });
-  }
-  if (reqKey !== key) {
-    console.log("[SYNC/merge][KEY] mismatch X-CSCS-Key → reject", {
-      reqKey,
-      resolvedKey: key
-    });
-    return new Response(JSON.stringify({ error: "SYNC_KEY_MISMATCH" }), {
-      status: 403,
-      headers: {
-        "content-type": "application/json",
-        "Cache-Control": "no-store"
-      }
-    });
-  }
-
   let kvIdentityId = "";
 
   // (0) 受信 delta 全体をログ
@@ -217,12 +188,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     willPut
   });
 
-  if (payloadType === "diff" && diffKeysCount === 0) {
-    console.log("[MERGE] NO_DIFF_SKIP_PUT");
-    return new Response(JSON.stringify({ skipped: true }), { status: 200 });
-  }
-
-  // ★ payloadType 必須チェック（フォールバック無し）
+  // ★ payloadType 必須チェック（最優先・フォールバック無し）
   if (!payloadType) {
     console.log("[SYNC/merge][PAYLOAD] payloadType missing → reject", {
       payloadType,
@@ -238,7 +204,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     });
   }
 
-  // ★ payloadType === "diff" 以外は即エラー（diff処理に入っていないことを明示）
+  // ★ payloadType === "diff" 以外は即エラー
+  //   → diff 処理に「入っていない」ことをここで確定させる
   if (payloadType !== "diff") {
     console.log("[SYNC/merge][PAYLOAD] payloadType invalid (expect diff) → reject", {
       payloadType,
@@ -254,15 +221,36 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     });
   }
 
-  // ★ diffKeysCount === 0 は put しない（diffが空であることを確定ログで残して終了）
-  if (!willPut) {
-    console.log("[SYNC/merge][PAYLOAD] NO_DIFF_SKIP_PUT", {
-      payloadType,
-      diffKeysCount,
-      willPut
-    });
-    return new Response(JSON.stringify({ ok: true, reason: "NO_DIFF_SKIP_PUT", payloadType, diffKeysCount, willPut }), {
-      status: 200,
+  // ★ diff 処理に入ったが、差分が無いケース
+  //   → put せず 200 で終了（key チェックに入らない）
+  if (diffKeysCount === 0) {
+    console.log("[MERGE] payloadType: diff");
+    console.log("[MERGE] diffKeysCount: 0");
+    console.log("[MERGE] NO_DIFF_SKIP_PUT");
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        reason: "NO_DIFF_SKIP_PUT",
+        payloadType,
+        diffKeysCount,
+        willPut: false
+      }),
+      {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "Cache-Control": "no-store"
+        }
+      }
+    );
+  }
+
+  // ★ 実際に put する場合のみ key を必須にする
+  const reqKey = request.headers.get("X-CSCS-Key");
+  if (!reqKey) {
+    console.log("[SYNC/merge][KEY] missing X-CSCS-Key header → reject");
+    return new Response(JSON.stringify({ error: "SYNC_KEY_REQUIRED" }), {
+      status: 400,
       headers: {
         "content-type": "application/json",
         "Cache-Control": "no-store"
