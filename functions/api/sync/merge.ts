@@ -232,6 +232,12 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.log("[MERGE] payloadType: diff");
     console.log("[MERGE] diffKeysCount: 0");
     console.log("[MERGE] NO_DIFF_SKIP_PUT");
+
+    const reqId = crypto.randomUUID();
+    const cfAny: any = (request as any).cf || {};
+    const colo = typeof cfAny.colo === "string" ? cfAny.colo : "";
+    const ray = request.headers.get("CF-Ray") || "";
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -249,7 +255,28 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         status: 200,
         headers: {
           "content-type": "application/json",
-          "Cache-Control": "no-store"
+          "Cache-Control": "no-store",
+
+          "X-CSCS-KV-Binding": "SYNC",
+          "X-CSCS-KV-Identity": kvIdentityId,
+
+          "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
+          "X-CSCS-Pages-Branch": typeof (env as any).CF_PAGES_BRANCH === "string" ? String((env as any).CF_PAGES_BRANCH) : "",
+          "X-CSCS-Pages-Commit": typeof (env as any).CF_PAGES_COMMIT_SHA === "string" ? String((env as any).CF_PAGES_COMMIT_SHA) : "",
+          "X-CSCS-Pages-Deploy": typeof (env as any).CF_PAGES_DEPLOYMENT_ID === "string" ? String((env as any).CF_PAGES_DEPLOYMENT_ID) : "",
+
+          "X-CSCS-KV-HasEnvSYNC": (env as any).SYNC ? "1" : "0",
+          "X-CSCS-KV-HasGet": (env as any).SYNC && typeof (env as any).SYNC.get === "function" ? "1" : "0",
+          "X-CSCS-KV-HasPut": (env as any).SYNC && typeof (env as any).SYNC.put === "function" ? "1" : "0",
+          "X-CSCS-KV-HasDelete": (env as any).SYNC && typeof (env as any).SYNC.delete === "function" ? "1" : "0",
+
+          "X-CSCS-ReqId": reqId,
+          "X-CSCS-User": user,
+          "X-CSCS-Key": key,
+          "X-CSCS-Colo": colo,
+          "X-CSCS-CF-Ray": ray,
+          "X-CSCS-UpdatedAt": "",
+          "X-CSCS-OdoaMode": ""
         }
       }
     );
