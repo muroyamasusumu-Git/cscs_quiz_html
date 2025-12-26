@@ -2035,6 +2035,14 @@
     btn.textContent = "SYNC送信";
     btn.className = "cscs-svb-send-btn";
 
+    // ★ デバッグ用: 手動送信ボタンを一時的に無効化（DOM/ID/形状は維持）
+    //   - disabled 属性により、ユーザークリック/キーボード操作を無効化する
+    //   - btn.click()（プログラムクリック）も無効化され、既存clickハンドラも発火しない
+    //   - 復帰するときはこのブロック（この3行＋コメント）を削除する
+    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true");
+    btn.setAttribute("data-debug-disabled", "1");
+
     // ★ 手動送信ボタンが押されたら「直近が手動送信である」ことを記録する
     //   - sendDiffToServer 側でこのフラグを見て「差分ゼロでも必ず送信」に切り替える
     //   - ここでは“送信処理そのもの”は触らない（既存のクリック処理と共存させる）
@@ -2043,7 +2051,7 @@
     btn.addEventListener("click", function () {
       try {
         window.__cscs_sync_b_manual_send_ts = Date.now();
-      } catch (_eManual) {}
+      } catch (_eManual) {} 
 
       // ★ 何をしているか:
       //   1) 最新 state を取得して window.__cscs_sync_state を更新
