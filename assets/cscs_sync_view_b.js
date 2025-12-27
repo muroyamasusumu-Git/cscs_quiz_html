@@ -2001,8 +2001,43 @@
     }
   }
 
+  function readSyncKey() {
+    // 何をしているか:
+    //   B側が使う X-CSCS-Key を「どこから取るか」を一本化する。
+    //   - まず window.CSCS_SYNC_KEY（別JSが注入している想定）
+    //   - 次に localStorage "cscs_sync_key"（永続保持している想定）
+    //   どちらにも無ければ null を返す（フォールバックで別ソースを見ない）。
+    try {
+      if (typeof window.CSCS_SYNC_KEY === "string" && window.CSCS_SYNC_KEY.trim()) {
+        return window.CSCS_SYNC_KEY.trim();
+      }
+    } catch (_eWinKey) {}
+
+    try {
+      var k = localStorage.getItem("cscs_sync_key");
+      if (typeof k === "string" && k.trim()) {
+        return k.trim();
+      }
+    } catch (_eLsKey) {}
+
+    return null;
+  }
+
   function fetchState() {
-    return fetch(SYNC_STATE_ENDPOINT, { method: "GET" }).then(function (res) {
+    var key = readSyncKey();
+    if (!key) {
+      console.warn("[SYNC-B:view] X-CSCS-Key missing → fetchState skipped", {
+        endpoint: SYNC_STATE_ENDPOINT
+      });
+      return Promise.reject(new Error("X-CSCS-Key missing"));
+    }
+
+    return fetch(SYNC_STATE_ENDPOINT, {
+      method: "GET",
+      headers: {
+        "X-CSCS-Key": key
+      }
+    }).then(function (res) {
       if (!res.ok) {
         throw new Error(String(res.status));
       }
