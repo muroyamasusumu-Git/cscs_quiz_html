@@ -22,7 +22,7 @@
  *   - "cscs_q_correct_total:" + qid      // b_judge_record.js 由来の問題別「正解」累計
  *   - "cscs_q_wrong_total:"   + qid      // b_judge_record.js 由来の問題別「不正解」累計
  *   - "cscs_exam_date"                    // 試験日カレンダー用
- *   - "cscs_sync_key"                     // SYNC state 取得に使うキー（-X-CSCS-Key）
+ *   - "cscs_sync_key"                     // SYNC state 取得に使うキー（X-CSCS-Key）
  *
  * ▼ 問題別累計（正解 / 不正解）
  *   - localStorage:
