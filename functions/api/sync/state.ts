@@ -119,6 +119,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     });
   }
 
+  // 追加した処理: この Pages Function が実際に掴んでいる env バインディング名を列挙する
+  // - 何をしているか: env のキー一覧を console.log に出す（KV binding 名を推測ではなく事実で確定する）
+  // - 目的: 例）["SYNC"] / ["CSCS_SYNC_KV"] のように「実際の binding 名」を一発で掴む
+  // - 注意: Pages Functions の env は “この関数にバインドされたもの” だけが出る（出なければ未バインド）
+  try {
+    const envAny: any = env as any;
+    const envKeys = envAny && typeof envAny === "object" ? Object.keys(envAny).sort() : [];
+    console.log("[SYNC/state][ENV KEYS]", envKeys);
+  } catch (_e) {}
+
   // =============================
   // state.ts : KEY MUST BE PROVIDED (align with merge.ts)
   // =============================
