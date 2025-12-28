@@ -32,9 +32,13 @@
   if (window.__CSCS_SYNC_HEADER_COMPARE__) return;
   window.__CSCS_SYNC_HEADER_COMPARE__ = true;
 
+  // header_compare 用ストア
+  // - merge / state : 相互比較対象
+  // - init          : 比較はしないが「key発行の事実確認」に使う
   var store = {
     merge: null,
-    state: null
+    state: null,
+    init: null
   };
 
   function normalizePath(url) {
@@ -46,7 +50,14 @@
   }
 
   function isTarget(path) {
-    return path === "/api/sync/merge" || path === "/api/sync/state";
+    // 監視対象:
+    //   - merge / state : 既存の SYNC 本体
+    //   - init          : Accessユーザーに対する sync key 発行・再発行
+    return (
+      path === "/api/sync/merge" ||
+      path === "/api/sync/state" ||
+      path === "/api/sync/init"
+    );
   }
 
   function pick(headers) {
@@ -248,7 +259,12 @@
   }
 
   function _wantReq(path) {
-    return path === "/api/sync/merge" || path === "/api/sync/state";
+    // REQ/RESP を観測する対象（PUT根絶・キー流通確認）
+    return (
+      path === "/api/sync/merge" ||
+      path === "/api/sync/state" ||
+      path === "/api/sync/init"
+    );
   }
 
   function _logReq(tag, method, url, key, stack, init) {
@@ -310,7 +326,15 @@
         reqBodyInfo = null;
       }
 
-      var tag0 = path0.endsWith("merge") ? "merge" : "state";
+      // path に応じた論理タグを決定
+      // - merge : 実データ送信
+      // - state : 状態参照
+      // - init  : Accessユーザーに対する key 発行・再発行
+      var tag0 =
+        path0.endsWith("/merge") ? "merge" :
+        path0.endsWith("/state") ? "state" :
+        path0.endsWith("/init")  ? "init"  :
+        "other";
       var verdict0 = (method0 === "POST") ? "✅" : "❌";
       var groupTitle = "[CSCS][SYNC][NET] " + tag0 + " " + verdict0 + " method=" + method0 + " key=" + (key0 ? "present" : "MISSING") + " url=" + url0;
 
@@ -362,6 +386,11 @@
         // 追加した処理: header_compare 用の store を更新（merge/state のヘッダを同一文脈で比較）
         try {
           if (isTarget(path0)) {
+            // merge / state / init の Response Headers を保存
+            // init は compare 対象ではないが、
+            //   - 発行された X-CSCS-Key
+            //   - 認証ユーザー（X-CSCS-User）
+            // を Network/Console 上で即確認するために保持する
             store[tag0] = pick(resp.headers);
 
             // 追加した処理: mergeの 400/401 で SYNC_KEY_REQUIRED を補足（既存挙動の維持）
