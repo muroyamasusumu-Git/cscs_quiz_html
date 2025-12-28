@@ -2426,7 +2426,6 @@
       // - フォールバックで埋めない（欠損は欠損として上流に伝える）
       let syncKey = null;
       try{
-        // ★ 処理1: syncKey を確定（trim）
         const v = localStorage.getItem("cscs_sync_key");
         if (v !== null && v !== undefined) {
           const s = String(v).trim();
@@ -2436,17 +2435,22 @@
         syncKey = null;
       }
 
-      // ★ 処理2: syncKey が未セット/空なら、何もせず終了（例外にしない）
+      // ★ 追加した処理0-1: key 欠損なら state は叩かない（推測せず例外で停止）
+      if (syncKey === null) {
+        throw new Error("SYNC_STATE_MISSING_KEY");
+      }
+
+      // ★ 処理1: /api/sync/state は Worker 側で "X-CSCS-Key" 必須。
+      // - syncKey が空（未セット）の状態で叩くと 400(SYNC_STATE_MISSING_KEY) を発生させる
+      // - 初回セット導線（/api/sync/init → localStorage保存）が完了するまでは state を取りに行かない
       if (!syncKey) {
+        console.log(
+          "[CSCS][STATE] skipped: X-CSCS-Key is missing (will not call /api/sync/state)"
+        );
         return;
       }
 
-      // ★ 処理3: syncKey がある場合のみ、ログしてから state を取得する
-      console.log("[CSCS][STATE] will call /api/sync/state with X-CSCS-Key", {
-        qid: QID || null
-      });
-
-      // ★ 処理4: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      // ★ 処理1: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state", {
         method: "GET",
         credentials: "include",
