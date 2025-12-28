@@ -31,6 +31,30 @@
         const kv = r.headers.get("X-CSCS-KV");
         const isEmpty = r.headers.get("X-CSCS-IsEmptyTemplate");
 
+        // 追加した処理: KVバインディング確定ログ（最初から一発でわかるようにする）
+        // - 何をしているか: Workersが返す診断ヘッダから「binding名 / env.SYNC存在 / KV identity」を読む
+        // - 目的: コンソールだけで「KVバインディング名はSYNC」「env.SYNCが生きてる」「掴んでるKV実体ID」を即確定させる
+        // - 方針: 毎回出すとノイズなので、初回1回だけ出す（SPA遷移でも二重出力しない）
+        const kvBinding = r.headers.get("X-CSCS-KV-Binding");
+        const kvHasEnvSYNC = r.headers.get("X-CSCS-KV-HasEnvSYNC");
+        const kvIdentity = r.headers.get("X-CSCS-KV-Identity");
+
+        if (!window.__CSCS_KV_BINDING_DIAG_LOGGED__) {
+          window.__CSCS_KV_BINDING_DIAG_LOGGED__ = true;
+
+          console.log("[CSCS][KV-BINDING] binding name detected", {
+            binding: kvBinding ? kvBinding : "",
+            hasEnvSYNC: kvHasEnvSYNC ? kvHasEnvSYNC : "",
+            identity: kvIdentity ? kvIdentity : ""
+          });
+
+          console.log("[CSCS][KV-BINDING] verdict", {
+            ok_binding_is_SYNC: kvBinding === "SYNC",
+            ok_env_SYNC_is_alive: kvHasEnvSYNC === "1",
+            ok_has_identity: !!kvIdentity
+          });
+        }
+
         // ★ EMPTY テンプレ確定ログ（ブラウザ側）
         // - Workers 側の [SYNC/state][EMPTY-TEMPLATE] と意味を完全一致させる
         if (kv === "miss" && isEmpty === "1") {
