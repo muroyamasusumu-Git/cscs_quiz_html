@@ -85,7 +85,7 @@
   function pickImportantHeadersFetch(h) {
     return {
       "x-cscs-user": headerGetSafe(h, "x-cscs-user"),
-      "x-cscs-key": headerGetSafe(h, "x-cscs-key"),
+      "X-CSCS-Key": headerGetSafe(h, "X-CSCS-Key"),
       "x-cscs-kv-binding": headerGetSafe(h, "x-cscs-kv-binding"),
       "x-cscs-kv-identity": headerGetSafe(h, "x-cscs-kv-identity"),
       "x-cscs-env": headerGetSafe(h, "x-cscs-env"),
@@ -102,7 +102,7 @@
   function pickImportantRequestHeadersFromInit(init) {
     // fetch(input, init) の「送信ヘッダ」を “見える範囲で” 抜く（Cookie等は見えない）
     var out = {
-      "x-cscs-key": "",
+      "X-CSCS-Key": "",
       "x-cscs-user": "",
       "content-type": ""
     };
@@ -114,7 +114,7 @@
 
       // Headers
       if (typeof Headers !== "undefined" && h instanceof Headers) {
-        out["x-cscs-key"] = headerGetSafe(h, "x-cscs-key");
+        out["X-CSCS-Key"] = headerGetSafe(h, "X-CSCS-Key");
         out["x-cscs-user"] = headerGetSafe(h, "x-cscs-user");
         out["content-type"] = headerGetSafe(h, "content-type");
         return out;
@@ -127,7 +127,7 @@
           if (!kv || kv.length < 2) continue;
           var k = String(kv[0] || "").toLowerCase();
           var v = String(kv[1] || "");
-          if (k === "x-cscs-key") out["x-cscs-key"] = v;
+          if (k === "X-CSCS-Key") out["X-CSCS-Key"] = v;
           if (k === "x-cscs-user") out["x-cscs-user"] = v;
           if (k === "content-type") out["content-type"] = v;
         }
@@ -142,7 +142,7 @@
           if (v == null) v = "";
           v = String(v);
 
-          if (k === "x-cscs-key") out["x-cscs-key"] = v;
+          if (k === "X-CSCS-Key") out["X-CSCS-Key"] = v;
           if (k === "x-cscs-user") out["x-cscs-user"] = v;
           if (k === "content-type") out["content-type"] = v;
         });
@@ -158,7 +158,7 @@
     try {
       if (path !== "/api/sync/state") return;
 
-      var key = (reqHeaders && reqHeaders["x-cscs-key"]) ? String(reqHeaders["x-cscs-key"]) : "";
+      var key = (reqHeaders && reqHeaders["X-CSCS-Key"]) ? String(reqHeaders["X-CSCS-Key"]) : "";
       var ctype = (reqHeaders && reqHeaders["content-type"]) ? String(reqHeaders["content-type"]) : "";
 
       // ★ 追加：呼び出し元（assets/...js:line）をスタックから1本だけ抜く
@@ -209,7 +209,7 @@
       var line =
         "[CSCS][STATE_REQ_HEADERS] " +
         kind + " " + method + " " + path +
-        " x-cscs-key=" + (key ? shorten(key, 60) : "(EMPTY)") +
+        " X-CSCS-Key=" + (key ? shorten(key, 60) : "(EMPTY)") +
         (ctype ? (" content-type=" + ctype) : "") +
         (caller ? (" caller=" + caller) : "");
 
@@ -282,7 +282,7 @@
       var state = diagStore.state;
       if (!init || !state) return null;
 
-      var issuedKey = (init.important_headers && init.important_headers["x-cscs-key"]) ? String(init.important_headers["x-cscs-key"]) : "";
+      var issuedKey = (init.important_headers && init.important_headers["X-CSCS-Key"]) ? String(init.important_headers["X-CSCS-Key"]) : "";
       var stateWarn = (state.body_warn_code ? String(state.body_warn_code) : "");
 
       var mismatchHit = false;
@@ -320,7 +320,7 @@
       var ident = importantHeaders["x-cscs-kv-identity"] || "";
       var env = importantHeaders["x-cscs-env"] || "";
       var deploy = importantHeaders["x-cscs-deploy"] || "";
-      var key = importantHeaders["x-cscs-key"] || "";
+      var key = importantHeaders["X-CSCS-Key"] || "";
 
       var line =
         "[CSCS][NET] " +

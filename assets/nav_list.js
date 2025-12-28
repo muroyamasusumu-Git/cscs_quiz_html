@@ -16,7 +16,7 @@
  *   - "cscs_q_correct_total:" + qid      // b_judge_record.js 由来の問題別「正解」累計
  *   - "cscs_q_wrong_total:"   + qid      // b_judge_record.js 由来の問題別「不正解」累計
  *   - "cscs_exam_date"                    // 試験日カレンダー用
- *   - "cscs_sync_key"                     // SYNC state 取得に使うキー（x-cscs-key）
+ *   - "cscs_sync_key"                     // SYNC state 取得に使うキー（X-CSCS-Key）
  *
  * ▼ SYNC state(JSON) 内で参照するキー
  *   - root.streak3[qid]                   // 3連続「正解」達成回数（累計）

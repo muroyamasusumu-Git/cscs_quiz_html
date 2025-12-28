@@ -463,7 +463,7 @@
 
       X.prototype.setRequestHeader = function (name, value) {
         try {
-          if (String(name || "").toLowerCase() === "x-cscs-key") {
+          if (String(name || "").toLowerCase() === "X-CSCS-Key") {
             this.__cscs_xhr_key = value == null ? "" : String(value);
           }
         } catch (_e1) {}
@@ -549,7 +549,7 @@
                 // - XHRでは Headers.get が使えないので、pick相当は “対象キーだけ” を lower-case map から読む
                 try {
                   var picked = {
-                    "X-CSCS-Key": respHeaders["x-cscs-key"] ? String(respHeaders["x-cscs-key"]) : "",
+                    "X-CSCS-Key": respHeaders["X-CSCS-Key"] ? String(respHeaders["X-CSCS-Key"]) : "",
                     "X-CSCS-User": respHeaders["x-cscs-user"] ? String(respHeaders["x-cscs-user"]) : "",
                     "X-CSCS-KV-Identity": respHeaders["x-cscs-kv-identity"] ? String(respHeaders["x-cscs-kv-identity"]) : ""
                   };
