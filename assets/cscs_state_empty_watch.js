@@ -31,22 +31,29 @@
         const kv = r.headers.get("X-CSCS-KV");
         const isEmpty = r.headers.get("X-CSCS-IsEmptyTemplate");
 
-        // 追加した処理: KVバインディング確定ログ（最初から一発でわかるようにする）
-        // - 何をしているか: Workersが返す診断ヘッダから「binding名 / env.SYNC存在 / KV identity」を読む
-        // - 目的: コンソールだけで「KVバインディング名はSYNC」「env.SYNCが生きてる」「掴んでるKV実体ID」を即確定させる
-        // - 方針: 毎回出すとノイズなので、初回1回だけ出す（SPA遷移でも二重出力しない）
-        const kvBinding = r.headers.get("X-CSCS-KV-Binding");
-        const kvHasEnvSYNC = r.headers.get("X-CSCS-KV-HasEnvSYNC");
-        const kvIdentity = r.headers.get("X-CSCS-KV-Identity");
+        // 追加した処理: ENV_KEYS 互換のKV診断ログ（スクショと同じ観測軸）
+        // - 何をしているか: X-CSCS-EnvKeys / X-CSCS-KV-* を読み、スクショと同じ項目を同じ形式で出す
+        // - 目的: コンソールだけで「KVバインディング名」「env.SYNC生存」「KV identity」を一発確定させる
+        // - 方針: ノイズ抑制のため初回1回だけ出す（SPA遷移でも二重出力しない）
+        const envKeysRaw = r.headers.get("X-CSCS-EnvKeys") || "";
+        const envKeysList = envKeysRaw ? envKeysRaw.split(",").filter(Boolean) : [];
+
+        const kvBinding = r.headers.get("X-CSCS-KV-Binding") || "";
+        const kvHasEnvSYNC = r.headers.get("X-CSCS-KV-HasEnvSYNC") || "";
+        const kvIdentity = r.headers.get("X-CSCS-KV-Identity") || "";
 
         if (!window.__CSCS_KV_BINDING_DIAG_LOGGED__) {
           window.__CSCS_KV_BINDING_DIAG_LOGGED__ = true;
 
-          console.log("[CSCS][KV-BINDING] binding name detected", {
-            binding: kvBinding ? kvBinding : "",
-            hasEnvSYNC: kvHasEnvSYNC ? kvHasEnvSYNC : "",
-            identity: kvIdentity ? kvIdentity : ""
-          });
+          console.log("[CSCS][ENV_KEYS] status=", r.status);
+          console.log("[CSCS][ENV_KEYS] X-CSCS-EnvKeys(raw)=", envKeysRaw);
+          console.log("[CSCS][ENV_KEYS] keys(list)=", envKeysList);
+
+          console.log("[CSCS][ENV_KEYS] has SYNC=", envKeysList.includes("SYNC"));
+
+          console.log("[CSCS][ENV_KEYS] X-CSCS-KV-Binding=", kvBinding);
+          console.log("[CSCS][ENV_KEYS] X-CSCS-KV-HasEnvSYNC=", kvHasEnvSYNC);
+          console.log("[CSCS][ENV_KEYS] X-CSCS-KV-Identity=", kvIdentity);
 
           console.log("[CSCS][KV-BINDING] verdict", {
             ok_binding_is_SYNC: kvBinding === "SYNC",
