@@ -23,26 +23,10 @@ export type SyncEnv = {
    *   Cloudflare 側（wrangler / Pages 設定）で指定した
    *   **KV バインディング名そのもの**に対応する。
    *
-   * 例:
-   *   - Pages の KV binding 名が "SYNC" の場合
-   *       → env.SYNC が KVNamespace として注入される
-   *
-   *   - もし binding 名が "CSCS_SYNC_KV" なら
-   *       → env.CSCS_SYNC_KV になる
-   *       → この型定義もそれに合わせて変更が必要
-   *
-   * 【なぜ型を明示するか】
-   * - env は実体としては `any` でも動くが、
-   *   型で固定しておくことで
-   *     ・誤った binding 名の参照
-   *     ・別 KV を掴んでいる事故
-   *   をコンパイル時に検知できる。
-   *
-   * 【確認方法（実測）】
+   * 【実測確認】
    * - /api/sync/state のレスポンスヘッダ
    *     X-CSCS-KV-Binding: "SYNC"
-   *   が出ていれば、
-   *     → この型 `{ SYNC: KVNamespace }` は正しい。
+   *   が出ているため、この型定義は正。
    */
   SYNC: KVNamespace;
 };
@@ -112,7 +96,7 @@ export async function getOrIssueSyncKey(
   userEmail: string,
   forceReissue: boolean
 ): Promise<string> {
-  const kv = env.CSCS_SYNC_KV;
+  const kv = env.SYNC;
 
   if (!forceReissue) {
     const existing = await kv.get(kvKeyUserToSyncKey(userEmail));
@@ -139,7 +123,7 @@ export async function assertSyncKeyMatchesUser(
   syncKey: string,
   userEmail: string
 ): Promise<boolean> {
-  const kv = env.CSCS_SYNC_KV;
+  const kv = env.SYNC;
 
   const owner = await kv.get(kvKeySyncKeyToOwner(syncKey));
   if (typeof owner !== "string" || !owner.trim()) return false;
