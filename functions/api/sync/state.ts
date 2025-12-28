@@ -779,6 +779,20 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         "X-CSCS-KV-HasPut": (env as any).SYNC && typeof (env as any).SYNC.put === "function" ? "1" : "0",
         "X-CSCS-KV-HasDelete": (env as any).SYNC && typeof (env as any).SYNC.delete === "function" ? "1" : "0",
 
+        // 追加した処理: env のキー一覧をレスポンスヘッダでも返す（ブラウザのコンソールで“一発確認”するため）
+        // - 何をしているか: Object.keys(env).sort() を "," 結合して返す
+        // - 目的: Cloudflare Dashboard に行かず、Network/Console だけで KV バインディング名を確定できるようにする
+        // - 注意: ヘッダ長が増えるので、必要な期間だけのデバッグ用途を想定
+        "X-CSCS-EnvKeys": (function () {
+          try {
+            const envAny: any = env as any;
+            const envKeys = envAny && typeof envAny === "object" ? Object.keys(envAny).sort() : [];
+            return envKeys.join(",");
+          } catch (_e) {
+            return "";
+          }
+        })(),
+
         "X-CSCS-ReqId": reqId,
         "X-CSCS-User": user,
         "X-CSCS-Key": key,
