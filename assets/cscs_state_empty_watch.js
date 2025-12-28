@@ -23,9 +23,54 @@
   window.__CSCS_EMPTY_TEMPLATE_WATCH_INSTALLED__ = true;
 
   try {
+    // ============================================================
+    // /api/sync/state を叩く前に、ローカルに保存されている
+    // 「決定的SYNCキー（cscs_sync_key）」を取得する
+    //
+    // 重要:
+    // - このキーは init.ts により発行・保存される前提
+    // - key が無い状態で /api/sync/state を叩くと、
+    //   Worker 側は必ず 400 (SYNC_STATE_MISSING_KEY) を返す
+    // - それは「失敗」ではなく「仕様通り」だが、
+    //   デバッグ時にノイズになるため、ここで明示的に防ぐ
+    // ============================================================
+    var _syncKey = "";
+    try {
+      _syncKey = localStorage.getItem("cscs_sync_key") || "";
+    } catch (_e) {
+      // localStorage にアクセスできない環境（例: 制限付き iframe 等）
+      // その場合も key 無しとして扱う
+      _syncKey = "";
+    }
+
+    // ============================================================
+    // SYNCキーが存在しない場合は、/api/sync/state を呼ばない
+    //
+    // 意図:
+    // - 「key が無いのに state を叩いた」ことによる 400 を発生させない
+    // - init 未完了 / 保存失敗 / 読み込み順の問題を
+    //   コンソールログ一発で切り分けられるようにする
+    // ============================================================
+    if (!_syncKey) {
+      console.log(
+        "[CSCS][STATE] skipped: cscs_sync_key is missing (will not call /api/sync/state)"
+      );
+      return;
+    }
+
+    // ============================================================
+    // 決定的キーが存在する場合のみ /api/sync/state を呼び出す
+    //
+    // 注意:
+    // - Worker 側は「X-CSCS-Key」ヘッダのみを正として判定する
+    // - クエリや cookie に key があっても意味はない
+    // ============================================================
     fetch("/api/sync/state", {
       cache: "no-store",
-      credentials: "include"
+      credentials: "include",
+      headers: {
+        "X-CSCS-Key": String(_syncKey)
+      }
     })
       .then(function (r) {
         const kv = r.headers.get("X-CSCS-KV");
