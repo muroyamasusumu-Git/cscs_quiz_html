@@ -100,18 +100,50 @@
           }
           ODOA_STATE.loading = true;
           try{
+            // ============================================================
+            // O.D.O.A 判定用に /api/sync/state を読む前準備
+            //
+            // 方針:
+            // - SYNC state は「決定的キー（cscs_sync_key）」が存在する場合のみ取得する
+            // - key が無い状態で state を叩くと、
+            //   Worker 側は必ず 400 (SYNC_STATE_MISSING_KEY) を返すため、
+            //   それを“異常”として扱わないよう、ここで明示的にスキップする
+            //
+            // 意味:
+            // - init 未完了 / 保存前 / 読み込み順の問題を
+            //   ログ一発で切り分けられる
+            // - O.D.O.A 判定ロジックが「400 ノイズ」に汚染されない
+            // ============================================================
             let _syncKey = "";
             try{
               _syncKey = localStorage.getItem("cscs_sync_key") || "";
             }catch(_){
+              // localStorage にアクセスできない環境（例: 制限付き iframe 等）
+              // → key 無しとして扱う
               _syncKey = "";
             }
 
+            // ============================================================
+            // SYNCキーが無い場合は、O.D.O.A 用の state 読み込み自体を行わない
+            //
+            // 注意:
+            // - これは「失敗」ではなく「前提未成立」
+            // - O.D.O.A は state が無ければ既定値（off）で動作する設計
+            // ============================================================
             if (!_syncKey) {
-              dlog("O.D.O.A SYNC state load skipped: cscs_sync_key is missing (will not call /api/sync/state).");
+              dlog(
+                "O.D.O.A SYNC state load skipped: cscs_sync_key is missing (will not call /api/sync/state)."
+              );
               return;
             }
 
+            // ============================================================
+            // 決定的キーが存在する場合のみ /api/sync/state を呼び出す
+            //
+            // 重要:
+            // - Worker は「X-CSCS-Key」ヘッダのみを正として判定する
+            // - query / cookie / 他ヘッダは一切参照されない
+            // ============================================================
             const res = await fetch("/api/sync/state", {
               cache: "no-store",
               headers: {
