@@ -161,12 +161,45 @@
       var key = (reqHeaders && reqHeaders["x-cscs-key"]) ? String(reqHeaders["x-cscs-key"]) : "";
       var ctype = (reqHeaders && reqHeaders["content-type"]) ? String(reqHeaders["content-type"]) : "";
 
+      // ★ 追加：呼び出し元（assets/...js:line）をスタックから1本だけ抜く
+      var caller = "";
+      try {
+        var st = (new Error("CSCS_STATE_REQ_HEADERS")).stack;
+        if (typeof st === "string" && st) {
+          var lines = st.split("\n").map(function (s) { return String(s || "").trim(); });
+
+          // 1) assets/ を含む行（最優先）
+          for (var i = 0; i < lines.length; i++) {
+            var ln = lines[i];
+            if (!ln) continue;
+            if (ln.indexOf("assets/") >= 0) { caller = ln; break; }
+          }
+
+          // 2) 無ければ slides/ を含む行（次点）
+          if (!caller) {
+            for (var j = 0; j < lines.length; j++) {
+              var ln2 = lines[j];
+              if (!ln2) continue;
+              if (ln2.indexOf("/slides/") >= 0) { caller = ln2; break; }
+            }
+          }
+
+          // 3) それも無ければ stack の先頭っぽい行を1本（保険）
+          if (!caller && lines.length >= 2) {
+            caller = lines[1] || "";
+          }
+        }
+      } catch (_eCaller) {
+        caller = "";
+      }
+
       // key が空なら特に重要（MISSING_KEY の原因）
       var line =
         "[CSCS][STATE_REQ_HEADERS] " +
         kind + " " + method + " " + path +
         " x-cscs-key=" + (key ? shorten(key, 60) : "(EMPTY)") +
-        (ctype ? (" content-type=" + ctype) : "");
+        (ctype ? (" content-type=" + ctype) : "") +
+        (caller ? (" caller=" + caller) : "");
 
       console.log(line);
     } catch (_e) {}
