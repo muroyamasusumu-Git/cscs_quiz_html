@@ -146,6 +146,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       headers: {
         "content-type": "application/json",
         "Cache-Control": "no-store",
+
+        // ★ 追加: 失敗(400/403)でも「どのデプロイ実体か」「binding名は何か」を一発で確定できるようにする（フォールバックではなく観測ヘッダ）
+        "X-CSCS-KV-Binding": "SYNC",
+        "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
+        "X-CSCS-Pages-Branch": typeof (env as any).CF_PAGES_BRANCH === "string" ? String((env as any).CF_PAGES_BRANCH) : "",
+        "X-CSCS-Pages-Commit": typeof (env as any).CF_PAGES_COMMIT_SHA === "string" ? String((env as any).CF_PAGES_COMMIT_SHA) : "",
+        "X-CSCS-Pages-Deploy": typeof (env as any).CF_PAGES_DEPLOYMENT_ID === "string" ? String((env as any).CF_PAGES_DEPLOYMENT_ID) : "",
+
         "X-CSCS-IsEmptyTemplate": "1",
         "X-CSCS-Warn": "SYNC_STATE_MISSING_KEY"
       }
@@ -168,6 +176,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       headers: {
         "content-type": "application/json",
         "Cache-Control": "no-store",
+
+        // ★ 追加: 失敗(400/403)でも「どのデプロイ実体か」「binding名は何か」を一発で確定できるようにする（フォールバックではなく観測ヘッダ）
+        "X-CSCS-KV-Binding": "SYNC",
+        "X-CSCS-Pages-Project": typeof (env as any).CF_PAGES_PROJECT_NAME === "string" ? String((env as any).CF_PAGES_PROJECT_NAME) : "",
+        "X-CSCS-Pages-Branch": typeof (env as any).CF_PAGES_BRANCH === "string" ? String((env as any).CF_PAGES_BRANCH) : "",
+        "X-CSCS-Pages-Commit": typeof (env as any).CF_PAGES_COMMIT_SHA === "string" ? String((env as any).CF_PAGES_COMMIT_SHA) : "",
+        "X-CSCS-Pages-Deploy": typeof (env as any).CF_PAGES_DEPLOYMENT_ID === "string" ? String((env as any).CF_PAGES_DEPLOYMENT_ID) : "",
+
         "X-CSCS-Warn": "SYNC_STATE_KEY_MISMATCH",
         "X-CSCS-Key": headerKey,
         "X-CSCS-ExpectedKey": expectedKey
