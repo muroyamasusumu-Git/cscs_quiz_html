@@ -162,31 +162,43 @@
       var ctype = (reqHeaders && reqHeaders["content-type"]) ? String(reqHeaders["content-type"]) : "";
 
       // ★ 追加：呼び出し元（assets/...js:line）をスタックから1本だけ抜く
+      //   重要: cscs_net_watch.js 自身は除外し、"犯人JS" を拾う
       var caller = "";
       try {
         var st = (new Error("CSCS_STATE_REQ_HEADERS")).stack;
         if (typeof st === "string" && st) {
           var lines = st.split("\n").map(function (s) { return String(s || "").trim(); });
 
-          // 1) assets/ を含む行（最優先）
+          function isSelfLine(ln) {
+            try {
+              if (!ln) return false;
+              return (ln.indexOf("cscs_net_watch.js") >= 0);
+            } catch (_e) { return false; }
+          }
+
+          // 1) assets/ を含む行（ただし net_watch は除外）
           for (var i = 0; i < lines.length; i++) {
             var ln = lines[i];
             if (!ln) continue;
-            if (ln.indexOf("assets/") >= 0) { caller = ln; break; }
+            if (ln.indexOf("assets/") >= 0 && !isSelfLine(ln)) { caller = ln; break; }
           }
 
-          // 2) 無ければ slides/ を含む行（次点）
+          // 2) 無ければ slides/ を含む行（ただし net_watch は除外）
           if (!caller) {
             for (var j = 0; j < lines.length; j++) {
               var ln2 = lines[j];
               if (!ln2) continue;
-              if (ln2.indexOf("/slides/") >= 0) { caller = ln2; break; }
+              if (ln2.indexOf("/slides/") >= 0 && !isSelfLine(ln2)) { caller = ln2; break; }
             }
           }
 
-          // 3) それも無ければ stack の先頭っぽい行を1本（保険）
-          if (!caller && lines.length >= 2) {
-            caller = lines[1] || "";
+          // 3) それも無ければ「self以外」の行を上から1本（保険）
+          if (!caller) {
+            for (var k = 0; k < lines.length; k++) {
+              var ln3 = lines[k];
+              if (!ln3) continue;
+              if (!isSelfLine(ln3)) { caller = ln3; break; }
+            }
           }
         }
       } catch (_eCaller) {
