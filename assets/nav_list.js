@@ -111,12 +111,13 @@
   // =========================
   async function loadSyncDataForNavList(){
     // 追加した処理:
-    // - state を叩く前に localStorage から SYNC key を読む
+    // - state を叩く前に localStorage から SYNC key を読む（trimして空は欠損）
     // - key が空なら /api/sync/state は叩かず、空データとして扱う
-    // - key がある場合のみ、x-cscs-key を付与して state を取得する
+    // - key がある場合のみ、X-CSCS-Key を付与して state を取得する
     var syncKey = "";
     try{
       syncKey = String(localStorage.getItem("cscs_sync_key") || "");
+      syncKey = String(syncKey).trim();
     }catch(_eKey){
       syncKey = "";
     }
@@ -129,9 +130,11 @@
     try{
       // /api/sync/state から最新の SYNC データを取得（key がある場合のみ）
       const res = await fetch(location.origin + "/api/sync/state", {
+        method: "GET",
         cache: "no-store",
+        credentials: "include",
         headers: {
-          "x-cscs-key": syncKey
+          "X-CSCS-Key": syncKey
         }
       });
 
