@@ -1001,7 +1001,7 @@
         const wrongStreakMaxValEl = box.querySelector(".sync-wrong-streakmax-max-local");
         const wrongStreakMaxDayEl = box.querySelector(".sync-wrong-streakmax-maxday-local");
 
-        // ★ 追加: キュー（+Δ）詳細（A）
+        // ★ 追加: キュー（+Δ）詳細（B）
         const qdCwEl     = box.querySelector(".sync-queue-cw");
         const qdS3El     = box.querySelector(".sync-queue-s3");
         const qdSLel     = box.querySelector(".sync-queue-sl");
@@ -1367,7 +1367,7 @@
         if (slwsProgEl) slwsProgEl.textContent = (serverWrongProgress === null) ? "-" : String(serverWrongProgress);
         if (sllwProgEl) sllwProgEl.textContent  = (localWrongProgress === null) ? "-" : String(localWrongProgress);
 
-        // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（A）
+        // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（B）
         //   - streakLenDelta / streakWrongLenDelta は「増分」ではなく「最新値」なので、そのまま表示する
         //   - last*DayDelta も「最新値」なので、そのまま表示する
         // ★ 処理: 「|| 0」禁止。欠損は null のまま保持して “取れていない” を明確化する
@@ -1974,26 +1974,6 @@
       updatedAt: Date.now()
     };
 
-    // ★ 追加した処理0: localStorage の SYNC key を先に読む（trim）
-    // - 空白だけも「未設定」として扱う（空白キーでログやfetchを発生させない）
-    // - フォールバックで埋めない（欠損は欠損として止める）
-    let syncKey = null;
-    try{
-      const v = localStorage.getItem("cscs_sync_key");
-      if (v !== null && v !== undefined) {
-        const s = String(v).trim();
-        syncKey = (s === "") ? null : s;
-      }
-    }catch(_){
-      syncKey = null;
-    }
-
-    // ★ 追加した処理1: syncKey が未セット/空白なら、ログもfetchも行わず例外で停止する
-    if (!syncKey) {
-      throw new Error("SYNC_KEY_MISSING_LOCAL");
-    }
-
-    // ★ 追加した処理2: syncKey が確定している場合のみ、payloadログを出す（ログ汚染を防ぐ）
     // 送信前に、今回送る delta の中身をコンソールで確認できるようにする
     console.log("[SYNC-A] sendDelta payload(prepare)", {
       qid: QID,
@@ -2015,9 +1995,20 @@
 
     try{
       // ★ 処理1: merge を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      let _syncKey = "";
+      try{
+        _syncKey = localStorage.getItem("cscs_sync_key") || "";
+      }catch(_){
+        _syncKey = "";
+      }
+
+      if (!_syncKey) {
+        throw new Error("SYNC_KEY_MISSING_LOCAL");
+      }
+
       const res = await fetch("/api/sync/merge", {
         method:"POST",
-        headers:{ "content-type":"application/json", "X-CSCS-Key": String(syncKey) },
+        headers:{ "content-type":"application/json", "X-CSCS-Key": String(_syncKey) },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(String(res.status));
