@@ -46,33 +46,12 @@ export function getAccessUserEmail(req: Request): string {
 }
 
 /**
- * ヘッダ/URLに安全な syncKey を生成する。
- * - crypto.getRandomValues で 32byte を生成し、
- * - base64url（+→-、/→_、末尾=除去）にして返す。
- */
-export function makeSyncKey(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) {
-    bin += String.fromCharCode(bytes[i]);
-  }
-
-  const b64 = btoa(bin)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-
-  return b64;
-}
-
-/**
  * KVキー: userEmail → syncKey
  * - ユーザーが “自分のキー” を確実に引けるための正。
  */
 export function kvKeyUserToSyncKey(userEmail: string): string {
-  return `cscs_user_sync_key:${userEmail}`;
+  const normalized = String(userEmail).trim().toLowerCase();
+  return `cscs_user_sync_key:${normalized}`;
 }
 
 /**
@@ -98,17 +77,13 @@ export async function getOrIssueSyncKey(
 ): Promise<string> {
   const kv = env.SYNC;
 
-  if (!forceReissue) {
-    const existing = await kv.get(kvKeyUserToSyncKey(userEmail));
-    if (typeof existing === "string" && existing.trim()) {
-      return existing.trim();
-    }
-  }
+  const normalized = String(userEmail).trim().toLowerCase();
+  const key = `sync:${normalized}`;
 
-  const key = makeSyncKey();
-
-  await kv.put(kvKeyUserToSyncKey(userEmail), key);
-  await kv.put(kvKeySyncKeyToOwner(key), userEmail);
+  // forceReissue は “keyが決定的” なので意味を持たない（互換のため引数は残す）
+  // KVは「観測・診断用途」として両方向を必ず揃えて保存（同じ値で上書きされるだけ）
+  await kv.put(kvKeyUserToSyncKey(normalized), key);
+  await kv.put(kvKeySyncKeyToOwner(key), normalized);
 
   return key;
 }
@@ -123,10 +98,7 @@ export async function assertSyncKeyMatchesUser(
   syncKey: string,
   userEmail: string
 ): Promise<boolean> {
-  const kv = env.SYNC;
-
-  const owner = await kv.get(kvKeySyncKeyToOwner(syncKey));
-  if (typeof owner !== "string" || !owner.trim()) return false;
-
-  return owner.trim() === userEmail;
+  const normalized = String(userEmail).trim().toLowerCase();
+  const expectedKey = `sync:${normalized}`;
+  return String(syncKey || "").trim() === expectedKey;
 }

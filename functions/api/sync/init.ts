@@ -17,7 +17,6 @@
 
 import {
   getAccessUserEmail,
-  getOrIssueSyncKey,
   type SyncEnv,
 } from "../../_cscs_sync_key";
 
@@ -64,16 +63,15 @@ export const onRequestPost: PagesFunction<SyncEnv> = async (ctx) => {
     force = false;
   }
 
-  // 3) KV から「既存返却 or 発行 or 再発行」
-  const key = await getOrIssueSyncKey(ctx.env, userEmail, force);
+  // 3) state.ts と同じ規則で key を確定（sync:<lowercase email>）
+  const userNormalized = String(userEmail).trim().toLowerCase();
+  const key = `sync:${userNormalized}`;
 
   // 4) 応答
-  // - body: { ok:true, user: email, key }
-  // - headers: X-CSCS-Key / X-CSCS-User を明示（Network/監視で見えるように）
   return json(
     200,
-    { ok: true, user: userEmail, key, reissued: force },
-    { "X-CSCS-Key": key, "X-CSCS-User": userEmail }
+    { ok: true, user: userNormalized, key, reissued: force },
+    { "X-CSCS-Key": key, "X-CSCS-User": userNormalized }
   );
 };
 
