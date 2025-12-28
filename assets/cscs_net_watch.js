@@ -249,37 +249,58 @@
       var init = diagStore.init;
       var state = diagStore.state;
 
-      if (!init || !state) return null;
+      var haveInit = !!init;
+      var haveState = !!state;
 
-      var initStatus = init.status;
-      var stateStatus = state.status;
+      if (!haveInit && !haveState) return null;
+
+      var initStatus = haveInit ? init.status : "";
+      var stateStatus = haveState ? state.status : "";
 
       var issuedKey =
-        init.important_headers && typeof init.important_headers["X-CSCS-Key"] === "string"
+        haveInit &&
+        init.important_headers &&
+        typeof init.important_headers["X-CSCS-Key"] === "string"
           ? init.important_headers["X-CSCS-Key"]
           : "";
 
-      var stateWarnCode =
-        typeof state.body_warn_code === "string"
+      var warnFromBody =
+        haveState && typeof state.body_warn_code === "string"
           ? state.body_warn_code
           : "";
 
+      var warnFromHeader =
+        haveState &&
+        state.important_headers &&
+        typeof state.important_headers["X-CSCS-Warn"] === "string"
+          ? state.important_headers["X-CSCS-Warn"]
+          : "";
+
+      var warn = warnFromBody || warnFromHeader || "";
+
       var mismatchHit = false;
-      if (stateWarnCode && String(stateWarnCode).indexOf("MISMATCH") >= 0) mismatchHit = true;
+      if (warn && String(warn).indexOf("MISMATCH") >= 0) mismatchHit = true;
 
       var suspect =
+        haveInit &&
+        haveState &&
         initStatus === 200 &&
         typeof issuedKey === "string" &&
         issuedKey.length > 0 &&
         stateStatus === 403 &&
         mismatchHit;
 
+      var level = "PENDING";
+      if (haveInit && haveState) level = suspect ? "HIGH" : "NOT HIGH";
+
       return {
+        level: level,
+        have_init: haveInit ? "YES" : "NO",
+        have_state: haveState ? "YES" : "NO",
         init_status: initStatus,
         state_status: stateStatus,
         issued_key: issuedKey,
-        state_warn_code: stateWarnCode,
-        kv_split_suspect: suspect ? "HIGH" : "NOT HIGH",
+        warn: warn,
         deterministic_key_ok: looksLikeDeterministicKey(issuedKey) ? "YES" : "NO"
       };
     } catch (e) {
@@ -289,6 +310,8 @@
 
   // ============================================================
   // 追加: KV-SPLIT SUSPECT を「必ず1行だけ」で出す（検索性重視）
+  //   - init/state が片方しか無くても PENDING で1行出す
+  //   - warn は body(__cscs_warn.code) と header(X-CSCS-Warn) の両方を見る
   // ============================================================
   var lastKvSplitOneLine = "";
 
@@ -298,45 +321,18 @@
 
       var line =
         "[CSCS][KV-SPLIT-SUSPECT] " +
-        "level=" + String(kvSplit.kv_split_suspect || "") +
+        "level=" + String(kvSplit.level || "") +
+        " have_init=" + String(kvSplit.have_init || "NO") +
+        " have_state=" + String(kvSplit.have_state || "NO") +
         " init=" + String(kvSplit.init_status || "") +
         " state=" + String(kvSplit.state_status || "") +
-        " warn=" + String(kvSplit.state_warn_code || "") +
+        " warn=" + String(kvSplit.warn || "") +
         " deterministic=" + String(kvSplit.deterministic_key_ok || "") +
         " key=" + String(kvSplit.issued_key || "");
 
-      // 同じ結論を連打しない（ログ汚染を避ける）
       if (line === lastKvSplitOneLine) return;
       lastKvSplitOneLine = line;
 
-      // ★ 1回の console.log で 1行だけ出す（検索用）
-      console.log(line);
-    } catch (e) {}
-  }
-
-  // ============================================================
-  // 追加: KV-SPLIT SUSPECT を「必ず1行だけ」で出す（検索性重視）
-  // ============================================================
-  var lastKvSplitOneLine = "";
-
-  function emitKvSplitSuspectOneLine(kvSplit) {
-    try {
-      if (!kvSplit) return;
-
-      var line =
-        "[CSCS][KV-SPLIT-SUSPECT] " +
-        "level=" + String(kvSplit.kv_split_suspect || "") +
-        " init=" + String(kvSplit.init_status || "") +
-        " state=" + String(kvSplit.state_status || "") +
-        " warn=" + String(kvSplit.state_warn_code || "") +
-        " deterministic=" + String(kvSplit.deterministic_key_ok || "") +
-        " key=" + String(kvSplit.issued_key || "");
-
-      // 同じ結論を連打しない（ログ汚染を避ける）
-      if (line === lastKvSplitOneLine) return;
-      lastKvSplitOneLine = line;
-
-      // ★ 1回の console.log で 1行だけ出す（検索用）
       console.log(line);
     } catch (e) {}
   }
