@@ -1,8 +1,15 @@
 // assets/cscs_net_watch.js
+//
+// 【読み込み範囲に関する重要な注意（設計前提）】
+//   - 本ファイルは **Aパート専用** のデバッグ監視JSであり、Bパートには読み込まれない。
+//   - Aパートの挙動・通信・レスポンスを観測する目的でのみ使用する。
+//   - Bパート固有の判定・SYNC加算・UI挙動には一切関与しない。
+//
 // 目的:
 //   DevTools の Network を開かなくても、/api/sync/merge と /api/sync/state の
 //   Status / Response body / Response headers を console に確実に出す。
 //   + 追加: /api/sync/init も対象にし、INIT→STATE の整合（KV-SPLIT疑い等）を診断する。
+//
 // 注意:
 //   - fetch のレスポンスは clone() して読む（本体消費を避ける）
 //   - request body は読める範囲だけ（文字列/JSON なら先頭だけ）
