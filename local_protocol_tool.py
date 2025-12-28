@@ -3681,7 +3681,7 @@ def generate_parts(
     scope_index_block = build_scope_index_block(content)
 
     payloads: List[str] = []
-    for p in parts:
+    for p in parts:z
         cumulative_ids = build_cumulative_partids(parts, p.index)
         receipt_input = build_receipt_input_block(
             cumulative_ids=cumulative_ids,
