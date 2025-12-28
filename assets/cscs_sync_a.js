@@ -2411,8 +2411,33 @@
         throw new Error("NO_PULL_MODE");
       }
 
-      // ★ 処理1: /api/sync/state を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
-      const r = await fetch("/api/sync/state");
+      // ★ 追加した処理0: localStorage の SYNC key を先に読む（欠損は欠損として null）
+      // - key が無い状態で /api/sync/state を叩くと 400 になりログが汚れるため、ここで止める
+      // - フォールバックで埋めない（欠損は欠損として上流に伝える）
+      let syncKey = null;
+      try{
+        const v = localStorage.getItem("cscs_sync_key");
+        if (v !== null && v !== undefined) {
+          const s = String(v).trim();
+          syncKey = (s === "") ? null : s;
+        }
+      }catch(_){
+        syncKey = null;
+      }
+
+      // ★ 追加した処理0-1: key 欠損なら state は叩かない（推測せず例外で停止）
+      if (syncKey === null) {
+        throw new Error("SYNC_STATE_MISSING_KEY");
+      }
+
+      // ★ 処理1: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      const r = await fetch("/api/sync/state", {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "X-CSCS-Key": syncKey
+        }
+      });
       if(!r.ok) throw new Error(r.statusText);
 
       // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
