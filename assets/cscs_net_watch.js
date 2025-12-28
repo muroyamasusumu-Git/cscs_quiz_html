@@ -287,6 +287,33 @@
     }
   }
 
+  // ============================================================
+  // 追加: KV-SPLIT SUSPECT を「必ず1行だけ」で出す（検索性重視）
+  // ============================================================
+  var lastKvSplitOneLine = "";
+
+  function emitKvSplitSuspectOneLine(kvSplit) {
+    try {
+      if (!kvSplit) return;
+
+      var line =
+        "[CSCS][KV-SPLIT-SUSPECT] " +
+        "level=" + String(kvSplit.kv_split_suspect || "") +
+        " init=" + String(kvSplit.init_status || "") +
+        " state=" + String(kvSplit.state_status || "") +
+        " warn=" + String(kvSplit.state_warn_code || "") +
+        " deterministic=" + String(kvSplit.deterministic_key_ok || "") +
+        " key=" + String(kvSplit.issued_key || "");
+
+      // 同じ結論を連打しない（ログ汚染を避ける）
+      if (line === lastKvSplitOneLine) return;
+      lastKvSplitOneLine = line;
+
+      // ★ 1回の console.log で 1行だけ出す（検索用）
+      console.log(line);
+    } catch (e) {}
+  }
+
   // =========================
   // fetch フック
   // =========================
