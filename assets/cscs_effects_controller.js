@@ -42,6 +42,7 @@
     { id: "cscs_slide_in",           label: "SlideIn" },
     { id: "cscs_text_shadow",        label: "TextShadow" },
     { id: "point_summary_board_dummy", label: "PointBoard" },
+    { id: "consistency_ng_list", label: "ConsistencyNgList" },
     { id: "field_summary", label: "FieldSummary" },
     { id: "similar_list", label: "SimilarList" },
     { id: "nav_list", label: "NavList" },
