@@ -1360,7 +1360,10 @@ HTML_PAGE = r"""<!doctype html>
     }
 
     .muted { color: var(--muted); }
-
+    .muted.small  {
+    font-size: 12px;
+    }
+    
     .sectionTitle {
       font-weight: 700; /* 見出しを太字 */
       color: rgba(125, 211, 252, 0.95); /* 水色っぽい（少し淡いシアン） */
@@ -1630,6 +1633,10 @@ HTML_PAGE = r"""<!doctype html>
 <body>
   <h2>Protocol Splitter（ローカル専用）</h2>
   <div class="muted">① assets内のJSを選ぶ（ドラッグ&ドロップも可） → ② 指示を書く → ③ 生成 → ④ パートを表示してコピー</div>
+  <div class="muted small">cd /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html<br>
+  python3 local_protocol_tool.py<br>
+  http://127.0.0.1:8787</div>
+  
 
   <div class="card card-file">
     <div class="row">
@@ -3681,7 +3688,7 @@ def generate_parts(
     scope_index_block = build_scope_index_block(content)
 
     payloads: List[str] = []
-    for p in parts:z
+    for p in parts:
         cumulative_ids = build_cumulative_partids(parts, p.index)
         receipt_input = build_receipt_input_block(
             cumulative_ids=cumulative_ids,
