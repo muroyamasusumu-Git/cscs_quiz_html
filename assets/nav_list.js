@@ -16,6 +16,7 @@
  *   - "cscs_q_correct_total:" + qid      // b_judge_record.js 由来の問題別「正解」累計
  *   - "cscs_q_wrong_total:"   + qid      // b_judge_record.js 由来の問題別「不正解」累計
  *   - "cscs_exam_date"                    // 試験日カレンダー用
+ *   - "cscs_sync_key"                     // SYNC state 取得に使うキー（x-cscs-key）
  *
  * ▼ SYNC state(JSON) 内で参照するキー
  *   - root.streak3[qid]                   // 3連続「正解」達成回数（累計）
@@ -109,11 +110,36 @@
   // SYNC状態のロード
   // =========================
   async function loadSyncDataForNavList(){
+    // 追加した処理:
+    // - state を叩く前に localStorage から SYNC key を読む
+    // - key が空なら /api/sync/state は叩かず、空データとして扱う
+    // - key がある場合のみ、x-cscs-key を付与して state を取得する
+    var syncKey = "";
     try{
-      // /api/sync/state から最新の SYNC データを取得
-      const res = await fetch(location.origin + "/api/sync/state", { cache: "no-store" });
+      syncKey = String(localStorage.getItem("cscs_sync_key") || "");
+    }catch(_eKey){
+      syncKey = "";
+    }
+
+    if (!syncKey) {
+      window.CSCS_SYNC_DATA = {};
+      return window.CSCS_SYNC_DATA;
+    }
+
+    try{
+      // /api/sync/state から最新の SYNC データを取得（key がある場合のみ）
+      const res = await fetch(location.origin + "/api/sync/state", {
+        cache: "no-store",
+        headers: {
+          "x-cscs-key": syncKey
+        }
+      });
+
       const json = await res.json();
-      // 正常なオブジェクトでなければ空にしておく
+
+      // 追加した処理:
+      // - 応答が object でなければ空扱い
+      // - HTTP エラーでも例外化せず、空データに揃える（フォールバックはしない）
       if (!json || typeof json !== "object") {
         window.CSCS_SYNC_DATA = {};
       } else {
