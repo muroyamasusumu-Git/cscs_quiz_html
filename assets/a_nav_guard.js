@@ -100,7 +100,25 @@
           }
           ODOA_STATE.loading = true;
           try{
-            const res = await fetch("/api/sync/state", { cache: "no-store" });
+            let _syncKey = "";
+            try{
+              _syncKey = localStorage.getItem("cscs_sync_key") || "";
+            }catch(_){
+              _syncKey = "";
+            }
+
+            if (!_syncKey) {
+              dlog("O.D.O.A SYNC state load skipped: cscs_sync_key is missing (will not call /api/sync/state).");
+              return;
+            }
+
+            const res = await fetch("/api/sync/state", {
+              cache: "no-store",
+              headers: {
+                "X-CSCS-Key": String(_syncKey)
+              },
+              credentials: "include"
+            });
             const json = await res.json();
             ODOA_STATE.state = json;
             ODOA_STATE.loaded = true;

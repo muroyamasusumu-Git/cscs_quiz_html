@@ -99,170 +99,59 @@
     };
   }
   
-  function pickImportantRequestHeadersFromFetchArgs(input, init) {
-    // fetch(input, init) の「送信ヘッダ」を “見える範囲で” 抜く
-    // - init.headers だけでなく、input が Request の場合は input.headers も見る
-    // - x-cscs-key と X-CSCS-Key の両方を拾い、どちらが入っているかを可視化する
+  function pickImportantRequestHeadersFromInit(init) {
+    // fetch(input, init) の「送信ヘッダ」を “見える範囲で” 抜く（Cookie等は見えない）
     var out = {
       "x-cscs-key": "",
       "x-cscs-user": "",
-      "x-cscs-key-alt": "",
       "content-type": ""
     };
 
-    function scanHeadersLike(h) {
-      try {
-        if (!h) return;
+    try {
+      if (!init || !init.headers) return out;
 
-        // Headers
-        if (typeof Headers !== "undefined" && h instanceof Headers) {
-          var v1 = headerGetSafe(h, "x-cscs-key");
-          var v2 = headerGetSafe(h, "x-cscs-user");
-          var v3 = headerGetSafe(h, "content-type");
-          var v4 = headerGetSafe(h, "x-cscs-key-alt");
-          var v5 = headerGetSafe(h, "X-CSCS-Key");
-          var v6 = headerGetSafe(h, "X-CSCS-KEY");
+      var h = init.headers;
 
-          if (v1) out["x-cscs-key"] = v1;
-          if (v2) out["x-cscs-user"] = v2;
-          if (v3) out["content-type"] = v3;
-          if (v4) out["x-cscs-key-alt"] = v4;
-          if (v5) out["x-cscs-key-alt"] = v5;
-          if (v6) out["x-cscs-key-alt"] = v6;
-          return;
+      // Headers
+      if (typeof Headers !== "undefined" && h instanceof Headers) {
+        out["x-cscs-key"] = headerGetSafe(h, "x-cscs-key");
+        out["x-cscs-user"] = headerGetSafe(h, "x-cscs-user");
+        out["content-type"] = headerGetSafe(h, "content-type");
+        return out;
+      }
+
+      // Array<[k,v]> 形式
+      if (Array.isArray(h)) {
+        for (var i = 0; i < h.length; i++) {
+          var kv = h[i];
+          if (!kv || kv.length < 2) continue;
+          var k = String(kv[0] || "").toLowerCase();
+          var v = String(kv[1] || "");
+          if (k === "x-cscs-key") out["x-cscs-key"] = v;
+          if (k === "x-cscs-user") out["x-cscs-user"] = v;
+          if (k === "content-type") out["content-type"] = v;
         }
+        return out;
+      }
 
-        // Array<[k,v]> 形式
-        if (Array.isArray(h)) {
-          for (var i = 0; i < h.length; i++) {
-            var kv = h[i];
-            if (!kv || kv.length < 2) continue;
-            var k = String(kv[0] || "").toLowerCase();
-            var v = String(kv[1] || "");
+      // Plain object
+      if (typeof h === "object") {
+        Object.keys(h).forEach(function (k0) {
+          var k = String(k0 || "").toLowerCase();
+          var v = h[k0];
+          if (v == null) v = "";
+          v = String(v);
 
-            if (k === "x-cscs-key") out["x-cscs-key"] = v;
-            if (k === "x-cscs-user") out["x-cscs-user"] = v;
-            if (k === "content-type") out["content-type"] = v;
+          if (k === "x-cscs-key") out["x-cscs-key"] = v;
+          if (k === "x-cscs-user") out["x-cscs-user"] = v;
+          if (k === "content-type") out["content-type"] = v;
+        });
+        return out;
+      }
+    } catch (_e) {}
 
-            if (k === "x-cscs-key-alt") out["x-cscs-key-alt"] = v;
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-user".toLowerCase()) out["x-cscs-user"] = v;
-            if (k === "content-type".toLowerCase()) out["content-type"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key") out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt") out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key" || k === "x-cscs-key-alt") {
-              continue;
-            }
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k === "x-cscs-key".toLowerCase()) out["x-cscs-key"] = v;
-
-            if (k === "x-cscs-key-alt".toLowerCase()) out["x-cscs-key-alt"] = v;
-
-            if (k ===
+    return out;
+  }
 
   function emitStateRequestHeadersOneLine(kind, path, method, reqHeaders) {
     // “犯人炙り出し” 用：state を叩いた瞬間に 1行ログ
