@@ -15,8 +15,7 @@
 //   ブラウザで監視したい場合は cscs_sync_header_compare.js 側で見る。
 
 export type SyncEnv = {
-  // ★あなたの KV バインディング名に合わせる（例: env.SYNC_KV 等）
-  CSCS_SYNC_KV: KVNamespace;
+  SYNC: KVNamespace;
 };
 
 /**
