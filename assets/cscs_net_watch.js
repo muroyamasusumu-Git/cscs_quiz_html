@@ -98,6 +98,79 @@
       "cf-ray": headerGetSafe(h, "cf-ray")
     };
   }
+  
+  function pickImportantRequestHeadersFromInit(init) {
+    // fetch(input, init) の「送信ヘッダ」を “見える範囲で” 抜く（Cookie等は見えない）
+    var out = {
+      "x-cscs-key": "",
+      "x-cscs-user": "",
+      "content-type": ""
+    };
+
+    try {
+      if (!init || !init.headers) return out;
+
+      var h = init.headers;
+
+      // Headers
+      if (typeof Headers !== "undefined" && h instanceof Headers) {
+        out["x-cscs-key"] = headerGetSafe(h, "x-cscs-key");
+        out["x-cscs-user"] = headerGetSafe(h, "x-cscs-user");
+        out["content-type"] = headerGetSafe(h, "content-type");
+        return out;
+      }
+
+      // Array<[k,v]> 形式
+      if (Array.isArray(h)) {
+        for (var i = 0; i < h.length; i++) {
+          var kv = h[i];
+          if (!kv || kv.length < 2) continue;
+          var k = String(kv[0] || "").toLowerCase();
+          var v = String(kv[1] || "");
+          if (k === "x-cscs-key") out["x-cscs-key"] = v;
+          if (k === "x-cscs-user") out["x-cscs-user"] = v;
+          if (k === "content-type") out["content-type"] = v;
+        }
+        return out;
+      }
+
+      // Plain object
+      if (typeof h === "object") {
+        Object.keys(h).forEach(function (k0) {
+          var k = String(k0 || "").toLowerCase();
+          var v = h[k0];
+          if (v == null) v = "";
+          v = String(v);
+
+          if (k === "x-cscs-key") out["x-cscs-key"] = v;
+          if (k === "x-cscs-user") out["x-cscs-user"] = v;
+          if (k === "content-type") out["content-type"] = v;
+        });
+        return out;
+      }
+    } catch (_e) {}
+
+    return out;
+  }
+
+  function emitStateRequestHeadersOneLine(kind, path, method, reqHeaders) {
+    // “犯人炙り出し” 用：state を叩いた瞬間に 1行ログ
+    try {
+      if (path !== "/api/sync/state") return;
+
+      var key = (reqHeaders && reqHeaders["x-cscs-key"]) ? String(reqHeaders["x-cscs-key"]) : "";
+      var ctype = (reqHeaders && reqHeaders["content-type"]) ? String(reqHeaders["content-type"]) : "";
+
+      // key が空なら特に重要（MISSING_KEY の原因）
+      var line =
+        "[CSCS][STATE_REQ_HEADERS] " +
+        kind + " " + method + " " + path +
+        " x-cscs-key=" + (key ? shorten(key, 60) : "(EMPTY)") +
+        (ctype ? (" content-type=" + ctype) : "");
+
+      console.log(line);
+    } catch (_e) {}
+  }
 
   function looksLikeDeterministicKey(k) {
     try {
@@ -280,6 +353,10 @@
       var t0 = nowMs();
       var path = normalizePath(url);
       var tag = "[CSCS][NET_WATCH][fetch] " + method + " " + path;
+
+      // ★ 追加：送信時点の request headers を 1行で必ず出す（state犯人特定）
+      var reqHeaders = pickImportantRequestHeadersFromInit(init);
+      emitStateRequestHeadersOneLine("fetch", path, method, reqHeaders);
 
       try {
         var resp = await _fetch.apply(this, arguments);
