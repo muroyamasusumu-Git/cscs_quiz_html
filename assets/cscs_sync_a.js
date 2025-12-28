@@ -116,6 +116,7 @@
  *       "cscs_correct_streak3_log"
  *
  * ▼ 使用する主な API エンドポイント
+ *   - GET  /api/sync/init
  *   - GET  /api/sync/state
  *   - POST /api/sync/merge
  *   - POST /api/sync/reset_qid
@@ -2430,12 +2431,10 @@
         throw new Error("NO_PULL_MODE");
       }
 
-      // ★ 追加した処理0: localStorage の SYNC key を先に読む（欠損は欠損として null）
-      // - key が無い状態で /api/sync/state を叩くと 400 になりログが汚れるため、ここで止める
-      // - フォールバックで埋めない（欠損は欠損として上流に伝える）
+      // ★ 追加した処理0: localStorage の SYNC key を読む（trim）
+      // - 空白だけも「未設定」として扱う（空キーでfetchしない）
       let syncKey = null;
       try{
-        // ★ 処理1: syncKey を確定（trim）
         const v = localStorage.getItem("cscs_sync_key");
         if (v !== null && v !== undefined) {
           const s = String(v).trim();
@@ -2445,17 +2444,62 @@
         syncKey = null;
       }
 
-      // ★ 処理2: syncKey が未セット/空なら、何もせず終了（例外にしない）
+      // ★ 追加した処理1: syncKey が未設定なら、先に /api/sync/init を叩いて key を取得する
+      // - 目的: 「空キー state 400」を原理的に消す（state は必ず key 確定後にのみ実行）
+      // - 方針: 値のキー名を推測しないため、init の「レスポンスヘッダ」から key を読む
       if (!syncKey) {
-        return;
+        // ★ 処理1-1: /api/sync/init を先に叩く（A読み込み時の最初の一手）
+        const initRes = await fetch("/api/sync/init", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store"
+        });
+        if (!initRes.ok) throw new Error("SYNC_INIT_FAILED");
+
+        // ★ 処理1-2: initレスポンスヘッダから key を取得（推測で本文キー名を参照しない）
+        function readHeaderStrict(headers, name){
+          try{
+            const v = headers ? headers.get(name) : null;
+            if (v === null || v === undefined) return null;
+            const s = String(v).trim();
+            return s === "" ? null : s;
+          }catch(_){
+            return null;
+          }
+        }
+
+        function readHeaderAny(headers, names){
+          for (let i = 0; i < names.length; i++) {
+            const v = readHeaderStrict(headers, names[i]);
+            if (v !== null) return v;
+          }
+          return null;
+        }
+
+        const initKey = readHeaderAny(initRes.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]);
+        if (!initKey) throw new Error("SYNC_INIT_KEY_MISSING");
+
+        // ★ 処理1-3: 返ってきた key を localStorage cscs_sync_key に保存（唯一の保存先）
+        try{
+          localStorage.setItem("cscs_sync_key", String(initKey));
+        }catch(_){
+          throw new Error("SYNC_INIT_KEY_STORE_FAILED");
+        }
+
+        // ★ 処理1-4: 保存後の key を確定（以降の state は必ずこの key を使う）
+        syncKey = String(initKey);
+
+        console.log("[SYNC-A][INIT] sync key stored -> will call state", {
+          qid: QID || null
+        });
       }
 
-      // ★ 処理3: syncKey がある場合のみ、ログしてから state を取得する
+      // ★ 追加した処理2: key が確定している場合のみ、state を取得する（空キー state を禁止）
       console.log("[CSCS][STATE] will call /api/sync/state with X-CSCS-Key", {
         qid: QID || null
       });
 
-      // ★ 処理4: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      // ★ 処理: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state", {
         method: "GET",
         credentials: "include",
@@ -2465,7 +2509,7 @@
       });
       if(!r.ok) throw new Error(r.statusText);
 
-      // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
+      // ★ 処理: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
       function readHeaderStrict(headers, name){
         try{
           const v = headers ? headers.get(name) : null;
