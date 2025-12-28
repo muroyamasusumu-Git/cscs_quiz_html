@@ -14,6 +14,16 @@
  *     キー仕様の不整合が生じることを防ぐ目的。
  *   - ここに書かれていないキーは原則として使用禁止。
  *
+  * ▼ LocalStorage キー
+ *   - "cscs_fav"
+ *   - "cscs_fav_map"
+ *   - "cscs_results"
+ *   - "cscs_wrong_log"
+ *   - "cscs_q_correct_total:" + qid      // b_judge_record.js 由来の問題別「正解」累計
+ *   - "cscs_q_wrong_total:"   + qid      // b_judge_record.js 由来の問題別「不正解」累計
+ *   - "cscs_exam_date"                    // 試験日カレンダー用
+ *   - "cscs_sync_key"                     // SYNC state 取得に使うキー（x-cscs-key）
+ *
  * ▼ 問題別累計（正解 / 不正解）
  *   - localStorage:
  *       "cscs_q_correct_total:" + qid
