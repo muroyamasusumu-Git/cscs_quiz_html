@@ -2440,6 +2440,16 @@
         throw new Error("SYNC_STATE_MISSING_KEY");
       }
 
+      // ★ 処理1: /api/sync/state は Worker 側で "X-CSCS-Key" 必須。
+      // - syncKey が空（未セット）の状態で叩くと 400(SYNC_STATE_MISSING_KEY) を発生させる
+      // - 初回セット導線（/api/sync/init → localStorage保存）が完了するまでは state を取りに行かない
+      if (!syncKey) {
+        console.log(
+          "[CSCS][STATE] skipped: X-CSCS-Key is missing (will not call /api/sync/state)"
+        );
+        return;
+      }
+
       // ★ 処理1: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state", {
         method: "GET",
