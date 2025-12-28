@@ -31,36 +31,11 @@
         const kv = r.headers.get("X-CSCS-KV");
         const isEmpty = r.headers.get("X-CSCS-IsEmptyTemplate");
 
-        // 追加した処理: ENV_KEYS 互換のKV診断ログ（スクショと同じ観測軸）
-        // - 何をしているか: X-CSCS-EnvKeys / X-CSCS-KV-* を読み、スクショと同じ項目を同じ形式で出す
-        // - 目的: コンソールだけで「KVバインディング名」「env.SYNC生存」「KV identity」を一発確定させる
-        // - 方針: ノイズ抑制のため初回1回だけ出す（SPA遷移でも二重出力しない）
-        const envKeysRaw = r.headers.get("X-CSCS-EnvKeys") || "";
-        const envKeysList = envKeysRaw ? envKeysRaw.split(",").filter(Boolean) : [];
-
-        const kvBinding = r.headers.get("X-CSCS-KV-Binding") || "";
-        const kvHasEnvSYNC = r.headers.get("X-CSCS-KV-HasEnvSYNC") || "";
-        const kvIdentity = r.headers.get("X-CSCS-KV-Identity") || "";
-
-        if (!window.__CSCS_KV_BINDING_DIAG_LOGGED__) {
-          window.__CSCS_KV_BINDING_DIAG_LOGGED__ = true;
-
-          console.log("[CSCS][ENV_KEYS] status=", r.status);
-          console.log("[CSCS][ENV_KEYS] X-CSCS-EnvKeys(raw)=", envKeysRaw);
-          console.log("[CSCS][ENV_KEYS] keys(list)=", envKeysList);
-
-          console.log("[CSCS][ENV_KEYS] has SYNC=", envKeysList.includes("SYNC"));
-
-          console.log("[CSCS][ENV_KEYS] X-CSCS-KV-Binding=", kvBinding);
-          console.log("[CSCS][ENV_KEYS] X-CSCS-KV-HasEnvSYNC=", kvHasEnvSYNC);
-          console.log("[CSCS][ENV_KEYS] X-CSCS-KV-Identity=", kvIdentity);
-
-          console.log("[CSCS][KV-BINDING] verdict", {
-            ok_binding_is_SYNC: kvBinding === "SYNC",
-            ok_env_SYNC_is_alive: kvHasEnvSYNC === "1",
-            ok_has_identity: !!kvIdentity
-          });
-        }
+        // 追加した処理: KV バインディング名を毎回ログで確定させる（A/B共通JSなので副作用はログのみ）
+        // - 目的: 「この function が掴んでいる KV バインディング名」をコンソール一発で確定
+        // - 成功例: [CSCS][ENV_KEYS] X-CSCS-KV-Binding= "SYNC"
+        const kvBinding = r.headers.get("X-CSCS-KV-Binding");
+        console.log("[CSCS][ENV_KEYS] X-CSCS-KV-Binding=", kvBinding);
 
         // ★ EMPTY テンプレ確定ログ（ブラウザ側）
         // - Workers 側の [SYNC/state][EMPTY-TEMPLATE] と意味を完全一致させる
