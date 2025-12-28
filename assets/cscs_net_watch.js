@@ -2,10 +2,12 @@
 // 目的:
 //   DevTools の Network を開かなくても、/api/sync/merge と /api/sync/state の
 //   Status / Response body / Response headers を console に確実に出す。
+//   + 追加: /api/sync/init も対象にし、INIT→STATE の整合（KV-SPLIT疑い等）を診断する。
 // 注意:
 //   - fetch のレスポンスは clone() して読む（本体消費を避ける）
 //   - request body は読める範囲だけ（文字列/JSON なら先頭だけ）
 //   - 必要なら localStorage "cscs_net_watch" === "1" でON/OFFできる
+//   - 診断は“観測のみ”（通信内容の改変やフォールバックは一切しない）
 
 (function () {
   "use strict";
@@ -49,7 +51,6 @@
       var url = new URL(u, location.origin);
       return url.pathname;
     } catch (e) {
-      // 相対パスなどで URL() が落ちたとき用
       if (typeof u === "string") return u;
       return "";
     }
@@ -57,7 +58,11 @@
 
   function isTarget(url) {
     var p = normalizePath(url);
-    return p === "/api/sync/merge" || p === "/api/sync/state";
+    return (
+      p === "/api/sync/merge" ||
+      p === "/api/sync/state" ||
+      p === "/api/sync/init"
+    );
   }
 
   function headersToObject(headers) {
@@ -78,23 +83,19 @@
   }
 
   function tryExtractRequestBody(init) {
-    // fetch(input, init) の init.body を “見える範囲で” 取り出す（完全再現は狙わない）
     try {
       if (!init || !("body" in init)) return null;
       var b = init.body;
       if (b === undefined || b === null) return null;
 
-      // 文字列
       if (typeof b === "string") {
         return { type: "string", preview: shorten(b, 4000) };
       }
 
-      // URLSearchParams
       if (typeof URLSearchParams !== "undefined" && b instanceof URLSearchParams) {
         return { type: "URLSearchParams", preview: shorten(b.toString(), 4000) };
       }
 
-      // FormData（中身は列挙しない：安全のため）
       if (typeof FormData !== "undefined" && b instanceof FormData) {
         var keys = [];
         try {
@@ -103,7 +104,6 @@
         return { type: "FormData", keys: keys.slice(0, 50) };
       }
 
-      // Blob / ArrayBuffer などは中身読まない
       var tag = Object.prototype.toString.call(b);
       return { type: tag, preview: "[binary body omitted]" };
     } catch (e) {
@@ -112,7 +112,6 @@
   }
 
   async function readBodyPreview(resp) {
-    // clone したレスポンスから body を読む（JSON優先）
     try {
       var ct = resp.headers && resp.headers.get ? (resp.headers.get("content-type") || "") : "";
       if (ct.indexOf("application/json") !== -1) {
@@ -131,13 +130,154 @@
       console.groupCollapsed(tag);
       console.log(data);
     } catch (e) {
-      // group が無い環境でも落とさない
       try { console.log(tag, data); } catch (_e) {}
     }
   }
 
   function logBlockEnd() {
     try { console.groupEnd(); } catch (e) {}
+  }
+
+  // ============================================================
+  // 追加: INIT/STATE 診断ストア（観測のみ）
+  // ============================================================
+  var diagStore = {
+    init: null,
+    state: null,
+    merge: null
+  };
+
+  function pickImportantHeadersFromFetchHeaders(h) {
+    function g(name) {
+      try {
+        var v = h && typeof h.get === "function" ? h.get(name) : null;
+        return v == null ? "" : String(v);
+      } catch (e) {
+        return "";
+      }
+    }
+
+    return {
+      "X-CSCS-Key": g("X-CSCS-Key"),
+      "X-CSCS-User": g("X-CSCS-User"),
+      "X-CSCS-KV-Binding": g("X-CSCS-KV-Binding"),
+      "X-CSCS-KV-Identity": g("X-CSCS-KV-Identity"),
+      "X-CSCS-Pages-Project": g("X-CSCS-Pages-Project"),
+      "X-CSCS-Pages-Branch": g("X-CSCS-Pages-Branch"),
+      "X-CSCS-Pages-Commit": g("X-CSCS-Pages-Commit"),
+      "X-CSCS-Pages-Deploy": g("X-CSCS-Pages-Deploy"),
+      "X-CSCS-Warn": g("X-CSCS-Warn"),
+      "X-CSCS-IsEmptyTemplate": g("X-CSCS-IsEmptyTemplate"),
+      "X-CSCS-ExpectedKey": g("X-CSCS-ExpectedKey")
+    };
+  }
+
+  function pickImportantHeadersFromXhrLowerMap(mapLower) {
+    function gLower(nameLower) {
+      try {
+        var v = mapLower ? mapLower[nameLower] : "";
+        return v == null ? "" : String(v);
+      } catch (e) {
+        return "";
+      }
+    }
+
+    return {
+      "X-CSCS-Key": gLower("x-cscs-key"),
+      "X-CSCS-User": gLower("x-cscs-user"),
+      "X-CSCS-KV-Binding": gLower("x-cscs-kv-binding"),
+      "X-CSCS-KV-Identity": gLower("x-cscs-kv-identity"),
+      "X-CSCS-Pages-Project": gLower("x-cscs-pages-project"),
+      "X-CSCS-Pages-Branch": gLower("x-cscs-pages-branch"),
+      "X-CSCS-Pages-Commit": gLower("x-cscs-pages-commit"),
+      "X-CSCS-Pages-Deploy": gLower("x-cscs-pages-deploy"),
+      "X-CSCS-Warn": gLower("x-cscs-warn"),
+      "X-CSCS-IsEmptyTemplate": gLower("x-cscs-isemptytemplate"),
+      "X-CSCS-ExpectedKey": gLower("x-cscs-expectedkey")
+    };
+  }
+
+  function extractWarnCodeFromBody(bodyPrev) {
+    try {
+      if (!bodyPrev || bodyPrev.kind !== "json") return "";
+      var j = bodyPrev.value;
+      if (!j || typeof j !== "object") return "";
+      var w = j.__cscs_warn;
+      if (!w || typeof w !== "object") return "";
+      var c = w.code;
+      return (typeof c === "string") ? c : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function looksLikeDeterministicKey(k) {
+    try {
+      if (typeof k !== "string") return false;
+      if (k.indexOf("sync:") !== 0) return false;
+      var rest = k.slice(5);
+      if (!rest) return false;
+      if (rest !== rest.toLowerCase()) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function updateDiag(tagName, status, ok, importantHeaders, bodyPrev) {
+    try {
+      diagStore[tagName] = {
+        at: Date.now(),
+        status: status,
+        ok: ok,
+        important_headers: importantHeaders || {},
+        body_warn_code: extractWarnCodeFromBody(bodyPrev),
+        body: bodyPrev || null
+      };
+    } catch (e) {}
+  }
+
+  function computeKvSplitSuspect() {
+    try {
+      var init = diagStore.init;
+      var state = diagStore.state;
+
+      if (!init || !state) return null;
+
+      var initStatus = init.status;
+      var stateStatus = state.status;
+
+      var issuedKey =
+        init.important_headers && typeof init.important_headers["X-CSCS-Key"] === "string"
+          ? init.important_headers["X-CSCS-Key"]
+          : "";
+
+      var stateWarnCode =
+        typeof state.body_warn_code === "string"
+          ? state.body_warn_code
+          : "";
+
+      var mismatchHit = false;
+      if (stateWarnCode && String(stateWarnCode).indexOf("MISMATCH") >= 0) mismatchHit = true;
+
+      var suspect =
+        initStatus === 200 &&
+        typeof issuedKey === "string" &&
+        issuedKey.length > 0 &&
+        stateStatus === 403 &&
+        mismatchHit;
+
+      return {
+        init_status: initStatus,
+        state_status: stateStatus,
+        issued_key: issuedKey,
+        state_warn_code: stateWarnCode,
+        kv_split_suspect: suspect ? "HIGH" : "NOT HIGH",
+        deterministic_key_ok: looksLikeDeterministicKey(issuedKey) ? "YES" : "NO"
+      };
+    } catch (e) {
+      return null;
+    }
   }
 
   // =========================
@@ -164,13 +304,16 @@
       var t0 = nowMs();
       var reqBodyInfo = tryExtractRequestBody(init);
 
-      var tag = "[CSCS][NET_WATCH][fetch] " + method + " " + normalizePath(url);
+      var path = normalizePath(url);
+      var tag = "[CSCS][NET_WATCH][fetch] " + method + " " + path;
 
       try {
         var resp = await _fetch.apply(this, arguments);
         var dt = Math.round(nowMs() - t0);
 
         var hdrObj = headersToObject(resp.headers);
+        var importantHeaders = pickImportantHeadersFromFetchHeaders(resp.headers);
+
         var cloned = null;
         try { cloned = resp.clone(); } catch (e) { cloned = null; }
 
@@ -178,6 +321,18 @@
         if (cloned) {
           bodyPrev = await readBodyPreview(cloned);
         }
+
+        var diagTagName =
+          path === "/api/sync/init" ? "init" :
+          path === "/api/sync/state" ? "state" :
+          path === "/api/sync/merge" ? "merge" :
+          "";
+
+        if (diagTagName) {
+          updateDiag(diagTagName, resp.status, resp.ok, importantHeaders, bodyPrev);
+        }
+
+        var kvSplit = computeKvSplitSuspect();
 
         logBlockStart(tag, {
           url: url,
@@ -187,7 +342,9 @@
           elapsed_ms: dt,
           request_body: reqBodyInfo,
           response_headers: hdrObj,
-          response_body: bodyPrev
+          important_headers: importantHeaders,
+          response_body: bodyPrev,
+          diag_kv_split_suspect: kvSplit
         });
         logBlockEnd();
 
@@ -243,7 +400,8 @@
         if (!isTarget(url)) return _send.apply(this, arguments);
 
         var self = this;
-        var tag = "[CSCS][NET_WATCH][xhr] " + (self.__cscs_nw_method || "GET") + " " + normalizePath(url);
+        var path = normalizePath(url);
+        var tag = "[CSCS][NET_WATCH][xhr] " + (self.__cscs_nw_method || "GET") + " " + path;
 
         function done() {
           try {
@@ -261,16 +419,29 @@
               });
             } catch (e) {}
 
+            var importantHeaders = pickImportantHeadersFromXhrLowerMap(respHeaders);
+
             var respText = "";
             try { respText = typeof self.responseText === "string" ? self.responseText : ""; } catch (e) { respText = ""; }
 
             var bodyPrev = { kind: "text", value: shorten(respText, 6000) };
             try {
-              // JSONっぽければ parse も試す
               if (respText && respText[0] === "{") {
                 bodyPrev = { kind: "json", value: JSON.parse(respText) };
               }
             } catch (e) {}
+
+            var diagTagName =
+              path === "/api/sync/init" ? "init" :
+              path === "/api/sync/state" ? "state" :
+              path === "/api/sync/merge" ? "merge" :
+              "";
+
+            if (diagTagName) {
+              updateDiag(diagTagName, self.status, (self.status >= 200 && self.status < 300), importantHeaders, bodyPrev);
+            }
+
+            var kvSplit = computeKvSplitSuspect();
 
             logBlockStart(tag, {
               url: url,
@@ -281,7 +452,9 @@
               request_headers: self.__cscs_nw_headers || {},
               request_body: (typeof body === "string") ? shorten(body, 4000) : "[non-string body omitted]",
               response_headers: respHeaders,
-              response_body: bodyPrev
+              important_headers: importantHeaders,
+              response_body: bodyPrev,
+              diag_kv_split_suspect: kvSplit
             });
             logBlockEnd();
           } catch (e) {}
