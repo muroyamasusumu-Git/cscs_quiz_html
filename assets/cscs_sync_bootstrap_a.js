@@ -55,6 +55,176 @@
     return v.indexOf("sync:") === 0 && v.length > "sync:".length;
   }
 
+  // ============================================================
+  // ★ 追加: init 手動ボタン導線（A側UIバインド / strict）
+  // ------------------------------------------------------------
+  // - /api/sync/state を叩くのは必ず bootstrap 完了後（WIN_PROMISE resolve 後）
+  // - フォールバック禁止（欠損は欠損として UI に表示）
+  // ============================================================
+  window.CSCS_SYNC_INIT_BIND_A_STRICT = function (box) {
+    try{
+      const initBtn = box.querySelector('button[data-sync-init="1"]');
+      const elUser  = box.querySelector(".sync-user-email");
+      const elKey   = box.querySelector(".sync-key-status");
+      const elState = box.querySelector(".sync-state-status");
+
+      function readLocalSyncKeyStrict(){
+        try{
+          const v = localStorage.getItem(LS_SYNC_KEY);
+          if (v === null || v === undefined) return null;
+          const s = String(v).trim();
+          return s === "" ? null : s;
+        }catch(_){
+          return null;
+        }
+      }
+
+      function refreshInitUiSnapshotStrict(stateStatus, userEmailFromHeader){
+        // ★ 処理: key状態（present/missing）
+        try{
+          const k = readLocalSyncKeyStrict();
+          if (elKey) elKey.textContent = (k !== null) ? "present" : "missing";
+        }catch(_){}
+
+        // ★ 処理: user表示（/api/sync/state ヘッダ由来のみ）
+        try{
+          if (elUser) {
+            if (userEmailFromHeader === null || userEmailFromHeader === undefined) {
+              elUser.textContent = "MISSING";
+            } else {
+              const s = String(userEmailFromHeader).trim();
+              elUser.textContent = (s === "") ? "MISSING" : s;
+            }
+          }
+        }catch(_){}
+
+        // ★ 処理: state status表示（数値以外はそのまま出さずMISSING）
+        try{
+          if (elState) {
+            if (typeof stateStatus === "number" && Number.isFinite(stateStatus)) {
+              elState.textContent = String(stateStatus);
+            } else {
+              elState.textContent = "MISSING";
+            }
+          }
+        }catch(_){}
+      }
+
+      async function fetchStateWithKeyStrict(){
+        // ★ 重要: /api/sync/state は bootstrap 完了後にのみ実行する
+        if (window[WIN_PROMISE] && typeof window[WIN_PROMISE].then === "function") {
+          await window[WIN_PROMISE];
+        }
+
+        const k = readLocalSyncKeyStrict();
+        if (k === null) {
+          // ★ 処理: key欠損なら state確認は実施できない（推測せず欠損として扱う）
+          return { ok: false, status: null, user: null };
+        }
+
+        const r = await fetch("/api/sync/state", {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "X-CSCS-Key": k
+          }
+        });
+
+        // ★ 処理: user(email) はヘッダからのみ取得（欠損はnull）
+        let userEmail = null;
+        try{
+          const u = r.headers ? r.headers.get("X-CSCS-User") : null;
+          if (u !== null && u !== undefined) {
+            const s = String(u).trim();
+            userEmail = (s === "") ? null : s;
+          }
+        }catch(_){
+          userEmail = null;
+        }
+
+        return { ok: (r.status === 200), status: r.status, user: userEmail };
+      }
+
+      async function runInitFlowStrict(){
+        // ★ 重要: /api/sync/init を “手動で叩いた後” に /api/sync/state へ進む
+        // ★ 重要: state は bootstrap 完了後のみ（fetchStateWithKeyStrict で保証）
+        const existedKey = (readLocalSyncKeyStrict() !== null);
+        const force = existedKey ? true : false;
+
+        let initStatus = null;
+        let stateStatus = null;
+        let userEmail = null;
+
+        try{
+          const initRes = await fetch(INIT_ENDPOINT, {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ force: force })
+          });
+
+          initStatus = initRes.status;
+
+          if (initRes.status === 200) {
+            // ★ 処理: 200時のみ body.key を保存（欠損は欠損として保存しない）
+            let key = null;
+            try{
+              const j = await initRes.json();
+              if (j && Object.prototype.hasOwnProperty.call(j, "key")) {
+                const raw = j.key;
+                if (raw !== null && raw !== undefined) {
+                  const s = String(raw).trim();
+                  key = (s === "") ? null : s;
+                }
+              }
+            }catch(_){
+              key = null;
+            }
+
+            if (key !== null) {
+              try{
+                localStorage.setItem(LS_SYNC_KEY, key);
+              }catch(_){}
+              // ★ 処理: window 側も更新（後続の参照用 / 推測ではない）
+              try{
+                window[WIN_KEY] = key;
+              }catch(_){}
+            }
+          }
+
+          // ★ 処理: 保存直後に state をヘッダ付きで確認
+          const st = await fetchStateWithKeyStrict();
+          stateStatus = st.status;
+          userEmail = st.user;
+
+          // ★ 処理: UI更新（欠損は欠損のまま）
+          refreshInitUiSnapshotStrict(stateStatus, userEmail);
+
+          // ★ 処理: 判定ログを必ず1行
+          if (initStatus === 200 && stateStatus === 200) {
+            console.log("✅ INIT+STATE OK (init=" + initStatus + ", state=" + stateStatus + ")");
+          } else {
+            console.log("❌ INIT+STATE FAILED (init=" + initStatus + ", state=" + stateStatus + ")");
+          }
+        }catch(e){
+          // ★ 処理: 例外時も「1行ログ」ルールを守る（statusはnull）
+          refreshInitUiSnapshotStrict(stateStatus, userEmail);
+          console.log("❌ INIT+STATE FAILED (init=" + initStatus + ", state=" + stateStatus + ")");
+        }
+      }
+
+      // ★ 処理: 起動時スナップショット（key状態だけは常に表示できる）
+      refreshInitUiSnapshotStrict(null, null);
+
+      if (initBtn) {
+        initBtn.addEventListener("click", function(){
+          runInitFlowStrict();
+        });
+      }
+    }catch(_){}
+  };
+
   // ユーティリティ: localStorage 書き込み（失敗しても例外は外へ出さない）
   function writeLocalStorage(key, val) {
     try {
