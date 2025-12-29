@@ -304,7 +304,7 @@
 
     SYNC_STATE.loading = true;
     try {
-      var res = await fetch(SYNC_STATE_ENDPOINT, { cache: "no-store" });
+      var res = await fetch(SYNC_STATE_ENDPOINT, { cache: "no-store", credentials: "include" });
       var json = await res.json();
       SYNC_STATE.json = json || {};
       SYNC_STATE.loaded = true;
