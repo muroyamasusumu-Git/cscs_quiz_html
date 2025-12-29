@@ -144,6 +144,7 @@
     }
 
     var PANEL_ID = "cscs-effects-panel";
+    var OVERLAY_ID = "cscs-effects-overlay";
 
     var css =
       "#" + BTN_ID + "{" +
@@ -178,6 +179,24 @@
       "#" + BTN_ID + ".is-on{" +
       "background:rgba(0,0,0,0.35);" +
       "opacity:0.80;" +
+      "}" +
+
+      // 追加した処理:
+      // - パネル表示中に背面UIへクリックが奪われないよう、透明オーバーレイで背面クリックを遮断する
+      // - オーバーレイは「パネルより下・他UIより上」に置き、パネル操作は阻害しない
+      "#" + OVERLAY_ID + "{" +
+      "position:fixed;" +
+      "left:0;" +
+      "top:0;" +
+      "width:100vw;" +
+      "height:100vh;" +
+      "z-index:2147483646;" +
+      "background:rgba(0,0,0,0.00);" +
+      "display:none;" +
+      "pointer-events:auto;" +
+      "}" +
+      "#" + OVERLAY_ID + ".open{" +
+      "display:block;" +
       "}" +
 
       // 追加した処理: 個別ON/OFF用パネル
@@ -291,6 +310,25 @@
     ensureStyle();
 
     var PANEL_ID = "cscs-effects-panel";
+    var OVERLAY_ID = "cscs-effects-overlay";
+
+    // 追加した処理:
+    // - パネル表示中、背面UIへのクリックを遮断する透明オーバーレイを用意する
+    // - クリックされたら「パネル外クリック」と同等に閉じる（最小限）
+    function ensureOverlay() {
+      var existing = document.getElementById(OVERLAY_ID);
+      if (existing) return existing;
+
+      var ov = document.createElement("div");
+      ov.id = OVERLAY_ID;
+
+      ov.addEventListener("click", function () {
+        togglePanel(false);
+      });
+
+      document.body.appendChild(ov);
+      return ov;
+    }
 
     // 追加した処理: 個別ON/OFFパネルを生成（ボタンとは別DOM）
     function ensurePanel() {
@@ -440,11 +478,14 @@
 
     function togglePanel(open) {
       var p = ensurePanel();
+      var ov = ensureOverlay();
       if (open === true) {
         p.classList.add("open");
+        ov.classList.add("open");
         safeSetLS(LS_KEY_PANEL_OPEN, "1");
       } else {
         p.classList.remove("open");
+        ov.classList.remove("open");
         safeRemoveLS(LS_KEY_PANEL_OPEN);
       }
     }
