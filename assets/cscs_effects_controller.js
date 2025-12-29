@@ -173,11 +173,11 @@
       "}" +
       "#" + BTN_ID + ".is-off{" +
       "background:rgba(0,0,0,0.55);" +
-      "opacity:0.55;" +
+      "opacity:0.95;" +
       "}" +
       "#" + BTN_ID + ".is-on{" +
       "background:rgba(0,0,0,0.35);" +
-      "opacity:0.80;" +
+      "opacity:0.90;" +
       "}" +
 
       // 追加した処理: 個別ON/OFF用パネル
