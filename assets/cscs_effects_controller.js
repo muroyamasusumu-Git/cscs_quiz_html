@@ -185,35 +185,36 @@
       // - パネル表示中に背面UIへクリックが奪われないよう、透明オーバーレイで背面クリックを遮断する
       // - オーバーレイは「パネルより下・他UIより上」に置き、パネル操作は阻害しない
       "#" + OVERLAY_ID + "{" +
-      "position:fixed;" +
-      "left:0;" +
-      "top:0;" +
-      "width:100vw;" +
-      "height:100vh;" +
-      "z-index:2147483646;" +
-      "background:rgba(0,0,0,0.00);" +
-      "display:none;" +
-      "pointer-events:auto;" +
+      "position:fixed !important;" +
+      "left:0 !important;" +
+      "top:0 !important;" +
+      "width:100vw !important;" +
+      "height:100vh !important;" +
+      "z-index:2147483645 !important;" +
+      "background:rgba(0,0,0,0.00) !important;" +
+      "display:none !important;" +
+      "pointer-events:auto !important;" +
       "}" +
       "#" + OVERLAY_ID + ".open{" +
-      "display:block;" +
+      "display:block !important;" +
       "}" +
 
       // 追加した処理: 個別ON/OFF用パネル
       "#" + PANEL_ID + "{" +
       "position:fixed !important;" +
-      "right:12px;" +
-      "bottom:calc(10px + 34px + 8px);" +
-      "z-index:2147483647;" +
-      "width:170px;" +
-      "padding:10px 10px;" +
-      "border-radius:12px;" +
-      "border:1px solid rgba(255,255,255,0.16);" +
-      "background:rgba(0,0,0,0.58);" +
-      "color:#fff;" +
-      "font-size:12px;" +
-      "box-shadow:none;" +
-      "display:none;" +
+      "right:12px !important;" +
+      "bottom:calc(10px + 34px + 8px) !important;" +
+      "z-index:2147483647 !important;" +
+      "width:170px !important;" +
+      "padding:10px 10px !important;" +
+      "border-radius:12px !important;" +
+      "border:1px solid rgba(255,255,255,0.16) !important;" +
+      "background:rgba(0,0,0,0.58) !important;" +
+      "color:#fff !important;" +
+      "font-size:12px !important;" +
+      "box-shadow:none !important;" +
+      "display:none !important;" +
+      "pointer-events:auto !important;" +
       "}" +
       "#" + PANEL_ID + ".open{" +
       "display:block;" +
