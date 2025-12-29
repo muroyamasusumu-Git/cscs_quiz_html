@@ -2540,13 +2540,21 @@
         "X-CSCS-Key": syncKey
       };
 
-      // ★ 処理4: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      // ★ 処理4: /api/sync/state は「X-CSCS-Key 確定済み」の場合のみ叩く（未確定なら例外で停止）
+      if (!stateFetchHeaders || !stateFetchHeaders["X-CSCS-Key"]) {
+        throw new Error("SYNC_KEY_NOT_READY");
+      }
+
       const r = await fetch("/api/sync/state", {
         method: "GET",
         credentials: "include",
         headers: stateFetchHeaders
       });
-      if(!r.ok) throw new Error(r.statusText);
+
+      if (!r.ok) {
+        const errText = await r.text();
+        throw new Error("SYNC_STATE_HTTP_" + r.status + ": " + errText);
+      }
 
       // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
       function readHeaderStrict(headers, name){
