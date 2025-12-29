@@ -1,4 +1,27 @@
 // assets/a_auto_next.js
+//
+// 【cscs_sync_bootstrap_a.js との関係（最重要）】
+//   このファイルは、/api/sync/state を必ず使用する。
+//   そのため、
+//     - cscs_sync_bootstrap_a.js による sync bootstrap が完了し、
+//     - window.__CSCS_SYNC_KEY_PROMISE__ が resolve し、
+//     - window.CSCS_SYNC_KEY が確定している
+//   ことを前提として初めて起動されなければならない。
+//
+//   ✔ 起動順序の正:
+//       cscs_sync_bootstrap_a.js
+//         → (__CSCS_SYNC_KEY_PROMISE__ resolve)
+//         → このJS起動
+//
+//   ✖ 禁止:
+//       - bootstrap 未完了の状態で /api/sync/state を叩く
+//       - localStorage の値だけを見て「key があるはず」と推測する
+//       - 別ルートのフォールバックで state を読もうとする
+//
+//   本ファイルの末尾では、この前提を破らないために
+//   window.__CSCS_SYNC_KEY_PROMISE__ の resolve を唯一の起動条件としている。
+//   （DOM ready よりも bootstrap 完了を優先）
+//
 // 目的:
 //   Aパート / Bパートの「次の問題へ進む体験」をこの1ファイルで統括する。
 //   - 自動送り（タイマーでの自動遷移）

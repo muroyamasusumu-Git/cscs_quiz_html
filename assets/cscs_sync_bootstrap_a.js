@@ -4,6 +4,18 @@
 //   - key を localStorage と window 共有 Promise に格納する
 //   - 後続が待てるように window.dispatchEvent(new Event("cscs:syncKeyReady")) を投げる
 //
+// 【最重要ルール（プロジェクト恒久・見落とし防止）】
+//   /api/sync/state を叩く処理を含む JS は、必ずこの bootstrap の「処理完了後」に起動すること。
+//   ここでいう「処理完了」は、次のいずれかを満たしたタイミングを指す（同値）:
+//     1) window.__CSCS_SYNC_KEY_PROMISE__ が resolve した後
+//     2) window に sync key が確定し、"cscs:syncKeyReady" イベントが dispatch された後
+//
+//   理由:
+//     state.ts は "X-CSCS-Key" 必須で、キー未確定のまま /api/sync/state を叩くと
+//     missing key / 403 等で落ち、ODOA / oncePerDayToday / consistency_status の参照が破綻する。
+//     よって、後続は必ず window.__CSCS_SYNC_KEY_PROMISE__.then(...) で待ってから実行する。
+//     （localStorage の値だけで確定扱いして開始するのは禁止。最終確定はサーバー init の結果。）
+//
 // 整合性（必須）:
 //   - init.ts は key を `sync:<lowercase email>` で確定して返す
 //   - state.ts は X-CSCS-Key を必須とし、かつ `sync:<authenticated user>` と一致しないと 403
