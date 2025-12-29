@@ -2260,85 +2260,6 @@
     }
   }
 
-  // === ④ init（キー発行/保存）完了保証 ===
-  // 方針:
-  //   - init（キー発行/保存）が完了するまで state/merge を絶対に実行しない
-  //   - 同時に複数箇所から呼ばれても init は 1 本化し、全員が完了を待つ
-  //   - フォールバックで埋めない（init できないなら止める）
-  async function ensureSyncKeyReady(){
-    // 1) まず localStorage のキーを確認（trim）
-    try{
-      const v = localStorage.getItem("cscs_sync_key");
-      if (v !== null && v !== undefined) {
-        const s = String(v).trim();
-        if (s !== "") return s;
-      }
-    }catch(_){
-      // 例外でも続行（initを試す）
-    }
-
-    // 2) 既に init が走っているなら、それを待つ（単一化）
-    try{
-      if (window.__cscs_sync_init_promise && typeof window.__cscs_sync_init_promise.then === "function") {
-        return await window.__cscs_sync_init_promise;
-      }
-    }catch(_){}
-
-    // 3) init 開始（ここから先は「完了するまで先に進ませない」）
-    window.__cscs_sync_init_promise = (async function(){
-      // 3-1) 直前再チェック（二重発行防止）
-      try{
-        const v2 = localStorage.getItem("cscs_sync_key");
-        if (v2 !== null && v2 !== undefined) {
-          const s2 = String(v2).trim();
-          if (s2 !== "") return s2;
-        }
-      }catch(_){}
-
-      // 3-2) サーバでキー発行（※実際のinitエンドポイントに合わせる）
-      const res = await fetch("/api/sync/init", {
-        method: "POST",
-        credentials: "include"
-      });
-      if (!res.ok) throw new Error("INIT_HTTP_" + String(res.status));
-
-      // 3-3) レスポンスからキーを取り出す（候補キー名は必要最小限）
-      const json = await res.json();
-      const rawKey =
-        (json && typeof json === "object" && Object.prototype.hasOwnProperty.call(json, "key")) ? json.key :
-        (json && typeof json === "object" && Object.prototype.hasOwnProperty.call(json, "sync_key")) ? json.sync_key :
-        (json && typeof json === "object" && Object.prototype.hasOwnProperty.call(json, "api_key")) ? json.api_key :
-        null;
-
-      if (rawKey === null || rawKey === undefined) throw new Error("INIT_KEY_MISSING_BODY");
-
-      const issued = String(rawKey).trim();
-      if (issued === "") throw new Error("INIT_KEY_EMPTY_BODY");
-
-      // 3-4) 保存（ここが完了して初めて次へ進める）
-      try{
-        localStorage.setItem("cscs_sync_key", issued);
-      }catch(eSave){
-        throw new Error("INIT_SAVE_FAILED_" + String(eSave && eSave.message || eSave));
-      }
-
-      console.log("[SYNC-A][INIT] key issued & saved", {
-        keyPresent: true
-      });
-
-      return issued;
-    })();
-
-    try{
-      return await window.__cscs_sync_init_promise;
-    }finally{
-      // 成否に関係なく「進行中」フラグは解除（次回は localStorage で判定）
-      try{
-        window.__cscs_sync_init_promise = null;
-      }catch(_){}
-    }
-  }
-
   window.CSCS_SYNC = {
     // ★ 正解1回分の計測を SYNC キューに積む（累計 correctDelta）
     //   あわせて「最終閲覧日」「最終正解日」も localStorage から読み取り、
@@ -2524,11 +2445,9 @@
         syncKey = null;
       }
 
-      // ★ 変更: init（キー発行/保存）が完了するまで絶対に先へ進ませない
-      //   - syncKey が無いなら init を実行し、完了したキーで state を叩く
-      //   - init できないなら例外で停止（フォールバック禁止）
+      // ★ 処理2: syncKey が未セット/空なら、何もせず終了（例外にしない）
       if (!syncKey) {
-        syncKey = await ensureSyncKeyReady();
+        return;
       }
 
       // ★ 処理3: syncKey がある場合のみ、ログしてから state を取得する
@@ -2709,9 +2628,6 @@
     }
 
     try{
-      // ★ 追加: init（キー発行/保存）が完了するまで先に進ませない
-      await ensureSyncKeyReady();
-
       const s  = await CSCS_SYNC.fetchServer();
 
       // ============================================================
