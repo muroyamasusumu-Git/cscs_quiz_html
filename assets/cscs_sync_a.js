@@ -2536,13 +2536,21 @@
         qid: QID || null
       });
 
+      // ★ 追加: state を fetch する直前に、キーが空なら init 済みのキーを確定させる（headers作成より前）
+      if (!syncKey) {
+        syncKey = await ensureSyncKeyReady();
+      }
+
+      // ★ 追加: headers は「確定したキー」で作る（空キーでfetchしない）
+      const stateFetchHeaders = {
+        "X-CSCS-Key": syncKey
+      };
+
       // ★ 処理4: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state", {
         method: "GET",
         credentials: "include",
-        headers: {
-          "X-CSCS-Key": syncKey
-        }
+        headers: stateFetchHeaders
       });
       if(!r.ok) throw new Error(r.statusText);
 
