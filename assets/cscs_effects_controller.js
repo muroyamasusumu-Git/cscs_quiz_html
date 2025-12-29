@@ -44,6 +44,7 @@
     { id: "point_summary_board_dummy", label: "PointBoard" },
     { id: "consistency_ng_list", label: "ConsistencyNgList" },
     { id: "field_summary", label: "FieldSummary" },
+    { id: "cscs_debug_trace", label: "DebugTrace"" },
     { id: "similar_list", label: "SimilarList" },
     { id: "nav_list", label: "NavList" },
     { id: "deep_dive_inline", label: "DeepDiveInline" },
