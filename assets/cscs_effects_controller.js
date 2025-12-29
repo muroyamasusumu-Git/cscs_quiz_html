@@ -327,7 +327,15 @@
         togglePanel(false);
       });
 
-      document.body.appendChild(ov);
+      // 追加した処理:
+      // - オーバーレイは「背面クリック遮断」専用なので、DOM先頭に入れて積層事故を避ける
+      //   （パネル/ボタンは z-index で必ず上に来る）
+      if (document.body.firstChild) {
+        document.body.insertBefore(ov, document.body.firstChild);
+      } else {
+        document.body.appendChild(ov);
+      }
+
       return ov;
     }
 
