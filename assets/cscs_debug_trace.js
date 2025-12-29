@@ -338,60 +338,6 @@
       try {
         var u = url ? new URL(url, location.origin) : null;
         if (u && u.origin === location.origin && u.pathname === CAPTURE_STATE_PATH) {
-          // init?.headers に X-CSCS-Key が入っているか（無ければ console.trace で呼び出し元を特定）
-          var hasXKey = false;
-          try {
-            var h = init && init.headers ? init.headers : null;
-
-            // Headers インスタンス
-            if (h && typeof h.get === "function") {
-              var v1 = h.get("X-CSCS-Key");
-              var v2 = h.get("x-cscs-key");
-              hasXKey = !!(v1 || v2);
-            }
-            // 配列タプル形式: [["X-CSCS-Key","..."], ...]
-            else if (Array.isArray(h)) {
-              for (var i = 0; i < h.length; i++) {
-                var pair = h[i];
-                if (pair && pair.length >= 2) {
-                  var k = String(pair[0] || "").toLowerCase();
-                  if (k === "x-cscs-key") {
-                    var vv = pair[1];
-                    if (vv !== null && vv !== undefined && String(vv) !== "") {
-                      hasXKey = true;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-            // プレーンオブジェクト: { "X-CSCS-Key": "..." }
-            else if (h && typeof h === "object") {
-              for (var kk in h) {
-                if (!Object.prototype.hasOwnProperty.call(h, kk)) continue;
-                if (String(kk).toLowerCase() === "x-cscs-key") {
-                  var v = h[kk];
-                  if (v !== null && v !== undefined && String(v) !== "") {
-                    hasXKey = true;
-                    break;
-                  }
-                }
-              }
-            }
-          } catch (_eKey) {
-            hasXKey = false;
-          }
-
-          pushLine(
-            lines,
-            "[" + nowISO() + "][STATE_REQ] has X-CSCS-Key in init.headers = " + (hasXKey ? "YES" : "NO")
-          );
-
-          if (!hasXKey) {
-            pushLine(lines, "[" + nowISO() + "][STATE_REQ_TRACE] missing X-CSCS-Key -> console.trace() follows");
-            console.trace("[CSCS][STATE_REQ_TRACE] missing X-CSCS-Key for /api/sync/state");
-          }
-
           var clone = res.clone();
           var bodyText = "";
           try {
