@@ -3,28 +3,37 @@
 // 保存が確認できた場合にだけ遷移を許可する「ナビゲーションガード」。
 
 (function(){
-        // 二重読み込み防止フラグ。すでにリスナーが入っている場合は何もしない。
-        if (window.__cscsAListenerInstalled2) return;
-        window.__cscsAListenerInstalled2 = true;
+        "use strict";
 
-        // qid = YYYYMMDD-NNN を URL から取得（Aページ限定）
-        // 例: /_build_cscs_20250926/slides/q013_a.html → qid = "20250926-013"
-        const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
-        const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_([ab])(?:\.html)?(?:\/)?$/i);
-        // 対象のパス形式でなければ何もしない
-        if (!mDay || !mStem) return;
-        const day  = mDay[1];
-        const num3 = mStem[1].slice(1);
-        const part = (mStem[2] || "").toLowerCase(); // "a" or "b" を取得
-        const isAPage = (part === "a");              // Aパートかどうかのフラグ
-        const qid  = `${day}-${num3}`;
+        // a_nav_guard 自体の “待機ローダ” の二重起動防止
+        if (window.__cscsANavGuardWaitInstalled__) return;
+        window.__cscsANavGuardWaitInstalled__ = true;
 
-        // デバッグログ用（画面にはパネルを出さず、コンソールにだけ出す）
-        function dlog(...args){
-          try{
-            console.log('[A:nav-guard]', ...args);
-          }catch(_){}
-        }
+        function startNavGuardAfterSyncBootstrap(){
+          // 二重読み込み防止フラグ。すでにリスナーが入っている場合は何もしない。
+          if (window.__cscsAListenerInstalled2) return;
+          window.__cscsAListenerInstalled2 = true;
+
+          // qid = YYYYMMDD-NNN を URL から取得（Aページ限定）
+          // 例: /_build_cscs_20250926/slides/q013_a.html → qid = "20250926-013"
+          const mDay  = location.pathname.match(/_build_cscs_(\d{8})/);
+          const mStem = location.pathname.match(/(?:^|\/)(q\d{3})_([ab])(?:\.html)?(?:\/)?$/i);
+          // 対象のパス形式でなければ何もしない
+          if (!mDay || !mStem) return;
+          const day  = mDay[1];
+          const num3 = mStem[1].slice(1);
+          const part = (mStem[2] || "").toLowerCase(); // "a" or "b" を取得
+          const isAPage = (part === "a");              // Aパートかどうかのフラグ
+          const qid  = `${day}-${num3}`;
+
+          // デバッグログ用（画面にはパネルを出さず、コンソールにだけ出す）
+          function dlog(...args){
+            try{
+              console.log('[A:nav-guard]', ...args);
+            }catch(_){}
+          }
+
+          dlog("start after sync_bootstrap: OK (nav-guard will run now).");
 
         // O.D.O.A Mode トグルボタン用の CSS を動的に注入する
         // - 位置やサイズなどの見た目をここで一括管理する
@@ -853,4 +862,33 @@
           navigateIfSaved(a);
         }, { capture:true });
 
-      })();
+        }
+
+        (function waitForSyncBootstrapThenStart(){
+          var p = window.__CSCS_SYNC_KEY_PROMISE__;
+          if (p && typeof p.then === "function") {
+            try{
+              console.log("[A:nav-guard] waiting for __CSCS_SYNC_KEY_PROMISE__ ...");
+            }catch(_){}
+            p.then(function(){
+              try{
+                console.log("[A:nav-guard] __CSCS_SYNC_KEY_PROMISE__ resolved. start nav-guard.");
+              }catch(_){}
+              startNavGuardAfterSyncBootstrap();
+            }).catch(function(e){
+              try{
+                console.error("[A:nav-guard] __CSCS_SYNC_KEY_PROMISE__ rejected. start nav-guard anyway (no extra fallback).", e);
+              }catch(_){}
+              startNavGuardAfterSyncBootstrap();
+            });
+            return;
+          }
+
+          // promise が無い＝bootstrap が読み込まれていない/順序が違う
+          // ただし “推測フォールバック” はしない：nav-guard単体としては従来どおり起動する
+          try{
+            console.warn("[A:nav-guard] __CSCS_SYNC_KEY_PROMISE__ not found. start nav-guard immediately.");
+          }catch(_){}
+          startNavGuardAfterSyncBootstrap();
+        })();
+})();
