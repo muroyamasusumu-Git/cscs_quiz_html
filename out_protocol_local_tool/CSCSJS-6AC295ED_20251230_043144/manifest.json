@@ -1,0 +1,59 @@
+{
+  "session_id": "CSCSJS-6AC295ED",
+  "created_at": "2025-12-30T04:31:44",
+  "instruction": "IIFE 全体の実行自体を bootstrap 完了後に遅延したい",
+  "input": {
+    "filename": "cscs_sync_a.js",
+    "size_chars": 159523,
+    "sha256": "6ac295ed6fbaab7413660c465dca234d26997822edb77d69f630bf0ef1abc663",
+    "saved_copy": "original/cscs_sync_a.js"
+  },
+  "split": {
+    "total_parts": 4,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 4,
+      "part_id": "CSCSJS-6AC295ED-P01-of-04",
+      "part_sha256": "bfbe905caf22f296c3155c6161e654801d9f6b23ebc6028fc04d9724ed7aeb7d",
+      "start_offset": 0,
+      "end_offset": 43797,
+      "len_chars": 43797,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 4,
+      "part_id": "CSCSJS-6AC295ED-P02-of-04",
+      "part_sha256": "c4389701cc4d6a76f9225fafa0356b0bacfe3de11ebe6931a8ae2c5b34abb1f4",
+      "start_offset": 43797,
+      "end_offset": 88690,
+      "len_chars": 44893,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 4,
+      "part_id": "CSCSJS-6AC295ED-P03-of-04",
+      "part_sha256": "1faa4b3c4bdf62d1915f23eac5f56406c95eaf3d5e871dda5f2da6d16fd42bfe",
+      "start_offset": 88690,
+      "end_offset": 129415,
+      "len_chars": 40725,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 4,
+      "part_id": "CSCSJS-6AC295ED-P04-of-04",
+      "part_sha256": "aad4f4e7896b13141e9d7c0e6c7e70649bb51e23a023e9bbaf463628db4bef33",
+      "start_offset": 129415,
+      "end_offset": 159523,
+      "len_chars": 30108,
+      "file": "parts/part_04.txt"
+    }
+  ]
+}

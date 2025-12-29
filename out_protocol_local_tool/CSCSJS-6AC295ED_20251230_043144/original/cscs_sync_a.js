@@ -2262,55 +2262,12 @@
 
   // === ④ init（キー発行/保存）完了保証 ===
   // 方針:
-  //   - cscs_sync_a.js 側では init（/api/sync/init）を絶対に叩かない（bootstrap に一本化）
-  //   - nav-guard と同様に、cscs_sync_bootstrap_a.js の完了後にだけ先へ進む
-  //   - フォールバックで埋めない（bootstrap が失敗/未実行なら止める）
+  //   - A 側で init(/api/sync/init) は絶対に叩かない（bootstrap に一本化）
+  //   - bootstrap が確定させた key を「待って」受け取るだけ
+  //   - フォールバックで推測しない（取れないならエラーで確定）
   async function ensureSyncKeyReady(){
-    // ★ 追加した処理1: bootstrap の共有 Promise があるなら、それを必ず待つ
-    //   - cscs_sync_bootstrap_a.js は window["__CSCS_SYNC_KEY_PROMISE__"] を唯一の“待てる導線”として提供する
-    try{
-      var p = window["__CSCS_SYNC_KEY_PROMISE__"];
-      if (p && typeof p.then === "function") {
-        await p;
-      }
-    }catch(eWait){
-      // ★ 処理: bootstrap 側が reject した場合はここで確定（推測で先へ進まない）
-      throw new Error("SYNC_BOOTSTRAP_PROMISE_REJECTED_" + String(eWait && eWait.message || eWait));
-    }
-
-    // ★ 追加した処理2: Promise が無い環境（読み込み順など）では event を待つ
-    //   - ただし「待ち続けて進む」ようなフォールバックはしない
-    //   - ready になった事実（Event）を待てない場合は missing として止める
-    if (!window["__CSCS_SYNC_KEY_PROMISE__"]) {
-      await new Promise(function(resolve, reject){
-        var done = false;
-
-        function cleanup(){
-          try{
-            window.removeEventListener("cscs:syncKeyReady", onReady);
-          }catch(_){}
-        }
-
-        function onReady(){
-          if (done) return;
-          done = true;
-          cleanup();
-          resolve(true);
-        }
-
-        try{
-          window.addEventListener("cscs:syncKeyReady", onReady);
-        }catch(eAdd){
-          cleanup();
-          reject(eAdd);
-          return;
-        }
-      });
-    }
-
-    // ★ 追加した処理3: bootstrap 完了後に localStorage のキーを読む（trim）
-    //   - 空文字/空白のみは未設定として扱う（空白キーで fetch を発生させない）
-    //   - フォールバックで別ソースから推測しない
+    // 0) まず localStorage のキーを確認（trim）
+    //    - 既に bootstrap 済みならこれで即返せる
     try{
       const v = localStorage.getItem("cscs_sync_key");
       if (v !== null && v !== undefined) {
@@ -2318,11 +2275,77 @@
         if (s !== "") return s;
       }
     }catch(_){
-      // ★ 方針: 読めない場合も推測で埋めず missing 扱いに倒す
+      // localStorage が壊れていても続行（bootstrap待ちへ）
     }
 
-    // ★ 追加した処理4: ここまで来て key が無いなら、bootstrap 未完了/失敗として確定停止
-    throw new Error("SYNC_KEY_MISSING_AFTER_BOOTSTRAP");
+    // 1) bootstrap の window共有 Promise があれば、それを待つ（同一ページ内の単一化）
+    try{
+      if (window.__CSCS_SYNC_KEY_PROMISE__ && typeof window.__CSCS_SYNC_KEY_PROMISE__.then === "function") {
+        const k = await window.__CSCS_SYNC_KEY_PROMISE__;
+        const s = String(k || "").trim();
+        if (s === "") throw new Error("SYNC_KEY_EMPTY_FROM_BOOTSTRAP_PROMISE");
+        return s;
+      }
+    }catch(eWait){
+      throw new Error("SYNC_KEY_WAIT_FAILED_FROM_BOOTSTRAP_PROMISE_" + String(eWait && eWait.message || eWait));
+    }
+
+    // 2) Promise が無い場合は Event を待つ（bootstrap が dispatch する前提）
+    const waitedKey = await new Promise(function(resolve, reject){
+      let done = false;
+
+      function cleanup(){
+        try{
+          window.removeEventListener("cscs:syncKeyReady", onReady);
+        }catch(_){}
+      }
+
+      function onReady(){
+        if (done) return;
+        done = true;
+        cleanup();
+
+        try{
+          const v2 = localStorage.getItem("cscs_sync_key");
+          const s2 = (v2 === null || v2 === undefined) ? "" : String(v2).trim();
+          if (s2 === "") {
+            reject(new Error("SYNC_KEY_MISSING_AFTER_EVENT"));
+            return;
+          }
+          resolve(s2);
+        }catch(e2){
+          reject(new Error("SYNC_KEY_READ_FAILED_AFTER_EVENT_" + String(e2 && e2.message || e2)));
+        }
+      }
+
+      try{
+        window.addEventListener("cscs:syncKeyReady", onReady, { once: true });
+      }catch(_eAdd){
+        try{
+          window.addEventListener("cscs:syncKeyReady", onReady);
+        }catch(eAdd2){
+          reject(new Error("SYNC_KEY_EVENT_LISTENER_ADD_FAILED_" + String(eAdd2 && eAdd2.message || eAdd2)));
+          return;
+        }
+      }
+
+      // Event を待つ前に「既に来ている」ケースだけ再チェック（推測ではなく観測）
+      try{
+        const v3 = localStorage.getItem("cscs_sync_key");
+        const s3 = (v3 === null || v3 === undefined) ? "" : String(v3).trim();
+        if (s3 !== "") {
+          if (done) return;
+          done = true;
+          cleanup();
+          resolve(s3);
+          return;
+        }
+      }catch(_e3){}
+    });
+
+    const finalKey = String(waitedKey || "").trim();
+    if (finalKey === "") throw new Error("SYNC_KEY_EMPTY_AFTER_WAIT");
+    return finalKey;
   }
 
   window.CSCS_SYNC = {
