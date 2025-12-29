@@ -2772,6 +2772,21 @@
   // =========================
 
   // nav-guard と同じ: SYNC bootstrap（__CSCS_SYNC_KEY_PROMISE__）完了後にだけ a_auto_next を起動する
+  //
+  // 【重要（見落とし防止）】
+  //   a_auto_next.js は起動直後に /api/sync/state を fetch して ODOA / oncePerDayToday / consistency_status を参照する。
+  //   この fetch は必ず "X-CSCS-Key" ヘッダ（= window.CSCS_SYNC_KEY）を必要とし、
+  //   キー無しで叩くと Workers 側で 400（missing X-CSCS-Key）になり、ODOA 判定や候補探索が壊れる。
+  //
+  //   そのため、このファイルは「DOM ready」より前に、
+  //   まず sync bootstrap（cscs_sync_bootstrap_a.js 等）が
+  //   window.CSCS_SYNC_KEY を確定させるのを待つ必要がある。
+  //
+  //   待ち条件は window.__CSCS_SYNC_KEY_PROMISE__ の resolve を唯一の合図とする。
+  //   - resolve 後: window.CSCS_SYNC_KEY がセット済みで、/api/sync/state を安全に叩ける
+  //   - resolve 前: /api/sync/state を叩くと missing key で落ちる（今回のバグの根本）
+  //
+  //   ※ ここで別ルートのフォールバック（localStorage/固定キー等）を増やさない（恒久方針）。
   function waitForSyncBootstrapThenStart(startFn) {
     var WIN_PROMISE = "__CSCS_SYNC_KEY_PROMISE__";
 
