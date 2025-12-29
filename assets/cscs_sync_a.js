@@ -2524,11 +2524,10 @@
         syncKey = null;
       }
 
-      // ★ 変更: init（キー発行/保存）が完了するまで絶対に先へ進ませない
-      //   - syncKey が無いなら init を実行し、完了したキーで state を叩く
-      //   - init できないなら例外で停止（フォールバック禁止）
+      // ★ 変更: X-CSCS-Key が未確定な状態では /api/sync/state を一切呼ばない
+      //   - fetchServer() では init を絶対に走らせない（キー未確定のまま止める）
       if (!syncKey) {
-        syncKey = await ensureSyncKeyReady();
+        throw new Error("SYNC_KEY_NOT_READY");
       }
 
       // ★ 処理3: syncKey がある場合のみ、ログしてから state を取得する
@@ -2536,12 +2535,7 @@
         qid: QID || null
       });
 
-      // ★ 追加: state を fetch する直前に、キーが空なら init 済みのキーを確定させる（headers作成より前）
-      if (!syncKey) {
-        syncKey = await ensureSyncKeyReady();
-      }
-
-      // ★ 追加: headers は「確定したキー」で作る（空キーでfetchしない）
+      // ★ headers は「確定したキー」で作る（空キーでfetchしない）
       const stateFetchHeaders = {
         "X-CSCS-Key": syncKey
       };
