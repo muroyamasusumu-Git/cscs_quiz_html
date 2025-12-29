@@ -2753,9 +2753,47 @@
   // =========================
   // DOM 準備完了タイミングに合わせて onReady を実行
   // =========================
-  if (document.readyState === "complete" || document.readyState === "interactive") {
-    onReady();
-  } else {
-    document.addEventListener("DOMContentLoaded", onReady);
+
+  // nav-guard と同じ: SYNC bootstrap（__CSCS_SYNC_KEY_PROMISE__）完了後にだけ a_auto_next を起動する
+  function waitForSyncBootstrapThenStart(startFn) {
+    var WIN_PROMISE = "__CSCS_SYNC_KEY_PROMISE__";
+
+    try {
+      if (!window[WIN_PROMISE] || typeof window[WIN_PROMISE].then !== "function") {
+        console.error("[A:auto-next] SYNC_KEY_PROMISE missing: bootstrap not installed or not executed.");
+        return;
+      }
+    } catch (_e0) {
+      try {
+        console.error("[A:auto-next] SYNC_KEY_PROMISE check failed.");
+      } catch (_e0b) {}
+      return;
+    }
+
+    window[WIN_PROMISE]
+      .then(function () {
+        try {
+          startFn();
+        } catch (_e1) {
+          try {
+            console.error("[A:auto-next] startFn failed:", _e1);
+          } catch (_e2) {}
+        }
+      })
+      .catch(function (e) {
+        try {
+          console.error("[A:auto-next] SYNC bootstrap failed (promise rejected):", e);
+        } catch (_e3) {}
+      });
   }
+
+  function startWhenDomReady() {
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      onReady();
+    } else {
+      document.addEventListener("DOMContentLoaded", onReady);
+    }
+  }
+
+  waitForSyncBootstrapThenStart(startWhenDomReady);
 })();
