@@ -116,7 +116,6 @@
  *       "cscs_correct_streak3_log"
  *
  * ▼ 使用する主な API エンドポイント
- *   - GET  /api/sync/init
  *   - GET  /api/sync/state
  *   - POST /api/sync/merge
  *   - POST /api/sync/reset_qid
@@ -126,202 +125,9 @@
  *   - POST /api/sync/reset_all_qid
  */
 (function(){
-  // ★ 追加: A読み込み直後、「キー発行ボタン押下」と同じ流れで
-  //   INIT→STATE が両方 200（✅ INIT+STATE OK）になるまで“次の処理へ進まない”
-  // - 方針: init で key を必ず更新 → その key を使って state を確認 → OK までリトライ
-  // - フォールバックで別ソースから推測しない（ヘッダに無ければ失敗としてログ）
-  // - NOTE: この IIFE は「完了（resolve）するまで」後続コードを実行しない（await 相当）
-  (function(){
-    var INIT_ENDPOINT  = "/api/sync/init";
-    var STATE_ENDPOINT = "/api/sync/state";
-    var LS_KEY = "cscs_sync_key";
-
-    function sleep(ms){
-      return new Promise(function(resolve){
-        setTimeout(resolve, ms);
-      });
-    }
-
-    function readHeaderStrict(headers, name){
-      try{
-        const v = headers ? headers.get(name) : null;
-        if (v === null || v === undefined) return null;
-        const s = String(v).trim();
-        return s === "" ? null : s;
-      }catch(_){
-        return null;
-      }
-    }
-
-    function readHeaderAny(headers, names){
-      for (let i = 0; i < names.length; i++) {
-        const v = readHeaderStrict(headers, names[i]);
-        if (v !== null) return v;
-      }
-      return null;
-    }
-
-    function readLsKeyStrict(){
-      try{
-        const v = localStorage.getItem(LS_KEY);
-        if (v === null || v === undefined) return null;
-        const s = String(v).trim();
-        return s === "" ? null : s;
-      }catch(_){
-        return null;
-      }
-    }
-
-    function storeLsKeyStrict(key){
-      try{
-        localStorage.setItem(LS_KEY, String(key));
-        return true;
-      }catch(_){
-        return false;
-      }
-    }
-
-    function doInitOnce(){
-      return fetch(INIT_ENDPOINT, {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({ force: false })
-      })
-        .then(function(initRes){
-          if (!initRes) {
-            throw new Error("SYNC_INIT_NO_RESPONSE");
-          }
-          if (!initRes.ok) {
-            throw new Error("SYNC_INIT_FAILED_" + String(initRes.status));
-          }
-
-          const initKey = readHeaderAny(initRes.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]);
-          if (!initKey) {
-            throw new Error("SYNC_INIT_KEY_MISSING");
-          }
-
-          const okStore = storeLsKeyStrict(initKey);
-          if (!okStore) {
-            throw new Error("SYNC_INIT_KEY_STORE_FAILED");
-          }
-
-          return {
-            status: initRes.status,
-            key: String(initKey)
-          };
-        });
-    }
-
-    function doStateOnce(key){
-      return fetch(STATE_ENDPOINT, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "X-CSCS-Key": String(key)
-        }
-      })
-        .then(function(stateRes){
-          if (!stateRes) {
-            throw new Error("SYNC_STATE_NO_RESPONSE");
-          }
-          return {
-            ok: !!stateRes.ok,
-            status: stateRes.status
-          };
-        });
-    }
-
-    function initThenStateUntilOk(){
-      var maxAttempts = 10;
-      var baseWaitMs = 250;
-
-      return new Promise(function(resolve, reject){
-        (function loop(attempt){
-          if (attempt > maxAttempts) {
-            reject(new Error("SYNC_INIT_STATE_TIMEOUT"));
-            return;
-          }
-
-          doInitOnce()
-            .then(function(initInfo){
-              var key = readLsKeyStrict();
-              if (!key) {
-                throw new Error("SYNC_KEY_MISSING_AFTER_INIT");
-              }
-              return doStateOnce(key).then(function(stateInfo){
-                return {
-                  initStatus: initInfo.status,
-                  stateStatus: stateInfo.status,
-                  ok: stateInfo.ok
-                };
-              });
-            })
-            .then(function(r){
-              if (r.initStatus === 200 && r.stateStatus === 200 && r.ok) {
-                console.log("[SYNC-A] ✅ INIT+STATE OK (init=200, state=200)");
-                resolve(true);
-                return;
-              }
-
-              console.warn("[SYNC-A] waiting INIT+STATE OK...", {
-                attempt: attempt,
-                init: r.initStatus,
-                state: r.stateStatus
-              });
-
-              var waitMs = baseWaitMs * attempt;
-              sleep(waitMs).then(function(){
-                loop(attempt + 1);
-              });
-            })
-            .catch(function(e){
-              console.error("[SYNC-A] init/state attempt failed", {
-                attempt: attempt,
-                error: String(e && e.message || e)
-              });
-
-              var waitMs2 = baseWaitMs * attempt;
-              sleep(waitMs2).then(function(){
-                loop(attempt + 1);
-              });
-            });
-        })(1);
-      });
-    }
-
-    try{
-      if (window.__CSCS_SYNC_INITSTATE_WAIT__) return;
-      window.__CSCS_SYNC_INITSTATE_WAIT__ = true;
-
-      if (typeof window.__CSCS_SYNC_GATE_PROMISE__ === "undefined") {
-        window.__CSCS_SYNC_GATE_PROMISE__ = null;
-      }
-
-      if (!window.__CSCS_SYNC_GATE_PROMISE__) {
-        window.__CSCS_SYNC_GATE_PROMISE__ = initThenStateUntilOk();
-      }
-
-      window.__CSCS_SYNC_GATE_PROMISE__
-        .catch(function(e){
-          console.error("[SYNC-A] ❌ INIT+STATE not ready (giving up)", {
-            error: String(e && e.message || e)
-          });
-        });
-    }catch(e2){
-      console.error("[SYNC-A] init/state gate exception", {
-        error: String(e2 && e2.message || e2)
-      });
-    }
-  })();
-
   // === ① QID検出（Aパート） ===
   function detectQidFromLocationA() {
-    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?\/?$/);
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
     if (!m) return null;
     const day  = m[1];   // 例: "20250926"
     const num3 = m[2];   // 例: "001"
@@ -329,9 +135,6 @@
     return day + "-" + num3;
   }
   const QID = detectQidFromLocationA();
-
-  // ★ gate: INIT+STATE が ready になるまで「以降の本処理（state fetch / 初期化含む）」を開始しない
-  (window.__CSCS_SYNC_GATE_PROMISE__ || Promise.resolve(true)).then(function(){
 
   // === ② 差分キュー（Aパート専用） ===
   //   - correctDelta / incorrectDelta: 正解・不正解の累計差分
@@ -2627,10 +2430,12 @@
         throw new Error("NO_PULL_MODE");
       }
 
-      // ★ 追加した処理0: localStorage の SYNC key を読む（trim）
-      // - 空白だけも「未設定」として扱う（空キーでfetchしない）
+      // ★ 追加した処理0: localStorage の SYNC key を先に読む（欠損は欠損として null）
+      // - key が無い状態で /api/sync/state を叩くと 400 になりログが汚れるため、ここで止める
+      // - フォールバックで埋めない（欠損は欠損として上流に伝える）
       let syncKey = null;
       try{
+        // ★ 処理1: syncKey を確定（trim）
         const v = localStorage.getItem("cscs_sync_key");
         if (v !== null && v !== undefined) {
           const s = String(v).trim();
@@ -2640,62 +2445,17 @@
         syncKey = null;
       }
 
-      // ★ 追加した処理1: syncKey が未設定なら、先に /api/sync/init を叩いて key を取得する
-      // - 目的: 「空キー state 400」を原理的に消す（state は必ず key 確定後にのみ実行）
-      // - 方針: 値のキー名を推測しないため、init の「レスポンスヘッダ」から key を読む
+      // ★ 処理2: syncKey が未セット/空なら、何もせず終了（例外にしない）
       if (!syncKey) {
-        // ★ 処理1-1: /api/sync/init を先に叩く（A読み込み時の最初の一手）
-        const initRes = await fetch("/api/sync/init", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store"
-        });
-        if (!initRes.ok) throw new Error("SYNC_INIT_FAILED");
-
-        // ★ 処理1-2: initレスポンスヘッダから key を取得（推測で本文キー名を参照しない）
-        function readHeaderStrict(headers, name){
-          try{
-            const v = headers ? headers.get(name) : null;
-            if (v === null || v === undefined) return null;
-            const s = String(v).trim();
-            return s === "" ? null : s;
-          }catch(_){
-            return null;
-          }
-        }
-
-        function readHeaderAny(headers, names){
-          for (let i = 0; i < names.length; i++) {
-            const v = readHeaderStrict(headers, names[i]);
-            if (v !== null) return v;
-          }
-          return null;
-        }
-
-        const initKey = readHeaderAny(initRes.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]);
-        if (!initKey) throw new Error("SYNC_INIT_KEY_MISSING");
-
-        // ★ 処理1-3: 返ってきた key を localStorage cscs_sync_key に保存（唯一の保存先）
-        try{
-          localStorage.setItem("cscs_sync_key", String(initKey));
-        }catch(_){
-          throw new Error("SYNC_INIT_KEY_STORE_FAILED");
-        }
-
-        // ★ 処理1-4: 保存後の key を確定（以降の state は必ずこの key を使う）
-        syncKey = String(initKey);
-
-        console.log("[SYNC-A][INIT] sync key stored -> will call state", {
-          qid: QID || null
-        });
+        return;
       }
 
-      // ★ 追加した処理2: key が確定している場合のみ、state を取得する（空キー state を禁止）
+      // ★ 処理3: syncKey がある場合のみ、ログしてから state を取得する
       console.log("[CSCS][STATE] will call /api/sync/state with X-CSCS-Key", {
         qid: QID || null
       });
 
-      // ★ 処理: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      // ★ 処理4: /api/sync/state を「Key付き」で叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const r = await fetch("/api/sync/state", {
         method: "GET",
         credentials: "include",
@@ -2705,7 +2465,7 @@
       });
       if(!r.ok) throw new Error(r.statusText);
 
-      // ★ 処理: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
+      // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
       function readHeaderStrict(headers, name){
         try{
           const v = headers ? headers.get(name) : null;
@@ -4600,6 +4360,5 @@
   window.addEventListener("offline", function(){
     lastSyncStatus = "offline";
     updateMonitor();
-  });    
   });
 })();
