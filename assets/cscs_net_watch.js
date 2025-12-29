@@ -31,6 +31,13 @@
   var EMIT_ONE_LINE_EACH_TIME = true; // 1行サマリを常に出す
 
   // ============================================================
+  // INIT 成功フラグ（観測のみ）
+  //   - INIT(200) が 1回でも返れば true になる
+  //   - 以後「state の request headers 観測」を有効化する
+  // ============================================================
+  var initCompleted = false;
+
+  // ============================================================
   // ユーティリティ
   // ============================================================
   function nowMs() {
@@ -157,6 +164,9 @@
     // “犯人炙り出し” 用：state を叩いた瞬間に 1行ログ
     try {
       if (path !== "/api/sync/state") return;
+
+      // ★ 追加：INIT 成功前の “早すぎる観測” はノイズなので出さない
+      if (!initCompleted) return;
 
       var key = (reqHeaders && reqHeaders["X-CSCS-Key"]) ? String(reqHeaders["X-CSCS-Key"]) : "";
       var ctype = (reqHeaders && reqHeaders["content-type"]) ? String(reqHeaders["content-type"]) : "";
@@ -423,6 +433,11 @@
 
         if (diagTagName) {
           updateDiag(diagTagName, resp.status, resp.ok, important, bodyPrev);
+        }
+
+        // ★ 追加：INIT(200) を 1回でも観測したら、以後 state の request headers 観測を有効化
+        if (path === "/api/sync/init" && resp.status === 200) {
+          initCompleted = true;
         }
 
         emitOneLineSummary("fetch", path, resp.status, ms, important, warnCode);
