@@ -2262,12 +2262,11 @@
 
   // === ④ init（キー発行/保存）完了保証 ===
   // 方針:
-  //   - A 側で init(/api/sync/init) は絶対に叩かない（bootstrap に一本化）
-  //   - bootstrap が確定させた key を「待って」受け取るだけ
-  //   - フォールバックで推測しない（取れないならエラーで確定）
+  //   - init（キー発行/保存）が完了するまで state/merge を絶対に実行しない
+  //   - 同時に複数箇所から呼ばれても init は 1 本化し、全員が完了を待つ
+  //   - フォールバックで埋めない（init できないなら止める）
   async function ensureSyncKeyReady(){
-    // 0) まず localStorage のキーを確認（trim）
-    //    - 既に bootstrap 済みならこれで即返せる
+    // 1) まず localStorage のキーを確認（trim）
     try{
       const v = localStorage.getItem("cscs_sync_key");
       if (v !== null && v !== undefined) {
@@ -2275,77 +2274,69 @@
         if (s !== "") return s;
       }
     }catch(_){
-      // localStorage が壊れていても続行（bootstrap待ちへ）
+      // 例外でも続行（initを試す）
     }
 
-    // 1) bootstrap の window共有 Promise があれば、それを待つ（同一ページ内の単一化）
+    // 2) 既に init が走っているなら、それを待つ（単一化）
     try{
-      if (window.__CSCS_SYNC_KEY_PROMISE__ && typeof window.__CSCS_SYNC_KEY_PROMISE__.then === "function") {
-        const k = await window.__CSCS_SYNC_KEY_PROMISE__;
-        const s = String(k || "").trim();
-        if (s === "") throw new Error("SYNC_KEY_EMPTY_FROM_BOOTSTRAP_PROMISE");
-        return s;
+      if (window.__cscs_sync_init_promise && typeof window.__cscs_sync_init_promise.then === "function") {
+        return await window.__cscs_sync_init_promise;
       }
-    }catch(eWait){
-      throw new Error("SYNC_KEY_WAIT_FAILED_FROM_BOOTSTRAP_PROMISE_" + String(eWait && eWait.message || eWait));
+    }catch(_){}
+
+    // 3) init 開始（ここから先は「完了するまで先に進ませない」）
+    window.__cscs_sync_init_promise = (async function(){
+      // 3-1) 直前再チェック（二重発行防止）
+      try{
+        const v2 = localStorage.getItem("cscs_sync_key");
+        if (v2 !== null && v2 !== undefined) {
+          const s2 = String(v2).trim();
+          if (s2 !== "") return s2;
+        }
+      }catch(_){}
+
+      // 3-2) サーバでキー発行（※実際のinitエンドポイントに合わせる）
+      const res = await fetch("/api/sync/init", {
+        method: "POST",
+        credentials: "include"
+      });
+      if (!res.ok) throw new Error("INIT_HTTP_" + String(res.status));
+
+      // 3-3) レスポンスからキーを取り出す（候補キー名は必要最小限）
+      const json = await res.json();
+      const rawKey =
+        (json && typeof json === "object" && Object.prototype.hasOwnProperty.call(json, "key")) ? json.key :
+        (json && typeof json === "object" && Object.prototype.hasOwnProperty.call(json, "sync_key")) ? json.sync_key :
+        (json && typeof json === "object" && Object.prototype.hasOwnProperty.call(json, "api_key")) ? json.api_key :
+        null;
+
+      if (rawKey === null || rawKey === undefined) throw new Error("INIT_KEY_MISSING_BODY");
+
+      const issued = String(rawKey).trim();
+      if (issued === "") throw new Error("INIT_KEY_EMPTY_BODY");
+
+      // 3-4) 保存（ここが完了して初めて次へ進める）
+      try{
+        localStorage.setItem("cscs_sync_key", issued);
+      }catch(eSave){
+        throw new Error("INIT_SAVE_FAILED_" + String(eSave && eSave.message || eSave));
+      }
+
+      console.log("[SYNC-A][INIT] key issued & saved", {
+        keyPresent: true
+      });
+
+      return issued;
+    })();
+
+    try{
+      return await window.__cscs_sync_init_promise;
+    }finally{
+      // 成否に関係なく「進行中」フラグは解除（次回は localStorage で判定）
+      try{
+        window.__cscs_sync_init_promise = null;
+      }catch(_){}
     }
-
-    // 2) Promise が無い場合は Event を待つ（bootstrap が dispatch する前提）
-    const waitedKey = await new Promise(function(resolve, reject){
-      let done = false;
-
-      function cleanup(){
-        try{
-          window.removeEventListener("cscs:syncKeyReady", onReady);
-        }catch(_){}
-      }
-
-      function onReady(){
-        if (done) return;
-        done = true;
-        cleanup();
-
-        try{
-          const v2 = localStorage.getItem("cscs_sync_key");
-          const s2 = (v2 === null || v2 === undefined) ? "" : String(v2).trim();
-          if (s2 === "") {
-            reject(new Error("SYNC_KEY_MISSING_AFTER_EVENT"));
-            return;
-          }
-          resolve(s2);
-        }catch(e2){
-          reject(new Error("SYNC_KEY_READ_FAILED_AFTER_EVENT_" + String(e2 && e2.message || e2)));
-        }
-      }
-
-      try{
-        window.addEventListener("cscs:syncKeyReady", onReady, { once: true });
-      }catch(_eAdd){
-        try{
-          window.addEventListener("cscs:syncKeyReady", onReady);
-        }catch(eAdd2){
-          reject(new Error("SYNC_KEY_EVENT_LISTENER_ADD_FAILED_" + String(eAdd2 && eAdd2.message || eAdd2)));
-          return;
-        }
-      }
-
-      // Event を待つ前に「既に来ている」ケースだけ再チェック（推測ではなく観測）
-      try{
-        const v3 = localStorage.getItem("cscs_sync_key");
-        const s3 = (v3 === null || v3 === undefined) ? "" : String(v3).trim();
-        if (s3 !== "") {
-          if (done) return;
-          done = true;
-          cleanup();
-          resolve(s3);
-          return;
-        }
-      }catch(_e3){}
-    });
-
-    const finalKey = String(waitedKey || "").trim();
-    if (finalKey === "") throw new Error("SYNC_KEY_EMPTY_AFTER_WAIT");
-    return finalKey;
   }
 
   window.CSCS_SYNC = {
