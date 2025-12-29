@@ -126,6 +126,68 @@
  *   - POST /api/sync/reset_all_qid
  */
 (function(){
+  // ★ 追加: A読み込み直後、毎回 /api/sync/init を叩いて cscs_sync_key を更新する（常時実行）
+  // - 目的: 「既存キーがあっても毎回取り直す」を仕様として固定する
+  // - 方針: 返却ヘッダから key を読み取り、localStorage の唯一保存先 "cscs_sync_key" に上書きする
+  // - フォールバックで別ソースから推測しない（ヘッダに無ければ失敗としてログ）
+  (function(){
+    try{
+      fetch("/api/sync/init", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store"
+      })
+        .then(function(initRes){
+          if (!initRes || !initRes.ok) {
+            throw new Error("SYNC_INIT_FAILED");
+          }
+
+          function readHeaderStrict(headers, name){
+            try{
+              const v = headers ? headers.get(name) : null;
+              if (v === null || v === undefined) return null;
+              const s = String(v).trim();
+              return s === "" ? null : s;
+            }catch(_){
+              return null;
+            }
+          }
+
+          function readHeaderAny(headers, names){
+            for (let i = 0; i < names.length; i++) {
+              const v = readHeaderStrict(headers, names[i]);
+              if (v !== null) return v;
+            }
+            return null;
+          }
+
+          const initKey = readHeaderAny(initRes.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]);
+          if (!initKey) {
+            throw new Error("SYNC_INIT_KEY_MISSING");
+          }
+
+          try{
+            localStorage.setItem("cscs_sync_key", String(initKey));
+          }catch(_eStore){
+            throw new Error("SYNC_INIT_KEY_STORE_FAILED");
+          }
+
+          console.log("[SYNC-A][INIT] sync key refreshed (always)", {
+            storedKey: "cscs_sync_key"
+          });
+        })
+        .catch(function(e){
+          console.error("[SYNC-A][INIT] sync key refresh failed (always)", {
+            error: String(e && e.message || e)
+          });
+        });
+    }catch(e2){
+      console.error("[SYNC-A][INIT] sync key refresh exception (always)", {
+        error: String(e2 && e2.message || e2)
+      });
+    }
+  })();
+
   // === ① QID検出（Aパート） ===
   function detectQidFromLocationA() {
     const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
