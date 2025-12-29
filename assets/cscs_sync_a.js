@@ -321,7 +321,7 @@
 
   // === ① QID検出（Aパート） ===
   function detectQidFromLocationA() {
-    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?$/);
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_a(?:\.html)?\/?$/);
     if (!m) return null;
     const day  = m[1];   // 例: "20250926"
     const num3 = m[2];   // 例: "001"
