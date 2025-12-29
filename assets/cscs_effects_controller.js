@@ -268,6 +268,30 @@
       "}" +
       "#" + PANEL_ID + " .applybtn:active{" +
       "transform:translateY(1px);" +
+      "transform:translateY(1px);" +
+      "}" +
+
+      // 追加した処理:
+      // - 一括チェック切替（ALL CHECK ON/OFF）ボタン
+      "#" + PANEL_ID + " .allcheckbtn{" +
+      "display:block;" +
+      "width:100%;" +
+      "height:28px;" +
+      "line-height:26px;" +
+      "border-radius:10px;" +
+      "border:1px solid rgba(255,255,255,0.18);" +
+      "background:rgba(0,0,0,0.22);" +
+      "color:#fff;" +
+      "font-weight:800;" +
+      "cursor:pointer;" +
+      "user-select:none;" +
+      "-webkit-user-select:none;" +
+      "box-shadow:none;" +
+      "margin-bottom:8px;" +
+      "opacity:0.92;" +
+      "}" +
+      "#" + PANEL_ID + " .allcheckbtn:active{" +
+      "transform:translateY(1px);" +
       "}" +
 
       "#" + PANEL_ID + " .hint{" +
@@ -369,6 +393,40 @@
       var pendingMap = safeGetMap();
       if (!pendingMap || typeof pendingMap !== "object") pendingMap = {};
 
+      // 追加した処理:
+      // - ALL CHECK で一括変更するため、checkbox参照を保持する
+      //   cbMap[effectId] = checkboxElement
+      var cbMap = {};
+
+      function setAllChecks(on) {
+        // on=true  → 全てチェックON（= pendingMap から全削除）
+        // on=false → 全てチェックOFF（= pendingMap[id]=true を全投入）
+        for (var i = 0; i < EFFECTS.length; i++) {
+          var id = EFFECTS[i].id;
+
+          if (on === true) {
+            delete pendingMap[id];
+          } else {
+            pendingMap[id] = true;
+          }
+
+          var cb = cbMap[id];
+          if (cb) {
+            cb.checked = (on === true);
+          }
+        }
+      }
+
+      function isAllChecked() {
+        for (var i = 0; i < EFFECTS.length; i++) {
+          var id = EFFECTS[i].id;
+          if (pendingMap && pendingMap[id] === true) {
+            return false;
+          }
+        }
+        return true;
+      }
+
       for (var i = 0; i < EFFECTS.length; i++) {
         (function (def) {
           var row = document.createElement("div");
@@ -381,6 +439,9 @@
           cb.type = "checkbox";
           // チェックON = 有効（OFF状態は pendingMap[id]=true で表現する）
           cb.checked = !(pendingMap && pendingMap[def.id] === true);
+
+          // 追加した処理: 参照保持（ALL CHECK 用）
+          cbMap[def.id] = cb;
 
           cb.addEventListener("change", function () {
             // 追加した処理:
@@ -406,6 +467,33 @@
         var applyBar = document.createElement("div");
         applyBar.className = "applybar";
 
+        // 追加した処理:
+        // - ALL CHECK トグルボタン（押すたびに OFF ⇄ ON）
+        var btnAllCheck = document.createElement("button");
+        btnAllCheck.type = "button";
+        btnAllCheck.className = "allcheckbtn";
+
+        function refreshAllCheckLabel() {
+          if (isAllChecked()) {
+            btnAllCheck.textContent = "ALL CHECK OFF";
+          } else {
+            btnAllCheck.textContent = "ALL CHECK ON";
+          }
+        }
+
+        btnAllCheck.addEventListener("click", function () {
+          var allNow = isAllChecked();
+          var nextOn = !allNow; // 全部ONなら次はOFF、全部ONでなければ次はON
+          if (nextOn) {
+            setAllChecks(true);
+          } else {
+            setAllChecks(false);
+          }
+          refreshAllCheckLabel();
+        });
+
+        refreshAllCheckLabel();
+
         var btnApply = document.createElement("button");
         btnApply.type = "button";
         btnApply.className = "applybtn";
@@ -428,6 +516,7 @@
           }
         });
 
+        applyBar.appendChild(btnAllCheck);
         applyBar.appendChild(btnApply);
         panel.appendChild(applyBar);
       })();
