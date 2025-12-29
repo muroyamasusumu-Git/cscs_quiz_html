@@ -69,19 +69,35 @@
     window[WIN_KEY] = key;
 
     // localStorage は「観測・再利用」用（このページの真実はサーバー確定）
-    writeLocalStorage(LS_SYNC_KEY, key);
+    var lsOk = writeLocalStorage(LS_SYNC_KEY, key);
 
     // 後続へ通知（指示どおり Event のみ）
+    var eventOk = false;
     try {
       window.dispatchEvent(new Event("cscs:syncKeyReady"));
+      eventOk = true;
     } catch (_e) {
       // 古い環境向け（ただし基本は現代ブラウザ想定）
       try {
         var ev = document.createEvent("Event");
         ev.initEvent("cscs:syncKeyReady", true, true);
         window.dispatchEvent(ev);
-      } catch (_e2) {}
+        eventOk = true;
+      } catch (_e2) {
+        eventOk = false;
+      }
     }
+
+    // ★ 成功確定ログ（検索しやすい1行）
+    try {
+      console.log("[CSCS][sync_bootstrap] OK: sync key resolved + stored + event dispatched", {
+        endpoint: INIT_ENDPOINT,
+        key: key,
+        user: typeof user === "string" ? user : "",
+        lsOk: lsOk ? "1" : "0",
+        eventOk: eventOk ? "1" : "0"
+      });
+    } catch (_e3) {}
   }
 
   // 実行本体: init を叩いて key を確定
