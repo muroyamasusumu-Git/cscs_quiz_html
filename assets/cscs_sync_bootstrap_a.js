@@ -217,6 +217,19 @@
       // ★ 処理: 起動時スナップショット（key状態だけは常に表示できる）
       refreshInitUiSnapshotStrict(null, null);
 
+      // ★ 追加: 起動直後に status を埋める（ただし /api/sync/state は必ず bootstrap 完了後）
+      try{
+        (async function(){
+          try{
+            const st0 = await fetchStateWithKeyStrict();
+            refreshInitUiSnapshotStrict(st0.status, st0.user);
+          }catch(_e0){
+            // フォールバック禁止: 取れないなら MISSING のまま（起動時スナップショットを維持）
+            refreshInitUiSnapshotStrict(null, null);
+          }
+        })();
+      }catch(_e1){}
+
       if (initBtn) {
         initBtn.addEventListener("click", function(){
           runInitFlowStrict();
