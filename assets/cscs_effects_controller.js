@@ -45,6 +45,7 @@
     { id: "consistency_ng_list", label: "ConsistencyNgList" },
     { id: "field_summary", label: "FieldSummary" },
     { id: "cscs_state_empty_watch", label: "StateEmptyWatch" },
+    { id: "a_auto_next", label: "AutoNext" },
     { id: "cscs_net_watch", label: "NetWatch" },
     { id: "cscs_debug_trace", label: "DebugTrace" },
     { id: "similar_list", label: "SimilarList" },
