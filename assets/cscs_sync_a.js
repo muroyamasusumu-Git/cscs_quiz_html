@@ -133,9 +133,13 @@
   (function(){
     try{
       fetch("/api/sync/init", {
-        method: "GET",
+        method: "POST",
         credentials: "include",
-        cache: "no-store"
+        cache: "no-store",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ force: false })
       })
         .then(function(initRes){
           if (!initRes || !initRes.ok) {
@@ -161,7 +165,10 @@
             return null;
           }
 
-          const initKey = readHeaderAny(initRes.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]);
+          const initKey = readHeaderAny(
+            initRes.headers,
+            ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]
+          );
           if (!initKey) {
             throw new Error("SYNC_INIT_KEY_MISSING");
           }
