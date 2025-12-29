@@ -144,7 +144,6 @@
     }
 
     var PANEL_ID = "cscs-effects-panel";
-    var OVERLAY_ID = "cscs-effects-overlay";
 
     var css =
       "#" + BTN_ID + "{" +
@@ -181,40 +180,21 @@
       "opacity:0.80;" +
       "}" +
 
-      // 追加した処理:
-      // - パネル表示中に背面UIへクリックが奪われないよう、透明オーバーレイで背面クリックを遮断する
-      // - オーバーレイは「パネルより下・他UIより上」に置き、パネル操作は阻害しない
-      "#" + OVERLAY_ID + "{" +
-      "position:fixed !important;" +
-      "left:0 !important;" +
-      "top:0 !important;" +
-      "width:100vw !important;" +
-      "height:100vh !important;" +
-      "z-index:2147483645 !important;" +
-      "background:rgba(0,0,0,0.00) !important;" +
-      "display:none !important;" +
-      "pointer-events:auto !important;" +
-      "}" +
-      "#" + OVERLAY_ID + ".open{" +
-      "display:block !important;" +
-      "}" +
-
       // 追加した処理: 個別ON/OFF用パネル
       "#" + PANEL_ID + "{" +
       "position:fixed !important;" +
-      "right:12px !important;" +
-      "bottom:calc(10px + 34px + 8px) !important;" +
-      "z-index:2147483647 !important;" +
-      "width:170px !important;" +
-      "padding:10px 10px !important;" +
-      "border-radius:12px !important;" +
-      "border:1px solid rgba(255,255,255,0.16) !important;" +
-      "background:rgba(0,0,0,0.58) !important;" +
-      "color:#fff !important;" +
-      "font-size:12px !important;" +
-      "box-shadow:none !important;" +
-      "display:none !important;" +
-      "pointer-events:auto !important;" +
+      "right:12px;" +
+      "bottom:calc(10px + 34px + 8px);" +
+      "z-index:2147483647;" +
+      "width:170px;" +
+      "padding:10px 10px;" +
+      "border-radius:12px;" +
+      "border:1px solid rgba(255,255,255,0.16);" +
+      "background:rgba(0,0,0,0.58);" +
+      "color:#fff;" +
+      "font-size:12px;" +
+      "box-shadow:none;" +
+      "display:none;" +
       "}" +
       "#" + PANEL_ID + ".open{" +
       "display:block;" +
@@ -311,33 +291,6 @@
     ensureStyle();
 
     var PANEL_ID = "cscs-effects-panel";
-    var OVERLAY_ID = "cscs-effects-overlay";
-
-    // 追加した処理:
-    // - パネル表示中、背面UIへのクリックを遮断する透明オーバーレイを用意する
-    // - クリックされたら「パネル外クリック」と同等に閉じる（最小限）
-    function ensureOverlay() {
-      var existing = document.getElementById(OVERLAY_ID);
-      if (existing) return existing;
-
-      var ov = document.createElement("div");
-      ov.id = OVERLAY_ID;
-
-      ov.addEventListener("click", function () {
-        togglePanel(false);
-      });
-
-      // 追加した処理:
-      // - オーバーレイは「背面クリック遮断」専用なので、DOM先頭に入れて積層事故を避ける
-      //   （パネル/ボタンは z-index で必ず上に来る）
-      if (document.body.firstChild) {
-        document.body.insertBefore(ov, document.body.firstChild);
-      } else {
-        document.body.appendChild(ov);
-      }
-
-      return ov;
-    }
 
     // 追加した処理: 個別ON/OFFパネルを生成（ボタンとは別DOM）
     function ensurePanel() {
@@ -485,16 +438,29 @@
       return panel;
     }
 
+    function bringWindowsToFront() {
+      try {
+        // panel → button の順に body 末尾へ寄せて「同一z-index時のDOM順」で勝つ
+        var p = document.getElementById(PANEL_ID);
+        if (p && p.parentNode === document.body) {
+          document.body.appendChild(p);
+        }
+        var b = document.getElementById(BTN_ID);
+        if (b && b.parentNode === document.body) {
+          document.body.appendChild(b);
+        }
+      } catch (_eFront) {
+      }
+    }
+
     function togglePanel(open) {
       var p = ensurePanel();
-      var ov = ensureOverlay();
       if (open === true) {
         p.classList.add("open");
-        ov.classList.add("open");
         safeSetLS(LS_KEY_PANEL_OPEN, "1");
+        bringWindowsToFront();
       } else {
         p.classList.remove("open");
-        ov.classList.remove("open");
         safeRemoveLS(LS_KEY_PANEL_OPEN);
       }
     }
@@ -544,6 +510,10 @@
       var p = ensurePanel();
       var isOpen = p.classList.contains("open");
       togglePanel(!isOpen);
+
+      // 追加した処理:
+      // - 同一z-index同士のDOM順で負けないよう、押下のたびに前面化する
+      bringWindowsToFront();
     });
 
     // パネル外クリックで閉じる（最小限）
