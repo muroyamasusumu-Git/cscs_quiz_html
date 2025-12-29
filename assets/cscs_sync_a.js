@@ -330,6 +330,9 @@
   }
   const QID = detectQidFromLocationA();
 
+  // ★ gate: INIT+STATE が ready になるまで「以降の本処理（state fetch / 初期化含む）」を開始しない
+  (window.__CSCS_SYNC_GATE_PROMISE__ || Promise.resolve(true)).then(function(){
+
   // === ② 差分キュー（Aパート専用） ===
   //   - correctDelta / incorrectDelta: 正解・不正解の累計差分
   //   - streak3Delta / streakLenDelta: 3連続「正解」回数と現在の連続正解長
@@ -4597,5 +4600,6 @@
   window.addEventListener("offline", function(){
     lastSyncStatus = "offline";
     updateMonitor();
+  });    
   });
 })();
