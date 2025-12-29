@@ -304,7 +304,24 @@
 
     SYNC_STATE.loading = true;
     try {
-      var res = await fetch(SYNC_STATE_ENDPOINT, { cache: "no-store", credentials: "include" });
+      var syncKey = null;
+      try {
+        syncKey = (typeof window.CSCS_SYNC_KEY === "string") ? window.CSCS_SYNC_KEY : null;
+      } catch (_eKey) {
+        syncKey = null;
+      }
+
+      if (!syncKey) {
+        throw new Error("CSCS_SYNC_KEY is missing (sync bootstrap not ready).");
+      }
+
+      var res = await fetch(SYNC_STATE_ENDPOINT, {
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          "X-CSCS-Key": syncKey
+        }
+      });
       var json = await res.json();
       SYNC_STATE.json = json || {};
       SYNC_STATE.loaded = true;
