@@ -2503,38 +2503,44 @@
     },
 
     // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
-    async fetchServer(syncKey){
+    async fetchServer(){
       // ★ 処理: NO-PULLモードがONなら、sync/state 取得を行わず例外で停止する
       if (window.__cscs_sync_no_pull === true) {
         throw new Error("NO_PULL_MODE");
       }
 
-      // ★ 変更: fetchServer() は localStorage を読まない（参照元を “呼び出し側で確定した key” に固定）
-      // - await init()（ensureSyncKeyReady）で確定した key をそのまま受け取る
-      // - 空/空白は未確定として停止（フォールバックで埋めない）
-      let key = null;
+      // ★ 追加した処理0: localStorage の SYNC key を先に読む（欠損は欠損として null）
+      // - key が無い状態で /api/sync/state を叩くと 400 になりログが汚れるため、ここで止める
+      // - フォールバックで埋めない（欠損は欠損として上流に伝える）
+      let syncKey = null;
       try{
-        const s = String(syncKey).trim();
-        key = (s === "") ? null : s;
+        // ★ 処理1: syncKey を確定（trim）
+        const v = localStorage.getItem("cscs_sync_key");
+        if (v !== null && v !== undefined) {
+          const s = String(v).trim();
+          syncKey = (s === "") ? null : s;
+        }
       }catch(_){
-        key = null;
+        syncKey = null;
       }
 
-      if (!key) {
+      // ★ 変更: X-CSCS-Key が未確定な状態では /api/sync/state を一切呼ばない
+      //   - fetchServer() では init を絶対に走らせない（キー未確定のまま止める）
+      if (!syncKey) {
         throw new Error("SYNC_KEY_NOT_READY");
       }
 
-      // ★ 処理: key がある場合のみ、ログしてから state を取得する
+      // ★ 処理3: syncKey がある場合のみ、ログしてから state を取得する
       console.log("[CSCS][STATE] will call /api/sync/state with X-CSCS-Key", {
         qid: QID || null
       });
 
       // ★ headers は「確定したキー」で作る（空キーでfetchしない）
       const stateFetchHeaders = {
-        "X-CSCS-Key": key
+        "X-CSCS-Key": syncKey
       };
 
-      // ★ 処理: /api/sync/state は「X-CSCS-Key 確定済み」の場合のみ叩く（未確定なら例外で停止）
+      // ★ 処理4: /api/sync/state は「X-CSCS-Key 確定済み」の場合のみ叩く（未確定なら例外で停止）
       if (!stateFetchHeaders || !stateFetchHeaders["X-CSCS-Key"]) {
         throw new Error("SYNC_KEY_NOT_READY");
       }
@@ -2714,10 +2720,9 @@
 
     try{
       // ★ 追加: init（キー発行/保存）が完了するまで先に進ませない
-      const syncKey = await ensureSyncKeyReady();
+      await ensureSyncKeyReady();
 
-      // ★ 変更: “確定した同一key” を headers に入れて /api/sync/state を叩く
-      const s  = await CSCS_SYNC.fetchServer(syncKey);
+      const s  = await CSCS_SYNC.fetchServer();
 
       // ============================================================
       // ★ フォールバック無し：server state から「確実に取れた値だけ」を採用する
