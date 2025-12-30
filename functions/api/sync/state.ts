@@ -473,17 +473,17 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // 2) empty テンプレ（補完用）
   // -----------------------------
   const empty = {
-    correct: {1},
-    incorrect: {1},
-    streak3: {1},
-    streakLen: {1},
+    correct: { "__EMPTY_DEBUG__": 99 },
+    incorrect: { "__EMPTY_DEBUG__": 99 },
+    streak3: { "__EMPTY_DEBUG__": 99 },
+    streakLen: { "__EMPTY_DEBUG__": 99 },
     // 3連続不正解の累計・現在ストリークも SYNC に必ず載せるための初期構造
-    streak3Wrong: {1},
-    streakWrongLen: {1},
-    lastSeenDay: {1},
-    lastCorrectDay: {1},
-    lastWrongDay: {1},
-    consistency_status: {1},
+    streak3Wrong: { "__EMPTY_DEBUG__": 99 },
+    streakWrongLen: { "__EMPTY_DEBUG__": 99 },
+    lastSeenDay: { "__EMPTY_DEBUG__": 99 },
+    lastCorrectDay: { "__EMPTY_DEBUG__": 99 },
+    lastWrongDay: { "__EMPTY_DEBUG__": 99 },
+    consistency_status: { "__EMPTY_DEBUG__": 99 },
     // お気に入り状態（fav_modal.js 用）
     fav: {},
     // グローバルメタ情報（総問題数など）を保持する領域
