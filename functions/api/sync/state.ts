@@ -168,7 +168,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   //     1 → 強制ON（前提チェック無効・必ずKVを読む）
   // - 注意:
   //     本番運用では必ず 0 に戻すこと（セキュリティ用途ではない）。
-  const debugForceRead = 1;
+  const debugForceRead = 0;
 
   // ★ デバッグ強制読み取りフラグの現在値を確定ログ
   // - 何をしているか:
