@@ -97,12 +97,23 @@
  *       ⇔ delta payload: odoa_mode
  */
 export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
-  // ★ Origin チェック（同一ドメイン＋ローカル開発のみ許可）
-  const origin = request.headers.get("Origin");
-  const allowedOrigins = [
-    "https://cscs-quiz-html.pages.dev", // 本番
-    "http://localhost:8789"             // ローカル開発
-  ];
+  // ============================================================
+  // ★ 追加: 最上位 try/catch（FATAL捕捉）
+  // ------------------------------------------------------------
+  // - 何をしているか:
+  //     state.ts の「どこで例外が起きても」HTMLではなくJSONで返すため、
+  //     onRequestGet 全体を try/catch で包む。
+  // - 目的:
+  //     ブラウザ側で「JSONとして解析できる 500」を保証し、
+  //     "Unrecognized token '<'"（HTML混入）を根絶する。
+  // ============================================================
+  try {
+    // ★ Origin チェック（同一ドメイン＋ローカル開発のみ許可）
+    const origin = request.headers.get("Origin");
+    const allowedOrigins = [
+      "https://cscs-quiz-html.pages.dev", // 本番
+      "http://localhost:8789"             // ローカル開発
+    ];
 
   if (origin !== null && !allowedOrigins.includes(origin)) {
     return new Response("Forbidden", {
@@ -925,6 +936,35 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       status: 500,
       headers: { "content-type": "text/plain", "Cache-Control": "no-store" }
     });
+  }
+
+  } catch (e) {
+    // ============================================================
+    // ★ 追加: 最上位 FATAL 捕捉（必ずJSONで返す）
+    // ------------------------------------------------------------
+    // - 何をしているか:
+    //     onRequestGet 内の未捕捉例外をここで最終捕捉し、
+    //     HTMLエラーページではなく JSON で 500 を返す。
+    // - 目的:
+    //     ブラウザ側の JSON.parse 失敗（'<' トークン）を防ぎ、
+    //     エラー原因（message）をNetwork/Consoleで即確認できるようにする。
+    // ============================================================
+    console.error("[SYNC/state][FATAL]", e);
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        fatal: true,
+        message: String(e)
+      }),
+      {
+        status: 500,
+        headers: {
+          "content-type": "application/json",
+          "Cache-Control": "no-store",
+          "X-CSCS-Fatal": "1"
+        }
+      }
+    );
   }
 };
 
