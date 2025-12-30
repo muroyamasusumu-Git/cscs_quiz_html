@@ -2040,6 +2040,10 @@
     //   本関数は必ず
     //     window.__CSCS_SYNC_KEY_PROMISE__ resolve 後
     //   に実行されることを保証する。
+    //
+    // 追加で保証すること:
+    //   - credentials: "include" を必ず付与（cookie必須の環境で安定化）
+    //   - cache: "no-store" を付与（状態の取り直しを確実化）
     // ============================================================
 
     if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
@@ -2063,6 +2067,8 @@
 
       return fetch(SYNC_STATE_ENDPOINT, {
         method: "GET",
+        cache: "no-store",
+        credentials: "include",
         headers: {
           "X-CSCS-Key": key
         }
