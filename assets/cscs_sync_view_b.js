@@ -3264,24 +3264,34 @@
     console.log("[SYNC-B] sending diff payload:", payload);
 
     try {
-      // ★ 送信前に /api/sync/state の Response Header から X-CSCS-Key を確定させる
-      //   - 推測で key を作らない（必ず server が返した key を使う）
+      // ============================================================
+      // 重要（設計確定）:
+      //   X-CSCS-Key は /api/sync/state から再取得しない。
+      //   key の唯一の確定ルートは cscs_sync_bootstrap_a.js であり、
+      //   window.__CSCS_SYNC_KEY_PROMISE__ の resolve をもって確定とする。
+      //
+      //   state を「key取得目的」で叩くことは禁止。
+      // ============================================================
+
+      if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
+        throw new Error("SYNC_BOOTSTRAP_NOT_READY");
+      }
+
+      await window.__CSCS_SYNC_KEY_PROMISE__;
+
       var keyForMerge = "";
       try {
-        var stRes = await fetch("/api/sync/state", {
-          method: "GET",
-          cache: "no-store",
-          credentials: "include"
-        });
-        try {
-          keyForMerge = stRes && stRes.headers ? String(stRes.headers.get("X-CSCS-Key") || "") : "";
-        } catch (_e1) {
-          keyForMerge = "";
-        }
-        keyForMerge = String(keyForMerge || "").trim();
-      } catch (_e0) {
+        keyForMerge = String(readSyncKey() || "").trim();
+      } catch (_e1) {
         keyForMerge = "";
       }
+
+      if (!keyForMerge) {
+        // bootstrap 完了後にも key が無い場合は異常。
+        // フォールバックで継続せず、問題を顕在化させる。
+        throw new Error("X-CSCS-Key missing after bootstrap");
+      }
+      
 
       if (!keyForMerge) {
         console.error("[SYNC-B] ❌ X-CSCS-Key missing → abort merge POST", {
