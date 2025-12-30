@@ -308,15 +308,40 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     textGetError = e;
   }
 
+
   // ★ json get
+  // - 何をしているか:
+  //     KV に保存されている値を「JSONとして parse した結果」を取得する。
+  // - 重要な仕様:
+  //     Cloudflare KV は、値が
+  //       ・JSONとして parse できない
+  //       ・空文字 / "null" / 壊れたJSON
+  //     の場合、例外を投げずに `null` を返す。
+  // - つまり:
+  //     dataJson === null は「KVが空」とは限らず、
+  //     「JSONとして解釈できなかった」可能性を含む。
   let dataJson: any = null;
   let jsonGetError: any = null;
 
   try {
     dataJson = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
+
+    if (dataJson === null) {
+      console.warn("[SYNC/state][KV][json-get] JSON parse failed or value is null", {
+        key,
+        reason: "KV.get(type=json) returned null",
+        note: "value may exist but is not valid JSON"
+      });
+    }
   } catch (e) {
     jsonGetError = e;
+
+    console.warn("[SYNC/state][KV][json-get] EXCEPTION during KV.get(type=json)", {
+      key,
+      error: String(e)
+    });
   }
+
 
   // ★ 追加した処理1: text の「UTF-8バイト長」を算出する
   // - 何をしているか: dataText.length（文字数）ではなく、実際に KV に入っている JSON 文字列の「バイト感」を確認する

@@ -2085,6 +2085,7 @@
     var box = document.createElement("div");
     box.id = "cscs_sync_view_b";
 
+
     var title = document.createElement("div");
     title.id = "cscs_sync_view_b_title";
     title.textContent = "SYNC(B): " + info.qid;
