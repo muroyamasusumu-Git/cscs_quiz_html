@@ -588,52 +588,69 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.global || typeof out.global !== "object") out.global = {};
 
   // ============================================================
-  // ★ 追加: 対象qidのサーバ返却stateを正規化（qid entry を必ず作る）
+  // ★ 追加: サーバ返却stateを正規化（登場qidは必ず6マップに存在させる）
   // ------------------------------------------------------------
   // - 何をしているか:
-  //     request から qid を取得できた場合のみ、
-  //     stateの6マップ（correct/incorrect/streak3/streakLen/streak3Wrong/streakWrongLen）に
-  //     qidキーが存在しなければ 0 を入れて「missing qid entry」を根絶する。
+  //     request から qid を取らない。
+  //     out 内に「どこかに登場しているqid」を全て収集し、
+  //     そのqidに対して 6マップ（correct/incorrect/streak3/streakLen/streak3Wrong/streakWrongLen）
+  //     のキーが欠けていれば 0 を入れる。
   // - 重要:
-  //     既存の値は上書きしない（あくまで “未登場=0” を返却側で正規化するだけ）
-  // - 注意:
-  //     全2700問を埋めない。今回のリクエスト対象qidだけを0補完する。
+  //     既存値は上書きしない（missing -> 0 のみ）
+  // - 目的:
+  //     A側の [NO-FALLBACK] state missing qid entry を “サーバの返却時点で” 根絶する。
   // ============================================================
-  let qidForNormalize = "";
   try {
-    const url = new URL(request.url);
-    const qidQuery = url.searchParams.get("qid");
-    const qidHeader = request.headers.get("X-CSCS-Qid");
-    const qidFromReq = (typeof qidQuery === "string" && qidQuery.trim())
-      ? qidQuery.trim()
-      : (typeof qidHeader === "string" && qidHeader.trim())
-        ? qidHeader.trim()
-        : "";
-    qidForNormalize = qidFromReq;
-  } catch (_e) {
-    qidForNormalize = "";
-  }
-
-  if (qidForNormalize) {
     const hasOwn = (obj: any, k: string) => Object.prototype.hasOwnProperty.call(obj, k);
 
-    if (!hasOwn(out.correct, qidForNormalize)) out.correct[qidForNormalize] = 0;
-    if (!hasOwn(out.incorrect, qidForNormalize)) out.incorrect[qidForNormalize] = 0;
-    if (!hasOwn(out.streak3, qidForNormalize)) out.streak3[qidForNormalize] = 0;
-    if (!hasOwn(out.streakLen, qidForNormalize)) out.streakLen[qidForNormalize] = 0;
-    if (!hasOwn(out.streak3Wrong, qidForNormalize)) out.streak3Wrong[qidForNormalize] = 0;
-    if (!hasOwn(out.streakWrongLen, qidForNormalize)) out.streakWrongLen[qidForNormalize] = 0;
+    const qidSet: Record<string, 1> = {};
 
+    const addKeys = (m: any) => {
+      if (!m || typeof m !== "object") return;
+      for (const k of Object.keys(m)) {
+        if (typeof k === "string" && k) qidSet[k] = 1;
+      }
+    };
+
+    addKeys(out.correct);
+    addKeys(out.incorrect);
+    addKeys(out.streak3);
+    addKeys(out.streakLen);
+    addKeys(out.streak3Wrong);
+    addKeys(out.streakWrongLen);
+
+    addKeys(out.lastSeenDay);
+    addKeys(out.lastCorrectDay);
+    addKeys(out.lastWrongDay);
+
+    if ((out as any).oncePerDayToday && typeof (out as any).oncePerDayToday === "object") {
+      const r = (out as any).oncePerDayToday.results;
+      addKeys(r);
+    }
+
+    addKeys(out.fav);
+    addKeys(out.consistency_status);
+
+    const qids = Object.keys(qidSet);
+
+    let filled = 0;
+
+    for (const qid of qids) {
+      if (!hasOwn(out.correct, qid)) { out.correct[qid] = 0; filled++; }
+      if (!hasOwn(out.incorrect, qid)) { out.incorrect[qid] = 0; filled++; }
+      if (!hasOwn(out.streak3, qid)) { out.streak3[qid] = 0; filled++; }
+      if (!hasOwn(out.streakLen, qid)) { out.streakLen[qid] = 0; filled++; }
+      if (!hasOwn(out.streak3Wrong, qid)) { out.streak3Wrong[qid] = 0; filled++; }
+      if (!hasOwn(out.streakWrongLen, qid)) { out.streakWrongLen[qid] = 0; filled++; }
+    }
+
+    console.log("[SYNC/state][NORMALIZE] ensured qid entries (union->6maps, missing->0 only)", {
+      qidsCount: qids.length,
+      filled
+    });
+  } catch (e) {
     try {
-      console.log("[SYNC/state][NORMALIZE] ensured qid entries (missing->0 only)", {
-        qid: qidForNormalize,
-        correct: out.correct[qidForNormalize],
-        incorrect: out.incorrect[qidForNormalize],
-        streak3: out.streak3[qidForNormalize],
-        streakLen: out.streakLen[qidForNormalize],
-        streak3Wrong: out.streak3Wrong[qidForNormalize],
-        streakWrongLen: out.streakWrongLen[qidForNormalize]
-      });
+      console.warn("[SYNC/state][NORMALIZE][WARN] normalize failed", { error: String(e) });
     } catch (_e2) {}
   }
 
