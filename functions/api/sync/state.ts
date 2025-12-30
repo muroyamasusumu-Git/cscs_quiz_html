@@ -473,21 +473,21 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // 2) empty テンプレ（補完用）
   // -----------------------------
   const empty = {
-    correct: {},
-    incorrect: {},
-    streak3: {},
-    streakLen: {},
+    correct: {99},
+    incorrect: {99},
+    streak3: {99},
+    streakLen: {99},
     // 3連続不正解の累計・現在ストリークも SYNC に必ず載せるための初期構造
-    streak3Wrong: {},
-    streakWrongLen: {},
-    lastSeenDay: {},
-    lastCorrectDay: {},
-    lastWrongDay: {},
-    consistency_status: {},
+    streak3Wrong: {99},
+    streakWrongLen: {99},
+    lastSeenDay: {99},
+    lastCorrectDay: {99},
+    lastWrongDay: {99},
+    consistency_status: {99},
     // お気に入り状態（fav_modal.js 用）
-    fav: {},
+    fav: {99},
     // グローバルメタ情報（総問題数など）を保持する領域
-    global: {},
+    global: {99},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
     odoa_mode: "off",
     // ★ここでは streak3Today / streak3WrongToday / oncePerDayToday を追加しない（消失確認のため上書き禁止）
