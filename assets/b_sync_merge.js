@@ -332,9 +332,21 @@
         _syncKey = "";
       }
 
+      // ============================================================
+      // 重要:
+      //   /api/sync/merge は「bootstrap 完了後」にのみ叩いてよい。
+      //   localStorage の値は “bootstrap 完了後に読む” ことに意味がある。
+      //   → 先に promise を待って、未準備なら明確に異常停止する。
+      // ============================================================
+      if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
+        throw new Error("SYNC_BOOTSTRAP_NOT_READY");
+      }
+
+      await window.__CSCS_SYNC_KEY_PROMISE__;
+
       if (!_syncKey) {
-        // 補足: SYNC_KEY が無い場合はここで明確に停止する（merge を叩かない）。
-        //       これはフォールバックで継続するのではなく、問題を顕在化させる停止ガード。
+        // 補足: bootstrap 完了後にも SYNC_KEY が無い場合は異常。
+        //       フォールバックで継続せず、問題を顕在化させる停止ガード。
         throw new Error("SYNC_KEY_MISSING_LOCAL");
       }
 
