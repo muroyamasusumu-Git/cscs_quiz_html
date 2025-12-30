@@ -2024,41 +2024,19 @@
   }
 
   function fetchState() {
-    // ============================================================
-    // 重要:
-    //   /api/sync/state は「bootstrap 完了後」にのみ叩いてよい。
-    //   localStorage の値は最終確定条件として信用しない。
-    //
-    //   本関数は必ず
-    //     window.__CSCS_SYNC_KEY_PROMISE__ resolve 後
-    //   に実行されることを保証する。
-    // ============================================================
-
-    if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
-      console.error("[SYNC-B:view] __CSCS_SYNC_KEY_PROMISE__ not found → fetchState aborted", {
+    var key = readSyncKey();
+    if (!key) {
+      console.warn("[SYNC-B:view] X-CSCS-Key missing → fetchState skipped", {
         endpoint: SYNC_STATE_ENDPOINT
       });
-      return Promise.reject(new Error("SYNC_BOOTSTRAP_NOT_READY"));
+      return Promise.reject(new Error("X-CSCS-Key missing"));
     }
 
-    return window.__CSCS_SYNC_KEY_PROMISE__.then(function () {
-      var key = readSyncKey();
-
-      // フォールバック禁止:
-      //   bootstrap 完了後にも key が無い場合は「異常」として即失敗させる
-      if (!key) {
-        console.error("[SYNC-B:view] X-CSCS-Key missing AFTER bootstrap → fetchState aborted", {
-          endpoint: SYNC_STATE_ENDPOINT
-        });
-        throw new Error("X-CSCS-Key missing after bootstrap");
+    return fetch(SYNC_STATE_ENDPOINT, {
+      method: "GET",
+      headers: {
+        "X-CSCS-Key": key
       }
-
-      return fetch(SYNC_STATE_ENDPOINT, {
-        method: "GET",
-        headers: {
-          "X-CSCS-Key": key
-        }
-      });
     }).then(function (res) {
       if (!res.ok) {
         throw new Error(String(res.status));
