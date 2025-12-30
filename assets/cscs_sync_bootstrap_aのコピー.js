@@ -23,33 +23,6 @@
 // 方針（プロジェクト恒久）:
 //   - 推測フォールバックはしない（失敗は失敗として console.error で確定させる）
 //   - ただし「同一ページ内の多重起動」は window 共有 Promise で抑止する
-//
-// ★ 追加（統合）:
-//   - window.CSCS_BOOTSTRAP_GATE_QUEUE に列挙された JS を
-//     「bootstrap 完了後にだけ」逐次 inject する（gate 機能を内蔵）
-//   - bootstrap が失敗した場合は inject しない（フォールバック無し）
-//
-// ============================================================
-// 全体像（このファイルがやっていること / 実行順）
-// ------------------------------------------------------------
-// 0) 二重起動防止:
-//    - 既に window.__CSCS_SYNC_KEY_PROMISE__ があれば何もせず終了
-//
-// 1) bootstrap 本体（SYNCキー確定）:
-//    - /api/sync/init を POST して「サーバー確定の sync key」を取得
-//    - 取得した key を window と localStorage に保存
-//    - "cscs:syncKeyReady" を dispatch して「完了」を通知
-//    - これらを window.__CSCS_SYNC_KEY_PROMISE__ の resolve で表現する
-//
-// 2) 診断UI（A側の手動initボタン）:
-//    - UIから init→state の確認を行う補助導線
-//    - ただし /api/sync/state は必ず Promise resolve 後にだけ叩く
-//
-// 3) gate（統合機能: 後続JSの遅延ロード）:
-//    - window.CSCS_BOOTSTRAP_GATE_QUEUE に列挙されたJSを
-//      「bootstrap Promise resolve後」にだけ順番に <script> 注入
-//    - つまり /api/sync/state を叩くJSを HTML直読みせず、必ず bootstrap 待ちにできる
-// ============================================================
 
 (function () {
   "use strict";
@@ -64,72 +37,72 @@
   var WIN_KEY = "__CSCS_SYNC_KEY__";
   var WIN_USER = "__CSCS_SYNC_USER__";
 
-  // ============================================================
-  // ★ Gate: 二重起動防止フラグ（統合機能）
-  //   - gate は bootstrap 完了後に queue を注入するだけなので、
-  //     これも二重起動すると script を二重注入しうる
-  // ============================================================
-  var WIN_GATE_INSTALLED = "__CSCS_BOOTSTRAP_GATE_INSTALLED__";
-
-  // ============================================================
-  // 0) 二重起動防止（bootstrapの多重実行を抑止）
-  //   - SPA遷移・再評価・A/B遷移などで同じJSが複数回実行されても、
-  //     既存の Promise を“唯一の真実”として再利用する
-  // ============================================================
+  // 既に走っているなら、その Promise を返して終わり
   if (window[WIN_PROMISE] && typeof window[WIN_PROMISE].then === "function") {
     return;
   }
 
-  // ============================================================
-  // 文字列ユーティリティ
-  //   - ここでの判定は「推測確定」ではなく “最小限の検査” だけ
-  // ============================================================
+  // ユーティリティ: 文字列かどうか
   function isNonEmptyString(v) {
     return typeof v === "string" && v.trim().length > 0;
   }
 
-  // ============================================================
-  // key 形式の最小検証
-  //   - サーバーが返すべき形式は sync:<email>
-  //   - 厳密なメール形式の検証はしない（クライアント推測を増やさない）
-  // ============================================================
+  // ユーティリティ: key 形式の最小検証（決定条件はサーバー。ここは最低限）
   function looksLikeSyncKey(v) {
     if (!isNonEmptyString(v)) return false;
+    // init.ts / state.ts の規則: sync:<lowercase email>
+    // 厳密な email 検証はしない（クライアント推測を増やさない）
     return v.indexOf("sync:") === 0 && v.length > "sync:".length;
   }
 
   // ============================================================
-  // 2) 診断UI（A側UIバインド / strict）
-  //   - 目的: UI で「init済みか？stateは200か？」を一発で把握する
-  //   - ルール: /api/sync/state は必ず bootstrap 完了後のみ
+  // ★ 追加: init 手動ボタン導線（A側UIバインド / strict）
+  // ------------------------------------------------------------
+  // 【由来の明記】
+  //   - 本ブロックは、もともと cscs_sync_a.js 内に存在していた
+  //     「SYNC 初期化状況（user / key / state.status）を UI に表示するための
+  //      init 手動ボタン導線・ステータス表示ロジック」を、
+  //     設計整理の結果、本 bootstrap に正式移植したものである。
+  //
+  //   - 目的は「/api/sync/state を叩く前に key が必ず確定している」ことを
+  //     UI 表示・デバッグの両面で保証すること。
+  //
+  // 【設計上の位置づけ】
+  //   - 表示専用の診断/UI 導線であり、SYNC 本体ロジックは一切変更しない。
+  //   - /api/sync/init は bootstrap が唯一の確定ルート。
+  //
+  // 【厳守ルール】
+  //   - /api/sync/state を叩くのは必ず bootstrap 完了後
+  //     （WIN_PROMISE resolve 後）のみ。
+  //   - 推測フォールバックは禁止（欠損は欠損として UI に表示する）。
   // ============================================================
   window.CSCS_SYNC_INIT_BIND_A_STRICT = function (box) {
-    try {
+    try{
       const initBtn = box.querySelector('button[data-sync-init="1"]');
-      const elUser = box.querySelector(".sync-user-email");
-      const elKey = box.querySelector(".sync-key-status");
+      const elUser  = box.querySelector(".sync-user-email");
+      const elKey   = box.querySelector(".sync-key-status");
       const elState = box.querySelector(".sync-state-status");
 
-      // localStorage の key を「空文字は欠損」として読む（推測はしない）
-      function readLocalSyncKeyStrict() {
-        try {
+      function readLocalSyncKeyStrict(){
+        try{
           const v = localStorage.getItem(LS_SYNC_KEY);
           if (v === null || v === undefined) return null;
           const s = String(v).trim();
           return s === "" ? null : s;
-        } catch (_) {
+        }catch(_){
           return null;
         }
       }
 
-      // UI の現在値を更新する（欠損は欠損のまま出す）
-      function refreshInitUiSnapshotStrict(stateStatus, userEmailFromHeader) {
-        try {
+      function refreshInitUiSnapshotStrict(stateStatus, userEmailFromHeader){
+        // ★ 処理: key状態（present/missing）
+        try{
           const k = readLocalSyncKeyStrict();
           if (elKey) elKey.textContent = (k !== null) ? "present" : "missing";
-        } catch (_) {}
+        }catch(_){}
 
-        try {
+        // ★ 処理: user表示（/api/sync/state ヘッダ由来のみ）
+        try{
           if (elUser) {
             if (userEmailFromHeader === null || userEmailFromHeader === undefined) {
               elUser.textContent = "MISSING";
@@ -138,9 +111,10 @@
               elUser.textContent = (s === "") ? "MISSING" : s;
             }
           }
-        } catch (_) {}
+        }catch(_){}
 
-        try {
+        // ★ 処理: state status表示（数値以外はそのまま出さずMISSING）
+        try{
           if (elState) {
             if (typeof stateStatus === "number" && Number.isFinite(stateStatus)) {
               elState.textContent = String(stateStatus);
@@ -148,18 +122,18 @@
               elState.textContent = "MISSING";
             }
           }
-        } catch (_) {}
+        }catch(_){}
       }
 
-      // /api/sync/state を叩いて「ヘッダの user」「HTTP status」を返す
-      // ★ 重要: bootstrap Promise を必ず await する（= key確定待ち）
-      async function fetchStateWithKeyStrict() {
+      async function fetchStateWithKeyStrict(){
+        // ★ 重要: /api/sync/state は bootstrap 完了後にのみ実行する
         if (window[WIN_PROMISE] && typeof window[WIN_PROMISE].then === "function") {
           await window[WIN_PROMISE];
         }
 
         const k = readLocalSyncKeyStrict();
         if (k === null) {
+          // ★ 処理: key欠損なら state確認は実施できない（推測せず欠損として扱う）
           return { ok: false, status: null, user: null };
         }
 
@@ -171,22 +145,24 @@
           }
         });
 
+        // ★ 処理: user(email) はヘッダからのみ取得（欠損はnull）
         let userEmail = null;
-        try {
+        try{
           const u = r.headers ? r.headers.get("X-CSCS-User") : null;
           if (u !== null && u !== undefined) {
             const s = String(u).trim();
             userEmail = (s === "") ? null : s;
           }
-        } catch (_) {
+        }catch(_){
           userEmail = null;
         }
 
         return { ok: (r.status === 200), status: r.status, user: userEmail };
       }
 
-      // 手動 init ボタン: init(POST) → 保存 → state(GET) で整合確認 → UI更新
-      async function runInitFlowStrict() {
+      async function runInitFlowStrict(){
+        // ★ 重要: /api/sync/init を “手動で叩いた後” に /api/sync/state へ進む
+        // ★ 重要: state は bootstrap 完了後のみ（fetchStateWithKeyStrict で保証）
         const existedKey = (readLocalSyncKeyStrict() !== null);
         const force = existedKey ? true : false;
 
@@ -194,7 +170,7 @@
         let stateStatus = null;
         let userEmail = null;
 
-        try {
+        try{
           const initRes = await fetch(INIT_ENDPOINT, {
             method: "POST",
             credentials: "include",
@@ -206,8 +182,9 @@
           initStatus = initRes.status;
 
           if (initRes.status === 200) {
+            // ★ 処理: 200時のみ body.key を保存（欠損は欠損として保存しない）
             let key = null;
-            try {
+            try{
               const j = await initRes.json();
               if (j && Object.prototype.hasOwnProperty.call(j, "key")) {
                 const raw = j.key;
@@ -216,64 +193,67 @@
                   key = (s === "") ? null : s;
                 }
               }
-            } catch (_) {
+            }catch(_){
               key = null;
             }
 
             if (key !== null) {
-              try {
+              try{
                 localStorage.setItem(LS_SYNC_KEY, key);
-              } catch (_) {}
-              try {
+              }catch(_){}
+              // ★ 処理: window 側も更新（後続の参照用 / 推測ではない）
+              try{
                 window[WIN_KEY] = key;
-              } catch (_) {}
+              }catch(_){}
             }
           }
 
+          // ★ 処理: 保存直後に state をヘッダ付きで確認
           const st = await fetchStateWithKeyStrict();
           stateStatus = st.status;
           userEmail = st.user;
 
+          // ★ 処理: UI更新（欠損は欠損のまま）
           refreshInitUiSnapshotStrict(stateStatus, userEmail);
 
+          // ★ 処理: 判定ログを必ず1行
           if (initStatus === 200 && stateStatus === 200) {
             console.log("✅ INIT+STATE OK (init=" + initStatus + ", state=" + stateStatus + ")");
           } else {
             console.log("❌ INIT+STATE FAILED (init=" + initStatus + ", state=" + stateStatus + ")");
           }
-        } catch (e) {
+        }catch(e){
+          // ★ 処理: 例外時も「1行ログ」ルールを守る（statusはnull）
           refreshInitUiSnapshotStrict(stateStatus, userEmail);
           console.log("❌ INIT+STATE FAILED (init=" + initStatus + ", state=" + stateStatus + ")");
         }
       }
 
-      // 起動直後: まず key の present/missing を表示（state はまだ叩かない）
+      // ★ 処理: 起動時スナップショット（key状態だけは常に表示できる）
       refreshInitUiSnapshotStrict(null, null);
 
-      // 起動直後: bootstrap 完了後にだけ state を叩いて status を埋める
-      try {
-        (async function () {
-          try {
+      // ★ 追加: 起動直後に status を埋める（ただし /api/sync/state は必ず bootstrap 完了後）
+      try{
+        (async function(){
+          try{
             const st0 = await fetchStateWithKeyStrict();
             refreshInitUiSnapshotStrict(st0.status, st0.user);
-          } catch (_e0) {
+          }catch(_e0){
+            // フォールバック禁止: 取れないなら MISSING のまま（起動時スナップショットを維持）
             refreshInitUiSnapshotStrict(null, null);
           }
         })();
-      } catch (_e1) {}
+      }catch(_e1){}
 
       if (initBtn) {
-        initBtn.addEventListener("click", function () {
+        initBtn.addEventListener("click", function(){
           runInitFlowStrict();
         });
       }
-    } catch (_) {}
+    }catch(_){}
   };
 
-  // ============================================================
-  // localStorage I/O（例外を外へ出さない）
-  //   - “保存に失敗” は起こりうるので boolean を返す（診断ログ用）
-  // ============================================================
+  // ユーティリティ: localStorage 書き込み（失敗しても例外は外へ出さない）
   function writeLocalStorage(key, val) {
     try {
       localStorage.setItem(key, val);
@@ -283,6 +263,7 @@
     }
   }
 
+  // ユーティリティ: localStorage 読み（失敗時は空文字）
   function readLocalStorage(key) {
     try {
       var v = localStorage.getItem(key);
@@ -292,22 +273,21 @@
     }
   }
 
-  // ============================================================
-  // bootstrap 確定処理:
-  //   - window と localStorage を更新し、event を dispatch する
-  //   - “この時点で bootstrap 完了” とみなせる（後続が待てる）
-  // ============================================================
+  // ユーティリティ: 共有状態を window に確定させる（順序が重要）
   function commitResolvedKey(user, key) {
     window[WIN_USER] = user;
     window[WIN_KEY] = key;
 
+    // localStorage は「観測・再利用」用（このページの真実はサーバー確定）
     var lsOk = writeLocalStorage(LS_SYNC_KEY, key);
 
+    // 後続へ通知（指示どおり Event のみ）
     var eventOk = false;
     try {
       window.dispatchEvent(new Event("cscs:syncKeyReady"));
       eventOk = true;
     } catch (_e) {
+      // 古い環境向け（ただし基本は現代ブラウザ想定）
       try {
         var ev = document.createEvent("Event");
         ev.initEvent("cscs:syncKeyReady", true, true);
@@ -318,6 +298,7 @@
       }
     }
 
+    // ★ 成功確定ログ（検索しやすい1行）
     try {
       console.log("[CSCS][sync_bootstrap] OK: sync key resolved + stored + event dispatched", {
         endpoint: INIT_ENDPOINT,
@@ -329,13 +310,10 @@
     } catch (_e3) {}
   }
 
-  // ============================================================
-  // 1) /api/sync/init を叩いて key をサーバー確定する（bootstrapの心臓部）
-  //   - 15秒で abort（長時間待つようなフォールバックはしない）
-  //   - header または body から key を取り、形式をチェックして確定
-  //   - 失敗時は Promise reject（後続は “動かない” のが正）
-  // ============================================================
+  // 実行本体: init を叩いて key を確定
   function fetchInitAndResolve() {
+    // init.ts: body が壊れてても force=false 扱い、POST only
+    // ここも最小: force を送らない（= false）
     var ctrl = null;
     var timer = null;
 
@@ -345,7 +323,7 @@
         try {
           ctrl.abort();
         } catch (_e) {}
-      }, 15000);
+      }, 15000); // 15s（長すぎるフォールバックはしない。待ち時間を固定）
     } catch (_e) {
       ctrl = null;
       timer = null;
@@ -358,7 +336,7 @@
       headers: {
         "content-type": "application/json"
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({}),
     };
 
     if (ctrl && ctrl.signal) {
@@ -373,6 +351,7 @@
           } catch (_e) {}
         }
 
+        // init.ts は JSON を返し、X-CSCS-Key / X-CSCS-User をレスポンスヘッダにも載せる
         var hk = "";
         var hu = "";
 
@@ -389,12 +368,14 @@
         }
 
         if (!res.ok) {
+          // フォールバック禁止: 失敗は失敗として確定
           return res.text().then(function (t) {
             var msg = "[CSCS][sync_bootstrap] /api/sync/init failed: status=" + res.status + " body=" + String(t || "");
             throw new Error(msg);
           });
         }
 
+        // まず JSON を読む（ヘッダが空でも body で key を取れるケースに備えるが、推測ではない）
         return res.json().then(function (data) {
           var keyFromBody = "";
           var userFromBody = "";
@@ -411,6 +392,7 @@
             throw new Error("[CSCS][sync_bootstrap] init returned invalid key: " + String(finalKey || ""));
           }
 
+          // user は必須ではないが、取れたら保存（診断用）
           commitResolvedKey(finalUser, finalKey);
           return finalKey;
         });
@@ -422,6 +404,7 @@
           } catch (_e) {}
         }
 
+        // 失敗は確定ログ（後続は Promise reject で判断できる）
         try {
           console.error("[CSCS][sync_bootstrap] init failed:", e);
         } catch (_e2) {}
@@ -430,142 +413,15 @@
       });
   }
 
-  // ============================================================
-  // 3) Gate（統合機能）:
-  //   - queue に入れた JS を bootstrap 完了後にだけ順番に inject する
-  //   - HTML直読みの <script src="..."> をやめてここに集約すれば、
-  //     “stateを叩くJSがbootstrap前に走る”事故を構造的に防げる
-  // ============================================================
-  function gateLog() {
-    try {
-      console.log.apply(console, arguments);
-    } catch (_) {}
-  }
-
-  function gateErr() {
-    try {
-      console.error.apply(console, arguments);
-    } catch (_) {}
-  }
-
-  // queue 取得（未定義なら空）: {src, id} の配列
-  function getGateQueue() {
-    var q = window.CSCS_BOOTSTRAP_GATE_QUEUE;
-    if (!Array.isArray(q)) return [];
-    return q;
-  }
-
-  // 既に読み込まれた script を検出（id優先 / なければsrc一致）
-  function gateAlreadyLoaded(item) {
-    try {
-      var id = item && item.id ? String(item.id) : "";
-      var src = item && item.src ? String(item.src) : "";
-      if (id) {
-        if (document.getElementById(id)) return true;
-      }
-      if (src) {
-        var scripts = document.getElementsByTagName("script");
-        for (var i = 0; i < scripts.length; i++) {
-          var s = scripts[i];
-          var ssrc = s && s.getAttribute ? (s.getAttribute("src") || "") : "";
-          if (ssrc && ssrc === src) return true;
-        }
-      }
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  // script を1つ注入（defer/async無し：順序を守るため）
-  function gateInjectOne(item) {
-    return new Promise(function (resolve, reject) {
-      try {
-        if (!item || !item.src) {
-          reject(new Error("missing src"));
-          return;
-        }
-
-        if (gateAlreadyLoaded(item)) {
-          resolve({ ok: true, skipped: true, src: String(item.src) });
-          return;
-        }
-
-        var s = document.createElement("script");
-        s.src = String(item.src);
-
-        if (item.id) {
-          s.id = String(item.id);
-        }
-
-        s.onload = function () {
-          resolve({ ok: true, skipped: false, src: String(item.src) });
-        };
-        s.onerror = function () {
-          reject(new Error("failed to load: " + String(item.src)));
-        };
-
-        var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
-        head.appendChild(s);
-      } catch (e) {
-        reject(e);
-      }
-    });
-  }
-
-  // queue を順番通りに逐次 inject（A→Bみたいに順序が重要なJS向け）
-  function gateInjectAllInOrder(queue) {
-    var p = Promise.resolve();
-    for (var i = 0; i < queue.length; i++) {
-      (function (item) {
-        p = p.then(function () {
-          return gateInjectOne(item).then(function (r) {
-            gateLog("[CSCS][gate] loaded:", r);
-            return r;
-          });
-        });
-      })(queue[i]);
-    }
-    return p;
-  }
-
-  // bootstrap 完了後に gate を走らせる（bootstrap失敗なら inject しない）
-  function runGateAfterBootstrap() {
-    if (window[WIN_GATE_INSTALLED]) return;
-    window[WIN_GATE_INSTALLED] = true;
-
-    var queue = getGateQueue();
-    if (queue.length === 0) {
-      return;
-    }
-
-    if (!window[WIN_PROMISE] || typeof window[WIN_PROMISE].then !== "function") {
-      gateErr("[CSCS][gate] __CSCS_SYNC_KEY_PROMISE__ not found. scripts NOT injected.");
-      return;
-    }
-
-    window[WIN_PROMISE]
-      .then(function (reasonKey) {
-        gateLog("[CSCS][gate] bootstrap ready -> inject queue", { resolvedKey: String(reasonKey || "") });
-        return gateInjectAllInOrder(queue);
-      })
-      .then(function () {
-        gateLog("[CSCS][gate] all scripts injected.");
-      })
-      .catch(function (e) {
-        gateErr("[CSCS][gate] bootstrap failed. scripts NOT injected.", e);
-      });
-  }
-
-  // ============================================================
-  // 1) bootstrap Promise を window にセット（後続はこれを待てる）
-  //   - localStorage の key があっても “それだけで確定扱いしない”
-  //   - 必ず /api/sync/init の結果で確定して resolve する
-  // ============================================================
+  // 共有 Promise を window にセット（後続はこれを待てる）
   window[WIN_PROMISE] = new Promise(function (resolve, reject) {
-    // localStorage は “観測用の値” として window に一旦置くだけ（最終確定はサーバー）
+    // 1) まず localStorage から読み（“暫定”）
+    //    - ただし最終確定は init の結果（サーバーの真実）
     var lsKey = readLocalStorage(LS_SYNC_KEY);
     if (looksLikeSyncKey(lsKey)) {
+      // 既に入っている場合でも “即 resolve せず”、init で確定し直す
+      // （state.ts は key と user が一致しないと 403 なので、ここで勝手に確定扱いしない）
+      // ただし診断のため window には一旦置く（後で init 結果で上書き）
       window[WIN_KEY] = lsKey;
     }
 
@@ -578,7 +434,7 @@
       });
   });
 
-  // 3) gate 起動（Promise作成後に必ず実行）
-  runGateAfterBootstrap();
-
+  // “Promise を待たない” 利用者向けの最小導線:
+  // - window[WIN_PROMISE] が存在する事実だけで後続が待機できる
+  // - ready イベントは commitResolvedKey 内で投げる
 })();
