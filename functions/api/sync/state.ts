@@ -587,6 +587,56 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.fav || typeof out.fav !== "object") out.fav = {};
   if (!out.global || typeof out.global !== "object") out.global = {};
 
+  // ============================================================
+  // ★ 追加: 対象qidのサーバ返却stateを正規化（qid entry を必ず作る）
+  // ------------------------------------------------------------
+  // - 何をしているか:
+  //     request から qid を取得できた場合のみ、
+  //     stateの6マップ（correct/incorrect/streak3/streakLen/streak3Wrong/streakWrongLen）に
+  //     qidキーが存在しなければ 0 を入れて「missing qid entry」を根絶する。
+  // - 重要:
+  //     既存の値は上書きしない（あくまで “未登場=0” を返却側で正規化するだけ）
+  // - 注意:
+  //     全2700問を埋めない。今回のリクエスト対象qidだけを0補完する。
+  // ============================================================
+  let qidForNormalize = "";
+  try {
+    const url = new URL(request.url);
+    const qidQuery = url.searchParams.get("qid");
+    const qidHeader = request.headers.get("X-CSCS-Qid");
+    const qidFromReq = (typeof qidQuery === "string" && qidQuery.trim())
+      ? qidQuery.trim()
+      : (typeof qidHeader === "string" && qidHeader.trim())
+        ? qidHeader.trim()
+        : "";
+    qidForNormalize = qidFromReq;
+  } catch (_e) {
+    qidForNormalize = "";
+  }
+
+  if (qidForNormalize) {
+    const hasOwn = (obj: any, k: string) => Object.prototype.hasOwnProperty.call(obj, k);
+
+    if (!hasOwn(out.correct, qidForNormalize)) out.correct[qidForNormalize] = 0;
+    if (!hasOwn(out.incorrect, qidForNormalize)) out.incorrect[qidForNormalize] = 0;
+    if (!hasOwn(out.streak3, qidForNormalize)) out.streak3[qidForNormalize] = 0;
+    if (!hasOwn(out.streakLen, qidForNormalize)) out.streakLen[qidForNormalize] = 0;
+    if (!hasOwn(out.streak3Wrong, qidForNormalize)) out.streak3Wrong[qidForNormalize] = 0;
+    if (!hasOwn(out.streakWrongLen, qidForNormalize)) out.streakWrongLen[qidForNormalize] = 0;
+
+    try {
+      console.log("[SYNC/state][NORMALIZE] ensured qid entries (missing->0 only)", {
+        qid: qidForNormalize,
+        correct: out.correct[qidForNormalize],
+        incorrect: out.incorrect[qidForNormalize],
+        streak3: out.streak3[qidForNormalize],
+        streakLen: out.streakLen[qidForNormalize],
+        streak3Wrong: out.streak3Wrong[qidForNormalize],
+        streakWrongLen: out.streakWrongLen[qidForNormalize]
+      });
+    } catch (_e2) {}
+  }
+
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
   // - ここも “フォールバックっぽく見える” 代表例。
   // - out が empty 由来の場合、odoa_mode は最初から "off" なのでここは通常通らない。
