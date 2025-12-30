@@ -382,7 +382,10 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   //     json-get の成否とセットで確定できるようにする。
   // - 注意:
   //     ここは“観測用”。本番では不要なら削除する想定。
-  const raw = await env.SYNC.get(key, { type: "text", cacheTtl: 0 });
+  // 追加した処理: KV.get の cacheTtl は 0 を指定できない（Workers側で 400 になり、例外→500 の原因になる）
+  // - 何をしているか: cacheTtl を指定せず取得する（Cloudflareのデフォルト挙動に任せる）
+  // - 目的: 「KV GET 自体が失敗している」状態を解消し、RAWログを正しく観測できるようにする
+  const raw = await env.SYNC.get(key, { type: "text" });
 
   console.warn("[SYNC/state][KV][RAW]", {
     key,
@@ -391,7 +394,10 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   });
 
   try {
-    dataJson = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
+    // 追加した処理: KV.get の cacheTtl は 0 を指定できない（Workers側で 400 になり、例外→500 の原因になる）
+    // - 何をしているか: cacheTtl を指定せず取得する（Cloudflareのデフォルト挙動に任せる）
+    // - 目的: JSON取得の例外（KV GET failed: 400 Invalid cache_ttl）を根絶し、dataJson の null/非null を正しく判定できるようにする
+    dataJson = await env.SYNC.get(key, { type: "json" });
 
     if (dataJson !== null) {
       console.log("[SYNC/state][KV][json-get][OK] JSON obtained successfully", {
