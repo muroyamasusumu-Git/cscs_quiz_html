@@ -159,6 +159,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   //     本番運用では必ず 0 に戻すこと（セキュリティ用途ではない）。
   const debugForceRead = 1;
 
+  // ★ デバッグ強制読み取りフラグの現在値を確定ログ
+  // - 何をしているか:
+  //     この state.ts が「通常モード(0) / 強制読み取りモード(1)」
+  //     のどちらで動作しているかを Workers Logs に確定出力する。
+  // - 目的:
+  //     デプロイ後に「切り替え忘れ」を即発見できるようにする。
+  try {
+    console.log("[SYNC/state][DEBUG-FLAG] debugForceRead =", debugForceRead);
+  } catch (_e) {}
+
   if (!headerKey && !debugForceRead) {
     const body = JSON.stringify({
       ok: false,
@@ -882,6 +892,12 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
         // - 目的: クライアント側で「今返ってきたstateが empty テンプレか」を一発で判定する
         // - 値: "1"=emptyテンプレ返却, "0"=KV由来データ返却
         "X-CSCS-IsEmptyTemplate": isEmptyTemplate,
+
+        // ★ デバッグ用: 強制読み取りフラグの現在値（ブラウザ確認用）
+        // - 目的:
+        //     Network タブ / fetch レスポンスヘッダを見るだけで
+        //     「debugForceRead が 1 か 0 か」を即判定できるようにする。
+        "X-CSCS-Debug-ForceRead": String(debugForceRead),
 
         "X-CSCS-Colo": colo,
         "X-CSCS-CF-Ray": ray,
