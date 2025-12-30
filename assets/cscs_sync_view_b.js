@@ -3292,6 +3292,7 @@
         throw new Error("X-CSCS-Key missing after bootstrap");
       }
       
+      
 
       if (!keyForMerge) {
         console.error("[SYNC-B] ❌ X-CSCS-Key missing → abort merge POST", {
@@ -4583,31 +4584,30 @@
       console.groupEnd();
 
       // 7) /api/sync/merge に対して streak3TodayDelta 専用のリクエストを送信
-      //   - 送信前に /api/sync/state の Response Header から X-CSCS-Key を確定して必ず付与する
+      // ============================================================
+      // 重要（恒久ルール）:
+      //   X-CSCS-Key は /api/sync/state から取得しない。
+      //   key の唯一の確定ルートは cscs_sync_bootstrap_a.js。
+      //   ここでは bootstrap 完了を待ち、その結果のみを使用する。
+      // ============================================================
+
+      if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
+        throw new Error("SYNC_BOOTSTRAP_NOT_READY");
+      }
+
+      await window.__CSCS_SYNC_KEY_PROMISE__;
+
       var keyForMerge = "";
       try {
-        var stRes = await fetch("/api/sync/state", {
-          method: "GET",
-          cache: "no-store",
-          credentials: "include"
-        });
-        try {
-          keyForMerge = stRes && stRes.headers ? String(stRes.headers.get("X-CSCS-Key") || "") : "";
-        } catch (_e1) {
-          keyForMerge = "";
-        }
-        keyForMerge = String(keyForMerge || "").trim();
-      } catch (_e0) {
+        keyForMerge = String(readSyncKey() || "").trim();
+      } catch (_e1) {
         keyForMerge = "";
       }
 
       if (!keyForMerge) {
-        console.error("[SYNC-B:streak3Today] ❌ X-CSCS-Key missing → abort merge POST", {
-          endpoint: SYNC_MERGE_ENDPOINT,
-          day: day,
-          qidsLength: qids.length
-        });
-        return;
+        // bootstrap 後にも key が無いのは異常。
+        // フォールバックせず、問題を顕在化させる。
+        throw new Error("X-CSCS-Key missing after bootstrap (streak3Today)");
       }
 
       var res = await fetch(SYNC_MERGE_ENDPOINT, {
