@@ -1,50 +1,9 @@
-  // ============================================================
-  // SYNC endpoints（B view 用）
-  //
-  // 【重要・恒久ルール】
-  // - SYNC_STATE_ENDPOINT は「表示・参照専用」。
-  // - X-CSCS-Key の取得・再確定には一切使用しない。
-  // - state へのアクセスは必ず bootstrap 完了後に限定する。
-  // - key の唯一の確定ルートは cscs_sync_bootstrap_a.js。
-  // ============================================================
+// assets/cscs_sync_view_b.js
+(function () {
+  "use strict";
+
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
-
-  /**
-   * state 参照専用 fetch（bootstrap 完了保証付き）
-   * - key は bootstrap が確定させたもののみ使用
-   * - key 取得目的での利用は禁止
-   */
-  async function fetchStateAfterBootstrap() {
-    if (
-      !window.__CSCS_SYNC_KEY_PROMISE__ ||
-      typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function"
-    ) {
-      throw new Error("SYNC_BOOTSTRAP_NOT_READY");
-    }
-
-    await window.__CSCS_SYNC_KEY_PROMISE__;
-
-    var key = "";
-    try {
-      key = String(readSyncKey() || "").trim();
-    } catch (_) {
-      key = "";
-    }
-
-    if (!key) {
-      throw new Error("X-CSCS-Key missing after bootstrap");
-    }
-
-    return fetch(SYNC_STATE_ENDPOINT, {
-      method: "GET",
-      headers: {
-        "X-CSCS-Key": key
-      },
-      credentials: "include",
-      cache: "no-store"
-    });
-  }
 
   /**
    * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
