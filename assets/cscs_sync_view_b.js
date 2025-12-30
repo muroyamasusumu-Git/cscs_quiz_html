@@ -2053,7 +2053,27 @@
       return Promise.reject(new Error("SYNC_BOOTSTRAP_NOT_READY"));
     }
 
-    return fetchState().then(function (res) {
+    return window.__CSCS_SYNC_KEY_PROMISE__.then(function () {
+      var key = readSyncKey();
+
+      // フォールバック禁止:
+      //   bootstrap 完了後にも key が無い場合は「異常」として即失敗させる
+      if (!key) {
+        console.error("[SYNC-B:view] X-CSCS-Key missing AFTER bootstrap → fetchState aborted", {
+          endpoint: SYNC_STATE_ENDPOINT
+        });
+        throw new Error("X-CSCS-Key missing after bootstrap");
+      }
+
+      return fetch(SYNC_STATE_ENDPOINT, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          "X-CSCS-Key": key
+        }
+      });
+    }).then(function (res) {
       if (!res.ok) {
         throw new Error(String(res.status));
       }
