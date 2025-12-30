@@ -1,0 +1,527 @@
+[DETECTED] Potential Cloudflare landmines (detailed log)
+  Timestamp : 2025-12-31T07:47:55
+  Root      : /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html
+  Log       : /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/cf_landmine_check_log.txt
+  CWD       : /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html
+  Python    : 3.13.7 (v3.13.7:bcee1c32211, Aug 14 2025, 19:10:51) [Clang 16.0.0 (clang-1600.0.26.6)]
+  Platform  : macOS-26.2-arm64-arm-64bit-Mach-O
+  SkipDirs  : .git, .next, .nuxt, .venv, .wrangler, __pycache__, build, dist, node_modules, venv
+  FilesScan : 5723 file(s)
+  TotalHits : 12  |  HIGH: 0  MED: 12  LOW: 0
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+Quick view:
+SEV  RULE                          FILE                                                                      LOC
+MED  SUBREQUEST_HEAVY_HINT         assets/cscs_sync_a.js                                                     L2265:C1
+MED  SUBREQUEST_HEAVY_HINT         assets/deep_dive.js                                                       L245:C19
+MED  SUBREQUEST_HEAVY_HINT         assets/field_summary.js                                                   L150:C3
+MED  SUBREQUEST_HEAVY_HINT         assets/nav_list.js                                                        L402:C7
+MED  SUBREQUEST_HEAVY_HINT         functions/api/consistency-check.js                                        L70:C3
+MED  KV_GET_ASSERT_FAIL_FAST_HINT  functions/api/sync-consistency.js                                         L46:C22
+MED  KV_PUT_THEN_GET_ASSERT_HINT   functions/api/sync/merge.ts                                               L838:C23
+MED  KV_GET_ASSERT_FAIL_FAST_HINT  functions/api/sync/reset_all_qid.ts                                       L34:C40
+MED  FETCH_CF_CACHETTL_ON_NON_GET  functions/index.ts                                                        L11:C3
+MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-01D63519_20251229_023954/original/cscs_sync_a.js  L2210:C38
+MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-6AC295ED_20251230_043144/original/cscs_sync_a.js  L2293:C48
+MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-AE8739D4_20251229_081152/original/cscs_sync_a.js  L2224:C39
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/cscs_sync_a.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2265:C1
+  LineText  :               correct: rc.ok,
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2263 |             qid: QID,
+      L 2264 |             ok: {
+    > L 2265 |               correct: rc.ok,
+             | ^
+      L 2266 |               incorrect: ri.ok,
+      L 2267 |               streak3: rs3.ok,
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/deep_dive.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L245:C19
+  LineText  :       const req = st.openCursor();
+  MatchText : while(idx < days.length){
+          const me = idx++;
+          const d = days[me];
+          const url = d && d.path ? d.path : null;
+          if(!url) { ng++; continue; }
+
+          
+          
+          
+          try{
+            const r = await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L  243 |       const st = tx.objectStore(META_STORE);
+      L  244 |       const out = [];
+    > L  245 |       const req = st.openCursor();
+             |                   ^
+      L  246 |       req.onsuccess = (e)=>{
+      L  247 |         const cur = e.target.result;
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/field_summary.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L150:C3
+  LineText  :     .cscs-star-row .cscs-star-percent {
+  MatchText : for (var i = 0; i < scripts.length; i++) {
+          var s = scripts[i];
+          if ((s.src ||  ).indexOf( ) !== -1 && s.dataset && s.dataset.src) {
+            src = s.dataset.src;
+            break;
+          }
+        }
+      })();
+
+      
+      var url = new URL(src, location.href).href;
+      var res = await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L  148 | 
+      L  149 |     /* % 表示 */
+    > L  150 |     .cscs-star-row .cscs-star-percent {
+             |   ^
+      L  151 |         text-align: right;
+      L  152 |         font-variant-numeric: tabular-nums;
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/nav_list.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L402:C7
+  LineText  :           continue;
+  MatchText : while (panel.firstChild) panel.removeChild(panel.firstChild);
+
+    const day = getDayFromPath();              
+    const currentN3 = getCurrentQuestionNumber3(); 
+    let manifest = null;
+    try {
+      
+      const res = await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L  400 |         // 3連続正解達成回数 0 の問題は「★なし」とみなしてカウントしない
+      L  401 |         if (!(streakTotal > 0)) {
+    > L  402 |           continue;
+             |       ^
+      L  403 |         }
+      L  404 | 
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/functions/api/consistency-check.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L70:C3
+  LineText  :   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  MatchText : for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    res = await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L   68 |   let res = null;
+      L   69 | 
+    > L   70 |   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+             |   ^
+      L   71 |     res = await fetch(url + "?key=" + encodeURIComponent(apiKey), {
+      L   72 |       method: "POST",
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/functions/api/sync-consistency.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : KV_GET_ASSERT_FAIL_FAST_HINT
+  Title     : Workers KV: get結果を即『失敗断定』して throw/return/error する匂い（直後検証ループ注意）
+  Location  : L46:C22
+  LineText  :   headers.set("Content-Type", "application/json; charset=utf-8");
+  MatchText : await env.SYNC.get(key);
+      if (raw) {
+        try {
+          stored = JSON.parse(raw);
+        } catch (parseError) {
+          console.error( , parseError);
+          stored = null;
+        }
+      }
+    }
+  } catch (e) {
+    console.error( , e);
+  }
+
+  if (!stored) {
+    return jsonResponse(request, 200, {
+      ok: true,
+      items: []
+    });
+  }
+
+  return 
+  Pattern   : \bawait\s+[\s\S]{0,120}\.get\s*\([\s\S]{0,200}\)\s*;[\s\S]{0,200}\b(if\s*\(\s*!\s*\w+|\b==\s*null\b|\b===\s*null\b|\b===\s*undefined\b)[\s\S]{0,200}\b(throw\s+new\s+Error|console\.error|return\s+)
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : KVの直後getはキャッシュ/最終整合で見えないことがある。そこで fail-fast すると再試行ループの温床になりやすい。
+  Note      : 誤検出あり。get直後の『見えない＝保存失敗』断定が無いか周辺確認。
+  Context   :
+      L   44 | function jsonResponse(request, status, data) {
+      L   45 |   const headers = buildCorsHeaders(request);
+    > L   46 |   headers.set("Content-Type", "application/json; charset=utf-8");
+             |                      ^
+      L   47 |   return new Response(JSON.stringify(data), { status: status, headers: headers });
+      L   48 | }
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/functions/api/sync/merge.ts
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : KV_PUT_THEN_GET_ASSERT_HINT
+  Title     : Workers KV: put直後にgetして存在を断定するパターン（同一key検証の匂い）
+  Location  : L838:C23
+  LineText  :     if (payload === null) {
+  MatchText : .put(key, JSON.stringify(beforePut));
+
+      putExecuted = true;
+      putDiagAfter = {
+        key,
+        updatedAt: (server as any).updatedAt
+      };
+
+      
+      
+      console.log( , putDiagAfter);
+
+      
+      const verify = await env.SYNC.get(key,  );
+      console.log( , {
+        key,
+        textBytes: verify ? verify.length : 0,
+        textHead: verify ? verify.slice(0, 200) : null
+      });
+
+      console.log( , { key });
+    } catch (e) {
+      console.error( , {
+        key,
+        error: e
+      });
+      throw e;
+    }
+
+    console.log( , { key, bytes: jsonStr.length, updatedAt: (server as any).updatedAt, kv_identity: kvIdentityId });
+    console.log( , {
+      key,
+      streak3Today: (server as any).streak3Today
+    });
+
+    
+    try {
+      const readBackText = await env.SYNC.get(key,
+  Pattern   : \.put\s*\(\s*([A-Za-z_$][\w$]*|[\"'][^\"']+[\"'])\s*,[\s\S]{0,500}\)\s*;[\s\S]{0,500}\.get\s*\(\s*\1\s*(?:,|\))
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : KV はキャッシュ/最終整合の都合で、書き込み直後に別ロケーションから読むと見えないことがある。直後getの失敗を『保存失敗』と誤判定すると再試行ループになりやすい。
+  Note      : 誤検出を減らすため、put/get の第1引数（key）が同一（同一変数名または同一文字列）っぽい場合のみ検出する。
+  Context   :
+      L  836 |       server.consistency_status = {};
+      L  837 |     }
+    > L  838 |     if (payload === null) {
+             |                       ^
+      L  839 |       delete server.consistency_status[qid];
+      L  840 |       continue;
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/functions/api/sync/reset_all_qid.ts
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : KV_GET_ASSERT_FAIL_FAST_HINT
+  Title     : Workers KV: get結果を即『失敗断定』して throw/return/error する匂い（直後検証ループ注意）
+  Location  : L34:C40
+  LineText  : function getUserKeyFromRequest(request: Request): string {
+  MatchText : await env.SYNC.get(key, { type:   });
+  if (!raw) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw) as SyncState;
+    if (!parsed || typeof parsed !==  ) {
+      return {};
+    }
+    return parsed;
+  } catch (_e) {
+    return 
+  Pattern   : \bawait\s+[\s\S]{0,120}\.get\s*\([\s\S]{0,200}\)\s*;[\s\S]{0,200}\b(if\s*\(\s*!\s*\w+|\b==\s*null\b|\b===\s*null\b|\b===\s*undefined\b)[\s\S]{0,200}\b(throw\s+new\s+Error|console\.error|return\s+)
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : KVの直後getはキャッシュ/最終整合で見えないことがある。そこで fail-fast すると再試行ループの温床になりやすい。
+  Note      : 誤検出あり。get直後の『見えない＝保存失敗』断定が無いか周辺確認。
+  Context   :
+      L   32 | // ※ 既存の /api/sync/state や /api/sync/merge と同じ方式に合わせて、
+      L   33 | //   必要なら cookie 名などを調整してください。
+    > L   34 | function getUserKeyFromRequest(request: Request): string {
+             |                                        ^
+      L   35 |   const cookie = request.headers.get("Cookie") || "";
+      L   36 |   // 例: "cscs_uid=xxxx; other=yyy"
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/functions/index.ts
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : FETCH_CF_CACHETTL_ON_NON_GET
+  Title     : fetch cf.cacheTtl は GET/HEAD のみに適用（他メソッドで指定しても期待通りにならない）
+  Location  : L11:C3
+  LineText  :   }
+  MatchText : fetch(manifestUrl.toString(), {
+      
+      cf: { cacheTtl
+  Pattern   : \bfetch\s*\([\s\S]*?\{\s*cf\s*:\s*\{\s*[\s\S]*?\bcacheTtl\b
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : cf.cacheTtl は GET/HEAD のみに適用される仕様。POST等で指定しても効かない/誤解が起きる。
+  Note      : このルールは『存在検出』。実際にGET/HEADかは手動確認かAST解析で精度を上げる。
+  Context   :
+      L    9 |   if (url.pathname !== "/") {
+      L   10 |     return context.next();
+    > L   11 |   }
+             |   ^
+      L   12 | 
+      L   13 |   // 1) manifest.json を読み込む（全日一覧）
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/out_protocol_local_tool/CSCSJS-01D63519_20251229_023954/original/cscs_sync_a.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2210:C38
+  LineText  :           console.log("[SYNC-A][OK] sendDelta merged server snapshot for this QID", {
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2208 |           setServerTotalsForQid(rc.value, ri.value, rs3.value, rsl.value);
+      L 2209 | 
+    > L 2210 |           console.log("[SYNC-A][OK] sendDelta merged server snapshot for this QID", {
+             |                                      ^
+      L 2211 |             qid: QID,
+      L 2212 |             correctTotal: rc.value,
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/out_protocol_local_tool/CSCSJS-6AC295ED_20251230_043144/original/cscs_sync_a.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2293:C48
+  LineText  :     // 2) Promise が無い場合は Event を待つ（bootstrap が dispatch する前提）
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2291 |     }
+      L 2292 | 
+    > L 2293 |     // 2) Promise が無い場合は Event を待つ（bootstrap が dispatch する前提）
+             |                                                ^
+      L 2294 |     const waitedKey = await new Promise(function(resolve, reject){
+      L 2295 |       let done = false;
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/out_protocol_local_tool/CSCSJS-AE8739D4_20251229_081152/original/cscs_sync_a.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2224:C39
+  LineText  :             streak3Correct: rs3.value,
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2222 |             correctTotal: rc.value,
+      L 2223 |             wrongTotal: ri.value,
+    > L 2224 |             streak3Correct: rs3.value,
+             |                                       ^
+      L 2225 |             streakLenCorrect: rsl.value,
+      L 2226 |             streak3Wrong: rs3w.value,
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+Rule details:
+* SUBREQUEST_HEAVY_HINT (MED)
+  - Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  - Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  - Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  - IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  - Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+
+* KV_GET_ASSERT_FAIL_FAST_HINT (MED)
+  - Title     : Workers KV: get結果を即『失敗断定』して throw/return/error する匂い（直後検証ループ注意）
+  - Why       : KVの直後getはキャッシュ/最終整合で見えないことがある。そこで fail-fast すると再試行ループの温床になりやすい。
+  - Note      : 誤検出あり。get直後の『見えない＝保存失敗』断定が無いか周辺確認。
+  - IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  - Pattern   : \bawait\s+[\s\S]{0,120}\.get\s*\([\s\S]{0,200}\)\s*;[\s\S]{0,200}\b(if\s*\(\s*!\s*\w+|\b==\s*null\b|\b===\s*null\b|\b===\s*undefined\b)[\s\S]{0,200}\b(throw\s+new\s+Error|console\.error|return\s+)
+
+* KV_PUT_THEN_GET_ASSERT_HINT (MED)
+  - Title     : Workers KV: put直後にgetして存在を断定するパターン（同一key検証の匂い）
+  - Why       : KV はキャッシュ/最終整合の都合で、書き込み直後に別ロケーションから読むと見えないことがある。直後getの失敗を『保存失敗』と誤判定すると再試行ループになりやすい。
+  - Note      : 誤検出を減らすため、put/get の第1引数（key）が同一（同一変数名または同一文字列）っぽい場合のみ検出する。
+  - IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  - Pattern   : \.put\s*\(\s*([A-Za-z_$][\w$]*|[\"'][^\"']+[\"'])\s*,[\s\S]{0,500}\)\s*;[\s\S]{0,500}\.get\s*\(\s*\1\s*(?:,|\))
+
+* FETCH_CF_CACHETTL_ON_NON_GET (MED)
+  - Title     : fetch cf.cacheTtl は GET/HEAD のみに適用（他メソッドで指定しても期待通りにならない）
+  - Why       : cf.cacheTtl は GET/HEAD のみに適用される仕様。POST等で指定しても効かない/誤解が起きる。
+  - Note      : このルールは『存在検出』。実際にGET/HEADかは手動確認かAST解析で精度を上げる。
+  - IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  - Pattern   : \bfetch\s*\([\s\S]*?\{\s*cf\s*:\s*\{\s*[\s\S]*?\bcacheTtl\b
+
+End summary:
+  Total: 12 hit(s)
+  HIGH : 0
+  MED  : 12
+  LOW  : 0
+
+  By rule:
+    - FETCH_CF_CACHETTL_ON_NON_GET: 1
+    - KV_GET_ASSERT_FAIL_FAST_HINT: 2
+    - KV_PUT_THEN_GET_ASSERT_HINT: 1
+    - SUBREQUEST_HEAVY_HINT: 8
+
+Usage:
+  python3 cf_landmine_check.py [root_dir(optional)] [rules.json(optional)]
+  (default root_dir: the directory containing this script)
+

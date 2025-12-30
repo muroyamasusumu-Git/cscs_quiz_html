@@ -187,7 +187,9 @@
       "right:12px;" +
       "bottom:calc(10px + 34px + 8px);" +
       "z-index:2147483647;" +
-      "width:170px;" +
+      "width:min(420px, calc(100vw - 24px));" +
+      "max-height:calc(100vh - 110px);" +
+      "overflow:auto;" +
       "padding:10px 10px;" +
       "border-radius:12px;" +
       "border:1px solid rgba(255,255,255,0.16);" +
@@ -200,11 +202,22 @@
       "#" + PANEL_ID + ".open{" +
       "display:block;" +
       "}" +
+      // ALL 行や通常行（flexのまま）
       "#" + PANEL_ID + " .row{" +
       "display:flex;" +
       "align-items:center;" +
       "justify-content:space-between;" +
       "padding:4px 0px;" +
+      "}" +
+      // 追加した処理: チェック行だけ3列で並べるグリッド
+      "#" + PANEL_ID + " .grid{" +
+      "display:grid;" +
+      "grid-template-columns:repeat(3, 1fr);" +
+      "gap:6px 10px;" +
+      "margin-top:6px;" +
+      "}" +
+      "#" + PANEL_ID + " .grid .row{" +
+      "padding:2px 0px;" +
       "}" +
       "#" + PANEL_ID + " .ttl{" +
       "font-weight:700;" +
@@ -428,6 +441,12 @@
         return true;
       }
 
+      // 追加した処理:
+      // - チェック行（EFFECTS）は3列グリッドに流し込む
+      var grid = document.createElement("div");
+      grid.className = "grid";
+      panel.appendChild(grid);
+
       for (var i = 0; i < EFFECTS.length; i++) {
         (function (def) {
           var row = document.createElement("div");
@@ -457,7 +476,7 @@
 
           row.appendChild(label);
           row.appendChild(cb);
-          panel.appendChild(row);
+          grid.appendChild(row);
         })(EFFECTS[i]);
       }
 
