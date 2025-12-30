@@ -47,6 +47,7 @@
     { id: "cscs_state_empty_watch", label: "StateEmptyWatch" },
     { id: "a_auto_next", label: "AutoNext" },
     { id: "cscs_net_watch", label: "NetWatch" },
+    { id: "cscs_sync_header_compare", label: "HeaderCompare" },
     { id: "cscs_debug_trace", label: "DebugTrace" },
     { id: "similar_list", label: "SimilarList" },
     { id: "nav_list", label: "NavList" },
