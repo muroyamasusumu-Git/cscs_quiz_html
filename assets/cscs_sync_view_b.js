@@ -2,6 +2,14 @@
 (function () {
   "use strict";
 
+  // ============================================================
+  // SYNC endpoints（B view 用）
+  //
+  // 【重要・恒久ルール】
+  // - SYNC_STATE_ENDPOINT は「表示・参照専用」。
+  // - X-CSCS-Key の取得・再確定には一切使用しない。
+  // - key の唯一の確定ルートは cscs_sync_bootstrap_a.js。
+  // ============================================================
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
 
