@@ -35,8 +35,58 @@
  *   - localStorage: "cscs_sync_last_s3:"  + qid … 3連続正解累計の前回同期値
  *   - localStorage: "cscs_sync_last_ws3:" + qid … 3連続不正解累計の前回同期値
  *
+ * ============================================================
+ * 【フォールバック一覧（このファイル内で “欠損・矛盾” を丸める箇所の索引）】
+ * ------------------------------------------------------------
+ *  Fallback-01: loadInt() で localStorage miss(null) を 0 扱い
+ *    - 発生条件: localStorage.getItem(key) が null
+ *    - 処理内容: 0 を返して処理継続（送信 payload は壊さない）
+ *    - 影響/注意: 「本当はキー欠損（計測未実行/別namespace/別端末）」でも
+ *                 “0基準の差分” が成立してしまい、問題が隠れる可能性がある。
+ *
+ *  Fallback-02: loadInt() で parseInt 失敗(NaN等) を 0 扱い
+ *    - 発生条件: 値が数値文字列でない / 破損値
+ *    - 処理内容: 0 を返して処理継続
+ *    - 影響/注意: 破損値が入っても “無かったこと” にして進むため、
+ *                 監視なしだと原因究明が遅れる可能性がある。
+ *
+ *  Fallback-03: 「前回SYNC済み累計(KEY_LAST_*)」が未保存でも 0 基準で差分計算
+ *    - 発生条件: 初回同期 / KEY_LAST_* が null
+ *    - 処理内容: cLast/wLast/s3Last/s3WrongLast を 0 として delta を作る
+ *    - 影響/注意: 初回同期の利便性は上がるが、
+ *                 「KEY_LAST_* が消えた/別namespaceで読んでいる」状況でも
+ *                 初回扱いで “全量差分” が送れてしまい、問題が隠れる可能性がある。
+ *
+ *  Fallback-04: s3Last > s3Now を検出したら KEY_LAST_S3 を now に clamp（下げる）
+ *    - 発生条件: 前回同期キャッシュが現在累計より大きい（矛盾）
+ *    - 処理内容: s3Last = s3Now にして localStorage(KEY_LAST_S3) を上書き
+ *    - 影響/注意: “減算送信” を避ける目的だが、
+ *                 「キャッシュが別namespace由来で大きい」等でも
+ *                 強制的に帳尻を合わせてしまい、ズレの原因が見えにくくなる。
+ *
+ *  Fallback-05: s3WrongLast > s3WrongNow を検出したら KEY_LAST_S3_WRONG を now に clamp（下げる）
+ *    - 発生条件: 前回同期キャッシュが現在累計より大きい（矛盾）
+ *    - 処理内容: s3WrongLast = s3WrongNow にして localStorage(KEY_LAST_S3_WRONG) を上書き
+ *    - 影響/注意: Fallback-04 と同様。矛盾の “原因” を覆い隠すリスクがある。
+ *
+ *  Fallback-06: delta が負になったら 0 に丸める（減算送信禁止のため）
+ *    - 発生条件: (now - last) < 0
+ *    - 処理内容: Math.max(0, rawDelta) で 0 にする
+ *    - 影響/注意: “ズレている” こと自体はログで警告されるが、
+ *                 結果として送信が進んでしまうため、根本原因の特定が遅れやすい。
+ *
+ *  Fallback-07: SYNC_KEY の取得が失敗した場合でも例外にして処理を落とす（送信しない）
+ *    - 発生条件: localStorage 例外 / cscs_sync_key が空
+ *    - 処理内容: throw("SYNC_KEY_MISSING_LOCAL") → merge を叩かない
+ *    - 影響/注意: “送信できない” を明示するガード（これはフォールバックというより停止ガード）。
+ * ============================================================
+ *
  * このファイルは「localStorage → /api/sync/merge の delta payload」を組み立てる役割だけを持つ。
  * SYNC 側の完全な構造は merge.ts / state.ts の仕様コメントを参照すること。
+ *
+ * 【重要】このファイルは /api/sync/state を参照しないため、
+ *          “どの namespace / KV を見ているか” は検知できない。
+ *          そのため、上記フォールバックが働くと「ズレていても送れてしまう」状況が起きうる。
  */
 
 (function(){
@@ -68,23 +118,25 @@
   const KEY_LAST_S3_WRONG = `cscs_sync_last_ws3:${info.qid}`;
 
   function loadInt(key){
-    // フォールバック①: localStorage にキーが存在しない（null）場合は 0 扱いにする。
-    // 目的: 初回アクセス時や、まだ計測が走っていない問題でも script が落ちないようにする。
+    // Fallback-01: localStorage miss(null) → 0
+    // 補足: ここで 0 扱いにすると「本当はキーが無い（namespaceズレ/計測未実行/別端末）」でも
+    //       処理が継続し、結果として“送れてしまう”＝問題が隠れる可能性がある。
     const v = localStorage.getItem(key);
     if (v == null) {
       console.log("[SYNC/B][fallback][loadInt] localStorage miss -> 0", { key });
       return 0;
     }
 
-    // フォールバック②: 文字列が数値に変換できない場合（NaN 等）は 0 扱いにする。
-    // 目的: 破損値や想定外の値が入っていても delta 計算を継続し、送信ペイロードを壊さない。
+    // Fallback-02: parseInt 失敗(NaN等) → 0
+    // 補足: 値の破損や想定外フォーマットでも 0 として進むため、
+    //       監視が弱いと「壊れているのに送れてしまう」状態になりやすい。
     const n = parseInt(v, 10);
     if (!Number.isFinite(n)) {
       console.warn("[SYNC/B][fallback][loadInt] parseInt failed -> 0", { key, raw: v });
       return 0;
     }
 
-    // 正常系: ここに来たら「整数として解釈できた」ことが確定。
+    // 正常系
     console.log("[SYNC/B][ok][loadInt] loaded", { key, raw: v, value: n });
     return n;
   }
@@ -93,8 +145,6 @@
     localStorage.setItem(key, String(value));
   }
   
-// 置換後（このブロックをまるごと削除して何も置かない）
-
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
     const cNow              = loadInt(KEY_COR);
@@ -105,8 +155,9 @@
     const streakWrongLenNow = loadInt(KEY_STREAK_WRONG_LEN);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
-    // フォールバック③: 「前回SYNC済み累計」が未保存（初回）なら 0 を基準に差分を作る。
-    // 目的: 初回の merge で「今の累計＝差分」として正しく送れるようにする。
+    // Fallback-03: KEY_LAST_* miss(null) を loadInt() が 0 扱いにすることで「初回同期」として差分を作れる。
+    // 補足: 便利だが、KEY_LAST_* が消えた/別namespaceの値を見ている等でも “初回扱い” になり、
+    //       「ズレてても送れてしまう」＝問題が隠れる可能性がある。
     const cLast       = loadInt(KEY_LAST_COR);
     const wLast       = loadInt(KEY_LAST_WRG);
     let   s3Last      = loadInt(KEY_LAST_S3);
@@ -125,9 +176,10 @@
     });
 
     // correct 側の 3連続正解累計について、local が s3Last より小さい場合 → s3Last を local に強制修正
-    // フォールバック④: 「前回SYNC済みキャッシュ(KEY_LAST_*)」が現在の累計より大きい矛盾を検出したら、
-    //   “減算送信”を発生させないために、キャッシュ側を現在値へ下げて整合させる。
-    // 目的: delta は加算専用（マイナス送信なし）なので、基準値が未来に飛ぶと永久に追いつけなくなるのを防ぐ。
+    // Fallback-04: KEY_LAST_S3（前回同期キャッシュ）が現在累計(s3Now)を超える矛盾が出たら、
+    //              “減算送信”を起こさないために KEY_LAST_S3 を now に clamp（下げて上書き）する。
+    // 補足: ここで帳尻を合わせると「なぜ矛盾したか（namespaceズレ/キャッシュ破損/手動操作）」が
+    //       追いにくくなる。＝ズレの根本原因が隠れるリスクがある。
     if (s3Last > s3Now) {
       console.warn("[SYNC/B][fallback][guard] s3Last > s3Now -> clamp last to now", {
         qid: info.qid,
@@ -147,8 +199,9 @@
     }
 
     // wrong 側の 3連続不正解累計についても同様にガード
-    // フォールバック⑤: s3WrongLast も同様に「キャッシュが現在値を超える」矛盾を補正して、
-    //   “減算送信”や永久不一致を防ぐ（delta は加算専用）。
+    // Fallback-05: KEY_LAST_S3_WRONG（前回同期キャッシュ）が現在累計(s3WrongNow)を超える矛盾が出たら、
+    //              “減算送信”を起こさないために KEY_LAST_S3_WRONG を now に clamp（下げて上書き）する。
+    // 補足: Fallback-04 と同様、帳尻合わせにより「ズレている理由」が見えにくくなる可能性がある。
     if (s3WrongLast > s3WrongNow) {
       console.warn("[SYNC/B][fallback][guard] s3WrongLast > s3WrongNow -> clamp last to now", {
         qid: info.qid,
@@ -168,8 +221,9 @@
     }
 
     // 3) 差分（マイナスは送らない）
-    // フォールバック⑥: delta は “加算専用” のため、(now - last) がマイナスなら 0 に丸めて送信しない。
-    // 目的: 減算送信を禁止し、SYNC側の累計を絶対に戻さない（ロールバックしない）方針を守る。
+    // Fallback-06: delta は加算専用のため (now - last) が負なら 0 に丸めて「送らない」。
+    // 補足: ここで “ズレ” を 0 に潰すので、表面上は送信処理が進み得る。
+    //       ログ警告を見落とすと「ズレがあっても運用できてしまう」＝問題が隠れる可能性がある。
     const rawDc       = cNow       - cLast;
     const rawDw       = wNow       - wLast;
     const rawDs3      = s3Now      - s3Last;
@@ -273,10 +327,14 @@
       try{
         _syncKey = localStorage.getItem("cscs_sync_key") || "";
       }catch(_){
+        // 補足: localStorage 例外時はキー取得を諦めて空文字にする（ここで送信は止まる）。
+        //       “送れちゃう” 方向の隠れではなく、「送れない原因」がキー取得失敗に集約される点に注意。
         _syncKey = "";
       }
 
       if (!_syncKey) {
+        // 補足: SYNC_KEY が無い場合はここで明確に停止する（merge を叩かない）。
+        //       これはフォールバックで継続するのではなく、問題を顕在化させる停止ガード。
         throw new Error("SYNC_KEY_MISSING_LOCAL");
       }
 
