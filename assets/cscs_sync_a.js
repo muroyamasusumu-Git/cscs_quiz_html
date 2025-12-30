@@ -2747,7 +2747,7 @@
 
         // ★ 処理2: qidキーの存在チェック
         if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
-          console.warn("[SYNC-A][NO-FALLBACK][WARN] state missing qid entry", {
+          console.log("[SYNC-A][NO-FALLBACK][INFO] state missing qid entry", {
             qid: qid,
             mapKey: mapKey
           });
