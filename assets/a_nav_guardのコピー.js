@@ -5,11 +5,6 @@
 (function(){
         "use strict";
 
-        // Bパート(qNNN_b.html)では a_nav_guard は一切動かさない（ログ/Promise待ち/state取得ノイズ防止）
-        const __mStemEarly = location.pathname.match(/(?:^|\/)(q\d{3})_([ab])(?:\.html)?(?:\/)?$/i);
-        const __partEarly = (__mStemEarly && __mStemEarly[2] ? String(__mStemEarly[2]).toLowerCase() : "");
-        if (__partEarly === "b") return;
-
         // a_nav_guard 自体の “待機ローダ” の二重起動防止
         if (window.__cscsANavGuardWaitInstalled__) return;
         window.__cscsANavGuardWaitInstalled__ = true;
