@@ -134,9 +134,32 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // =============================
   // ★ /api/sync/state も必ず key を要求する（空テンプレで誤魔化さない）
   const headerKeyRaw = request.headers.get("X-CSCS-Key") || "";
-  const headerKey = typeof headerKeyRaw === "string" ? headerKeyRaw.trim() : "";
+  let headerKey = typeof headerKeyRaw === "string" ? headerKeyRaw.trim() : "";
 
-  if (!headerKey) {
+  // 追加した処理: デバッグ用「強制読み取り」フラグ
+  // - 何をしているか:
+  //     冒頭の前提チェック（key必須 / key一致）を一時的に無効化し、
+  //     どんなリクエストでも KV.get まで到達させる。
+  // - 切替方法（簡単にON/OFFできる）:
+  //     ① リクエストヘッダ  X-CSCS-Debug-ForceRead: 1
+  //     ② URLクエリ         ?debug_force_read=1
+  // - 注意:
+  //     これは「デバッグ観測用」。本番運用では OFF を前提にする。
+  // ★ デバッグ用 強制読み取りフラグ（1文字で切替）
+  // - 何をするフラグか:
+  //     state.ts 冒頭の前提チェック（key必須 / key一致）をバイパスし、
+  //     どんなリクエストでも必ず KV.get まで処理を進める。
+  // - 目的:
+  //     「前段チェックで止まっているのか / KV.get 以降で止まっているのか」を
+  //     ログだけで確定させるための観測用スイッチ。
+  // - 使い方（1文字変更）:
+  //     0 → 通常動作（前提チェック有効・本番想定）
+  //     1 → 強制ON（前提チェック無効・必ずKVを読む）
+  // - 注意:
+  //     本番運用では必ず 0 に戻すこと（セキュリティ用途ではない）。
+  const debugForceRead = 1;
+
+  if (!headerKey && !debugForceRead) {
     const body = JSON.stringify({
       ok: false,
       __cscs_warn: { code: "SYNC_STATE_MISSING_KEY", message: "X-CSCS-Key is required for /api/sync/state" }
@@ -164,6 +187,20 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   const userRaw = user;
   const userNormalized = typeof userRaw === "string" ? userRaw.trim().toLowerCase() : "";
   const expectedKey = `sync:${userNormalized}`;
+
+  // 追加した処理: デバッグ強制ON時は key を expectedKey に寄せて必ずKVを読む
+  // - 何をしているか:
+  //     headerKey が空 / 不一致でも、KV.get のキーとして expectedKey を採用し、
+  //     「前段で止まっている」のか「KV.get以降で止まっている」のかを切り分け可能にする。
+  // - ログ:
+  //     強制発動時は warn で確定表示（Workers Logs 検索用）。
+  if (debugForceRead) {
+    console.warn("[SYNC/state][PRECHECK][FORCE-READ] enabled -> bypass key checks", {
+      headerKey,
+      expectedKey
+    });
+    headerKey = expectedKey;
+  }
 
   // ★ 不一致なら拒否（別keyで読まれたら事故る）
   if (headerKey !== expectedKey) {
@@ -312,10 +349,9 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // ★ json get
   // - 何をしているか:
   //     KV に保存されている値を「JSONとして parse した結果」を取得する。
-  // - 判定方針（この場で必ずログを確定させる）:
-  //     ① dataJson !== null → JSONとして取得成功（successログ）
-  //     ② dataJson === null → JSONとして解釈不能（warnログ）
-  //     ③ catch 到達        → KV.get 自体が失敗（warnログ）
+  // - 判定方針:
+  //     try / catch / finally を使い、
+  //     このブロックを通過したら「必ずログが出る」ことを保証する。
   let dataJson: any = null;
   let jsonGetError: any = null;
 
@@ -341,7 +377,25 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       key,
       error: String(e)
     });
-  }	
+  } finally {
+    // ★ 最終確定ログ（必ず1回出る）
+    // - 目的:
+    //     成功 / null / 例外 のどれで終わったかを、
+    //     ログ1行で「状態確定」させる
+    const finalStatus =
+      jsonGetError
+        ? "exception"
+        : dataJson === null
+          ? "null"
+          : "success";
+
+    console.log("[SYNC/state][KV][json-get][FINAL]", {
+      key,
+      status: finalStatus,
+      hasData: dataJson !== null,
+      hasError: jsonGetError !== null
+    });
+  }
 
 
   // ★ 追加した処理1: text の「UTF-8バイト長」を算出する
