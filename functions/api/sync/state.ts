@@ -365,6 +365,20 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   let dataJson: any = null;
   let jsonGetError: any = null;
 
+  // ★ 追加（json-get直前の RAW 確認）
+  // - 目的:
+  //     「KVには何が入っているか」「JSONとして壊れていないか」を
+  //     json-get の成否とセットで確定できるようにする。
+  // - 注意:
+  //     ここは“観測用”。本番では不要なら削除する想定。
+  const raw = await env.SYNC.get(key, { type: "text", cacheTtl: 0 });
+
+  console.warn("[SYNC/state][KV][RAW]", {
+    key,
+    rawLength: raw ? raw.length : 0,
+    rawPreview: raw ? raw.slice(0, 300) : null
+  });
+
   try {
     dataJson = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
 
