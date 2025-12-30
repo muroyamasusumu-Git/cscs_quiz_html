@@ -312,31 +312,32 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   // ★ json get
   // - 何をしているか:
   //     KV に保存されている値を「JSONとして parse した結果」を取得する。
-  // - 重要な仕様:
-  //     Cloudflare KV は、値が
-  //       ・JSONとして parse できない
-  //       ・空文字 / "null" / 壊れたJSON
-  //     の場合、例外を投げずに `null` を返す。
-  // - つまり:
-  //     dataJson === null は「KVが空」とは限らず、
-  //     「JSONとして解釈できなかった」可能性を含む。
+  // - 判定方針（この場で必ずログを確定させる）:
+  //     ① dataJson !== null → JSONとして取得成功（successログ）
+  //     ② dataJson === null → JSONとして解釈不能（warnログ）
+  //     ③ catch 到達        → KV.get 自体が失敗（warnログ）
   let dataJson: any = null;
   let jsonGetError: any = null;
 
   try {
     dataJson = await env.SYNC.get(key, { type: "json", cacheTtl: 0 });
 
-    if (dataJson === null) {
-      console.warn("[SYNC/state][KV][json-get] JSON parse failed or value is null", {
+    if (dataJson !== null) {
+      console.log("[SYNC/state][KV][json-get][OK] JSON obtained successfully", {
+        key,
+        jsonType: Array.isArray(dataJson) ? "array" : typeof dataJson
+      });
+    } else {
+      console.warn("[SYNC/state][KV][json-get][WARN] JSON get returned null", {
         key,
         reason: "KV.get(type=json) returned null",
-        note: "value may exist but is not valid JSON"
+        meaning: "value exists but is not valid JSON, empty, or parse failed"
       });
     }
   } catch (e) {
     jsonGetError = e;
 
-    console.warn("[SYNC/state][KV][json-get] EXCEPTION during KV.get(type=json)", {
+    console.warn("[SYNC/state][KV][json-get][WARN] EXCEPTION during KV.get(type=json)", {
       key,
       error: String(e)
     });
