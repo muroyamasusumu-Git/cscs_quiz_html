@@ -341,7 +341,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       key,
       error: String(e)
     });
-  }
+  }	
 
 
   // ★ 追加した処理1: text の「UTF-8バイト長」を算出する
