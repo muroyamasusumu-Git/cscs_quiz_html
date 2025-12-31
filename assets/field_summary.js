@@ -1,6 +1,10 @@
+表示されなくなっちゃったんだけど、どこで落ちてる？
+
 // assets/field_summary.js
+
 (function () {
   "use strict";
+
   // ============================================================
   // 【演出ON/OFF 共通仕様（演出系JSは全てこの方式で制御）】
   // ------------------------------------------------------------
@@ -239,45 +243,10 @@
     console.log("field_summary.js: CSS for compact star summary injected");
   }
 
-  // ============================================================
-  // 【SYNC依存UI】このファイルは /api/sync/state を唯一の情報源として表示する
-  // ------------------------------------------------------------
-  // - ローカルStorageやダミー値で「それっぽく表示」しない（欠損は欠損として出す）
-  // - global.totalQuestions / exam_date 等が欠ける場合は 0 / "-" 扱いにする
-  // - 将来の仕様変更に備え「推測補完」をしない（= 将来安全）
-  // ============================================================
-  var FIELD_SUMMARY_SYNC_ONLY = true;
-
-  // ============================================================
-  // SYNC bootstrap 待ち（順序ズレ救済・このファイル内で完結）
-  // ------------------------------------------------------------
-  // - window.__CSCS_SYNC_KEY_PROMISE__ がある場合は resolve/reject を待つ
-  // - 無い場合は短時間待って諦める（推測フォールバックはしない）
-  // - 目的：/api/sync/state を「早すぎて叩いて400」になる確率を下げる
-  // ============================================================
-  function waitForSyncKeyPromiseOnce(timeoutMs) {
-    var ms = Number(timeoutMs);
-    if (!Number.isFinite(ms) || ms <= 0) {
-      ms = 1500;
-    }
-
-    return new Promise(function (resolve) {
-      try {
-        var p = window.__CSCS_SYNC_KEY_PROMISE__;
-        if (p && typeof p.then === "function") {
-          p.then(function () { resolve({ ok: true, reason: "resolved" }); })
-           .catch(function () { resolve({ ok: false, reason: "rejected" }); });
-          return;
-        }
-      } catch (_e) {
-      }
-
-      // promise が無い場合：短時間だけ待ってから諦める（順序ズレ救済）
-      setTimeout(function () {
-        resolve({ ok: false, reason: "not_found_timeout" });
-      }, ms);
-    });
-  }
+  // 旧ダミー値（現在は実計算に置き換え済みだが、一部計算に名残あり）
+  var DUMMY_TOTAL = 2700;
+  var DUMMY_STAR_DONE = 500;
+  var DUMMY_DAYS_LEFT = 120;
 
   // =========================
   // 2. メタ情報（cscs_meta_all.json）から
@@ -465,9 +434,6 @@
   // =========================
   async function loadStarFieldCountsStrict() {
     try {
-      // SYNC bootstrap の準備を短時間だけ待つ（フォールバックはしない）
-      await waitForSyncKeyPromiseOnce(1500);
-
       // SYNC状態を取得
       var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
@@ -625,9 +591,9 @@
       //「全問題を★1回以上とる」ために必要な1日あたりの目標数を計算
       var targetPerDay = 0;
 
-      // ★ 総問題数の決定（SYNC依存 / フォールバック無し）:
-      //   - root.global.totalQuestions（number, >0）のみを採用
-      //   - 取得できない場合は 0 とし、UI は 0/-% 扱いにする（推測補完しない）
+      // ★ 総問題数の決定:
+      //   - まず SYNC の root.global.totalQuestions（number, >0）を最優先
+      //   - 不正または存在しない場合のみ DUMMY_TOTAL を暫定使用
       var TOTAL_Q = 0;
       var totalFromSync = null;
       try {
@@ -640,14 +606,10 @@
       } catch (_e) {
         totalFromSync = null;
       }
-
       if (totalFromSync !== null) {
         TOTAL_Q = totalFromSync;
       } else {
-        TOTAL_Q = 0;
-        console.error("field_summary.js: [SYNC-ONLY] root.global.totalQuestions is missing/invalid (no fallback).", {
-          got: root && root.global ? root.global.totalQuestions : null
-        });
+        TOTAL_Q = DUMMY_TOTAL;
       }
 
       // モジュール全体で参照できるように保持
@@ -840,7 +802,7 @@
   // CSCS 全体の総問題数
   // - 通常は SYNC の root.global.totalQuestions を採用
   // - 取得できなかった場合のみ DUMMY_TOTAL を暫定使用
-  var totalQuestionsGlobal = 0;
+  var totalQuestionsGlobal = DUMMY_TOTAL;
 
   // SYNC状態から取得した正解・不正解・連続正解マップ（最終正誤結果 / 連続回数 / 3連続達成回数 / 最終日情報の表示用）
   var syncCorrectMap = null;           // state.correct の生データ参照
@@ -1228,9 +1190,6 @@
 
   async function loadTodayStreak3CountFromSync() {
     try {
-      // SYNC bootstrap の準備を短時間だけ待つ（フォールバックはしない）
-      await waitForSyncKeyPromiseOnce(1500);
-
       var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
         console.error("field_summary.js: SYNC streak3Today GET失敗:", res.status);
@@ -1261,10 +1220,9 @@
     }
   }
 
-  // 旧ダミー計算は廃止（SYNCのみを表示）
-  // - needPerDay は UI 判定に使わない（将来安全のため「推測値」排除）
-  var remainStar = 0;
-  var needPerDay = 0;
+  // 旧ダミー計算（現状ほぼ使っていないが変数だけ残っている）
+  var remainStar = DUMMY_TOTAL - DUMMY_STAR_DONE;
+  var needPerDay = Math.ceil(remainStar / DUMMY_DAYS_LEFT);
 
   // =========================
   // 7. メイン：分野別★サマリーを画面に描画
@@ -1334,8 +1292,20 @@
     var panel = document.createElement("div");
     panel.id = "cscs-field-star-summary";
 
-    // moodText は SYNC 計算の starTargetPerDay（targetNum）から決める（ダミー needPerDay は使わない）
-    var moodText = "順調";
+    // 1日あたりのベース目標（30問ぐらいを基準にしている）
+    var basePerDay = 30;
+    var diff = needPerDay - basePerDay;
+    var mood = "";
+    // diff に応じて「余裕 / 順調 / 巻き返し / 要注意」の4段階を決める（現状はテキストに未反映）
+    if (needPerDay <= basePerDay * 0.8) {
+      mood = "余裕";
+    } else if (needPerDay <= basePerDay * 1.1) {
+      mood = "順調";
+    } else if (needPerDay <= basePerDay * 1.4) {
+      mood = "巻き返し";
+    } else {
+      mood = "要注意";
+    }
 
     // 上部に表示する「⭐️本日の目標〜」行を構築
     var needLine = document.createElement("div");
@@ -1345,23 +1315,6 @@
     if (!Number.isFinite(targetNum) || targetNum < 0) {
       targetNum = 0;
     }
-
-    // 1日あたりのベース目標（30問ぐらいを基準）に対して、SYNC目標値から状況を決める
-    (function () {
-      var basePerDay = 30;
-      var t = targetNum;
-      var mood = "";
-      if (t <= basePerDay * 0.8) {
-        mood = "余裕";
-      } else if (t <= basePerDay * 1.1) {
-        mood = "順調";
-      } else if (t <= basePerDay * 1.4) {
-        mood = "巻き返し";
-      } else {
-        mood = "要注意";
-      }
-      moodText = mood || "順調";
-    })();
 
     // 今日の 3連続正解ユニーク数を SYNC から読み込む
     starTodayCount = await loadTodayStreak3CountFromSync();
@@ -1398,7 +1351,7 @@
     // コンパクトな進捗行を構築（3行・縦並び）
     needLine.className = "cscs-star-summary-line-compact";
 
-    // moodText は targetNum から決定済み
+    var moodText = mood || "順調";
     var html = "";
 
     // SYNC から計算された「リーチ⚡️（2連続正解）」の問題数
