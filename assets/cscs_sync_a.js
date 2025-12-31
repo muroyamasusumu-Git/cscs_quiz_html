@@ -3924,20 +3924,29 @@
         <div class="sync-header">
           <span>SYNC(A): <span class="sync-qid"></span></span>
 
-          <!-- ★ 追加: 初回セット導線（最小仕様）
-               - ボタン: キー発行 / 再発行
-               - 表示: user(email) / key(localStorage)状態 / state(200/400/403など) -->
-          <button type="button" class="sync-toggle-btn" data-sync-init="1">キー発行 / 再発行</button>
+          <div class="sync-card sync-card-init">
+            <div class="sync-card-h">初回セット</div>
+            <div class="sync-card-b">
 
-          <span class="sync-mini">
-            user <span class="sync-user-email">-</span>
-          </span>
-          <span class="sync-mini">
-            key <span class="sync-key-status">-</span>
-          </span>
-          <span class="sync-mini">
-            state <span class="sync-state-status">-</span>
-          </span>
+              <!-- ★ 追加: 初回セット導線（最小仕様）
+                   - ボタン: キー発行 / 再発行
+                   - 表示: user(email) / key(localStorage)状態 / state(200/400/403など) -->
+              <button type="button" class="sync-toggle-btn" data-sync-init="1">キー発行 / 再発行</button>
+
+              <div class="sync-mini-row">
+                <span class="sync-mini">
+                  user <span class="sync-user-email">-</span>
+                </span>
+                <span class="sync-mini">
+                  key <span class="sync-key-status">-</span>
+                </span>
+                <span class="sync-mini">
+                  state <span class="sync-state-status">-</span>
+                </span>
+              </div>
+
+            </div>
+          </div>
 
           <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
         </div>
