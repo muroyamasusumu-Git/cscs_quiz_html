@@ -463,7 +463,7 @@
 
           wrapper.appendChild(btn);
 
-          document.addEventListener("DOMContentLoaded", function(){
+          function mountOdoaButton(){
             // O.D.O.A ボタンは <div class="topmeta-left"> の閉じタグ直前に配置する
             const anchor = document.querySelector("div.topmeta-left") || document.body;
 
@@ -479,7 +479,15 @@
               anchorId: anchor && anchor.id,
               anchorClass: anchor && anchor.className
             });
-          });
+          }
+
+          if (document.readyState !== "loading") {
+            mountOdoaButton();
+          } else {
+            document.addEventListener("DOMContentLoaded", function(){
+              mountOdoaButton();
+            });
+          }
         }
 
         // 起動時にボタン生成処理を登録し、SYNC state の取得もウォームアップしておく
