@@ -109,11 +109,49 @@
 
       function ensureMiniStatusWindow() {
         const WIN_ID = "cscs_sync_mini_status_window";
+        const STYLE_ID = "cscs_sync_mini_status_style";
+
+        function ensureMiniStatusStyle() {
+          try {
+            if (document.getElementById(STYLE_ID)) return;
+
+            const css = `
+.cscs-sync-mini{
+  background: rgba(0,0,0,.75);
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font: 12px/1.2 ui-monospace, Menlo, Consolas, monospace;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  pointer-events: none;
+}
+
+.cscs-sync-mini-row{
+  display: flex;
+  gap: 6px;
+}
+
+.cscs-sync-mini-label{
+  opacity: .8;
+}
+`.trim();
+
+            const style = document.createElement("style");
+            style.id = STYLE_ID;
+            style.type = "text/css";
+            style.appendChild(document.createTextNode(css));
+
+            const head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
+            head.appendChild(style);
+          } catch (_) {}
+        }
+
+        ensureMiniStatusStyle();
+
         const existing = document.getElementById(WIN_ID);
         if (existing) {
           return {
             root: existing,
-            elUser: existing.querySelector('[data-mini="user"]'),
             elKey: existing.querySelector('[data-mini="key"]'),
             elState: existing.querySelector('[data-mini="state"]')
           };
@@ -122,59 +160,47 @@
         const root = document.createElement("div");
         root.id = WIN_ID;
         root.setAttribute("role", "status");
+        root.className = "cscs-sync-mini";
+
+        // ★ 最低限だけJSで固定（位置や重なり）
         root.style.position = "fixed";
         root.style.right = "10px";
         root.style.bottom = "10px";
         root.style.zIndex = "2147483647";
-        root.style.background = "rgba(0,0,0,0.82)";
-        root.style.color = "#fff";
-        root.style.padding = "8px 10px";
-        root.style.borderRadius = "10px";
-        root.style.fontSize = "12px";
-        root.style.lineHeight = "1.25";
-        root.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-        root.style.boxShadow = "0 6px 18px rgba(0,0,0,0.25)";
-        root.style.maxWidth = "42vw";
-        root.style.pointerEvents = "none";
 
-        const title = document.createElement("div");
-        title.textContent = "SYNC (manual)";
-        title.style.fontWeight = "700";
-        title.style.marginBottom = "6px";
-        root.appendChild(title);
-
-        const row1 = document.createElement("div");
-        row1.textContent = "key: ";
+        const rowKey = document.createElement("div");
+        rowKey.className = "cscs-sync-mini-row cscs-sync-mini-row-key";
+        const labelKey = document.createElement("span");
+        labelKey.className = "cscs-sync-mini-label cscs-sync-mini-label-key";
+        labelKey.textContent = "key:";
         const vKey = document.createElement("span");
+        vKey.className = "cscs-sync-mini-value cscs-sync-mini-value-key";
         vKey.setAttribute("data-mini", "key");
         vKey.textContent = "-";
-        row1.appendChild(vKey);
-        root.appendChild(row1);
+        rowKey.appendChild(labelKey);
+        rowKey.appendChild(vKey);
+        root.appendChild(rowKey);
 
-        const row2 = document.createElement("div");
-        row2.textContent = "user: ";
-        const vUser = document.createElement("span");
-        vUser.setAttribute("data-mini", "user");
-        vUser.textContent = "-";
-        row2.appendChild(vUser);
-        root.appendChild(row2);
-
-        const row3 = document.createElement("div");
-        row3.textContent = "state: ";
+        const rowState = document.createElement("div");
+        rowState.className = "cscs-sync-mini-row cscs-sync-mini-row-state";
+        const labelState = document.createElement("span");
+        labelState.className = "cscs-sync-mini-label cscs-sync-mini-label-state";
+        labelState.textContent = "state:";
         const vState = document.createElement("span");
+        vState.className = "cscs-sync-mini-value cscs-sync-mini-value-state";
         vState.setAttribute("data-mini", "state");
         vState.textContent = "-";
-        row3.appendChild(vState);
-        root.appendChild(row3);
+        rowState.appendChild(labelState);
+        rowState.appendChild(vState);
+        root.appendChild(rowState);
 
         const mount = document.body || document.documentElement;
         mount.appendChild(root);
 
-        return { root: root, elUser: vUser, elKey: vKey, elState: vState };
+        return { root: root, elKey: vKey, elState: vState };
       }
 
       const mini = ensureMiniStatusWindow();
-      const elUser = mini && mini.elUser ? mini.elUser : null;
       const elKey = mini && mini.elKey ? mini.elKey : null;
       const elState = mini && mini.elState ? mini.elState : null;
 
@@ -195,17 +221,6 @@
         try {
           const k = readLocalSyncKeyStrict();
           if (elKey) elKey.textContent = (k !== null) ? "present" : "missing";
-        } catch (_) {}
-
-        try {
-          if (elUser) {
-            if (userEmailFromHeader === null || userEmailFromHeader === undefined) {
-              elUser.textContent = "MISSING";
-            } else {
-              const s = String(userEmailFromHeader).trim();
-              elUser.textContent = (s === "") ? "MISSING" : s;
-            }
-          }
         } catch (_) {}
 
         try {
