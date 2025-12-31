@@ -295,13 +295,17 @@
       "margin-top:8px;" +
       "padding-top:8px;" +
       "border-top:1px solid rgba(255,255,255,0.12);" +
+      "display:flex;" +
+      "gap:8px;" +
+      "align-items:center;" +
       "}" +
       // 追加した処理:
       // - 反映ボタンを「明るめの黒」にして、白すぎる違和感をなくす
       // - それでも目立つように、透明度はやや高め＆枠線も少し強めにする
       "#" + PANEL_ID + " .applybtn{" +
       "display:block;" +
-      "width:100%;" +
+      "flex:1 1 0%;" +
+      "width:auto;" +
       "height:34px;" +
       "line-height:32px;" +
       "border-radius:10px;" +
@@ -323,9 +327,10 @@
       // - 一括チェック切替（ALL CHECK ON/OFF）ボタン
       "#" + PANEL_ID + " .allcheckbtn{" +
       "display:block;" +
-      "width:100%;" +
-      "height:28px;" +
-      "line-height:26px;" +
+      "flex:1 1 0%;" +
+      "width:auto;" +
+      "height:34px;" +
+      "line-height:32px;" +
       "border-radius:10px;" +
       "border:1px solid rgba(255,255,255,0.18);" +
       "background:rgba(0,0,0,0.22);" +
@@ -335,7 +340,7 @@
       "user-select:none;" +
       "-webkit-user-select:none;" +
       "box-shadow:none;" +
-      "margin-bottom:8px;" +
+      "margin-bottom:0px;" +
       "opacity:0.92;" +
       "}" +
       "#" + PANEL_ID + " .allcheckbtn:active{" +
