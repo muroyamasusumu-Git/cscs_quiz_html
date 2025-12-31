@@ -1275,8 +1275,8 @@
         errorPanelSync.textContent = "field_summary: /api/sync/state から streak3 を取得できませんでした。";
         errorPanelSync.style.fontSize = "11px";
         errorPanelSync.style.opacity = "0.7";
-        // 取得失敗パネルも「.wrap 内＆整合性パネル直後」に入れる
-        insertIntoWrapAfterConsistency(errorPanelSync);
+        // 取得失敗パネルも「.wrap の末尾」に入れる（このファイル内で完結）
+        insertIntoWrapEnd(errorPanelSync);
         return;
       }
     }
