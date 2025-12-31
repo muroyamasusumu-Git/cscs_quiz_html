@@ -2205,7 +2205,7 @@
               mapKey: mapKey,
               gotType: src && typeof src === "object" ? typeof src[mapKey] : typeof src
             });
-            return { ok: false, value: null };
+            return { ok: false, value: null, reason: "missing_map" };
           }
 
           // ★ 処理2: qidキーの存在チェック（無ければログ＆失敗）
@@ -2214,7 +2214,7 @@
               qid: qid,
               mapKey: mapKey
             });
-            return { ok: false, value: null };
+            return { ok: false, value: null, reason: "missing_qid_entry" };
           }
 
           // ★ 処理3: number検証（非number/NaN/負数はログ＆失敗）
@@ -2226,7 +2226,7 @@
               value: v,
               valueType: typeof v
             });
-            return { ok: false, value: null };
+            return { ok: false, value: null, reason: "type_invalid" };
           }
 
           // ★ 処理4: 成功ログ（必要十分な情報だけ）
@@ -2244,6 +2244,26 @@
         const rsl = readMapNumberStrict(latest, "streakLen", QID);
         const rs3w = readMapNumberStrict(latest, "streak3Wrong", QID);
         const rslw = readMapNumberStrict(latest, "streakWrongLen", QID);
+        const reasons = {
+          correct: (rc && rc.ok === false) ? (rc.reason || "unknown") : null,
+          incorrect: (ri && ri.ok === false) ? (ri.reason || "unknown") : null,
+          streak3: (rs3 && rs3.ok === false) ? (rs3.reason || "unknown") : null,
+          streakLen: (rsl && rsl.ok === false) ? (rsl.reason || "unknown") : null,
+          streak3Wrong: (rs3w && rs3w.ok === false) ? (rs3w.reason || "unknown") : null,
+          streakWrongLen: (rslw && rslw.ok === false) ? (rslw.reason || "unknown") : null
+        };
+
+        const failedKeys = Object.keys(reasons).filter(function(k){ return reasons[k] !== null; });
+
+        if (failedKeys.length > 0) {
+          console.log("[SYNC-A][NO-FALLBACK] state map read failed (reasons)", {
+            qid: QID,
+            failedKeys: failedKeys,
+            reasons: reasons
+          });
+        } else {
+          console.log("[SYNC-A][OK] state map read ok (all)", { qid: QID });
+        }        
 
         // ★ 処理5: 全て取れた場合のみ、UIのサーバー値を更新する（欠損時は上書きしない）
         if (rc.ok && ri.ok && rs3.ok && rsl.ok && rs3w.ok && rslw.ok) {
