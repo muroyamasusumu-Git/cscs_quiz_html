@@ -432,28 +432,8 @@
   // =========================
   async function loadStarFieldCountsStrict() {
     try {
-      // SYNC状態を取得（X-CSCS-Key 必須）
-      var key = null;
-      try {
-        if (window.__CSCS_SYNC_KEY_PROMISE__) {
-          key = await window.__CSCS_SYNC_KEY_PROMISE__;
-        }
-      } catch (e) {
-        console.error("field_summary.js: sync key resolve failed", e);
-        return null;
-      }
-      if (!key) {
-        console.error("field_summary.js: /api/sync/state requires X-CSCS-Key (key is null)");
-        return null;
-      }
-
-      var res = await fetch("/api/sync/state", {
-        cache: "no-store",
-        credentials: "include",
-        headers: {
-          "X-CSCS-Key": String(key)
-        }
-      });
+      // SYNC状態を取得
+      var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
         console.error("field_summary.js: /api/sync/state 取得失敗: " + res.status);
         return null;
@@ -1208,27 +1188,7 @@
 
   async function loadTodayStreak3CountFromSync() {
     try {
-      var key = null;
-      try {
-        if (window.__CSCS_SYNC_KEY_PROMISE__) {
-          key = await window.__CSCS_SYNC_KEY_PROMISE__;
-        }
-      } catch (e) {
-        console.error("field_summary.js: sync key resolve failed", e);
-        return 0;
-      }
-      if (!key) {
-        console.error("field_summary.js: SYNC streak3Today requires X-CSCS-Key (key is null)");
-        return 0;
-      }
-
-      var res = await fetch("/api/sync/state", {
-        cache: "no-store",
-        credentials: "include",
-        headers: {
-          "X-CSCS-Key": String(key)
-        }
-      });
+      var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
         console.error("field_summary.js: SYNC streak3Today GET失敗:", res.status);
         return 0;
