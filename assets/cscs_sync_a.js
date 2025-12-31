@@ -3929,14 +3929,10 @@
 		<div class="sync-card">
 		  <div class="sync-wide-body">
 		    <div class="sync-init-row">
-		      <button type="button" class="sync-toggle-btn" data-sync-init="1">Initキー発行 / 再発行</button>
-		
-		      <span class="sync-mini">
-		        user <span class="sync-user-email">-</span>
-		      </span>
 		      <span class="sync-mini">
 		        key <span class="sync-key-status">-</span>
 		      </span>
+		      <button type="button" class="sync-toggle-btn" data-sync-init="1">Initキー発行 / 再発行</button>
 		      <span class="sync-mini">
 		        state <span class="sync-state-status">-</span>
 		      </span>
