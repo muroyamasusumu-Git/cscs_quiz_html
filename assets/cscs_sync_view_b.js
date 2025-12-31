@@ -52,29 +52,29 @@
    *       （その達成日 JST YYYYMMDD）
    *
    * ▼ 今日の⭐️ユニーク数（Streak3Today）
-   *   - localStorage: "cscs_streak3_today_day"
-   *       ⇔ SYNC state: state.streak3Today.day
+   *   - localStorage: "cscs_streak3_today_day"（string: "YYYYMMDD"）
+   *       ⇔ SYNC state: state.streak3Today.day（string: "YYYYMMDD"）
    *   - localStorage: "cscs_streak3_today_qids"
    *       ⇔ SYNC state: state.streak3Today.qids
    *   - localStorage: "cscs_streak3_today_unique_count"
    *       ⇔ SYNC state: state.streak3Today.unique_count
-   *   - payload(merge): streak3TodayDelta { day, qids }
+   *   - payload(merge): streak3TodayDelta { day, qids }（day: string "YYYYMMDD"）
    *
    * ▼ 今日の3連続不正解ユニーク数（Streak3WrongToday）
-   *   - localStorage: "cscs_streak3_wrong_today_day"
-   *       ⇔ SYNC state: state.streak3WrongToday.day
+   *   - localStorage: "cscs_streak3_wrong_today_day"（string: "YYYYMMDD"）
+   *       ⇔ SYNC state: state.streak3WrongToday.day（string: "YYYYMMDD"）
    *   - localStorage: "cscs_streak3_wrong_today_qids"
    *       ⇔ SYNC state: state.streak3WrongToday.qids
    *   - localStorage: "cscs_streak3_wrong_today_unique_count"
    *       ⇔ SYNC state: state.streak3WrongToday.unique_count
-   *   - payload(merge): streak3WrongTodayDelta { day, qids }
+   *   - payload(merge): streak3WrongTodayDelta { day, qids }（day: string "YYYYMMDD"）
    *
    * ▼ 1 日 1 回計測モード（oncePerDayToday）
    *   - localStorage: "cscs_once_per_day_today_day"
-   *       ⇔ SYNC state: state.oncePerDayToday.day
+   *       ⇔ SYNC state: state.oncePerDayToday.day（number: YYYYMMDD）
    *   - localStorage: "cscs_once_per_day_today_results"
    *       ⇔ SYNC state: state.oncePerDayToday.results[qid]
-   *   - payload(merge): oncePerDayTodayDelta { day, results }
+   *   - payload(merge): oncePerDayTodayDelta { day, results }（day: number YYYYMMDD）
    *
    * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
    *   - localStorage: "cscs_q_last_seen_day:" + qid
@@ -87,12 +87,11 @@
    *
    * ▼ グローバル情報
    *   - localStorage: "cscs_total_questions"
+   *       ⇔ SYNC state: state.global.totalQuestions
    *       ⇔ payload(merge): global.totalQuestions
    *
    * ▼ O.D.O.A / 検証モード関連
-   *   - SYNC state: state.odoaMode / state.odoa_mode / state.ODOA_MODE
-   *   - SYNC state: state.debug.odoaMode / state.debug.odoa_mode / state.debug.ODOA_MODE
-   *   - SYNC state: state.navGuard.odoaMode / state.navGuard.odoa_mode
+   *   - SYNC state: state.odoa_mode ("on" / "off")
    *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
    *
    * ▼ HUD(Bビュー) 表示状態
