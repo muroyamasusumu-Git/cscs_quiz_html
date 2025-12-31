@@ -98,7 +98,7 @@
     textarea {
       box-sizing: border-box; /* padding/border込みでwidth計算し、親からはみ出さないようにする */
       width: 100%;
-      min-height: 140px;
+      min-height: 80px;
       font-size: 14px; /* 入力文字を読みやすくする */
       line-height: 1.6; /* 入力欄の行間を少し広げる */
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Noto Sans Mono";
@@ -542,7 +542,7 @@
 
     /* 追加した処理: EXEC_TASK（instruction原文）入力欄は長文になりやすいので高さを確保し、折り返して見やすくする */
     textarea#extractExecTask {
-      min-height: 160px;
+      min-height: 80px;
       overflow: auto !important;
       resize: vertical !important;
       white-space: pre-wrap;

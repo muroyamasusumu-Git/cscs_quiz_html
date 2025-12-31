@@ -236,6 +236,23 @@
         background: rgba(255, 215, 0, 0.3);
         border-color: rgba(255, 215, 0, 0.9);
     }
+
+    /* 分野UIだけを囲うラッパー（qid一覧は含めない） */
+    #cscs-field-ui-box {
+        width: 54%;
+        max-width: 760px;
+        min-width: 320px;
+        margin-top: 6px;
+    }
+
+    /* 画面が狭い時ははみ出し防止（必要なら調整） */
+    @media (max-width: 900px) {
+        #cscs-field-ui-box {
+            width: 100%;
+            max-width: none;
+            min-width: 0;
+        }
+    }
     `;
     document.head.appendChild(style);
     console.log("field_summary.js: CSS for compact star summary injected");
@@ -2800,9 +2817,15 @@
       console.error("field_summary.js: restore open field from sessionStorage failed", e);
     }
 
-    // パネルにリストを追加し、.wrap の直後に挿入
-    panel.appendChild(list);
+    // 分野UIだけを囲う（qid一覧はこのdivに入れない）
+    var fieldUiBox = document.createElement("div");
+    fieldUiBox.id = "cscs-field-ui-box";
+    fieldUiBox.appendChild(list);
+
+    // パネルに追加（順序：分野UI → qid一覧）
+    panel.appendChild(fieldUiBox);
     panel.appendChild(qidInlineBox);
+
     // 通常パネルも「.wrap 内＆整合性パネル直後」に入れる
     insertIntoWrapEnd(panel);
   }
