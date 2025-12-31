@@ -106,103 +106,9 @@
   window.CSCS_SYNC_INIT_BIND_A_STRICT = function (box) {
     try {
       const initBtn = box.querySelector('button[data-sync-init="1"]');
-
-      function ensureMiniStatusWindow() {
-        const WIN_ID = "cscs_sync_mini_status_window";
-        const STYLE_ID = "cscs_sync_mini_status_style";
-
-        function ensureMiniStatusStyle() {
-          try {
-            if (document.getElementById(STYLE_ID)) return;
-
-            const css = `
-.cscs-sync-mini{
-  background: rgba(0,0,0,.75);
-  color: #fff;
-  padding: 6px 8px;
-  border-radius: 8px;
-  font: 12px/1.2 ui-monospace, Menlo, Consolas, monospace;
-  box-shadow: 0 6px 18px rgba(0,0,0,.25);
-  pointer-events: none;
-}
-
-.cscs-sync-mini-row{
-  display: flex;
-  gap: 6px;
-}
-
-.cscs-sync-mini-label{
-  opacity: .8;
-}
-`.trim();
-
-            const style = document.createElement("style");
-            style.id = STYLE_ID;
-            style.type = "text/css";
-            style.appendChild(document.createTextNode(css));
-
-            const head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
-            head.appendChild(style);
-          } catch (_) {}
-        }
-
-        ensureMiniStatusStyle();
-
-        const existing = document.getElementById(WIN_ID);
-        if (existing) {
-          return {
-            root: existing,
-            elKey: existing.querySelector('[data-mini="key"]'),
-            elState: existing.querySelector('[data-mini="state"]')
-          };
-        }
-
-        const root = document.createElement("div");
-        root.id = WIN_ID;
-        root.setAttribute("role", "status");
-        root.className = "cscs-sync-mini";
-
-        // ★ 最低限だけJSで固定（位置や重なり）
-        root.style.position = "fixed";
-        root.style.right = "10px";
-        root.style.bottom = "10px";
-        root.style.zIndex = "2147483647";
-
-        const rowKey = document.createElement("div");
-        rowKey.className = "cscs-sync-mini-row cscs-sync-mini-row-key";
-        const labelKey = document.createElement("span");
-        labelKey.className = "cscs-sync-mini-label cscs-sync-mini-label-key";
-        labelKey.textContent = "key:";
-        const vKey = document.createElement("span");
-        vKey.className = "cscs-sync-mini-value cscs-sync-mini-value-key";
-        vKey.setAttribute("data-mini", "key");
-        vKey.textContent = "-";
-        rowKey.appendChild(labelKey);
-        rowKey.appendChild(vKey);
-        root.appendChild(rowKey);
-
-        const rowState = document.createElement("div");
-        rowState.className = "cscs-sync-mini-row cscs-sync-mini-row-state";
-        const labelState = document.createElement("span");
-        labelState.className = "cscs-sync-mini-label cscs-sync-mini-label-state";
-        labelState.textContent = "state:";
-        const vState = document.createElement("span");
-        vState.className = "cscs-sync-mini-value cscs-sync-mini-value-state";
-        vState.setAttribute("data-mini", "state");
-        vState.textContent = "-";
-        rowState.appendChild(labelState);
-        rowState.appendChild(vState);
-        root.appendChild(rowState);
-
-        const mount = document.body || document.documentElement;
-        mount.appendChild(root);
-
-        return { root: root, elKey: vKey, elState: vState };
-      }
-
-      const mini = ensureMiniStatusWindow();
-      const elKey = mini && mini.elKey ? mini.elKey : null;
-      const elState = mini && mini.elState ? mini.elState : null;
+      const elUser = box.querySelector(".sync-user-email");
+      const elKey = box.querySelector(".sync-key-status");
+      const elState = box.querySelector(".sync-state-status");
 
       // localStorage の key を「空文字は欠損」として読む（推測はしない）
       function readLocalSyncKeyStrict() {
@@ -221,6 +127,17 @@
         try {
           const k = readLocalSyncKeyStrict();
           if (elKey) elKey.textContent = (k !== null) ? "present" : "missing";
+        } catch (_) {}
+
+        try {
+          if (elUser) {
+            if (userEmailFromHeader === null || userEmailFromHeader === undefined) {
+              elUser.textContent = "MISSING";
+            } else {
+              const s = String(userEmailFromHeader).trim();
+              elUser.textContent = (s === "") ? "MISSING" : s;
+            }
+          }
         } catch (_) {}
 
         try {
