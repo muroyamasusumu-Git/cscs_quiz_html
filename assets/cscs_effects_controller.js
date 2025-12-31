@@ -687,10 +687,33 @@
     // 追加した処理:
     // - ページ遷移/リロード後もパネルが閉じないように、
     //   localStorage の状態を見て open を復元する
+    // - さらに、反映後のリロード直後に「後続JSがDOM末尾へ要素を追加」しても負けないよう、
+    //   復元直後＋load後に前面化を再実行する
     (function(){
       var v = safeGetLS(LS_KEY_PANEL_OPEN);
       if (String(v || "") === "1") {
         togglePanel(true);
+
+        try {
+          setTimeout(function () {
+            bringWindowsToFront();
+          }, 0);
+        } catch (_eT0) {
+        }
+
+        try {
+          setTimeout(function () {
+            bringWindowsToFront();
+          }, 300);
+        } catch (_eT1) {
+        }
+
+        try {
+          window.addEventListener("load", function () {
+            bringWindowsToFront();
+          });
+        } catch (_eLoad) {
+        }
       }
     })();
 
