@@ -106,9 +106,77 @@
   window.CSCS_SYNC_INIT_BIND_A_STRICT = function (box) {
     try {
       const initBtn = box.querySelector('button[data-sync-init="1"]');
-      const elUser = box.querySelector(".sync-user-email");
-      const elKey = box.querySelector(".sync-key-status");
-      const elState = box.querySelector(".sync-state-status");
+
+      function ensureMiniStatusWindow() {
+        const WIN_ID = "cscs_sync_mini_status_window";
+        const existing = document.getElementById(WIN_ID);
+        if (existing) {
+          return {
+            root: existing,
+            elUser: existing.querySelector('[data-mini="user"]'),
+            elKey: existing.querySelector('[data-mini="key"]'),
+            elState: existing.querySelector('[data-mini="state"]')
+          };
+        }
+
+        const root = document.createElement("div");
+        root.id = WIN_ID;
+        root.setAttribute("role", "status");
+        root.style.position = "fixed";
+        root.style.right = "10px";
+        root.style.bottom = "10px";
+        root.style.zIndex = "2147483647";
+        root.style.background = "rgba(0,0,0,0.82)";
+        root.style.color = "#fff";
+        root.style.padding = "8px 10px";
+        root.style.borderRadius = "10px";
+        root.style.fontSize = "12px";
+        root.style.lineHeight = "1.25";
+        root.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+        root.style.boxShadow = "0 6px 18px rgba(0,0,0,0.25)";
+        root.style.maxWidth = "42vw";
+        root.style.pointerEvents = "none";
+
+        const title = document.createElement("div");
+        title.textContent = "SYNC (manual)";
+        title.style.fontWeight = "700";
+        title.style.marginBottom = "6px";
+        root.appendChild(title);
+
+        const row1 = document.createElement("div");
+        row1.textContent = "key: ";
+        const vKey = document.createElement("span");
+        vKey.setAttribute("data-mini", "key");
+        vKey.textContent = "-";
+        row1.appendChild(vKey);
+        root.appendChild(row1);
+
+        const row2 = document.createElement("div");
+        row2.textContent = "user: ";
+        const vUser = document.createElement("span");
+        vUser.setAttribute("data-mini", "user");
+        vUser.textContent = "-";
+        row2.appendChild(vUser);
+        root.appendChild(row2);
+
+        const row3 = document.createElement("div");
+        row3.textContent = "state: ";
+        const vState = document.createElement("span");
+        vState.setAttribute("data-mini", "state");
+        vState.textContent = "-";
+        row3.appendChild(vState);
+        root.appendChild(row3);
+
+        const mount = document.body || document.documentElement;
+        mount.appendChild(root);
+
+        return { root: root, elUser: vUser, elKey: vKey, elState: vState };
+      }
+
+      const mini = ensureMiniStatusWindow();
+      const elUser = mini && mini.elUser ? mini.elUser : null;
+      const elKey = mini && mini.elKey ? mini.elKey : null;
+      const elState = mini && mini.elState ? mini.elState : null;
 
       // localStorage の key を「空文字は欠損」として読む（推測はしない）
       function readLocalSyncKeyStrict() {
