@@ -577,10 +577,75 @@
     }
   }
 
+  // ============================================================
+  // ★ UI移動: 「キー発行/再発行 + user/key/state」ブロックを
+  //          “新しいワイドカード1枚” にまとめてステータス最下部へ移動する
+  // ------------------------------------------------------------
+  // - 既存DOMを「移動」するだけ（複製しない）
+  // - 既に移動済みなら何もしない
+  // ============================================================
+  function ensureSyncInitCardAtStatusBottom(box){
+    try{
+      if (!box) return;
+
+      // 既に作成済みなら終了
+      if (box.querySelector(".sync-wide-card.sync-init-bottom-card")) return;
+
+      // 既存ブロックを拾う（あなたが貼ってくれたclassを基準に探索）
+      const btn = box.querySelector('button.sync-toggle-btn[data-sync-init="1"]');
+      const userEmail = box.querySelector(".sync-user-email");
+      const keyStatus = box.querySelector(".sync-key-status");
+      const stateStatus = box.querySelector(".sync-state-status");
+
+      // 必須要素が無いなら何もしない（UI構造が違う環境）
+      if (!btn || !userEmail || !keyStatus || !stateStatus) return;
+
+      // mini行（親span.sync-mini）を拾う
+      const userMini = userEmail.closest(".sync-mini");
+      const keyMini = keyStatus.closest(".sync-mini");
+      const stateMini = stateStatus.closest(".sync-mini");
+
+      if (!userMini || !keyMini || !stateMini) return;
+
+      // 新ワイドカードを作成
+      const card = document.createElement("div");
+      card.className = "sync-wide-card sync-init-bottom-card";
+
+      // 見出し（任意：不要なら消してOK）
+      const title = document.createElement("div");
+      title.className = "sync-wide-title";
+      title.textContent = "初回セット";
+      card.appendChild(title);
+
+      // 中身コンテナ
+      const body = document.createElement("div");
+      body.className = "sync-wide-body";
+      card.appendChild(body);
+
+      // 既存DOMを“移動”して格納（順番もここで確定）
+      body.appendChild(btn);
+      body.appendChild(userMini);
+      body.appendChild(keyMini);
+      body.appendChild(stateMini);
+
+      // どこに付けるか：ステータス最下部の“ワイドカード列”があればそこ、無ければbox末尾
+      const wideArea =
+        box.querySelector(".sync-wide-area") ||
+        box.querySelector(".sync-wide-cards") ||
+        box.querySelector(".sync-status-wide") ||
+        box;
+
+      wideArea.appendChild(card);
+    }catch(_){
+      return;
+    }
+  }
+
   function updateMonitor(){
     try{
       if (!QID) return;
       const box = document.getElementById("cscs_sync_monitor_a");
+      ensureSyncInitCardAtStatusBottom(box);
       const totalsEl = document.getElementById("cscs_sync_totals");
 
       // ★ 処理: 「|| 0」で欠損を0埋めしない（欠損は null のままにして可視化）
@@ -3924,29 +3989,20 @@
         <div class="sync-header">
           <span>SYNC(A): <span class="sync-qid"></span></span>
 
-          <div class="sync-card sync-card-init">
-            <div class="sync-card-h">初回セット</div>
-            <div class="sync-card-b">
+          <!-- ★ 追加: 初回セット導線（最小仕様）
+               - ボタン: キー発行 / 再発行
+               - 表示: user(email) / key(localStorage)状態 / state(200/400/403など) -->
+          <button type="button" class="sync-toggle-btn" data-sync-init="1">キー発行 / 再発行</button>
 
-              <!-- ★ 追加: 初回セット導線（最小仕様）
-                   - ボタン: キー発行 / 再発行
-                   - 表示: user(email) / key(localStorage)状態 / state(200/400/403など) -->
-              <button type="button" class="sync-toggle-btn" data-sync-init="1">キー発行 / 再発行</button>
-
-              <div class="sync-mini-row">
-                <span class="sync-mini">
-                  user <span class="sync-user-email">-</span>
-                </span>
-                <span class="sync-mini">
-                  key <span class="sync-key-status">-</span>
-                </span>
-                <span class="sync-mini">
-                  state <span class="sync-state-status">-</span>
-                </span>
-              </div>
-
-            </div>
-          </div>
+          <span class="sync-mini">
+            user <span class="sync-user-email">-</span>
+          </span>
+          <span class="sync-mini">
+            key <span class="sync-key-status">-</span>
+          </span>
+          <span class="sync-mini">
+            state <span class="sync-state-status">-</span>
+          </span>
 
           <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
         </div>
