@@ -981,19 +981,14 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // ---- fail-fast 検証 ----
 
-    // day は「8桁の数値（YYYYMMDD）」であることを要求する
-    if (typeof dayValue !== "number" || !Number.isFinite(dayValue)) {
-      console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.day が不正のため更新中断:", {
-        dayValue
-      });
-      return new Response("invalid streak3TodayDelta: day", {
-        status: 400,
-        headers: { "Content-Type": "text/plain" }
-      });
-    }
-    const dayStrToday = String(dayValue);
+    // day は「8桁（YYYYMMDD）」であることを要求する（string/number 両対応）
+    const dayStrToday =
+      typeof dayValue === "number"
+        ? String(dayValue)
+        : (typeof dayValue === "string" ? dayValue : "");
+
     if (!/^\d{8}$/.test(dayStrToday)) {
-      console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.day が8桁数値でないため更新中断:", {
+      console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.day が8桁(YYYYMMDD)でないため更新中断:", {
         dayValue
       });
       return new Response("invalid streak3TodayDelta: day format", {
@@ -1027,7 +1022,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     const qids = qidsRaw as string[];
-    const day = dayValue as number;
+    const day = Number(dayStrToday);
 
     // unique_count が送られてきている場合は、qids.length と完全一致していることを要求する
     if (uniqueCountRaw !== undefined && uniqueCountRaw !== null) {
@@ -1100,19 +1095,14 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // ---- fail-fast 検証（💣版）----
 
-    // day は「8桁の数値（YYYYMMDD）」であることを要求する
-    if (typeof dayValueW !== "number" || !Number.isFinite(dayValueW)) {
-      console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.day が不正のため更新中断:", {
-        dayValueW
-      });
-      return new Response("invalid streak3WrongTodayDelta: day", {
-        status: 400,
-        headers: { "Content-Type": "text/plain" }
-      });
-    }
-    const dayStrWrongToday = String(dayValueW);
+    // day は「8桁（YYYYMMDD）」であることを要求する（string/number 両対応）
+    const dayStrWrongToday =
+      typeof dayValueW === "number"
+        ? String(dayValueW)
+        : (typeof dayValueW === "string" ? dayValueW : "");
+
     if (!/^\d{8}$/.test(dayStrWrongToday)) {
-      console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.day が8桁数値でないため更新中断:", {
+      console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.day が8桁(YYYYMMDD)でないため更新中断:", {
         dayValueW
       });
       return new Response("invalid streak3WrongTodayDelta: day format", {
@@ -1146,7 +1136,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     const qidsW = qidsRawW as string[];
-    const dayW = dayValueW as number;
+    const dayW = Number(dayStrWrongToday);
 
     // unique_count が送られてきている場合は、qids.length と完全一致していることを要求する
     if (uniqueCountRawW !== undefined && uniqueCountRawW !== null) {
