@@ -3926,7 +3926,7 @@
           <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
         </div>
 
-		<div class="sync-wide-card">
+		<div class="sync-card">
 		  <div class="sync-wide-title">Init</div>
 		  <div class="sync-wide-body">
 		    <div class="sync-init-row">
