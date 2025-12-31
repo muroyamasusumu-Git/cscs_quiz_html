@@ -187,7 +187,8 @@
       "right:12px;" +
       "bottom:calc(10px + 34px + 8px);" +
       "z-index:2147483647;" +
-      "width:min(720px, calc(100vw - 24px));" +
+      // 1列あたり約180px × 3列 + 余白分
+      "width:min(580px, calc(100vw - 24px));" +
       "max-height:calc(100vh - 110px);" +
       "overflow:auto;" +
       "padding:10px 10px;" +
