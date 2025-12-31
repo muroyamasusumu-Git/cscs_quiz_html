@@ -5,10 +5,11 @@
 (function(){
         "use strict";
 
-        // Bパート(qNNN_b.html)では a_nav_guard は一切動かさない（ログ/Promise待ち/state取得ノイズ防止）
+        // Bパート(qNNN_b.html)でも「ODOAボタン（表示専用ラベル）」は出したい。
+        // ただしナビゲーションガード本体（トークン保存・遷移ブロック）は、後段の isAPage 判定で必ず止める。
         const __mStemEarly = location.pathname.match(/(?:^|\/)(q\d{3})_([ab])(?:\.html)?(?:\/)?$/i);
         const __partEarly = (__mStemEarly && __mStemEarly[2] ? String(__mStemEarly[2]).toLowerCase() : "");
-        if (__partEarly === "b") return;
+        const __isBEarly = (__partEarly === "b");
 
         // a_nav_guard 自体の “待機ローダ” の二重起動防止
         if (window.__cscsANavGuardWaitInstalled__) return;
@@ -464,9 +465,6 @@
             // - クラスを付与して白黒反転＋クリック無効のスタイルを適用する
             // - リスナーを登録せず、画面上のモード表示だけを共有する
             btn.classList.add("cscs-odoa-readonly");
-            if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
-              window.__cscsUpdateOdoaBtnLabel();
-            }
           } else {
             // Aパートのみ、クリックで ODOA モードをトグルできるボタンとして動作させる
             btn.addEventListener("click", function(){
