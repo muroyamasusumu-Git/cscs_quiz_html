@@ -1,0 +1,59 @@
+{
+  "session_id": "CSCSJS-B7E1D765",
+  "created_at": "2026-01-01T05:57:55",
+  "instruction": "<div class=\"sync-card\">\n\t\t  <div class=\"sync-wide-body\">\n\t\t    <div class=\"sync-init-row\">\t\t\n\t\t      <span class=\"sync-mini\">\n\t\t        user: <span class=\"sync-user-email\">-</span>\n\t\t      </span>\n\t\t      <span class=\"sync-mini\">\n\t\t        key: <span class=\"sync-key-status\">-</span>\n\t\t      </span>\n\t\t      <span class=\"sync-mini\">\n\t\t        state: <span class=\"sync-state-status\">-</span>\n\t\t      </span>\n\t\t    </div>\n\t\t  </div>\n\t\t</div>\n\nこのカードのテキストを薄くするスタイルをピンポイントで入れたい",
+  "input": {
+    "filename": "cscs_sync_a.js",
+    "size_chars": 155931,
+    "sha256": "b7e1d765b1863c95bb2ac5b792c2890714972d6523432669c44cf6939c07aaee",
+    "saved_copy": "original/cscs_sync_a.js"
+  },
+  "split": {
+    "total_parts": 4,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 4,
+      "part_id": "CSCSJS-B7E1D765-P01-of-04",
+      "part_sha256": "67f04313502d4e9bb5e3160d48d7a3089e4cfc5441cfa8fb44a5a66685fd18e0",
+      "start_offset": 0,
+      "end_offset": 43632,
+      "len_chars": 43632,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 4,
+      "part_id": "CSCSJS-B7E1D765-P02-of-04",
+      "part_sha256": "9df384df7246f4c3fb131d649a692e8a7721244f93845526d48d8ed7bb2e9fcf",
+      "start_offset": 43632,
+      "end_offset": 88875,
+      "len_chars": 45243,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 4,
+      "part_id": "CSCSJS-B7E1D765-P03-of-04",
+      "part_sha256": "b2606b1c71cdac5fbdf1c77c0be48913c37f57387af955ac7481090f538a8d9e",
+      "start_offset": 88875,
+      "end_offset": 130412,
+      "len_chars": 41537,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 4,
+      "part_id": "CSCSJS-B7E1D765-P04-of-04",
+      "part_sha256": "1fe1570cf6351a2aba329de2c83466683cb3f12b87b95c9826cca7e2c0c83c32",
+      "start_offset": 130412,
+      "end_offset": 155931,
+      "len_chars": 25519,
+      "file": "parts/part_04.txt"
+    }
+  ]
+}

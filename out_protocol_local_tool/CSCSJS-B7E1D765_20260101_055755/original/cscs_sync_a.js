@@ -3597,12 +3597,6 @@
 
   line-height: 1;
 }
-
-/* ★ initカード（user/key/state）のテキストだけ薄くする（ピンポイント） */
-#cscs_sync_monitor_a .sync-card.sync-init-card .sync-init-row{
-  opacity: 0.58;
-}
-
 #cscs_sync_monitor_a .sync-card .sync-title{
   font-weight: 700;
   font-size: 11px;
@@ -3932,7 +3926,7 @@
           <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
         </div>
 
-		<div class="sync-card sync-init-card">
+		<div class="sync-card">
 		  <div class="sync-wide-body">
 		    <div class="sync-init-row">		
 		      <span class="sync-mini">
