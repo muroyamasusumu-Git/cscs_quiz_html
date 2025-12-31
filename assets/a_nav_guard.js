@@ -397,6 +397,8 @@
 
             fetch("/api/sync/merge", {
               method: "POST",
+              cache: "no-store",
+              credentials: "include",
               headers: {
                 "Content-Type": "application/json",
                 "X-CSCS-Key": String(_syncKey)
