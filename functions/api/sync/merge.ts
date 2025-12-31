@@ -32,8 +32,8 @@
  *
  * ▼ Streak3Today（本日の⭐️ユニーク数）
  *   - localStorage: "cscs_streak3_today_day"
- *       ⇔ SYNC state: server.streak3Today.day
- *       ⇔ delta payload: streak3TodayDelta.day
+ *       ⇔ SYNC state: server.streak3Today.day（number: YYYYMMDD）
+ *       ⇔ delta payload: streak3TodayDelta.day（number: YYYYMMDD）
  *   - localStorage: "cscs_streak3_today_qids"
  *       ⇔ SYNC state: server.streak3Today.qids
  *       ⇔ delta payload: streak3TodayDelta.qids
@@ -43,8 +43,8 @@
  *
  * ▼ Streak3WrongToday（本日の3連続不正解ユニーク数）
  *   - localStorage: "cscs_streak3_wrong_today_day"
- *       ⇔ SYNC state: server.streak3WrongToday.day
- *       ⇔ delta payload: streak3WrongTodayDelta.day
+ *       ⇔ SYNC state: server.streak3WrongToday.day（number: YYYYMMDD）
+ *       ⇔ delta payload: streak3WrongTodayDelta.day（number: YYYYMMDD）
  *   - localStorage: "cscs_streak3_wrong_today_qids"
  *       ⇔ SYNC state: server.streak3WrongToday.qids
  *       ⇔ delta payload: streak3WrongTodayDelta.qids
@@ -54,8 +54,8 @@
  *
  * ▼ oncePerDayToday（1日1回まで計測）
  *   - localStorage: "cscs_once_per_day_today_day"
- *       ⇔ SYNC state: server.oncePerDayToday.day
- *       ⇔ delta payload: oncePerDayTodayDelta.day
+ *       ⇔ SYNC state: server.oncePerDayToday.day（number: YYYYMMDD）
+ *       ⇔ delta payload: oncePerDayTodayDelta.day（number: YYYYMMDD）
  *   - localStorage: "cscs_once_per_day_today_results"
  *       ⇔ SYNC state: server.oncePerDayToday.results[qid]
  *       ⇔ delta payload: oncePerDayTodayDelta.results[qid]
@@ -542,8 +542,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       // O.D.O.A Mode の初期値（まだ一度も保存されていないユーザーは "off" から開始）
       odoa_mode: "off",
       // ここでは初期値として streak3Today / streak3WrongToday / oncePerDayToday を用意する（「無からの初回保存」を許可）
-      streak3Today: { day: "", unique_count: 0, qids: [] },
-      streak3WrongToday: { day: "", unique_count: 0, qids: [] },
+      // - day は number: YYYYMMDD（B側payload・oncePerDayToday と型を統一）
+      streak3Today: { day: 0, unique_count: 0, qids: [] },
+      streak3WrongToday: { day: 0, unique_count: 0, qids: [] },
       oncePerDayToday: { day: 0, results: {} },
       updatedAt: 0
     };
@@ -575,13 +576,13 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   // - これにより「存在しない」は「空の today 構造」に置き換えられる（=欠落検知はできなくなる）。
   // - state.ts は “today を補完しない” 方針だったが、merge.ts は “初回保存を許可する” ため補完している。
   if (!(server as any).streak3Today) {
-    (server as any).streak3Today = { day: "", unique_count: 0, qids: [] };
+    (server as any).streak3Today = { day: 0, unique_count: 0, qids: [] };
   }
 
   // ★ streak3WrongToday が欠けている既存ユーザーのデータを補完
   //   - 旧フォーマットからの移行時に、構造を壊さずに「空の3連続不正解ユニーク情報」を用意する
   if (!(server as any).streak3WrongToday) {
-    (server as any).streak3WrongToday = { day: "", unique_count: 0, qids: [] };
+    (server as any).streak3WrongToday = { day: 0, unique_count: 0, qids: [] };
   }
 
   // 【フォールバックに “見える” ポイント④: oncePerDayToday 欠落→空テンプレ補完】
@@ -641,10 +642,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     let qidsLen = 0;
 
     if (hasStreak3Delta) {
-      // day が string かどうか
+      // day が number（YYYYMMDD）かどうか
       dayDebug =
-        typeof (streak3TodayDelta as any).day === "string"
-          ? (streak3TodayDelta as any).day
+        typeof (streak3TodayDelta as any).day === "number"
+          ? String((streak3TodayDelta as any).day)
           : "";
       // qids が配列かどうか／要素数はいくつか
       qidsRawDebug = (streak3TodayDelta as any).qids;
@@ -673,8 +674,8 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     if (hasStreak3WrongDelta) {
       wrongDayDebug =
-        typeof (streak3WrongTodayDelta as any).day === "string"
-          ? (streak3WrongTodayDelta as any).day
+        typeof (streak3WrongTodayDelta as any).day === "number"
+          ? String((streak3WrongTodayDelta as any).day)
           : "";
       wrongQidsRawDebug = (streak3WrongTodayDelta as any).qids;
       wrongQidsIsArray = Array.isArray(wrongQidsRawDebug);
@@ -980,12 +981,22 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // ---- fail-fast 検証 ----
 
-    // day は「非空の文字列」であることを要求する
-    if (typeof dayValue !== "string" || !dayValue) {
+    // day は「8桁の数値（YYYYMMDD）」であることを要求する
+    if (typeof dayValue !== "number" || !Number.isFinite(dayValue)) {
       console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.day が不正のため更新中断:", {
         dayValue
       });
       return new Response("invalid streak3TodayDelta: day", {
+        status: 400,
+        headers: { "Content-Type": "text/plain" }
+      });
+    }
+    const dayStrToday = String(dayValue);
+    if (!/^\d{8}$/.test(dayStrToday)) {
+      console.error("[SYNC/merge] (2-1-err) streak3TodayDelta.day が8桁数値でないため更新中断:", {
+        dayValue
+      });
+      return new Response("invalid streak3TodayDelta: day format", {
         status: 400,
         headers: { "Content-Type": "text/plain" }
       });
@@ -1016,7 +1027,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     const qids = qidsRaw as string[];
-    const day = dayValue as string;
+    const day = dayValue as number;
 
     // unique_count が送られてきている場合は、qids.length と完全一致していることを要求する
     if (uniqueCountRaw !== undefined && uniqueCountRaw !== null) {
@@ -1089,12 +1100,22 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     // ---- fail-fast 検証（💣版）----
 
-    // day は「非空の文字列」であることを要求する
-    if (typeof dayValueW !== "string" || !dayValueW) {
+    // day は「8桁の数値（YYYYMMDD）」であることを要求する
+    if (typeof dayValueW !== "number" || !Number.isFinite(dayValueW)) {
       console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.day が不正のため更新中断:", {
         dayValueW
       });
       return new Response("invalid streak3WrongTodayDelta: day", {
+        status: 400,
+        headers: { "Content-Type": "text/plain" }
+      });
+    }
+    const dayStrWrongToday = String(dayValueW);
+    if (!/^\d{8}$/.test(dayStrWrongToday)) {
+      console.error("[SYNC/merge] (2-1w-err) streak3WrongTodayDelta.day が8桁数値でないため更新中断:", {
+        dayValueW
+      });
+      return new Response("invalid streak3WrongTodayDelta: day format", {
         status: 400,
         headers: { "Content-Type": "text/plain" }
       });
@@ -1125,7 +1146,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
 
     const qidsW = qidsRawW as string[];
-    const dayW = dayValueW as string;
+    const dayW = dayValueW as number;
 
     // unique_count が送られてきている場合は、qids.length と完全一致していることを要求する
     if (uniqueCountRawW !== undefined && uniqueCountRawW !== null) {

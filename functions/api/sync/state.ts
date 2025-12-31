@@ -32,8 +32,8 @@
  *
  * ▼ Streak3Today（本日の⭐️ユニーク数）
  *   - localStorage: "cscs_streak3_today_day"
- *       ⇔ SYNC state: streak3Today.day
- *       ⇔ delta payload: streak3TodayDelta.day
+ *       ⇔ SYNC state: streak3Today.day（number: YYYYMMDD）
+ *       ⇔ delta payload: streak3TodayDelta.day（number: YYYYMMDD）
  *   - localStorage: "cscs_streak3_today_qids"
  *       ⇔ SYNC state: streak3Today.qids
  *       ⇔ delta payload: streak3TodayDelta.qids
@@ -43,8 +43,8 @@
  *
  * ▼ Streak3WrongToday（本日の3連続不正解ユニーク数）
  *   - localStorage: "cscs_streak3_wrong_today_day"
- *       ⇔ SYNC state: streak3WrongToday.day
- *       ⇔ delta payload: streak3WrongTodayDelta.day
+ *       ⇔ SYNC state: streak3WrongToday.day（number: YYYYMMDD）
+ *       ⇔ delta payload: streak3WrongTodayDelta.day（number: YYYYMMDD）
  *   - localStorage: "cscs_streak3_wrong_today_qids"
  *       ⇔ SYNC state: streak3WrongToday.qids
  *       ⇔ delta payload: streak3WrongTodayDelta.qids
@@ -54,8 +54,8 @@
  *
  * ▼ oncePerDayToday（1日1回まで計測）
  *   - localStorage: "cscs_once_per_day_today_day"
- *       ⇔ SYNC state: oncePerDayToday.day
- *       ⇔ delta payload: oncePerDayTodayDelta.day
+ *       ⇔ SYNC state: oncePerDayToday.day（number: YYYYMMDD）
+ *       ⇔ delta payload: oncePerDayTodayDelta.day（number: YYYYMMDD）
  *   - localStorage: "cscs_once_per_day_today_results"
  *       ⇔ SYNC state: oncePerDayToday.results[qid]
  *       ⇔ delta payload: oncePerDayTodayDelta.results[qid]
@@ -610,14 +610,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   let hasProp = Object.prototype.hasOwnProperty.call(out, "streak3Today");
   let rawSt3 = hasProp ? out.streak3Today : undefined;
 
-  let parsedDay: string | null = null;
+  let parsedDay: number | null = null;
   let parsedCount: number | null = null;
 
   if (hasProp && rawSt3 && typeof rawSt3 === "object") {
-    parsedDay =
-      typeof rawSt3.day === "string"
-        ? rawSt3.day
-        : null;
+    if (typeof rawSt3.day === "number") {
+      const d = rawSt3.day;
+      parsedDay = Number.isFinite(d) ? d : null;
+    } else {
+      parsedDay = null;
+    }
 
     if (typeof rawSt3.unique_count === "number") {
       const n = rawSt3.unique_count;
@@ -631,14 +633,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   const hasWrongTodayProp = Object.prototype.hasOwnProperty.call(out, "streak3WrongToday");
   const rawSt3Wrong: any = hasWrongTodayProp ? (out as any).streak3WrongToday : undefined;
 
-  let parsedWrongDay: string | null = null;
+  let parsedWrongDay: number | null = null;
   let parsedWrongCount: number | null = null;
 
   if (hasWrongTodayProp && rawSt3Wrong && typeof rawSt3Wrong === "object") {
-    parsedWrongDay =
-      typeof rawSt3Wrong.day === "string"
-        ? rawSt3Wrong.day
-        : null;
+    if (typeof rawSt3Wrong.day === "number") {
+      const d = rawSt3Wrong.day;
+      parsedWrongDay = Number.isFinite(d) ? d : null;
+    } else {
+      parsedWrongDay = null;
+    }
 
     if (typeof rawSt3Wrong.unique_count === "number") {
       const nw = rawSt3Wrong.unique_count;
