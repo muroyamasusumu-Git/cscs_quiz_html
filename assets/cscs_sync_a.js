@@ -3927,10 +3927,9 @@
         </div>
 
 		<div class="sync-card">
-		  <div class="sync-wide-title">Init</div>
 		  <div class="sync-wide-body">
 		    <div class="sync-init-row">
-		      <button type="button" class="sync-toggle-btn" data-sync-init="1">キー発行 / 再発行</button>
+		      <button type="button" class="sync-toggle-btn" data-sync-init="1">Initキー発行 / 再発行</button>
 		
 		      <span class="sync-mini">
 		        user <span class="sync-user-email">-</span>
