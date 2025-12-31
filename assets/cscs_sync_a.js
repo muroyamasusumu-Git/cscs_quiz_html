@@ -3925,21 +3925,6 @@
           <span>SYNC(A): <span class="sync-qid"></span></span>
           <button type="button" class="sync-toggle-btn" data-sync-toggle="1">OPEN</button>
         </div>
-
-		<div class="sync-card">
-		  <div class="sync-wide-body">
-		    <div class="sync-init-row">		
-		      <span class="sync-mini">
-		        user <span class="sync-user-email">-</span>
-		      </span>
-		      <span class="sync-mini">
-		        state <span class="sync-state-status">-</span>
-		      </span>
-		      <button type="button" class="sync-toggle-btn" data-sync-init="1">Initキー発行 / 再発行</button>
-		    </div>
-		  </div>
-		</div>
-
         <div class="sync-grid">
           <div class="sync-card sync-span-2">
             <div class="sync-body totals-row">
