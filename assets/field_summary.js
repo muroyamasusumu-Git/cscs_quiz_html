@@ -246,6 +246,37 @@
   var DUMMY_STAR_DONE = 500;
   var DUMMY_DAYS_LEFT = 120;
 
+  // ============================================================
+  // SYNC bootstrap 待ち（順序ズレ救済・このファイル内で完結）
+  // ------------------------------------------------------------
+  // - window.__CSCS_SYNC_KEY_PROMISE__ がある場合は resolve/reject を待つ
+  // - 無い場合は短時間待って諦める（推測フォールバックはしない）
+  // - 目的：/api/sync/state を「早すぎて叩いて400」になる確率を下げる
+  // ============================================================
+  function waitForSyncKeyPromiseOnce(timeoutMs) {
+    var ms = Number(timeoutMs);
+    if (!Number.isFinite(ms) || ms <= 0) {
+      ms = 1500;
+    }
+
+    return new Promise(function (resolve) {
+      try {
+        var p = window.__CSCS_SYNC_KEY_PROMISE__;
+        if (p && typeof p.then === "function") {
+          p.then(function () { resolve({ ok: true, reason: "resolved" }); })
+           .catch(function () { resolve({ ok: false, reason: "rejected" }); });
+          return;
+        }
+      } catch (_e) {
+      }
+
+      // promise が無い場合：短時間だけ待ってから諦める（順序ズレ救済）
+      setTimeout(function () {
+        resolve({ ok: false, reason: "not_found_timeout" });
+      }, ms);
+    });
+  }
+
   // =========================
   // 2. メタ情報（cscs_meta_all.json）から
   //    ・Field名リスト
@@ -432,6 +463,9 @@
   // =========================
   async function loadStarFieldCountsStrict() {
     try {
+      // SYNC bootstrap の準備を短時間だけ待つ（フォールバックはしない）
+      await waitForSyncKeyPromiseOnce(1500);
+
       // SYNC状態を取得
       var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
@@ -1188,6 +1222,9 @@
 
   async function loadTodayStreak3CountFromSync() {
     try {
+      // SYNC bootstrap の準備を短時間だけ待つ（フォールバックはしない）
+      await waitForSyncKeyPromiseOnce(1500);
+
       var res = await fetch("/api/sync/state", { cache: "no-store" });
       if (!res.ok) {
         console.error("field_summary.js: SYNC streak3Today GET失敗:", res.status);
