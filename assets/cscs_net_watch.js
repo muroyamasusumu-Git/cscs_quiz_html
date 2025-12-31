@@ -172,7 +172,7 @@
     var out = {
       "X-CSCS-Key": "",
       "x-cscs-user": "",
-      "content-type": ""
+      "Content-Type": ""
     };
 
     try {
@@ -184,7 +184,7 @@
       if (typeof Headers !== "undefined" && h instanceof Headers) {
         out["X-CSCS-Key"] = headerGetSafe(h, "X-CSCS-Key");
         out["x-cscs-user"] = headerGetSafe(h, "x-cscs-user");
-        out["content-type"] = headerGetSafe(h, "content-type");
+        out["Content-Type"] = headerGetSafe(h, "Content-Type");
         return out;
       }
 
@@ -197,7 +197,7 @@
           var v = String(kv[1] || "");
           if (k === "X-CSCS-Key") out["X-CSCS-Key"] = v;
           if (k === "x-cscs-user") out["x-cscs-user"] = v;
-          if (k === "content-type") out["content-type"] = v;
+          if (k === "Content-Type") out["Content-Type"] = v;
         }
         return out;
       }
@@ -212,7 +212,7 @@
 
           if (k === "X-CSCS-Key") out["X-CSCS-Key"] = v;
           if (k === "x-cscs-user") out["x-cscs-user"] = v;
-          if (k === "content-type") out["content-type"] = v;
+          if (k === "Content-Type") out["Content-Type"] = v;
         });
         return out;
       }
@@ -230,7 +230,7 @@
       if (!initCompleted) return;
 
       var key = (reqHeaders && reqHeaders["X-CSCS-Key"]) ? String(reqHeaders["X-CSCS-Key"]) : "";
-      var ctype = (reqHeaders && reqHeaders["content-type"]) ? String(reqHeaders["content-type"]) : "";
+      var ctype = (reqHeaders && reqHeaders["Content-Type"]) ? String(reqHeaders["Content-Type"]) : "";
 
       // ★ 追加：呼び出し元（assets/...js:line）をスタックから1本だけ抜く
       //   重要: cscs_net_watch.js 自身は除外し、"犯人JS" を拾う
@@ -281,7 +281,7 @@
         "[CSCS][STATE_REQ_HEADERS] " +
         kind + " " + method + " " + path +
         " X-CSCS-Key=" + (key ? shorten(key, 60) : "(EMPTY)") +
-        (ctype ? (" content-type=" + ctype) : "") +
+        (ctype ? (" Content-Type=" + ctype) : "") +
         (caller ? (" caller=" + caller) : "");
 
       console.log(line);
@@ -303,7 +303,7 @@
 
   async function readBodyPreview(resp) {
     try {
-      var ct = resp.headers && resp.headers.get ? (resp.headers.get("content-type") || "") : "";
+      var ct = resp.headers && resp.headers.get ? (resp.headers.get("Content-Type") || "") : "";
       if (ct.indexOf("application/json") !== -1) {
         var j = await resp.json();
         return { kind: "json", value: j };

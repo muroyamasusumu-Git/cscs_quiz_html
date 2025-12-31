@@ -61,7 +61,7 @@ export async function onRequest(context) {
     const geminiRes = await fetch(modelURL, {
       method: "POST",
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "x-goog-api-key": apiKey
       },
       body: JSON.stringify({
@@ -136,9 +136,9 @@ function jsonError(msg, status = 500, origin = "") {
 // ============================================================
 function corsHeaders(origin) {
   const headers = {
-    "content-type": "application/json",
+    "Content-Type": "application/json",
     "access-control-allow-methods": "POST,OPTIONS",
-    "access-control-allow-headers": "content-type"
+    "access-control-allow-headers": "Content-Type"
   };
 
   if (origin && ALLOWED_ORIGINS.includes(origin)) {

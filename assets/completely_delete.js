@@ -142,7 +142,7 @@
 
     // デバッグで “返ってきた種類” を判別しやすいヘッダだけ抜き出して表示
     logLine(prefix + " headers =", {
-      "content-type": res.headers.get("content-type"),
+      "Content-Type": res.headers.get("Content-Type"),
       "x-cscs-isemptytemplate": res.headers.get("x-cscs-isemptytemplate"),
       "x-cscs-reset": res.headers.get("x-cscs-reset")
     });
@@ -170,10 +170,10 @@
     logLine("POST start ->", DELETE_ENDPOINT);
 
     // 完全削除を実行（同一オリジン fetch）
-    // content-type を JSON にし、body は “ただの実行メタ” として送る
+    // Content-Type を JSON にし、body は “ただの実行メタ” として送る
     var res = await fetch(DELETE_ENDPOINT, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ from: "console", t: Date.now() })
     });
 

@@ -2040,7 +2040,7 @@
       // ★ 処理1: merge を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
       const res = await fetch("/api/sync/merge", {
         method:"POST",
-        headers:{ "content-type":"application/json", "X-CSCS-Key": String(syncKey) },
+        headers:{ "Content-Type":"application/json", "X-CSCS-Key": String(syncKey) },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(String(res.status));
@@ -3141,7 +3141,7 @@
     try{
       await fetch("/api/sync/reset_qid", {
         method:"POST",
-        headers:{ "content-type":"application/json" },
+        headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ qid: QID })
       });
 
@@ -3179,7 +3179,7 @@
       try{
         await fetch("/api/sync/reset_streak3_qid", {
           method:"POST",
-          headers:{ "content-type":"application/json" },
+          headers:{ "Content-Type":"application/json" },
           body: JSON.stringify({ qid: QID })
         });
       }catch(_){}
@@ -3275,7 +3275,7 @@
     try{
       await fetch("/api/sync/reset_streak3_today", {
         method:"POST",
-        headers:{ "content-type":"application/json" }
+        headers:{ "Content-Type":"application/json" }
       });
 
       // 1) localStorage 側の今日の 3連続正解ユニーク数を削除
@@ -3329,7 +3329,7 @@
       // 1) Workers 側の oncePerDayToday をリセット（デバッグ用エンドポイント想定）
       const res = await fetch("/api/sync/reset_once_per_day_today", {
         method: "POST",
-        headers: { "content-type": "application/json" }
+        headers: { "Content-Type": "application/json" }
       });
       if (!res.ok) {
         throw new Error(String(res.status));
@@ -3386,7 +3386,7 @@
       // 1) Workers 側で全qidの計測系データをリセットする（デバッグ用エンドポイント想定）
       const res = await fetch("/api/sync/reset_all_qid", {
         method: "POST",
-        headers: { "content-type": "application/json" }
+        headers: { "Content-Type": "application/json" }
       });
       if (!res.ok) {
         throw new Error(String(res.status));

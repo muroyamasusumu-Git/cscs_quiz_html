@@ -118,7 +118,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (origin !== null && !allowedOrigins.includes(origin)) {
     return new Response("Forbidden", {
       status: 403,
-      headers: { "content-type": "text/plain" }
+      headers: { "Content-Type": "text/plain" }
     });
   }
 
@@ -126,7 +126,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!user) {
     return new Response("Unauthorized", {
       status: 401,
-      headers: { "content-type": "text/plain" }
+      headers: { "Content-Type": "text/plain" }
     });
   }
 
@@ -188,7 +188,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     return new Response(body, {
       status: 400,
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store",
 
         // ★ 追加: 失敗(400/403)でも「どのデプロイ実体か」「binding名は何か」を一発で確定できるようにする（フォールバックではなく観測ヘッダ）
@@ -232,7 +232,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     return new Response(body, {
       status: 403,
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store",
 
         // ★ 追加: 失敗(400/403)でも「どのデプロイ実体か」「binding名は何か」を一発で確定できるようにする（フォールバックではなく観測ヘッダ）
@@ -881,7 +881,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
 
     return new Response(resJson, {
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store",
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
@@ -940,7 +940,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     console.error("[SYNC/state] ★RESPONSE stringify failed:", e);
     return new Response("response json failed", {
       status: 500,
-      headers: { "content-type": "text/plain", "Cache-Control": "no-store" }
+      headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" }
     });
   }
 
@@ -965,7 +965,7 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
       {
         status: 500,
         headers: {
-          "content-type": "application/json",
+          "Content-Type": "application/json",
           "Cache-Control": "no-store",
           "X-CSCS-Fatal": "1"
         }

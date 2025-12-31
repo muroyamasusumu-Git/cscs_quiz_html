@@ -107,7 +107,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (origin !== null && !allowedOrigins.includes(origin)) {
     return new Response("Forbidden", {
       status: 403,
-      headers: { "content-type": "text/plain" }
+      headers: { "Content-Type": "text/plain" }
     });
   }
 
@@ -116,7 +116,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     // JWT が無い / パースできない場合は 401 を明示的に返す
     return new Response("Unauthorized", {
       status: 401,
-      headers: { "content-type": "text/plain" }
+      headers: { "Content-Type": "text/plain" }
     });
   }
 
@@ -203,7 +203,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     return new Response(JSON.stringify({ error: "PAYLOAD_TYPE_REQUIRED" }), {
       status: 400,
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store"
       }
     });
@@ -220,7 +220,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     return new Response(JSON.stringify({ error: "PAYLOAD_TYPE_INVALID" }), {
       status: 400,
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store"
       }
     });
@@ -339,7 +339,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       {
         status: 200,
         headers: {
-          "content-type": "application/json",
+          "Content-Type": "application/json",
           "Cache-Control": "no-store",
 
           "X-CSCS-KV-Binding": "SYNC",
@@ -374,7 +374,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     return new Response(JSON.stringify({ error: "SYNC_KEY_REQUIRED" }), {
       status: 400,
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store"
       }
     });
@@ -856,7 +856,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid favDelta: structure", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -880,7 +880,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid favDelta: qid", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
 
@@ -895,7 +895,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid favDelta: value", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
     }
@@ -985,7 +985,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid streak3TodayDelta: day", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -996,7 +996,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid streak3TodayDelta: qids", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -1008,7 +1008,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid streak3TodayDelta: qids element", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
     }
@@ -1026,7 +1026,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid streak3TodayDelta: unique_count", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
     }
@@ -1094,7 +1094,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid streak3WrongTodayDelta: day", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -1105,7 +1105,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid streak3WrongTodayDelta: qids", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -1117,7 +1117,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid streak3WrongTodayDelta: qids element", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
     }
@@ -1135,7 +1135,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid streak3WrongTodayDelta: unique_count", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
     }
@@ -1208,7 +1208,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid oncePerDayTodayDelta: day", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
     const dayStr = String(dayRaw);
@@ -1218,7 +1218,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid oncePerDayTodayDelta: day format", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -1229,7 +1229,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       });
       return new Response("invalid oncePerDayTodayDelta: results", {
         status: 400,
-        headers: { "content-type": "text/plain" }
+        headers: { "Content-Type": "text/plain" }
       });
     }
 
@@ -1243,7 +1243,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid oncePerDayTodayDelta: results key", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
       if (v !== "correct" && v !== "wrong") {
@@ -1253,7 +1253,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
         });
         return new Response("invalid oncePerDayTodayDelta: results value", {
           status: 400,
-          headers: { "content-type": "text/plain" }
+          headers: { "Content-Type": "text/plain" }
         });
       }
       cleanedResults[qid] = v;
@@ -1566,7 +1566,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.log("====================================================");
     return new Response("KV put failed", {
       status: 500,
-      headers: { "content-type": "text/plain" }
+      headers: { "Content-Type": "text/plain" }
     });
   }
 
@@ -1628,7 +1628,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
 
     return new Response(resJson, {
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
         "Cache-Control": "no-store",
 
         // ★KVバインディング診断ヘッダ（ブラウザNetworkで一発突き合わせ用）
@@ -1660,7 +1660,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     console.error("[SYNC/merge] (5-err) ★RESPONSE stringify failed:", e);
     return new Response("response json failed", {
       status: 500,
-      headers: { "content-type": "text/plain", "Cache-Control": "no-store" }
+      headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" }
     });
   }
 };

@@ -19,14 +19,14 @@ export async function onRequestPost({ request, env }) {
 
     const r = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
 
     const text = await r.text();
     return new Response(text, {
       status: r.status,
-      headers: { ...cors(), "content-type": "application/json" }
+      headers: { ...cors(), "Content-Type": "application/json" }
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
@@ -38,6 +38,6 @@ export async function onRequestPost({ request, env }) {
 function cors() {
   return {
     "access-control-allow-origin": "*",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "Content-Type",
   };
 }

@@ -411,7 +411,7 @@
           pushLine(
             lines,
             "[" + nowISO() + "][STATE_RAW_HEADERS] " + safeStringify({
-              "content-type": res.headers.get("content-type"),
+              "Content-Type": res.headers.get("Content-Type"),
               "x-cscs-isemptytemplate": res.headers.get("x-cscs-isemptytemplate"),
               "x-cscs-reset": res.headers.get("x-cscs-reset")
             })

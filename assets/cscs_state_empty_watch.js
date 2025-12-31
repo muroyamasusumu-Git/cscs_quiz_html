@@ -203,7 +203,7 @@
           fetch("/api/sync/init", {
             method: "POST",
             headers: {
-              "content-type": "application/json"
+              "Content-Type": "application/json"
             },
             credentials: "include",
             body: JSON.stringify({ force: false })

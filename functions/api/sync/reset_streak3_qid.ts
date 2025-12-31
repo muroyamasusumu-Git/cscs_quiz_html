@@ -9,7 +9,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!body || !body.qid) {
     return new Response(JSON.stringify({ error: "qid is required" }), {
       status: 400,
-      headers: { "content-type": "application/json" }
+      headers: { "Content-Type": "application/json" }
     });
   }
   const qid = String(body.qid);
@@ -61,7 +61,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     cleared_streak3_qid: qid,
     data
   }), {
-    headers: { "content-type": "application/json" }
+    headers: { "Content-Type": "application/json" }
   });
 };
 

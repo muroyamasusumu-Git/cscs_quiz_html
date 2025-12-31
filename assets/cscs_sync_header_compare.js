@@ -213,7 +213,7 @@
   // 追加した処理: clone() したレスポンスから body を読む（JSON優先 / 本体消費を避ける）
   async function readBodyPreview(resp) {
     try {
-      var ct = resp.headers && resp.headers.get ? (resp.headers.get("content-type") || "") : "";
+      var ct = resp.headers && resp.headers.get ? (resp.headers.get("Content-Type") || "") : "";
       if (ct.indexOf("application/json") !== -1) {
         var j = await resp.json();
         return { kind: "json", value: j };

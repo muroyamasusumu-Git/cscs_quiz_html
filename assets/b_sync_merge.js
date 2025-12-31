@@ -352,7 +352,7 @@
 
       const res = await fetch("/api/sync/merge", {
         method:"POST",
-        headers:{ "content-type":"application/json", "X-CSCS-Key": String(_syncKey) },
+        headers:{ "Content-Type":"application/json", "X-CSCS-Key": String(_syncKey) },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(String(res.status));

@@ -25,7 +25,7 @@ function json(
   body: unknown,
   extraHeaders?: Record<string, string>
 ): Response {
-  const h = new Headers({ "content-type": "application/json; charset=utf-8" });
+  const h = new Headers({ "Content-Type": "application/json; charset=utf-8" });
 
   // 監視・実測しやすいよう、必要な情報はレスポンスヘッダにも載せる
   if (extraHeaders) {

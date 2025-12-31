@@ -199,7 +199,7 @@
             method: "POST",
             credentials: "include",
             cache: "no-store",
-            headers: { "content-type": "application/json" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ force: force })
           });
 
@@ -356,7 +356,7 @@
       cache: "no-store",
       credentials: "include",
       headers: {
-        "content-type": "application/json"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({})
     };

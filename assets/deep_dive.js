@@ -772,7 +772,7 @@ ${dom.correct?`正解ラベル: ${dom.correct}`:"正解ラベル: (取得でき�
   async function callGemini(prompt, { model }) {
     const res = await fetch("/generate", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: model || "models/gemini-2.5-flash",
         prompt

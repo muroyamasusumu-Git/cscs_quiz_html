@@ -28,7 +28,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       streak3Today: server.streak3Today
     }),
     {
-      headers: { "content-type": "application/json" }
+      headers: { "Content-Type": "application/json" }
     }
   );
 };

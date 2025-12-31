@@ -36,7 +36,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       oncePerDayToday: server.oncePerDayToday
     }),
     {
-      headers: { "content-type": "application/json" }
+      headers: { "Content-Type": "application/json" }
     }
   );
 };

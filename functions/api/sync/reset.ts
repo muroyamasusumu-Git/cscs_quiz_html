@@ -213,7 +213,7 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   await env.SYNC.put(key, JSON.stringify(next));
 
   return new Response(JSON.stringify(next), {
-    headers: { "content-type": "application/json" }
+    headers: { "Content-Type": "application/json" }
   });
 };
 

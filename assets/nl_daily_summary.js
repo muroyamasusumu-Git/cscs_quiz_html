@@ -890,7 +890,7 @@
           fetch("/api/sync/merge", {
             method: "POST",
             headers: {
-              "content-type": "application/json",
+              "Content-Type": "application/json",
               "X-CSCS-Key": String(key)
             },
             body: JSON.stringify({
