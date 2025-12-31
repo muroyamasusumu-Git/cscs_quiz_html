@@ -3928,17 +3928,15 @@
 
 		<div class="sync-card">
 		  <div class="sync-wide-body">
-		    <div class="sync-init-row">
-		      <button type="button" class="sync-toggle-btn" data-sync-init="1">キー発行 / 再発行</button>
-		
+		    <div class="sync-init-row">		
 		      <span class="sync-mini">
-		        user <span class="sync-user-email">-</span>
+		        user: <span class="sync-user-email">-</span>
 		      </span>
 		      <span class="sync-mini">
-		        key <span class="sync-key-status">-</span>
+		        key: <span class="sync-key-status">-</span>
 		      </span>
 		      <span class="sync-mini">
-		        state <span class="sync-state-status">-</span>
+		        state: <span class="sync-state-status">-</span>
 		      </span>
 		    </div>
 		  </div>
