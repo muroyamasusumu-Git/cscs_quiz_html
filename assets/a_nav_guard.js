@@ -406,6 +406,26 @@
               body: JSON.stringify(payload)
             }).then(function(res){
               dlog("O.D.O.A: SYNC merge response status:", res.status);
+
+              // 400の理由を本文から確定させる（JSONでもtextでも必ずログ）
+              try{
+                return res.text().then(function(t){
+                  var bodyText = (typeof t === "string" ? t : "");
+                  var bodyJson = null;
+                  try{
+                    bodyJson = bodyText ? JSON.parse(bodyText) : null;
+                  }catch(_){
+                    bodyJson = null;
+                  }
+                  dlog("O.D.O.A: SYNC merge response body:", {
+                    status: res.status,
+                    bodyText: bodyText,
+                    bodyJson: bodyJson
+                  });
+                });
+              }catch(e){
+                dlog("O.D.O.A: SYNC merge response body read failed:", String(e));
+              }
             }).catch(function(err){
               dlog("O.D.O.A: SYNC merge error:", String(err));
             });
