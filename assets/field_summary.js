@@ -239,7 +239,7 @@
 
     /* 分野UIだけを囲うラッパー（qid一覧は含めない） */
     #cscs-field-ui-box {
-        width: 54%;
+        width: 60%;
         max-width: 760px;
         min-width: 320px;
         margin-top: 6px;
