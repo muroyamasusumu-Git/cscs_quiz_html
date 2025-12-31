@@ -464,6 +464,9 @@
             // - クラスを付与して白黒反転＋クリック無効のスタイルを適用する
             // - リスナーを登録せず、画面上のモード表示だけを共有する
             btn.classList.add("cscs-odoa-readonly");
+            if (typeof window.__cscsUpdateOdoaBtnLabel === "function") {
+              window.__cscsUpdateOdoaBtnLabel();
+            }
           } else {
             // Aパートのみ、クリックで ODOA モードをトグルできるボタンとして動作させる
             btn.addEventListener("click", function(){
