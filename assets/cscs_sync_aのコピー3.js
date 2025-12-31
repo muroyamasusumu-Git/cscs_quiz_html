@@ -3057,15 +3057,10 @@
       // - ただし「表示」は、取れたsync値だけ出す（欠損は欠損のまま）
       // ============================================================
 
-      // ★ 表示用（server表示）：partial OK でも、取れた値だけ表示する（欠損は null のまま）
-      const canDisplayQidNumbers = !!(rc.ok || ri.ok || rs3.ok || rsl.ok);
+      // ★ 表示用（server表示）：wrong系が欠けていても、取れた値だけ表示する
+      const canDisplayQidNumbers = !!(rc.ok && ri.ok && rs3.ok && rsl.ok);
       if (canDisplayQidNumbers) {
-        setServerTotalsForQid(
-          rc.ok  ? rc.value  : null,
-          ri.ok  ? ri.value  : null,
-          rs3.ok ? rs3.value : null,
-          rsl.ok ? rsl.value : null
-        );
+        setServerTotalsForQid(rc.value, ri.value, rs3.value, rsl.value);
       }
 
       // ★ 上書き用（localStorage同期）：従来通り、全mapが揃った場合のみ実行

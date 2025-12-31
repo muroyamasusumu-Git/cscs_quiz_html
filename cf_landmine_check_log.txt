@@ -1,18 +1,20 @@
 [DETECTED] Potential Cloudflare landmines (detailed log)
-  Timestamp : 2025-12-31T07:47:55
+  Timestamp : 2025-12-31T21:22:34
   Root      : /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html
   Log       : /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/cf_landmine_check_log.txt
   CWD       : /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html
   Python    : 3.13.7 (v3.13.7:bcee1c32211, Aug 14 2025, 19:10:51) [Clang 16.0.0 (clang-1600.0.26.6)]
   Platform  : macOS-26.2-arm64-arm-64bit-Mach-O
   SkipDirs  : .git, .next, .nuxt, .venv, .wrangler, __pycache__, build, dist, node_modules, venv
-  FilesScan : 5723 file(s)
-  TotalHits : 12  |  HIGH: 0  MED: 12  LOW: 0
+  FilesScan : 5733 file(s)
+  TotalHits : 15  |  HIGH: 0  MED: 15  LOW: 0
 
 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
 Quick view:
 SEV  RULE                          FILE                                                                      LOC
-MED  SUBREQUEST_HEAVY_HINT         assets/cscs_sync_a.js                                                     L2265:C1
+MED  SUBREQUEST_HEAVY_HINT         assets/cscs_sync_a.js                                                     L2306:C32
+MED  SUBREQUEST_HEAVY_HINT         assets/cscs_sync_aのコピー.js                                                L2279:C38
+MED  SUBREQUEST_HEAVY_HINT         assets/cscs_sync_aのコピー2.js                                               L2279:C38
 MED  SUBREQUEST_HEAVY_HINT         assets/deep_dive.js                                                       L245:C19
 MED  SUBREQUEST_HEAVY_HINT         assets/field_summary.js                                                   L150:C3
 MED  SUBREQUEST_HEAVY_HINT         assets/nav_list.js                                                        L402:C7
@@ -24,6 +26,7 @@ MED  FETCH_CF_CACHETTL_ON_NON_GET  functions/index.ts                           
 MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-01D63519_20251229_023954/original/cscs_sync_a.js  L2210:C38
 MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-6AC295ED_20251230_043144/original/cscs_sync_a.js  L2293:C48
 MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-AE8739D4_20251229_081152/original/cscs_sync_a.js  L2224:C39
+MED  SUBREQUEST_HEAVY_HINT         …ocol_local_tool/CSCSJS-F5B93AE9_20251231_210006/original/cscs_sync_a.js  L2279:C38
 
 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
 
@@ -34,8 +37,8 @@ File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/cscs_sync
   Severity  : MED
   Rule      : SUBREQUEST_HEAVY_HINT
   Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
-  Location  : L2265:C1
-  LineText  :               correct: rc.ok,
+  Location  : L2306:C32
+  LineText  :   // === ④ init（キー発行/保存）完了保証 ===
   MatchText : .forEach(function(el){
           el.style.display =  ;
         });
@@ -64,12 +67,100 @@ File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/cscs_sync
   Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
   Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
   Context   :
-      L 2263 |             qid: QID,
-      L 2264 |             ok: {
-    > L 2265 |               correct: rc.ok,
-             | ^
-      L 2266 |               incorrect: ri.ok,
-      L 2267 |               streak3: rs3.ok,
+      L 2304 |   }
+      L 2305 | 
+    > L 2306 |   // === ④ init（キー発行/保存）完了保証 ===
+             |                                ^
+      L 2307 |   // 方針:
+      L 2308 |   //   - cscs_sync_a.js 側では init（/api/sync/init）を絶対に叩かない（bootstrap に一本化）
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/cscs_sync_aのコピー.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2279:C38
+  LineText  :             streakLenWrong: rslw.value
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2277 |             streakLenCorrect: rsl.value,
+      L 2278 |             streak3Wrong: rs3w.value,
+    > L 2279 |             streakLenWrong: rslw.value
+             |                                      ^
+      L 2280 |           });
+      L 2281 |         } else {
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/cscs_sync_aのコピー2.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2279:C38
+  LineText  :             streakLenWrong: rslw.value
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2277 |             streakLenCorrect: rsl.value,
+      L 2278 |             streak3Wrong: rs3w.value,
+    > L 2279 |             streakLenWrong: rslw.value
+             |                                      ^
+      L 2280 |           });
+      L 2281 |         } else {
 
 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
 File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/assets/deep_dive.js
@@ -480,6 +571,50 @@ File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/out_protocol_loc
       L 2226 |             streak3Wrong: rs3w.value,
 
 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+File: /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/out_protocol_local_tool/CSCSJS-F5B93AE9_20251231_210006/original/cscs_sync_a.js
+
+  Hit       : #1
+  Severity  : MED
+  Rule      : SUBREQUEST_HEAVY_HINT
+  Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
+  Location  : L2279:C38
+  LineText  :             streakLenWrong: rslw.value
+  MatchText : .forEach(function(el){
+          el.style.display =  ;
+        });
+      }catch(_){}
+
+      updateMonitor();
+
+      if (showAlert) {
+        alert( );
+      }
+    }catch(e){
+      if (showAlert) {
+        alert(  + e);
+      } else {
+        console.warn( , e);
+      }
+    }
+  }
+
+  async function resetStreak3TodayAll(showAlert){
+    if (showAlert === undefined) showAlert = true;
+    try{
+      await fetch(
+  Pattern   : \b(for\s*\(|while\s*\(|\.map\s*\(|\.forEach\s*\()\s*[\s\S]{0,400}\bfetch\s*\(
+  IncludeExt: .js, .mjs, .cjs, .ts, .tsx, .jsx
+  Why       : subrequestはfetch/redirect/Cache APIもカウント。ループや再試行で上限超過しやすい。
+  Note      : 誤検出もあるが、怪しい場所の棚卸しには強い。
+  Context   :
+      L 2277 |             streakLenCorrect: rsl.value,
+      L 2278 |             streak3Wrong: rs3w.value,
+    > L 2279 |             streakLenWrong: rslw.value
+             |                                      ^
+      L 2280 |           });
+      L 2281 |         } else {
+
+· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
 Rule details:
 * SUBREQUEST_HEAVY_HINT (MED)
   - Title     : subrequest上限を踏みやすい構造（ループ内 fetch / Cache API）
@@ -510,16 +645,16 @@ Rule details:
   - Pattern   : \bfetch\s*\([\s\S]*?\{\s*cf\s*:\s*\{\s*[\s\S]*?\bcacheTtl\b
 
 End summary:
-  Total: 12 hit(s)
+  Total: 15 hit(s)
   HIGH : 0
-  MED  : 12
+  MED  : 15
   LOW  : 0
 
   By rule:
     - FETCH_CF_CACHETTL_ON_NON_GET: 1
     - KV_GET_ASSERT_FAIL_FAST_HINT: 2
     - KV_PUT_THEN_GET_ASSERT_HINT: 1
-    - SUBREQUEST_HEAVY_HINT: 8
+    - SUBREQUEST_HEAVY_HINT: 11
 
 Usage:
   python3 cf_landmine_check.py [root_dir(optional)] [rules.json(optional)]
