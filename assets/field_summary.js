@@ -1,5 +1,3 @@
-表示されなくなっちゃったんだけど、どこで落ちてる？
-
 // assets/field_summary.js
 
 (function () {
