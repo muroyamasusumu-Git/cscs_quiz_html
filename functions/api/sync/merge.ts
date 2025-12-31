@@ -179,7 +179,9 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     countKeys((delta as any).global) +
     (Array.isArray((delta as any).streak3TodayDelta && (delta as any).streak3TodayDelta.qids) ? (delta as any).streak3TodayDelta.qids.length : 0) +
     (Array.isArray((delta as any).streak3WrongTodayDelta && (delta as any).streak3WrongTodayDelta.qids) ? (delta as any).streak3WrongTodayDelta.qids.length : 0) +
-    countKeys((delta as any).oncePerDayTodayDelta && (delta as any).oncePerDayTodayDelta.results);
+    countKeys((delta as any).oncePerDayTodayDelta && (delta as any).oncePerDayTodayDelta.results) +
+    (typeof (delta as any).odoa_mode === "string" ? 1 : 0) +
+    (typeof (delta as any).exam_date_iso === "string" ? 1 : 0);
 
   const willPut = diffKeysCount > 0;
 

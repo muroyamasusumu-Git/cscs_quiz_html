@@ -379,7 +379,10 @@
         // - mode は "on" / "off" のみ想定
         function sendOdoaModeToSync(mode){
           try{
-            const payload = { odoa_mode: mode === "on" ? "on" : "off" };
+            const payload = {
+              payloadType: "diff",
+              odoa_mode: mode === "on" ? "on" : "off"
+            };
             dlog("O.D.O.A: sending mode to SYNC:", payload);
             var _syncKey = "";
             try{
