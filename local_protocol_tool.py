@@ -1193,8 +1193,13 @@ HTML_PAGE = r"""<!doctype html>
       padding: 12px; /* 視認性のため少し余白を増やす */
       outline: none;
 
-      overflow: hidden; /* 内部スクロールを発生させない */
-      resize: none;     /* 手動リサイズを無効化（高さはJSで自動） */
+      overflow: auto;  /* リサイズ/UIと相性が良い */
+      resize: vertical; /* デフォルトは縦リサイズ可 */
+    }
+
+    textarea#instruction {
+      overflow: hidden; /* autosize用：内部スクロール無し */
+      resize: none;     /* autosize用：手動リサイズ無し */
     }
 
     select, input[type="number"], input#prefix {
@@ -1614,18 +1619,74 @@ HTML_PAGE = r"""<!doctype html>
     
     /* extract結果表示専用：長文なのでスクロール可＋高さを確保 */
     textarea#extractPreview {
-      min-height: 500px;
       overflow: auto;
       resize: vertical;
+      font-size: 14px; /* 追加した処理: extractPreview の既定文字サイズ（JSで上書き可） */
     }
 
     /* 追加した処理: EXEC_TASK（instruction原文）入力欄は長文になりやすいので高さを確保し、折り返して見やすくする */
     textarea#extractExecTask {
       min-height: 160px;
-      overflow: auto;
-      resize: vertical;
+      overflow: auto !important;
+      resize: vertical !important;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+    }
+    
+    .ta-resize-wrap {
+      position: relative;
+      width: 100%;
+    }
+    
+    /* 細い標準グリップを消して、ハンドルに一本化 */
+    .ta-resize-wrap textarea{
+      resize: none !important;
+      padding-bottom: 34px; /* 右下オーバーレイのハンドルに被らないための余白 */
+    }
+    
+    /* 右下オーバーレイ・広い掴み領域（幅1/3）＋文言で明示 */
+    .ta-resize-handle{
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+    
+      width: 25%;
+      height: 24px;
+    
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    
+      cursor: ns-resize;
+      user-select: none;
+    
+      border-radius: 999px;
+      background: rgba(231,234,240,0.18);
+      border: 1px solid rgba(231,234,240,0.28);
+      backdrop-filter: blur(2px);
+      opacity: 0.85;
+    }
+    
+    /* hoverで「掴める感」を強調 */
+    .ta-resize-wrap:hover .ta-resize-handle{
+      opacity: 1;
+      background: rgba(231,234,240,0.26);
+      border-color: rgba(231,234,240,0.45);
+    }
+    
+    /* ドラッグ中の強調 */
+    .ta-resize-wrap.is-resizing .ta-resize-handle{
+      background: rgba(120,180,255,0.30);
+      border-color: rgba(120,180,255,0.60);
+    }
+    
+    /* 旧hintは使わないなら非表示（残すならこの行を消してOK） */
+    .ta-resize-hint{
+      opacity: 0.85;
     }
     
   </style>
@@ -1733,7 +1794,10 @@ HTML_PAGE = r"""<!doctype html>
       <!-- Split（指示）入力欄 -->
       <div id="modeSplitBox" style="margin-top:10px;">
         <div class="muted sectionTitle">指示（--instruction）</div>
-        <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
+        <div class="ta-resize-wrap" data-target="instruction">
+          <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
+          <div class="ta-resize-handle" role="separator" aria-label="Resize instruction textarea"> <div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>         
+        </div>
       </div>
 
       <!-- Extract（symbols/needles）入力欄 -->
@@ -1770,7 +1834,10 @@ HTML_PAGE = r"""<!doctype html>
           <!-- 追加した処理: split直後の instruction 原文（EXEC_TASK）を保持し、extractヘッダへ必ず出すための入力欄 -->
           <div class="advItem extractWide" style="grid-column: 1 / -1;">
             <div class="muted">EXEC_TASK（split直後に自動入力 / 手入力・コピペ可）</div>
-            <textarea id="extractExecTask" placeholder="例: ここに split の指示（--instruction 原文）が入る（EXEC_TASK）"></textarea>
+            <div class="ta-resize-wrap" data-target="extractExecTask">
+              <textarea id="extractExecTask" placeholder="例: ここに split の指示（--instruction 原文）が入る（EXEC_TASK）"></textarea>
+              <div class="ta-resize-handle" role="separator" aria-label="Resize EXEC_TASK textarea"><div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+            </div>
           </div>
 
           <!-- 追加した処理: 抽出の目的（LLMの判断ブレ低減）を1行で添える -->
@@ -1840,13 +1907,37 @@ HTML_PAGE = r"""<!doctype html>
     <!-- 追加した処理: 抽出結果も split と同様に「ALL: OFF/ON」で全文/一部表示を切替できるようにする -->
     <div class="partHeader" style="justify-content:space-between; gap:10px;">
       <div class="muted sectionTitle" style="margin-bottom:0;">抽出結果（extract）</div>
-      <div class="row" style="align-items:center; margin:0;">
+
+      <div class="row" style="align-items:center; margin:0; gap:10px;">
+        <!-- 追加した処理: extractPreview の文字サイズをスライダーで変更 -->
+        <span class="pill" style="display:flex; align-items:center; gap:8px;">
+          <span style="color:rgba(154,164,178,0.90);">Font</span>
+          <input id="extractPreviewFont"
+                 type="range"
+                 min="10"
+                 max="28"
+                 step="1"
+                 value="14"
+                 style="width:160px; height:18px;" />
+          <span id="extractPreviewFontLabel" style="min-width:44px; text-align:right;">14px</span>
+        </span>
+
         <button id="toggleExtractAll" disabled>ALL: OFF</button>
       </div>
     </div>
 
-    <div class="muted" style="margin-top:6px;">※ ここに <<<EXTRACT_BEGIN>>> から全部出ます（そのままコピペ用途）</div>
-    <textarea id="extractPreview" readonly placeholder="(まだ抽出していません)"></textarea>
+    <div class="muted" style="margin-top:6px;">
+      ※ ここに <<<EXTRACT_BEGIN>>> から全部出ます（そのままコピペ用途）
+    </div>
+    
+    <div class="ta-resize-wrap" data-target="extractPreview">
+      <textarea
+        id="extractPreview"
+        readonly
+        placeholder="(まだ抽出していません)">
+      </textarea>
+      <div class="ta-resize-handle"><div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+    </div>
 
     <!-- 追加した処理: FOUND:false をコピー対象外の“小ログ”として textarea 外に表示する -->
     <div class="muted" id="extractNotFoundLog"
@@ -1915,6 +2006,9 @@ HTML_PAGE = r"""<!doctype html>
         previewAllOn: !!previewAllOn,
         /* 追加した処理: extract結果の全文表示/一部表示（ALL: OFF/ON）状態も保存する */
         extractPreviewAllOn: !!extractPreviewAllOn,
+
+        /* 追加した処理: extractPreview の文字サイズ(px)も保存する */
+        extractPreviewFontPx: Number(($("extractPreviewFont") && $("extractPreviewFont").value) || 14),
       };
       localStorage.setItem(UI_STATE_KEY, JSON.stringify(s));
     } catch (e) {}
@@ -1997,6 +2091,23 @@ HTML_PAGE = r"""<!doctype html>
     if (typeof s.extractPreviewAllOn === "boolean") {
       extractPreviewAllOn = s.extractPreviewAllOn;
     }
+
+    /* 追加した処理: extractPreview の文字サイズ(px)も復元する */
+    (function(){
+      const slider = $("extractPreviewFont");
+      const label  = $("extractPreviewFontLabel");
+      const ta     = $("extractPreview");
+
+      let px = 14;
+      if (typeof s.extractPreviewFontPx === "number" || typeof s.extractPreviewFontPx === "string") {
+        const v = Number(s.extractPreviewFontPx);
+        if (isFinite(v) && v >= 10 && v <= 28) px = v;
+      }
+
+      if (slider) slider.value = String(px);
+      if (label)  label.textContent = String(px) + "px";
+      if (ta)     ta.style.fontSize = String(px) + "px";
+    })();
 
     if (typeof s.uiMode === "string" && s.uiMode) {
       window.__uiMode = s.uiMode;
@@ -2154,6 +2265,33 @@ HTML_PAGE = r"""<!doctype html>
       saveUiState();
       setStatus("extract：ALL 表示を切替（" + (extractPreviewAllOn ? "ON" : "OFF") + "）");
     };
+  })();
+
+  /* 追加した処理: extractPreview のフォントサイズをスライダーで変更（即反映＋保存） */
+  (function(){
+    const slider = $("extractPreviewFont");
+    const label  = $("extractPreviewFontLabel");
+    const ta     = $("extractPreview");
+
+    if (!slider) return;
+
+    function apply(px) {
+      const v = Number(px);
+      const clamped = Math.max(10, Math.min(28, isFinite(v) ? v : 14));
+
+      if (label) label.textContent = String(clamped) + "px";
+      if (ta) ta.style.fontSize = String(clamped) + "px";
+
+      saveUiState();
+    }
+
+    slider.addEventListener("input", function(){
+      apply(slider.value);
+      setStatus("extract：文字サイズを変更（" + String(slider.value) + "px）");
+    });
+
+    /* 初期値（HTML側の value=14 を反映） */
+    apply(slider.value);
   })();
   
   window.__uiMode = "split";
@@ -3524,7 +3662,114 @@ HTML_PAGE = r"""<!doctype html>
         }
       }
     } catch (e) {}
+  });
+
+  /* 初期表示では status を出さない（ファイル未選択時の非表示） */
+  setStatus("");
+
+  // ============================================================
+  // textarea 高さリサイズ（広いハンドルでドラッグできるようにする）
+  // ------------------------------------------------------------
+  // 使い方:
+  //   <div class="ta-resize-wrap" data-target="TEXTAREA_ID">
+  //     <textarea id="TEXTAREA_ID"></textarea>
+  //     <div class="ta-resize-handle"></div>
+  //     <div class="ta-resize-hint">...</div>
+  //   </div>
+  // ============================================================
+  (function () {
+    "use strict";
+
+    function setupResizeWrap(wrap) {
+      var targetId = wrap.getAttribute("data-target");
+      var ta = document.getElementById(targetId);
+      var handle = wrap.querySelector(".ta-resize-handle");
+      if (!ta || !handle) return;
+
+      var startY = 0;
+      var startH = 0;
+      var active = false;
+
+      function onMove(e) {
+        if (!active) return;
+        var clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+        var dy = clientY - startY;
+        var next = Math.max(80, startH + dy); /* 最小高さ 80px */
+        ta.style.height = String(next) + "px";
+        e.preventDefault();
+      }
+
+      function onUp() {
+        if (!active) return;
+        active = false;
+        wrap.classList.remove("is-resizing");
+        document.removeEventListener("mousemove", onMove, { passive: false });
+        document.removeEventListener("mouseup", onUp);
+        document.removeEventListener("touchmove", onMove, { passive: false });
+        document.removeEventListener("touchend", onUp);
+      }
+
+      function onDown(e) {
+        active = true;
+        wrap.classList.add("is-resizing");
+        startY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+
+        var rect = ta.getBoundingClientRect();
+        var computed = window.getComputedStyle(ta);
+        var h = rect.height;
+        if (computed && computed.height) {
+          var parsed = parseFloat(computed.height);
+          if (!Number.isNaN(parsed)) h = parsed;
+        }
+        startH = h;
+
+        document.addEventListener("mousemove", onMove, { passive: false });
+        document.addEventListener("mouseup", onUp);
+        document.addEventListener("touchmove", onMove, { passive: false });
+        document.addEventListener("touchend", onUp);
+
+        e.preventDefault();
+      }
+
+      handle.addEventListener("mousedown", onDown);
+      handle.addEventListener("touchstart", onDown, { passive: false });
+    }
+
+    function init() {
+      var wraps = document.querySelectorAll(".ta-resize-wrap[data-target]");
+      for (var i = 0; i < wraps.length; i++) setupResizeWrap(wraps[i]);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  })();
+
+  window.addEventListener("resize", () => {
+    try {
+      const box = $("instructionHistory");
+      if (!box) return;
+
+      const cards = box.querySelectorAll(".card");
+      for (let i = 0; i < cards.length; i++) {
+        const c = cards[i];
+        const pre = c.querySelector("pre");
+        if (!pre) continue;
+
+        /* 元の全文 instruction は pre の dataset に保持しておく */
+        const raw = pre.dataset && typeof pre.dataset.fullInstruction === "string"
+          ? pre.dataset.fullInstruction
+          : null;
+
+        if (raw !== null) {
+          pre.textContent = buildHistoryPreviewText(raw, pre);
+        }
+      }
+    } catch (e) {}
   });  
+
   
 </script>
 </body>

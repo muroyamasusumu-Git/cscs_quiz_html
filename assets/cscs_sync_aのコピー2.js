@@ -3053,18 +3053,11 @@
       // ============================================================
       // ★ フォールバック無し：QID数値が全部取れた場合のみ、dataset と localStorage を同期する
       // ------------------------------------------------------------
-      // - 欠損/型不正があればログを出して「上書きしない」
-      // - ただし「表示」は、取れたsync値だけ出す（欠損は欠損のまま）
+      // - 欠損/型不正があれば console.error を出して「一切上書きしない」
       // ============================================================
-
-      // ★ 表示用（server表示）：wrong系が欠けていても、取れた値だけ表示する
-      const canDisplayQidNumbers = !!(rc.ok && ri.ok && rs3.ok && rsl.ok);
-      if (canDisplayQidNumbers) {
-        setServerTotalsForQid(rc.value, ri.value, rs3.value, rsl.value);
-      }
-
-      // ★ 上書き用（localStorage同期）：従来通り、全mapが揃った場合のみ実行
       if (canSyncQidNumbers) {
+        setServerTotalsForQid(rc.value, ri.value, rs3.value, rsl.value);
+
         try{
           localStorage.setItem("cscs_q_correct_total:" + QID, String(rc.value));
           localStorage.setItem("cscs_q_wrong_total:"   + QID, String(ri.value));
@@ -3089,17 +3082,8 @@
           });
         }
       } else {
-        const missing = [];
-        if (!rc.ok)   missing.push("correct");
-        if (!ri.ok)   missing.push("incorrect");
-        if (!rs3.ok)  missing.push("streak3");
-        if (!rsl.ok)  missing.push("streakLen");
-        if (!rs3w.ok) missing.push("streak3Wrong");
-        if (!rslw.ok) missing.push("streakWrongLen");
-
-        console.log("[SYNC-A][INCOMPLETE][NO-OVERWRITE] qid map incomplete: will NOT overwrite localStorage, UI shows sync-only (partial OK)", {
+        console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped qid localStorage sync (missing/invalid)", {
           qid: QID,
-          missing: missing,
           ok: {
             correct: rc.ok,
             incorrect: ri.ok,
@@ -3107,13 +3091,6 @@
             streakLen: rsl.ok,
             streak3Wrong: rs3w.ok,
             streakWrongLen: rslw.ok
-          },
-          display: {
-            canDisplay: canDisplayQidNumbers,
-            correctTotal: rc.ok ? rc.value : null,
-            wrongTotal: ri.ok ? ri.value : null,
-            streak3Correct: rs3.ok ? rs3.value : null,
-            streakLenCorrect: rsl.ok ? rsl.value : null
           }
         });
       }
