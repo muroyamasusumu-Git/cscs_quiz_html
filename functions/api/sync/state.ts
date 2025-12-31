@@ -531,6 +531,15 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     global: {},
     // O.D.O.A Mode の初期値（未保存ユーザー用に "off" で補完する）
     odoa_mode: "off",
+
+    // 追加した処理: 問題別「最大ストリーク（正解/不正解）と達成日」を返却JSONに含めるための初期構造（map）
+    // - 何をしているか: streakMax / streakMaxDay / streakWrongMax / streakWrongMaxDay を空mapで用意する
+    // - 目的: KV未保存（emptyテンプレ返却）でも、クライアント側が「存在しないキー」で落ちないようにする
+    streakMax: {},
+    streakMaxDay: {},
+    streakWrongMax: {},
+    streakWrongMaxDay: {},
+
     // ★ここでは streak3Today / streak3WrongToday / oncePerDayToday を追加しない（消失確認のため上書き禁止）
     updatedAt: 0
   };
@@ -586,6 +595,14 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.consistency_status) out.consistency_status = {};
   if (!out.fav || typeof out.fav !== "object") out.fav = {};
   if (!out.global || typeof out.global !== "object") out.global = {};
+
+  // 追加した処理: 最大ストリーク（正解/不正解）と達成日（qid→値のmap）を欠損時だけ補完する
+  // - 何をしているか: out に streakMax / streakMaxDay / streakWrongMax / streakWrongMaxDay が無ければ空mapを入れる
+  // - 目的: フロント側が「存在前提で読む」場合でも落ちないようにする（推測値の埋め合わせはしない）
+  if (!out.streakMax) out.streakMax = {};
+  if (!out.streakMaxDay) out.streakMaxDay = {};
+  if (!out.streakWrongMax) out.streakWrongMax = {};
+  if (!out.streakWrongMaxDay) out.streakWrongMaxDay = {};
 
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
   // - ここも “フォールバックっぽく見える” 代表例。

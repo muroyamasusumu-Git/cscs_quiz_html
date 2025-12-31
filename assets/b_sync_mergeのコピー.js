@@ -20,12 +20,6 @@
  *   - localStorage: "cscs_q_correct_streak_len:" + qid
  *       ⇔ SYNC state: streakLen[qid]
  *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
- *   - localStorage: "cscs_q_correct_streak_max:" + qid
- *       ⇔ SYNC state: streakMax[qid]
- *       ⇔ delta payload: streakMaxDelta[qid]（「増分」ではなく最新値）
- *   - localStorage: "cscs_q_correct_streak_max_day:" + qid
- *       ⇔ SYNC state: streakMaxDay[qid]
- *       ⇔ delta payload: streakMaxDayDelta[qid]（「増分」ではなく最新値 / JST YYYYMMDD）
  *
  * ▼ 問題別 3 連続不正解（💣用）
  *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
@@ -34,12 +28,6 @@
  *   - localStorage: "cscs_q_wrong_streak_len:" + qid
  *       ⇔ SYNC state: streakWrongLen[qid]
  *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
- *   - localStorage: "cscs_q_wrong_streak_max:" + qid
- *       ⇔ SYNC state: streakWrongMax[qid]
- *       ⇔ delta payload: streakWrongMaxDelta[qid]（「増分」ではなく最新値）
- *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
- *       ⇔ SYNC state: streakWrongMaxDay[qid]
- *       ⇔ delta payload: streakWrongMaxDayDelta[qid]（「増分」ではなく最新値 / JST YYYYMMDD）
  *
  * ▼ B専用「前回 SYNC 済み累計」のローカルキャッシュ（SYNC state には存在しない）
  *   - localStorage: "cscs_sync_last_c:"   + qid … 正解累計の前回同期値
@@ -116,16 +104,12 @@
   if (!info) return;
 
   // b_judge_record.js が管理している「本物の累積キー」
-  const KEY_COR                  = `cscs_q_correct_total:${info.qid}`;
-  const KEY_WRG                  = `cscs_q_wrong_total:${info.qid}`;
-  const KEY_S3                   = `cscs_q_correct_streak3_total:${info.qid}`;
-  const KEY_STREAK_LEN           = `cscs_q_correct_streak_len:${info.qid}`;
-  const KEY_STREAK_MAX           = `cscs_q_correct_streak_max:${info.qid}`;
-  const KEY_STREAK_MAX_DAY       = `cscs_q_correct_streak_max_day:${info.qid}`;
-  const KEY_S3_WRONG             = `cscs_q_wrong_streak3_total:${info.qid}`;
-  const KEY_STREAK_WRONG_LEN     = `cscs_q_wrong_streak_len:${info.qid}`;
-  const KEY_STREAK_WRONG_MAX     = `cscs_q_wrong_streak_max:${info.qid}`;
-  const KEY_STREAK_WRONG_MAX_DAY = `cscs_q_wrong_streak_max_day:${info.qid}`;
+  const KEY_COR              = `cscs_q_correct_total:${info.qid}`;
+  const KEY_WRG              = `cscs_q_wrong_total:${info.qid}`;
+  const KEY_S3               = `cscs_q_correct_streak3_total:${info.qid}`;
+  const KEY_STREAK_LEN       = `cscs_q_correct_streak_len:${info.qid}`;
+  const KEY_S3_WRONG         = `cscs_q_wrong_streak3_total:${info.qid}`;
+  const KEY_STREAK_WRONG_LEN = `cscs_q_wrong_streak_len:${info.qid}`;
 
   // B側だけで使う「最後に SYNC 済みだったときの累積値」
   const KEY_LAST_COR      = `cscs_sync_last_c:${info.qid}`;
@@ -157,23 +141,6 @@
     return n;
   }
 
-  function loadIntOptional(key){
-    const raw = localStorage.getItem(key);
-    if (raw == null) {
-      console.log("[SYNC/B][ok][loadIntOptional] localStorage miss -> (skip)", { key });
-      return { ok: false, value: null, raw: null };
-    }
-
-    const n = parseInt(raw, 10);
-    if (!Number.isFinite(n)) {
-      console.warn("[SYNC/B][warn][loadIntOptional] parseInt failed -> (skip)", { key, raw });
-      return { ok: false, value: null, raw: raw };
-    }
-
-    console.log("[SYNC/B][ok][loadIntOptional] loaded", { key, raw: raw, value: n });
-    return { ok: true, value: n, raw: raw };
-  }
-
   function saveInt(key, value){
     localStorage.setItem(key, String(value));
   }
@@ -184,16 +151,8 @@
     const wNow              = loadInt(KEY_WRG);
     const s3Now             = loadInt(KEY_S3);
     const streakLenNow      = loadInt(KEY_STREAK_LEN);
-
-    // max / max_day は「欠損を 0 として送る」と SYNC を汚すので optional 読み
-    const streakMaxOpt       = loadIntOptional(KEY_STREAK_MAX);
-    const streakMaxDayOpt    = loadIntOptional(KEY_STREAK_MAX_DAY);
-
-    const s3WrongNow         = loadInt(KEY_S3_WRONG);
-    const streakWrongLenNow  = loadInt(KEY_STREAK_WRONG_LEN);
-
-    const streakWrongMaxOpt    = loadIntOptional(KEY_STREAK_WRONG_MAX);
-    const streakWrongMaxDayOpt = loadIntOptional(KEY_STREAK_WRONG_MAX_DAY);
+    const s3WrongNow        = loadInt(KEY_S3_WRONG);
+    const streakWrongLenNow = loadInt(KEY_STREAK_WRONG_LEN);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
     // Fallback-03: KEY_LAST_* miss(null) を loadInt() が 0 扱いにすることで「初回同期」として差分を作れる。
@@ -339,12 +298,6 @@
       // 既存: 「増分」ではなく “最新値” を送るキー（qid→current）
       streakLenDelta:                      { [info.qid]: streakLenNow },
       streakWrongLenDelta:                { [info.qid]: streakWrongLenNow },
-
-      // ★追加: 「最高連続」(max / max_day) も “最新値” を送る（欠損は送らない）
-      streakMaxDelta:                      streakMaxOpt.ok       ? { [info.qid]: streakMaxOpt.value } : {},
-      streakMaxDayDelta:                   streakMaxDayOpt.ok    ? { [info.qid]: streakMaxDayOpt.value } : {},
-      streakWrongMaxDelta:                 streakWrongMaxOpt.ok  ? { [info.qid]: streakWrongMaxOpt.value } : {},
-      streakWrongMaxDayDelta:              streakWrongMaxDayOpt.ok ? { [info.qid]: streakWrongMaxDayOpt.value } : {},
 
       // 既存: 送信時刻
       updatedAt: Date.now()

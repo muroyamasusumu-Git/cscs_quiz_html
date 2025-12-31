@@ -69,12 +69,6 @@ class SplitPart:
     start_offset: int
     end_offset: int
 
-    # PART_SCOPE_HINT 用（人間＆ChatGPTが素早く探索できるようにする）
-    start_line: int
-    end_line: int
-    brace_depth_start: int
-    brace_depth_end: int
-
     # このパート本文の SHA256（貼り間違い・改ざん検出用）
     part_sha256: str
 
@@ -87,86 +81,6 @@ def sha256_hex(s: str) -> str:
     h = hashlib.sha256()
     h.update(s.encode("utf-8"))
     return h.hexdigest()
-
-
-def _part_top_identifiers(js_chunk: str, top_n: int) -> List[Tuple[str, int]]:
-    """
-    パート本文から頻出識別子 TopN を返す（簡易）
-    - ASTは使わない（依存ゼロ・速度優先）
-    - JS予約語は除外
-    """
-    s = str(js_chunk or "")
-
-    import re
-    from collections import Counter
-
-    try:
-        n = int(top_n)
-    except Exception:
-        n = 0
-    if n <= 0:
-        n = 12
-
-    tokens = re.findall(r"\b[A-Za-z_$][A-Za-z0-9_$]*\b", s)
-
-    reserved = {
-        "await","break","case","catch","class","const","continue","debugger","default","delete",
-        "do","else","enum","export","extends","false","finally","for","function","if","import",
-        "in","instanceof","let","new","null","return","super","switch","this","throw","true",
-        "try","typeof","var","void","while","with","yield",
-        "implements","interface","package","private","protected","public","static",
-    }
-
-    ident_list = [t for t in tokens if t and t not in reserved]
-    c = Counter(ident_list)
-    return c.most_common(n)
-
-
-def _part_defines(js_chunk: str, max_items: int) -> List[str]:
-    """
-    パート本文内の「定義」っぽい名前を抽出（簡易）
-    - function NAME(
-    - async function NAME(
-    - function* NAME(
-    - class NAME
-    - var/let/const NAME =
-    """
-    s = str(js_chunk or "")
-
-    import re
-
-    try:
-        mx = int(max_items)
-    except Exception:
-        mx = 0
-    if mx <= 0:
-        mx = 40
-
-    names: List[str] = []
-
-    patterns = [
-        re.compile(r"(^|\n)\s*function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(", re.MULTILINE),
-        re.compile(r"(^|\n)\s*async\s+function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(", re.MULTILINE),
-        re.compile(r"(^|\n)\s*function\s*\*\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\(", re.MULTILINE),
-        re.compile(r"(^|\n)\s*async\s+function\s*\*\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\(", re.MULTILINE),
-        re.compile(r"(^|\n)\s*class\s+([A-Za-z_$][A-Za-z0-9_$]*)\b", re.MULTILINE),
-        re.compile(r"(^|\n)\s*(?:var|let|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=", re.MULTILINE),
-    ]
-
-    seen = set()
-
-    for rg in patterns:
-        for m in rg.finditer(s):
-            nm = str(m.group(2) if m.lastindex and m.lastindex >= 2 else m.group(1)).strip()
-            if nm == "":
-                continue
-            if nm not in seen:
-                seen.add(nm)
-                names.append(nm)
-                if len(names) >= mx:
-                    return names
-
-    return names
 
 
 def make_session_id(prefix: str, file_text: str) -> str:
@@ -184,7 +98,7 @@ def split_by_limits(
     max_lines: int,
     split_mode: str = "C",
     iife_grace_ratio: float = 0.30,
-) -> List[Tuple[int, int, str, int, int]]:
+) -> List[Tuple[int, int, str]]:
     if max_chars <= 0:
         raise ValueError("max_chars must be > 0")
     if max_lines <= 0:
@@ -205,21 +119,8 @@ def split_by_limits(
     if n == 0:
         return [(0, 0, "")]
 
-    parts: List[Tuple[int, int, str, int, int]] = []
+    parts: List[Tuple[int, int, str]] = []
     start = 0
-
-    # ============================================================
-    # ブレース深さトラッキング（PART_SCOPE_HINT / depth==0境界 用）
-    # - 文字列 / テンプレ / コメント を極力避けて数える（簡易）。
-    # - splitは先頭→末尾へ進むので、状態は継続して持つ（チャンク跨ぎ対応）。
-    # ============================================================
-    depth = 0
-    in_squote = False
-    in_dquote = False
-    in_tpl = False
-    in_line_cmt = False
-    in_block_cmt = False
-    esc = False
 
     # IIFE終端として扱う候補（モードA/Bはこれだけを“強く”探す）
     iife_tokens = [
@@ -331,280 +232,37 @@ def split_by_limits(
                         end = nl + 1
 
             else:
-                # --- 境界優先分割（Cモード：改良版） ---
-                # 優先順位:
-                #   1) depth==0 の「改行境界」（構文的に自立しやすい）
-                #   2) 従来の boundary_candidates（終端っぽいトークン）
-                #   3) 最後の改行（従来どおり）
-                def _find_last_depth0_newline(start_pos: int, end_pos: int) -> int:
-                    """
-                    start_pos..end_pos で、brace depth==0 の位置にある「改行境界（\\n の直後）」のうち、
-                    最後の地点を返す。見つからなければ -1。
-                    ※簡易スキャナ。文字列/テンプレ/コメント内の { } は数えない。
-                    """
-                    i = start_pos
-                    n2 = end_pos
-
-                    d = 0
-                    sq = False
-                    dq = False
-                    tp = False
-                    lc = False
-                    bc = False
-                    es = False
-
-                    last_cut = -1
-
-                    while i < n2:
-                        ch = text[i]
-
-                        if lc:
-                            if ch == "\n":
-                                lc = False
-                                if d == 0:
-                                    last_cut = i + 1
-                            i += 1
-                            continue
-
-                        if bc:
-                            if ch == "*" and i + 1 < n2 and text[i + 1] == "/":
-                                bc = False
-                                i += 2
-                                continue
-                            i += 1
-                            continue
-
-                        if sq:
-                            if es:
-                                es = False
-                                i += 1
-                                continue
-                            if ch == "\\":
-                                es = True
-                                i += 1
-                                continue
-                            if ch == "'":
-                                sq = False
-                            i += 1
-                            continue
-
-                        if dq:
-                            if es:
-                                es = False
-                                i += 1
-                                continue
-                            if ch == "\\":
-                                es = True
-                                i += 1
-                                continue
-                            if ch == '"':
-                                dq = False
-                            i += 1
-                            continue
-
-                        if tp:
-                            if es:
-                                es = False
-                                i += 1
-                                continue
-                            if ch == "\\":
-                                es = True
-                                i += 1
-                                continue
-                            if ch == "`":
-                                tp = False
-                            i += 1
-                            continue
-
-                        # 文字列/コメント外
-                        if ch == "/" and i + 1 < n2 and text[i + 1] == "/":
-                            lc = True
-                            i += 2
-                            continue
-                        if ch == "/" and i + 1 < n2 and text[i + 1] == "*":
-                            bc = True
-                            i += 2
-                            continue
-                        if ch == "'":
-                            sq = True
-                            i += 1
-                            continue
-                        if ch == '"':
-                            dq = True
-                            i += 1
-                            continue
-                        if ch == "`":
-                            tp = True
-                            i += 1
-                            continue
-
-                        if ch == "{":
-                            d += 1
-                            i += 1
-                            continue
-                        if ch == "}":
-                            d -= 1
-                            if d < 0:
-                                d = 0
-                            i += 1
-                            continue
-
-                        if ch == "\n":
-                            if d == 0:
-                                last_cut = i + 1
-                            i += 1
-                            continue
-
-                        i += 1
-
-                    return last_cut
-
+                # --- 境界優先分割（従来） ---
                 boundary_candidates = [
                     "\n})();\n",
                     "\n});\n",
                     "\n}\n",
                 ]
 
-                # 1) depth==0 の改行境界（後ろ寄り）を優先（探索は重くしないため、末尾寄り窓で見る）
-                depth0_found = -1
-                depth0_search_from = max(start, tentative_end - 12000)
-                depth0_search_to = tentative_end
-                pos0 = _find_last_depth0_newline(depth0_search_from, depth0_search_to)
-                if pos0 != -1 and pos0 > start:
-                    depth0_found = pos0
+                boundary_found = -1
+                search_from = max(start, tentative_end - 2000)
+                search_to = tentative_end
 
-                if depth0_found != -1:
-                    end = depth0_found
+                for token in boundary_candidates:
+                    pos = text.rfind(token, search_from, search_to)
+                    if pos != -1:
+                        boundary_found = pos + len(token)
+                        break
+
+                if boundary_found != -1:
+                    end = boundary_found
                 else:
-                    # 2) 従来の終端っぽいトークン
-                    boundary_found = -1
-                    search_from = max(start, tentative_end - 2000)
-                    search_to = tentative_end
-
-                    for token in boundary_candidates:
-                        pos = text.rfind(token, search_from, search_to)
-                        if pos != -1:
-                            boundary_found = pos + len(token)
-                            break
-
-                    if boundary_found != -1:
-                        end = boundary_found
+                    nl = text.rfind("\n", start, tentative_end)
+                    if nl == -1 or nl <= start:
+                        end = tentative_end
                     else:
-                        # 3) 最後の改行
-                        nl = text.rfind("\n", start, tentative_end)
-                        if nl == -1 or nl <= start:
-                            end = tentative_end
-                        else:
-                            end = nl + 1
+                        end = nl + 1
 
             # ★ 追加した処理: 最終的な end は必ず「改行境界」に丸めて、行の途中で切らない
             end = _snap_end_to_newline(start, end)
 
-        # ============================================================
-        # このパートの brace depth（開始→終了）を確定
-        # - split は先頭→末尾へ進むため、状態を引き継いで正確性を上げる
-        # ============================================================
-        depth_start = depth
-
-        i = start
-        while i < end:
-            ch = text[i]
-
-            if in_line_cmt:
-                if ch == "\n":
-                    in_line_cmt = False
-                i += 1
-                continue
-
-            if in_block_cmt:
-                if ch == "*" and i + 1 < end and text[i + 1] == "/":
-                    in_block_cmt = False
-                    i += 2
-                    continue
-                i += 1
-                continue
-
-            if in_squote:
-                if esc:
-                    esc = False
-                    i += 1
-                    continue
-                if ch == "\\":
-                    esc = True
-                    i += 1
-                    continue
-                if ch == "'":
-                    in_squote = False
-                i += 1
-                continue
-
-            if in_dquote:
-                if esc:
-                    esc = False
-                    i += 1
-                    continue
-                if ch == "\\":
-                    esc = True
-                    i += 1
-                    continue
-                if ch == '"':
-                    in_dquote = False
-                i += 1
-                continue
-
-            if in_tpl:
-                if esc:
-                    esc = False
-                    i += 1
-                    continue
-                if ch == "\\":
-                    esc = True
-                    i += 1
-                    continue
-                if ch == "`":
-                    in_tpl = False
-                i += 1
-                continue
-
-            # 文字列/コメント外
-            if ch == "/" and i + 1 < end and text[i + 1] == "/":
-                in_line_cmt = True
-                i += 2
-                continue
-            if ch == "/" and i + 1 < end and text[i + 1] == "*":
-                in_block_cmt = True
-                i += 2
-                continue
-            if ch == "'":
-                in_squote = True
-                i += 1
-                continue
-            if ch == '"':
-                in_dquote = True
-                i += 1
-                continue
-            if ch == "`":
-                in_tpl = True
-                i += 1
-                continue
-
-            if ch == "{":
-                depth += 1
-                i += 1
-                continue
-            if ch == "}":
-                depth -= 1
-                if depth < 0:
-                    depth = 0
-                i += 1
-                continue
-
-            i += 1
-
-        depth_end = depth
-
         chunk = text[start:end]
-        parts.append((start, end, chunk, depth_start, depth_end))
+        parts.append((start, end, chunk))
         start = end
 
     return parts
@@ -1345,17 +1003,6 @@ def make_part_payload(
     receipt_input_block: str,
     protocol_epilogue: str,
 ) -> str:
-    # ============================================================
-    # PART_SCOPE_HINT 強化（パート本文だけから抽出）
-    # - TopIdentifiers: 頻出識別子TopN
-    # - Defines: このパート内で定義している可能性が高い名前
-    # ============================================================
-    top_items = _part_top_identifiers(part.text, 12)
-    top_ident_str = ", ".join([f"{name}:{cnt}" for (name, cnt) in top_items]) if top_items else ""
-
-    defines_list = _part_defines(part.text, 40)
-    defines_str = ", ".join(defines_list) if defines_list else ""
-
     header_lines: List[str] = []
     header_lines.append("<<<PART_BEGIN>>>")
     header_lines.append(f"【分割コード({part.index})の開始】")
@@ -1366,12 +1013,6 @@ def make_part_payload(
     header_lines.append(f"LastLine: {part.last_line}")
     # 追加した処理: パート末尾に“実際の改行”が存在するかを明記し、JOIN時に暗黙改行を挿入させないための根拠にする
     header_lines.append(f"EndNewline: {'YES' if part.text.endswith(chr(10)) else 'NO'}")
-    header_lines.append(f"PART_SCOPE_HINT: LineRange=L{part.start_line}..L{part.end_line} | BraceDepth={part.brace_depth_start}->{part.brace_depth_end}")
-
-    # 追加した処理: パート内の探索効率を上げる（頻出識別子 / 定義名）
-    header_lines.append(f"PART_SCOPE_HINT_TOP_IDENTIFIERS: {top_ident_str if top_ident_str else '(none)'}")
-    header_lines.append(f"PART_SCOPE_HINT_DEFINES: {defines_str if defines_str else '(none)'}")
-
     header_lines.append("")
 
     if part.index == 1:
@@ -1568,23 +1209,16 @@ def generate_parts(
     )
     total = len(chunks)
 
-    # PART_SCOPE_HINT 用：行番号（1-based）変換のための前処理
-    line_starts = _line_start_offsets(content)
-
     out_dir = outroot / f"{session_id}_{now_tag()}"
     parts_dir = out_dir / "parts"
     safe_mkdir(parts_dir)
 
     parts: List[SplitPart] = []
-    for idx, (st, ed, ch, depth_start, depth_end) in enumerate(chunks, start=1):
+    for idx, (st, ed, ch) in enumerate(chunks, start=1):
         part_id = build_part_id(session_id, idx, total)
         lines = ch.splitlines()
         first_line = lines[0] if lines else ""
         last_line = lines[-1] if lines else ""
-
-        # PART_SCOPE_HINT: 行範囲（1-based）
-        start_line = _offset_to_line_index(line_starts, st) + 1
-        end_line = _offset_to_line_index(line_starts, max(st, ed - 1)) + 1
 
         parts.append(SplitPart(
             index=idx,
@@ -1593,12 +1227,6 @@ def generate_parts(
             text=ch,
             start_offset=st,
             end_offset=ed,
-
-            # PART_SCOPE_HINT 用
-            start_line=start_line,
-            end_line=end_line,
-            brace_depth_start=int(depth_start),
-            brace_depth_end=int(depth_end),
 
             # パート本文の完全性検証用
             part_sha256=sha256_hex(ch),

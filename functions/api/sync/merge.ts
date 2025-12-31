@@ -171,6 +171,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     countKeys((delta as any).streakLenDelta) +
     countKeys((delta as any).streak3WrongDelta) +
     countKeys((delta as any).streakWrongLenDelta) +
+    countKeys((delta as any).streakMaxDelta) +
+    countKeys((delta as any).streakMaxDayDelta) +
+    countKeys((delta as any).streakWrongMaxDelta) +
+    countKeys((delta as any).streakWrongMaxDayDelta) +
     countKeys((delta as any).lastSeenDayDelta) +
     countKeys((delta as any).lastCorrectDayDelta) +
     countKeys((delta as any).lastWrongDayDelta) +
@@ -529,8 +533,12 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       incorrect: {},
       streak3: {},
       streakLen: {},
+      streakMax: {},
+      streakMaxDay: {},
       streak3Wrong: {},
       streakWrongLen: {},
+      streakWrongMax: {},
+      streakWrongMaxDay: {},
       lastSeenDay: {},
       lastCorrectDay: {},
       lastWrongDay: {},
@@ -562,8 +570,18 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
   if (!server.incorrect) server.incorrect = {};
   if (!server.streak3) server.streak3 = {};
   if (!server.streakLen) server.streakLen = {};
+
+  // ★ 追加: 問題別「最高連続正解数 / 達成日」を保持する map の形を保証する
+  if (!server.streakMax) server.streakMax = {};
+  if (!server.streakMaxDay) server.streakMaxDay = {};
+
   if (!server.streak3Wrong) server.streak3Wrong = {};
   if (!server.streakWrongLen) server.streakWrongLen = {};
+
+  // ★ 追加: 問題別「最高連続不正解数 / 達成日」を保持する map の形を保証する
+  if (!server.streakWrongMax) server.streakWrongMax = {};
+  if (!server.streakWrongMaxDay) server.streakWrongMaxDay = {};
+
   if (!server.lastSeenDay) server.lastSeenDay = {};
   if (!server.lastCorrectDay) server.lastCorrectDay = {};
   if (!server.lastWrongDay) server.lastWrongDay = {};
@@ -611,6 +629,10 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       console.log("[SYNC/merge] (0-1) server.odoa_mode が欠落または不正値のため 'off' で補完しました。");
     } catch (_e) {}
   }
+
+  // ★ 実更新検知用：merge前スナップショット（updatedAt を触る前の状態）
+  // - diffKeysCount > 0 でも「実更新が0」のケースがあり得るため、KV.put の要否を最終確定する
+  const serverBeforeMergeSnapshot = JSON.stringify(server);
 
   // (1) delta.streak3TodayDelta / oncePerDayTodayDelta が送られてきたか
   // - クライアント側が「今日の ⭐️ ユニーク一覧」と「1日1回までカウント対象 oncePerDayTodayDelta」を送信してきているかどうかを確認する
@@ -781,6 +803,72 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     if (!Number.isFinite(v) || v < 0) continue;
     if (!server.streakWrongLen) server.streakWrongLen = {};
     server.streakWrongLen[qid] = v;
+  }
+
+  // streakMaxDelta: 各 qid の「最高連続正解数」をサーバー側に保存
+  // - ★ max保証: 絶対に下がらない（prev と比較して大きい時だけ更新）
+  // - ★ day更新と紐付けるため、maxが更新されたqidを記録する
+  const updatedStreakMaxQids = new Set<string>();
+
+  for (const [qid, n] of Object.entries((delta as any).streakMaxDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v < 0) continue;
+    if (!server.streakMax) server.streakMax = {};
+
+    const prev = typeof server.streakMax[qid] === "number" ? server.streakMax[qid] : 0;
+    const next = v > prev ? v : prev;
+
+    if (next !== prev) {
+      server.streakMax[qid] = next;
+      updatedStreakMaxQids.add(qid);
+    }
+  }
+
+  // streakMaxDayDelta: 各 qid の「最高連続正解数を最後に更新した達成日（JST YYYYMMDD）」をサーバー側に保存
+  // - ★ max更新と連動: streakMax が更新された qid のみ day を更新する（単独day更新は無効）
+  for (const [qid, n] of Object.entries((delta as any).streakMaxDayDelta || {})) {
+    if (!updatedStreakMaxQids.has(qid)) continue;
+
+    const v = n as number;
+    if (!Number.isFinite(v) || v <= 0) continue;
+    const dayStr = String(v);
+    if (!/^\d{8}$/.test(dayStr)) continue;
+
+    if (!server.streakMaxDay) server.streakMaxDay = {};
+    server.streakMaxDay[qid] = v;
+  }
+
+  // streakWrongMaxDelta: 各 qid の「最高連続不正解数」をサーバー側に保存
+  // - ★ max保証: 絶対に下がらない（prev と比較して大きい時だけ更新）
+  // - ★ day更新と紐付けるため、maxが更新されたqidを記録する
+  const updatedStreakWrongMaxQids = new Set<string>();
+
+  for (const [qid, n] of Object.entries((delta as any).streakWrongMaxDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v < 0) continue;
+    if (!server.streakWrongMax) server.streakWrongMax = {};
+
+    const prev = typeof server.streakWrongMax[qid] === "number" ? server.streakWrongMax[qid] : 0;
+    const next = v > prev ? v : prev;
+
+    if (next !== prev) {
+      server.streakWrongMax[qid] = next;
+      updatedStreakWrongMaxQids.add(qid);
+    }
+  }
+
+  // streakWrongMaxDayDelta: 各 qid の「最高連続不正解数を最後に更新した達成日（JST YYYYMMDD）」をサーバー側に保存
+  // - ★ max更新と連動: streakWrongMax が更新された qid のみ day を更新する（単独day更新は無効）
+  for (const [qid, n] of Object.entries((delta as any).streakWrongMaxDayDelta || {})) {
+    if (!updatedStreakWrongMaxQids.has(qid)) continue;
+
+    const v = n as number;
+    if (!Number.isFinite(v) || v <= 0) continue;
+    const dayStr = String(v);
+    if (!/^\d{8}$/.test(dayStr)) continue;
+
+    if (!server.streakWrongMaxDay) server.streakWrongMaxDay = {};
+    server.streakWrongMaxDay[qid] = v;
   }
 
   // lastSeenDayDelta: 各 qid の「最終閲覧日」をサーバー側に反映（YYYYMMDD 数値）
@@ -1376,7 +1464,31 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
   }
 
-  // 今回の merge 処理がいつ行われたかのタイムスタンプを保存
+  // ★ 実更新チェック：updatedAt を触る前に server が変化したか判定
+  // - 「キーはあるがバリデーションで全スキップ」等のケースでは put しない
+  const serverAfterMergeSnapshot = JSON.stringify(server);
+
+  if (serverAfterMergeSnapshot === serverBeforeMergeSnapshot) {
+    console.log("[SYNC/merge] NO_EFFECTIVE_UPDATE_SKIP_PUT");
+
+    const responseObj = Object.assign({}, server, {
+      __cscs_merge: {
+        putExecuted: false,
+        putBefore: null,
+        putAfter: null
+      }
+    });
+
+    return new Response(JSON.stringify(responseObj), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store"
+      }
+    });
+  }
+
+  // 今回の merge 処理がいつ行われたかのタイムスタンプを保存（★実更新がある時だけ）
   server.updatedAt = Date.now();
 
   // (3) KV 保存＋ (4) 保存直後の dump
