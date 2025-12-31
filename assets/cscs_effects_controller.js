@@ -187,7 +187,7 @@
       "right:12px;" +
       "bottom:calc(10px + 34px + 8px);" +
       "z-index:2147483647;" +
-      "width:min(420px, calc(100vw - 24px));" +
+      "width:min(720px, calc(100vw - 24px));" +
       "max-height:calc(100vh - 110px);" +
       "overflow:auto;" +
       "padding:10px 10px;" +
@@ -213,11 +213,45 @@
       "#" + PANEL_ID + " .grid{" +
       "display:grid;" +
       "grid-template-columns:repeat(3, 1fr);" +
-      "gap:6px 10px;" +
+      "column-gap:18px;" +
+      "row-gap:6px;" +
       "margin-top:6px;" +
+      "position:relative;" +
+      "padding:6px 8px;" +
+      "}" +
+      // 追加した処理: 列の区切り線（2本）
+      "#" + PANEL_ID + " .grid:before{" +
+      "content:'';" +
+      "position:absolute;" +
+      "top:0;" +
+      "bottom:0;" +
+      "left:calc((100% - 16px) / 3 + 8px);" +
+      "width:1px;" +
+      "background:rgba(255,255,255,0.10);" +
+      "pointer-events:none;" +
+      "}" +
+      "#" + PANEL_ID + " .grid:after{" +
+      "content:'';" +
+      "position:absolute;" +
+      "top:0;" +
+      "bottom:0;" +
+      "left:calc(2 * ((100% - 16px) / 3) + 8px);" +
+      "width:1px;" +
+      "background:rgba(255,255,255,0.10);" +
+      "pointer-events:none;" +
       "}" +
       "#" + PANEL_ID + " .grid .row{" +
       "padding:2px 0px;" +
+      "justify-content:flex-start;" +
+      "gap:8px;" +
+      "}" +
+      "#" + PANEL_ID + " .grid .row span{" +
+      "white-space:nowrap;" +
+      "overflow:hidden;" +
+      "text-overflow:ellipsis;" +
+      "}" +
+      "#" + PANEL_ID + " .grid input[type=checkbox]{" +
+      "margin:0;" +
       "}" +
       "#" + PANEL_ID + " .ttl{" +
       "font-weight:700;" +
@@ -474,8 +508,8 @@
             }
           });
 
-          row.appendChild(label);
           row.appendChild(cb);
+          row.appendChild(label);
           grid.appendChild(row);
         })(EFFECTS[i]);
       }
