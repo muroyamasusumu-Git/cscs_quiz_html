@@ -80,10 +80,26 @@
  *       streak3WrongDelta[qid]
  *       streakWrongLenDelta[qid]   // 「増分」ではなく「最新値」を送る
  *
- * ▼ 問題別 連続不正解（Local のみで表示する最高値/達成日）
- *   - localStorage:
- *       "cscs_q_wrong_streak_max:"     + qid
- *       "cscs_q_wrong_streak_max_day:" + qid
+ * ▼ 問題別 連続正解/不正解（最高値/達成日：SYNC取得・ローカル上書き・表示対象）
+ *   - localStorage: "cscs_q_correct_streak_len:" + qid
+ *       ⇔ SYNC state: streakLen[qid]
+ *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_correct_streak_max:" + qid
+ *       ⇔ SYNC state: streakMax[qid]
+ *       ⇔ delta payload: streakMaxDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_correct_streak_max_day:" + qid
+ *       ⇔ SYNC state: streakMaxDay[qid]
+ *       ⇔ delta payload: streakMaxDayDelta[qid]（「増分」ではなく最新値 / JST YYYYMMDD）
+ *
+ *   - localStorage: "cscs_q_wrong_streak_len:" + qid
+ *       ⇔ SYNC state: streakWrongLen[qid]
+ *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_wrong_streak_max:" + qid
+ *       ⇔ SYNC state: streakWrongMax[qid]
+ *       ⇔ delta payload: streakWrongMaxDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
+ *       ⇔ SYNC state: streakWrongMaxDay[qid]
+ *       ⇔ delta payload: streakWrongMaxDayDelta[qid]（「増分」ではなく最新値 / JST YYYYMMDD）
  *
  * ▼ 今日の⭐️ユニーク数（Streak3Today）
  *   - localStorage:
@@ -626,6 +642,83 @@
       const lWrongMax    = readLocalWrongStreakMaxForQid(QID);
       const lWrongMaxDay = readLocalWrongStreakMaxDayForQid(QID);
 
+      // ★ 追加: SYNC側の streak max / maxDay を __cscs_sync_state から取得（フォールバック禁止）
+      let sMax = null;
+      let sMaxDay = null;
+      let sWrongMax = null;
+      let sWrongMaxDay = null;
+
+      try{
+        const st = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+          ? window.__cscs_sync_state
+          : null;
+
+        if (st && st.streakMax && typeof st.streakMax === "object" && Object.prototype.hasOwnProperty.call(st.streakMax, QID)) {
+          const v = st.streakMax[QID];
+          if (typeof v === "number" && Number.isFinite(v) && v >= 0) {
+            sMax = v;
+          } else {
+            console.error("[SYNC-A][NO-FALLBACK] streakMax server invalid -> null", { qid: QID, value: v, type: typeof v });
+          }
+        } else {
+          console.log("[SYNC-A][NO-FALLBACK] streakMax server missing entry -> null", { qid: QID });
+        }
+
+        if (st && st.streakMaxDay && typeof st.streakMaxDay === "object" && Object.prototype.hasOwnProperty.call(st.streakMaxDay, QID)) {
+          const v2 = st.streakMaxDay[QID];
+          if (typeof v2 === "string" && /^\d{8}$/.test(v2.trim())) {
+            sMaxDay = v2.trim();
+          } else if (typeof v2 === "number" && Number.isFinite(v2)) {
+            const t = String(Math.trunc(v2));
+            sMaxDay = (/^\d{8}$/.test(t)) ? t : null;
+            if (!sMaxDay) {
+              console.error("[SYNC-A][NO-FALLBACK] streakMaxDay server invalid -> null", { qid: QID, value: v2, type: typeof v2 });
+            }
+          } else {
+            console.error("[SYNC-A][NO-FALLBACK] streakMaxDay server invalid -> null", { qid: QID, value: v2, type: typeof v2 });
+          }
+        } else {
+          console.log("[SYNC-A][NO-FALLBACK] streakMaxDay server missing entry -> null", { qid: QID });
+        }
+
+        if (st && st.streakWrongMax && typeof st.streakWrongMax === "object" && Object.prototype.hasOwnProperty.call(st.streakWrongMax, QID)) {
+          const v3 = st.streakWrongMax[QID];
+          if (typeof v3 === "number" && Number.isFinite(v3) && v3 >= 0) {
+            sWrongMax = v3;
+          } else {
+            console.error("[SYNC-A][NO-FALLBACK] streakWrongMax server invalid -> null", { qid: QID, value: v3, type: typeof v3 });
+          }
+        } else {
+          console.log("[SYNC-A][NO-FALLBACK] streakWrongMax server missing entry -> null", { qid: QID });
+        }
+
+        if (st && st.streakWrongMaxDay && typeof st.streakWrongMaxDay === "object" && Object.prototype.hasOwnProperty.call(st.streakWrongMaxDay, QID)) {
+          const v4 = st.streakWrongMaxDay[QID];
+          if (typeof v4 === "string" && /^\d{8}$/.test(v4.trim())) {
+            sWrongMaxDay = v4.trim();
+          } else if (typeof v4 === "number" && Number.isFinite(v4)) {
+            const t2 = String(Math.trunc(v4));
+            sWrongMaxDay = (/^\d{8}$/.test(t2)) ? t2 : null;
+            if (!sWrongMaxDay) {
+              console.error("[SYNC-A][NO-FALLBACK] streakWrongMaxDay server invalid -> null", { qid: QID, value: v4, type: typeof v4 });
+            }
+          } else {
+            console.error("[SYNC-A][NO-FALLBACK] streakWrongMaxDay server invalid -> null", { qid: QID, value: v4, type: typeof v4 });
+          }
+        } else {
+          console.log("[SYNC-A][NO-FALLBACK] streakWrongMaxDay server missing entry -> null", { qid: QID });
+        }
+      }catch(eMax){
+        sMax = null;
+        sMaxDay = null;
+        sWrongMax = null;
+        sWrongMaxDay = null;
+        console.error("[SYNC-A][NO-FALLBACK] streak max server read exception -> nulls", {
+          qid: QID,
+          error: String(eMax && eMax.message || eMax)
+        });
+      }
+
       // ★ 不正解ストリーク（localStorage）の読み取り
       //   - b_judge_record.js が書き込んでいる
       //     "cscs_q_wrong_streak3_total:{qid}"
@@ -1019,10 +1112,18 @@
         const streakMaxValEl    = box.querySelector(".sync-streakmax-max-local");
         const streakMaxDayEl    = box.querySelector(".sync-streakmax-maxday-local");
 
+        // ★ 追加: streak max カード（A）SYNC表示用要素
+        const streakMaxValSyncEl = box.querySelector(".sync-streakmax-max-sync");
+        const streakMaxDaySyncEl = box.querySelector(".sync-streakmax-maxday-sync");
+
         // ★ 追加: 不正解 streak max カード（A）表示用要素
         const wrongStreakMaxLenEl = box.querySelector(".sync-wrong-streakmax-len-local");
         const wrongStreakMaxValEl = box.querySelector(".sync-wrong-streakmax-max-local");
         const wrongStreakMaxDayEl = box.querySelector(".sync-wrong-streakmax-maxday-local");
+
+        // ★ 追加: 不正解 streak max カード（A）SYNC表示用要素
+        const wrongStreakMaxValSyncEl = box.querySelector(".sync-wrong-streakmax-max-sync");
+        const wrongStreakMaxDaySyncEl = box.querySelector(".sync-wrong-streakmax-maxday-sync");
 
         // ★ 追加: キュー（+Δ）詳細（A）
         const qdCwEl     = box.querySelector(".sync-queue-cw");
@@ -1311,6 +1412,12 @@
         if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "-");
         if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "-");
 
+        // ★ 追加: streak max カード（A）に SYNC の値を反映（要素がある時だけ）
+        //   - max: 最高連続正解数（SYNC: __cscs_sync_state.streakMax[qid]）
+        //   - day: 最高を更新した日（SYNC: __cscs_sync_state.streakMaxDay[qid]）
+        if (streakMaxValSyncEl) streakMaxValSyncEl.textContent = toDisplayText(sMax, "-");
+        if (streakMaxDaySyncEl) streakMaxDaySyncEl.textContent = toDisplayText(sMaxDay, "-");
+
         // ★ 追加: 不正解 streak max カード（A）に localStorage の値を反映
         //   - len: 現在の連続不正解数（cscs_q_wrong_streak_len:{qid}）
         //   - max: 最高連続不正解数（cscs_q_wrong_streak_max:{qid}）
@@ -1318,6 +1425,12 @@
         if (wrongStreakMaxLenEl) wrongStreakMaxLenEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? llWrong : "", "-");
         if (wrongStreakMaxValEl) wrongStreakMaxValEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? lWrongMax : "", "-");
         if (wrongStreakMaxDayEl) wrongStreakMaxDayEl.textContent = toDisplayText(lWrongMaxDay, "-");
+
+        // ★ 追加: 不正解 streak max カード（A）に SYNC の値を反映（要素がある時だけ）
+        //   - max: 最高連続不正解数（SYNC: __cscs_sync_state.streakWrongMax[qid]）
+        //   - day: 最高を更新した日（SYNC: __cscs_sync_state.streakWrongMaxDay[qid]）
+        if (wrongStreakMaxValSyncEl) wrongStreakMaxValSyncEl.textContent = toDisplayText(sWrongMax, "-");
+        if (wrongStreakMaxDaySyncEl) wrongStreakMaxDaySyncEl.textContent = toDisplayText(sWrongMaxDay, "-");
 
         // ★ 追加: 初回だけ「UI反映に成功した」ログを出す（コンソールで確認可能）
         if (!loggedStreakMaxUiOnce) {
@@ -2748,6 +2861,167 @@
       // ★ 変更: “確定した同一key” を headers に入れて /api/sync/state を叩く
       const s  = await CSCS_SYNC.fetchServer(syncKey);
 
+      // ★ 追加: stateスナップショットを保持（モニタ表示はここを唯一参照）
+      try{
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // ============================================================
+      // ★ 追加（A）: SYNC取得 → localStorage 上書き（streak len / max / maxDay）
+      // ------------------------------------------------------------
+      // - フォールバック禁止：取れた値だけを書き込む
+      // - 欠損/型不正は console.log / console.error で可視化し、書き込まない
+      // ============================================================
+      function readStateMapNumberStrictForLs(state, mapKey, qid){
+        if (!state || typeof state !== "object" || !state[mapKey] || typeof state[mapKey] !== "object") {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing map -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_map" };
+        }
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing qid entry -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_qid_entry" };
+        }
+        const v = state[mapKey][qid];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+          console.error("[SYNC-A][NO-FALLBACK][PULL] state invalid number -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v,
+            valueType: typeof v
+          });
+          return { ok: false, value: null, reason: "type_invalid" };
+        }
+        return { ok: true, value: v, reason: null };
+      }
+
+      function readStateMapDayStrictForLs(state, mapKey, qid){
+        if (!state || typeof state !== "object" || !state[mapKey] || typeof state[mapKey] !== "object") {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing day map -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_map" };
+        }
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing day entry -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_qid_entry" };
+        }
+        const v = state[mapKey][qid];
+
+        let s8 = null;
+        if (typeof v === "string") {
+          const t = v.trim();
+          s8 = (/^\d{8}$/.test(t)) ? t : null;
+        } else if (typeof v === "number" && Number.isFinite(v)) {
+          const t2 = String(Math.trunc(v));
+          s8 = (/^\d{8}$/.test(t2)) ? t2 : null;
+        }
+
+        if (!s8) {
+          console.error("[SYNC-A][NO-FALLBACK][PULL] state invalid day -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v,
+            valueType: typeof v
+          });
+          return { ok: false, value: null, reason: "day_invalid" };
+        }
+        return { ok: true, value: s8, reason: null };
+      }
+
+      function writeLsStrictNumber(key, n, ctx){
+        try{
+          localStorage.setItem(key, String(n));
+          console.log("[SYNC-A][OK][PULL→LS] wrote number", {
+            key: key,
+            value: n,
+            ctx: ctx
+          });
+          return true;
+        }catch(e){
+          console.error("[SYNC-A][ERR][PULL→LS] write number failed", {
+            key: key,
+            value: n,
+            ctx: ctx,
+            error: String(e && e.message || e)
+          });
+          return false;
+        }
+      }
+
+      function writeLsStrictDay(key, s8, ctx){
+        try{
+          localStorage.setItem(key, String(s8));
+          console.log("[SYNC-A][OK][PULL→LS] wrote day", {
+            key: key,
+            value: s8,
+            ctx: ctx
+          });
+          return true;
+        }catch(e){
+          console.error("[SYNC-A][ERR][PULL→LS] write day failed", {
+            key: key,
+            value: s8,
+            ctx: ctx,
+            error: String(e && e.message || e)
+          });
+          return false;
+        }
+      }
+
+      if (QID) {
+        const a_len = readStateMapNumberStrictForLs(s, "streakLen", QID);
+        if (a_len.ok) {
+          writeLsStrictNumber("cscs_q_correct_streak_len:" + QID, a_len.value, { map: "streakLen", qid: QID });
+        }
+
+        const a_max = readStateMapNumberStrictForLs(s, "streakMax", QID);
+        if (a_max.ok) {
+          writeLsStrictNumber("cscs_q_correct_streak_max:" + QID, a_max.value, { map: "streakMax", qid: QID });
+        }
+
+        const a_maxday = readStateMapDayStrictForLs(s, "streakMaxDay", QID);
+        if (a_maxday.ok) {
+          writeLsStrictDay("cscs_q_correct_streak_max_day:" + QID, a_maxday.value, { map: "streakMaxDay", qid: QID });
+        }
+
+        const w_len = readStateMapNumberStrictForLs(s, "streakWrongLen", QID);
+        if (w_len.ok) {
+          writeLsStrictNumber("cscs_q_wrong_streak_len:" + QID, w_len.value, { map: "streakWrongLen", qid: QID });
+        }
+
+        const w_max = readStateMapNumberStrictForLs(s, "streakWrongMax", QID);
+        if (w_max.ok) {
+          writeLsStrictNumber("cscs_q_wrong_streak_max:" + QID, w_max.value, { map: "streakWrongMax", qid: QID });
+        }
+
+        const w_maxday = readStateMapDayStrictForLs(s, "streakWrongMaxDay", QID);
+        if (w_maxday.ok) {
+          writeLsStrictDay("cscs_q_wrong_streak_max_day:" + QID, w_maxday.value, { map: "streakWrongMaxDay", qid: QID });
+        }
+
+        console.log("[SYNC-A][PULL] streak len/max/maxDay applied (only if valid)", {
+          qid: QID,
+          applied: {
+            streakLen: a_len.ok,
+            streakMax: a_max.ok,
+            streakMaxDay: a_maxday.ok,
+            streakWrongLen: w_len.ok,
+            streakWrongMax: w_max.ok,
+            streakWrongMaxDay: w_maxday.ok
+          }
+        });
+      }
+
       // ============================================================
       // ★ フォールバック無し：server state から「確実に取れた値だけ」を採用する
       // ------------------------------------------------------------
@@ -4024,6 +4298,12 @@
 
                 <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-streakmax-maxday-local">-</span></div>
+
+                <div class="mini-label">streak_max (sync)</div>
+                <div class="mini-val"><span class="sync-streakmax-max-sync">-</span></div>
+
+                <div class="mini-label">max_day (sync)</div>
+                <div class="mini-val"><span class="sync-streakmax-maxday-sync">-</span></div>
               </div>
             </div>
           </div>
@@ -4040,6 +4320,12 @@
 
                 <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">-</span></div>
+
+                <div class="mini-label">streak_max (sync)</div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-max-sync">-</span></div>
+
+                <div class="mini-label">max_day (sync)</div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-maxday-sync">-</span></div>
               </div>
             </div>
           </div>
