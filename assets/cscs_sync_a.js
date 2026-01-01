@@ -1107,21 +1107,23 @@
         const onceDayLocalEl    = box.querySelector(".sync-onceperday-day-local");
         const onceDayIsTodayEl  = box.querySelector(".sync-onceperday-day-istoday");
 
-        // ★ 追加: streak max カード（A）表示用要素
+        // ★ 追加: streak max カード（A）表示用要素（local）
         const streakMaxLenEl    = box.querySelector(".sync-streakmax-len-local");
         const streakMaxValEl    = box.querySelector(".sync-streakmax-max-local");
         const streakMaxDayEl    = box.querySelector(".sync-streakmax-maxday-local");
 
-        // ★ 追加: streak max カード（A）SYNC表示用要素
+        // ★ 追加: streak max カード（A）表示用要素（SYNC）
+        const streakMaxLenSyncEl = box.querySelector(".sync-streakmax-len-sync");
         const streakMaxValSyncEl = box.querySelector(".sync-streakmax-max-sync");
         const streakMaxDaySyncEl = box.querySelector(".sync-streakmax-maxday-sync");
 
-        // ★ 追加: 不正解 streak max カード（A）表示用要素
+        // ★ 追加: 不正解 streak max カード（A）表示用要素（local）
         const wrongStreakMaxLenEl = box.querySelector(".sync-wrong-streakmax-len-local");
         const wrongStreakMaxValEl = box.querySelector(".sync-wrong-streakmax-max-local");
         const wrongStreakMaxDayEl = box.querySelector(".sync-wrong-streakmax-maxday-local");
 
-        // ★ 追加: 不正解 streak max カード（A）SYNC表示用要素
+        // ★ 追加: 不正解 streak max カード（A）表示用要素（SYNC）
+        const wrongStreakMaxLenSyncEl = box.querySelector(".sync-wrong-streakmax-len-sync");
         const wrongStreakMaxValSyncEl = box.querySelector(".sync-wrong-streakmax-max-sync");
         const wrongStreakMaxDaySyncEl = box.querySelector(".sync-wrong-streakmax-maxday-sync");
 
@@ -1404,31 +1406,35 @@
         // ★ 処理: server streak3 は欠損なら "-"（0埋め禁止）
         if (s3sEl) s3sEl.textContent = (ss === null) ? "-" : String(ss);
 
-        // ★ 追加: streak max カード（A）に localStorage の値を反映
+        // ★ 追加: streak max カード（A）に localStorage の値を反映（local）
         //   - len: 現在の連続正解数（cscs_q_correct_streak_len:{qid}）
         //   - max: 最高連続正解数（cscs_q_correct_streak_max:{qid}）
         //   - day: 最高を更新した日（cscs_q_correct_streak_max_day:{qid}）
-        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? ll : "", "-");
-        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax !== null && lMax !== undefined ? lMax : "", "-");
+        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(ll, "-");
+        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax, "-");
         if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "-");
 
-        // ★ 追加: streak max カード（A）に SYNC の値を反映（要素がある時だけ）
-        //   - max: 最高連続正解数（SYNC: __cscs_sync_state.streakMax[qid]）
-        //   - day: 最高を更新した日（SYNC: __cscs_sync_state.streakMaxDay[qid]）
+        // ★ 追加: streak max カード（A）に __cscs_sync_state の値を反映（SYNC）
+        //   - len: 現在の連続正解数（server streakLen）
+        //   - max: 最高連続正解数（streakMax[qid]）
+        //   - day: 最高を更新した日（streakMaxDay[qid]）
+        if (streakMaxLenSyncEl) streakMaxLenSyncEl.textContent = toDisplayText(sl, "-");
         if (streakMaxValSyncEl) streakMaxValSyncEl.textContent = toDisplayText(sMax, "-");
         if (streakMaxDaySyncEl) streakMaxDaySyncEl.textContent = toDisplayText(sMaxDay, "-");
 
-        // ★ 追加: 不正解 streak max カード（A）に localStorage の値を反映
+        // ★ 追加: 不正解 streak max カード（A）に localStorage の値を反映（local）
         //   - len: 現在の連続不正解数（cscs_q_wrong_streak_len:{qid}）
         //   - max: 最高連続不正解数（cscs_q_wrong_streak_max:{qid}）
         //   - day: 最高を更新した日（cscs_q_wrong_streak_max_day:{qid}）
-        if (wrongStreakMaxLenEl) wrongStreakMaxLenEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? llWrong : "", "-");
-        if (wrongStreakMaxValEl) wrongStreakMaxValEl.textContent = toDisplayText(lWrongMax !== null && lWrongMax !== undefined ? lWrongMax : "", "-");
+        if (wrongStreakMaxLenEl) wrongStreakMaxLenEl.textContent = toDisplayText(llWrong, "-");
+        if (wrongStreakMaxValEl) wrongStreakMaxValEl.textContent = toDisplayText(lWrongMax, "-");
         if (wrongStreakMaxDayEl) wrongStreakMaxDayEl.textContent = toDisplayText(lWrongMaxDay, "-");
 
-        // ★ 追加: 不正解 streak max カード（A）に SYNC の値を反映（要素がある時だけ）
-        //   - max: 最高連続不正解数（SYNC: __cscs_sync_state.streakWrongMax[qid]）
-        //   - day: 最高を更新した日（SYNC: __cscs_sync_state.streakWrongMaxDay[qid]）
+        // ★ 追加: 不正解 streak max カード（A）に __cscs_sync_state の値を反映（SYNC）
+        //   - len: 現在の連続不正解数（server streakWrongLen）
+        //   - max: 最高連続不正解数（streakWrongMax[qid]）
+        //   - day: 最高を更新した日（streakWrongMaxDay[qid]）
+        if (wrongStreakMaxLenSyncEl) wrongStreakMaxLenSyncEl.textContent = toDisplayText(slWrong, "-");
         if (wrongStreakMaxValSyncEl) wrongStreakMaxValSyncEl.textContent = toDisplayText(sWrongMax, "-");
         if (wrongStreakMaxDaySyncEl) wrongStreakMaxDaySyncEl.textContent = toDisplayText(sWrongMaxDay, "-");
 
@@ -4287,7 +4293,7 @@
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">連続正解 (Local)</div>
+            <div class="sync-title">連続正解 (local)</div>
             <div class="sync-body">
               <div class="mini-grid">
                 <div class="mini-label">streak_len</div>
@@ -4298,18 +4304,28 @@
 
                 <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-streakmax-maxday-local">-</span></div>
+              </div>
+            </div>
+          </div>
 
-                <div class="mini-label">streak_max (sync)</div>
+          <div class="sync-card">
+            <div class="sync-title">連続正解 (SYNC)</div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">streak_len</div>
+                <div class="mini-val"><span class="sync-streakmax-len-sync">-</span></div>
+
+                <div class="mini-label">streak_max</div>
                 <div class="mini-val"><span class="sync-streakmax-max-sync">-</span></div>
 
-                <div class="mini-label">max_day (sync)</div>
+                <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-streakmax-maxday-sync">-</span></div>
               </div>
             </div>
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">連続不正解 (Local)</div>
+            <div class="sync-title">連続不正解 (local)</div>
             <div class="sync-body">
               <div class="mini-grid">
                 <div class="mini-label">streak_len</div>
@@ -4320,11 +4336,21 @@
 
                 <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">-</span></div>
+              </div>
+            </div>
+          </div>
 
-                <div class="mini-label">streak_max (sync)</div>
+          <div class="sync-card">
+            <div class="sync-title">連続不正解 (SYNC)</div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">streak_len</div>
+                <div class="mini-val"><span class="sync-wrong-streakmax-len-sync">-</span></div>
+
+                <div class="mini-label">streak_max</div>
                 <div class="mini-val"><span class="sync-wrong-streakmax-max-sync">-</span></div>
 
-                <div class="mini-label">max_day (sync)</div>
+                <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-wrong-streakmax-maxday-sync">-</span></div>
               </div>
             </div>
