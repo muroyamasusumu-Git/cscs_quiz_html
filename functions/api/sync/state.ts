@@ -95,6 +95,20 @@
  *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
  *       ⇔ SYNC state: odoa_mode ("on" / "off")
  *       ⇔ delta payload: odoa_mode
+ *
+ * ▼ 問題別 最大ストリーク（正解/不正解）と達成日
+ *   - （クライアント側で管理）
+ *       ⇔ SYNC state: streakMax[qid]
+ *       ⇔ delta payload: streakMaxDelta[qid]（max 更新時のみ送信 / 最新値）
+ *   - （クライアント側で管理）
+ *       ⇔ SYNC state: streakMaxDay[qid]（number: YYYYMMDD）
+ *       ⇔ delta payload: streakMaxDayDelta[qid]（max 更新時のみ送信 / JST YYYYMMDD）
+ *   - （クライアント側で管理）
+ *       ⇔ SYNC state: streakWrongMax[qid]
+ *       ⇔ delta payload: streakWrongMaxDelta[qid]（max 更新時のみ送信 / 最新値）
+ *   - （クライアント側で管理）
+ *       ⇔ SYNC state: streakWrongMaxDay[qid]（number: YYYYMMDD）
+ *       ⇔ delta payload: streakWrongMaxDayDelta[qid]（max 更新時のみ送信 / JST YYYYMMDD）
  */
 export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, request }) => {
   // ============================================================
@@ -810,6 +824,16 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
     // 3連続不正解系の有無も SYNC snapshot から確認できるようにする
     console.log("[SYNC/state] hasStreak3Wrong      :", !!out.streak3Wrong);
     console.log("[SYNC/state] hasStreakWrongLen    :", !!out.streakWrongLen);
+
+    // 追加した処理: 最大ストリーク（正解/不正解）と達成日マップの存在確認ログを追加
+    // - 何をしているか: out に4マップが載っているかを !! で確認し、summaryに出す
+    // - 目的: /api/sync/state のレスポンスに4キーが「返ってきているか」をログ検索で即判定できるようにする
+    // - 注意: 値の補正・推測はしない（存在確認のみ）
+    console.log("[SYNC/state] hasStreakMax         :", !!out.streakMax);
+    console.log("[SYNC/state] hasStreakMaxDay      :", !!out.streakMaxDay);
+    console.log("[SYNC/state] hasStreakWrongMax    :", !!out.streakWrongMax);
+    console.log("[SYNC/state] hasStreakWrongMaxDay :", !!out.streakWrongMaxDay);
+
     console.log("[SYNC/state] hasLastSeenDay       :", !!out.lastSeenDay);
     console.log("[SYNC/state] hasLastCorrectDay    :", !!out.lastCorrectDay);
     console.log("[SYNC/state] hasLastWrongDay      :", !!out.lastWrongDay);

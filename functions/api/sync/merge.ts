@@ -21,6 +21,12 @@
  *   - localStorage: "cscs_q_correct_streak_len:" + qid
  *       ⇔ SYNC state: server.streakLen[qid]
  *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_correct_streak_max:" + qid
+ *       ⇔ SYNC state: server.streakMax[qid]
+ *       ⇔ delta payload: streakMaxDelta[qid]（max 更新時のみ送信 / 最新値）
+ *   - localStorage: "cscs_q_correct_streak_max_day:" + qid
+ *       ⇔ SYNC state: server.streakMaxDay[qid]
+ *       ⇔ delta payload: streakMaxDayDelta[qid]（max 更新時のみ送信 / JST YYYYMMDD）
  *
  * ▼ 問題別 3 連続不正解（💣用）
  *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
@@ -29,6 +35,12 @@
  *   - localStorage: "cscs_q_wrong_streak_len:" + qid
  *       ⇔ SYNC state: server.streakWrongLen[qid]
  *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_wrong_streak_max:" + qid
+ *       ⇔ SYNC state: server.streakWrongMax[qid]
+ *       ⇔ delta payload: streakWrongMaxDelta[qid]（max 更新時のみ送信 / 最新値）
+ *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
+ *       ⇔ SYNC state: server.streakWrongMaxDay[qid]
+ *       ⇔ delta payload: streakWrongMaxDayDelta[qid]（max 更新時のみ送信 / JST YYYYMMDD）
  *
  * ▼ Streak3Today（本日の⭐️ユニーク数）
  *   - localStorage: "cscs_streak3_today_day"

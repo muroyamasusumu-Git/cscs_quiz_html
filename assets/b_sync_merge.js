@@ -138,6 +138,12 @@
   const KEY_LAST_S3       = `cscs_sync_last_s3:${info.qid}`;
   const KEY_LAST_S3_WRONG = `cscs_sync_last_ws3:${info.qid}`;
 
+  // B側だけで使う「最後に SYNC 済みだったときの max / max_day（最新値送信の基準）」
+  const KEY_LAST_STREAK_MAX           = `cscs_sync_last_streak_max:${info.qid}`;
+  const KEY_LAST_STREAK_MAX_DAY       = `cscs_sync_last_streak_max_day:${info.qid}`;
+  const KEY_LAST_STREAK_WRONG_MAX     = `cscs_sync_last_streak_wmax:${info.qid}`;
+  const KEY_LAST_STREAK_WRONG_MAX_DAY = `cscs_sync_last_streak_wmax_day:${info.qid}`;
+
   function loadInt(key){
     // Fallback-01: localStorage miss(null) → 0
     // 補足: ここで 0 扱いにすると「本当はキーが無い（namespaceズレ/計測未実行/別端末）」でも
@@ -176,6 +182,23 @@
     }
 
     console.log("[SYNC/B][ok][loadDayOptional] loaded", { key, raw: raw, value: n });
+    return { ok: true, value: n, raw: raw };
+  }
+
+  function loadIntOptional(key){
+    const raw = localStorage.getItem(key);
+    if (raw == null) {
+      console.log("[SYNC/B][ok][loadIntOptional] localStorage miss -> (skip)", { key });
+      return { ok: false, value: null, raw: null };
+    }
+
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n)) {
+      console.warn("[SYNC/B][warn][loadIntOptional] parseInt failed -> (skip)", { key, raw: raw });
+      return { ok: false, value: null, raw: raw };
+    }
+
+    console.log("[SYNC/B][ok][loadIntOptional] loaded", { key, raw: raw, value: n });
     return { ok: true, value: n, raw: raw };
   }
 
@@ -313,7 +336,7 @@
     // streak3TodayDelta は cscs_sync_view_b.js 側からのみ送信するため、
     // ここでは streak3Today 系は一切扱わない。
     // 3連続不正解関連も「今日のユニーク」ではなく累計・現在長だけを扱う。
-    if (!dc && !dw && !ds3 && !ds3Wrong && streakLenNow === 0 && streakWrongLenNow === 0) {
+    if (!dc && !dw && !ds3 && !ds3Wrong && streakLenNow === 0 && streakWrongLenNow === 0 && !maxChanged && !wrongMaxChanged) {
       console.log("[SYNC/B] ★送信なし（no delta）", {
         qid: info.qid,
         cNow,
@@ -325,10 +348,28 @@
         cLast,
         wLast,
         s3Last,
-        s3WrongLast
+        s3WrongLast,
+        maxChanged,
+        wrongMaxChanged
       });
       return;
     }
+
+    // max / max_day は「更新が起きたときだけ」送信するため、前回送信値を読む
+    const lastMaxOpt          = loadIntOptional(KEY_LAST_STREAK_MAX);
+    const lastMaxDayOpt       = loadDayOptional(KEY_LAST_STREAK_MAX_DAY);
+    const lastWrongMaxOpt     = loadIntOptional(KEY_LAST_STREAK_WRONG_MAX);
+    const lastWrongMaxDayOpt  = loadDayOptional(KEY_LAST_STREAK_WRONG_MAX_DAY);
+
+    const maxChanged = (
+      (streakMaxOpt.ok && (!lastMaxOpt.ok || lastMaxOpt.value !== streakMaxOpt.value)) ||
+      (streakMaxDayOpt.ok && (!lastMaxDayOpt.ok || lastMaxDayOpt.value !== streakMaxDayOpt.value))
+    );
+
+    const wrongMaxChanged = (
+      (streakWrongMaxOpt.ok && (!lastWrongMaxOpt.ok || lastWrongMaxOpt.value !== streakWrongMaxOpt.value)) ||
+      (streakWrongMaxDayOpt.ok && (!lastWrongMaxDayOpt.ok || lastWrongMaxDayOpt.value !== streakWrongMaxDayOpt.value))
+    );
 
     // 4) /api/sync/merge へ「差分だけ」を送信
     const payload = {
@@ -345,11 +386,11 @@
       streakLenDelta:                      { [info.qid]: streakLenNow },
       streakWrongLenDelta:                { [info.qid]: streakWrongLenNow },
 
-      // ★追加: 「最高連続」(max / max_day) も “最新値” を送る（欠損は送らない）
-      streakMaxDelta:                      streakMaxOpt.ok       ? { [info.qid]: streakMaxOpt.value } : {},
-      streakMaxDayDelta:                   streakMaxDayOpt.ok    ? { [info.qid]: streakMaxDayOpt.value } : {},
-      streakWrongMaxDelta:                 streakWrongMaxOpt.ok  ? { [info.qid]: streakWrongMaxOpt.value } : {},
-      streakWrongMaxDayDelta:              streakWrongMaxDayOpt.ok ? { [info.qid]: streakWrongMaxDayOpt.value } : {},
+      // ★追加: 「最高連続」(max / max_day) は “更新が起きたときだけ” 最新値送信（欠損は送らない）
+      streakMaxDelta:                      (maxChanged && streakMaxOpt.ok) ? { [info.qid]: streakMaxOpt.value } : {},
+      streakMaxDayDelta:                   (maxChanged && streakMaxDayOpt.ok) ? { [info.qid]: streakMaxDayOpt.value } : {},
+      streakWrongMaxDelta:                 (wrongMaxChanged && streakWrongMaxOpt.ok) ? { [info.qid]: streakWrongMaxOpt.value } : {},
+      streakWrongMaxDayDelta:              (wrongMaxChanged && streakWrongMaxDayOpt.ok) ? { [info.qid]: streakWrongMaxDayOpt.value } : {},
 
       // 既存: 送信時刻
       updatedAt: Date.now()
@@ -414,6 +455,12 @@
       if (dw)       saveInt(KEY_LAST_WRG,      wNow);
       if (ds3)      saveInt(KEY_LAST_S3,       s3Now);
       if (ds3Wrong) saveInt(KEY_LAST_S3_WRONG, s3WrongNow);
+
+      // max/max_day は「更新が起きたときだけ」送っているので、その時だけ last を更新する
+      if (maxChanged && streakMaxOpt.ok)       saveInt(KEY_LAST_STREAK_MAX, streakMaxOpt.value);
+      if (maxChanged && streakMaxDayOpt.ok)    saveInt(KEY_LAST_STREAK_MAX_DAY, streakMaxDayOpt.value);
+      if (wrongMaxChanged && streakWrongMaxOpt.ok)    saveInt(KEY_LAST_STREAK_WRONG_MAX, streakWrongMaxOpt.value);
+      if (wrongMaxChanged && streakWrongMaxDayOpt.ok) saveInt(KEY_LAST_STREAK_WRONG_MAX_DAY, streakWrongMaxDayOpt.value);
 
       console.log("[SYNC/B] ★送信成功（merge OK）", {
         qid: info.qid
