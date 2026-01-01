@@ -1696,11 +1696,22 @@
             out.onceCountableLabel = "No（ガード）";
           }
 
+          // ★ 表示ルール:
+          //   - count対象 が No のときは「記録: -」（記録無し扱い）
+          //   - ODOA が ON（累計加算: No）のときは末尾サフィックスも "-" にする
+          if (String(out.onceCountableLabel).indexOf("No") === 0) {
+            out.onceRecordLabel = "-";
+          }
+
           var odoaResultSuffix = "nocount";
           if (localOnceVal === "correct") {
             odoaResultSuffix = "Correct";
           } else if (localOnceVal === "wrong") {
             odoaResultSuffix = "Wrong";
+          }
+
+          if (odoaIsOn) {
+            odoaResultSuffix = "-";
           }
 
           var addNo = false;
@@ -2831,6 +2842,12 @@
         var addNo = false;
         if (verifyModeOn) addNo = true;
         if (odoaIsOn) addNo = true;
+
+        // ★ 表示ルール:
+        //   ODOA が ON（累計加算: No）のときは末尾サフィックスを "-" にする
+        if (odoaIsOn && addNo) {
+          odoaResultSuffix = "-";
+        }
 
         if (odoaIsOn) {
           onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
@@ -4527,7 +4544,7 @@
 
       var odoaLine = "";
       if (String(odoaModeText).toUpperCase() === "ON") {
-        odoaLine = "ON（累計加算: No）  " + odoaSuffix;
+        odoaLine = "ON（累計加算: No）  -";
       } else {
         odoaLine = "OFF（累計加算: Yes）  " + odoaSuffix;
       }
@@ -4541,7 +4558,12 @@
 
       //   4: count対象（左） / 5: 記録（右）
       dualCells[4].textContent = "count対象         " + onceCountableLabel;
-      dualCells[5].textContent = "記録: " + rec;
+
+      var recordForDisplay = rec;
+      if (String(onceCountableLabel).indexOf("No") === 0) {
+        recordForDisplay = "-";
+      }
+      dualCells[5].textContent = "記録: " + recordForDisplay;
 
       // ★ 何をしているか:
       //   最下段の single 行（ODOA）を更新する
