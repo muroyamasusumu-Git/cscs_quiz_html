@@ -890,6 +890,21 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     }
   }
 
+  // streakMaxDayDelta: 各 qid の「最高連続正解数を最後に更新した達成日」を保存
+  // - ★ max が更新された qid のみを対象にする
+  // - ★ day は number（YYYYMMDD）であることを必須とする
+  for (const [qid, n] of Object.entries((delta as any).streakMaxDayDelta || {})) {
+    if (!updatedStreakMaxQids.has(qid)) continue;
+
+    const v = n as number;
+    if (!Number.isFinite(v)) continue;
+    const dayStr = String(v);
+    if (!/^\d{8}$/.test(dayStr)) continue;
+
+    if (!server.streakMaxDay) server.streakMaxDay = {};
+    server.streakMaxDay[qid] = v;
+  }
+
   // streakMaxDayDelta: 各 qid の「最高連続正解数を最後に更新した達成日（JST YYYYMMDD）」をサーバー側に保存
   // - ★ max更新と連動: streakMax が更新された qid のみ day を更新する（単独day更新は無効）
   for (const [qid, n] of Object.entries((delta as any).streakMaxDayDelta || {})) {
@@ -921,6 +936,21 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
       server.streakWrongMax[qid] = next;
       updatedStreakWrongMaxQids.add(qid);
     }
+  }
+
+  // streakWrongMaxDayDelta: 各 qid の「最高連続不正解数を最後に更新した達成日」を保存
+  // - ★ max が更新された qid のみを対象にする
+  // - ★ day は number（YYYYMMDD）であることを必須とする
+  for (const [qid, n] of Object.entries((delta as any).streakWrongMaxDayDelta || {})) {
+    if (!updatedStreakWrongMaxQids.has(qid)) continue;
+
+    const v = n as number;
+    if (!Number.isFinite(v)) continue;
+    const dayStr = String(v);
+    if (!/^\d{8}$/.test(dayStr)) continue;
+
+    if (!server.streakWrongMaxDay) server.streakWrongMaxDay = {};
+    server.streakWrongMaxDay[qid] = v;
   }
 
   // streakWrongMaxDayDelta: 各 qid の「最高連続不正解数を最後に更新した達成日（JST YYYYMMDD）」をサーバー側に保存
