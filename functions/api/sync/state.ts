@@ -618,6 +618,29 @@ export const onRequestGet: PagesFunction<{ SYNC: KVNamespace }> = async ({ env, 
   if (!out.streakWrongMax) out.streakWrongMax = {};
   if (!out.streakWrongMaxDay) out.streakWrongMaxDay = {};
 
+  // 追加した処理: 最大ストリーク達成日(day)の型を number（YYYYMMDD）に統一する
+  // - 何をしているか:
+  //     out.streakMaxDay / out.streakWrongMaxDay の各値を検査し、
+  //     number かつ有限値かつ YYYYMMDD 形式でないものを削除する。
+  // - 目的:
+  //     クライアント側で「day が string / 不正値」で壊れるのを防ぎ、
+  //     day:number 前提の設計を state.ts 側で保証する。
+  // - 方針:
+  //     ✔ 変換・推測はしない
+  //     ✔ 不正値は削除するだけ
+  try {
+    for (const [qid, v] of Object.entries(out.streakMaxDay as any)) {
+      if (typeof v !== "number" || !Number.isFinite(v) || !/^\d{8}$/.test(String(v))) {
+        delete (out.streakMaxDay as any)[qid];
+      }
+    }
+    for (const [qid, v] of Object.entries(out.streakWrongMaxDay as any)) {
+      if (typeof v !== "number" || !Number.isFinite(v) || !/^\d{8}$/.test(String(v))) {
+        delete (out.streakWrongMaxDay as any)[qid];
+      }
+    }
+  } catch (_e) {}
+
   // O.D.O.A Mode のフラグを補完（欠落 or 不正値のときは "off" に統一）
   // - ここも “フォールバックっぽく見える” 代表例。
   // - out が empty 由来の場合、odoa_mode は最初から "off" なのでここは通常通らない。
