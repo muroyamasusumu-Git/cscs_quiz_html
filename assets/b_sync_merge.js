@@ -106,10 +106,15 @@
   function detectInfo(){
     const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b/);
     if (!m) return null;
-    const day = m[1];       // 例: "20250926"
+
+    const day = m[1];       // 例: "20250926"（文字列。qid生成に使う）
     const n3  = m[2];       // 例: "001"
     const qid = `${day}-${n3}`;
-    return { day, n3, qid };
+
+    const dayNum = Number(day); // ★ 統一: number（YYYYMMDD）
+    if (!Number.isFinite(dayNum) || !/^\d{8}$/.test(String(dayNum))) return null;
+
+    return { day, dayNum, n3, qid };
   }
 
   const info = detectInfo();
@@ -157,20 +162,20 @@
     return n;
   }
 
-  function loadIntOptional(key){
+  function loadDayOptional(key){
     const raw = localStorage.getItem(key);
     if (raw == null) {
-      console.log("[SYNC/B][ok][loadIntOptional] localStorage miss -> (skip)", { key });
+      console.log("[SYNC/B][ok][loadDayOptional] localStorage miss -> (skip)", { key });
       return { ok: false, value: null, raw: null };
     }
 
     const n = parseInt(raw, 10);
-    if (!Number.isFinite(n)) {
-      console.warn("[SYNC/B][warn][loadIntOptional] parseInt failed -> (skip)", { key, raw });
+    if (!Number.isFinite(n) || !/^\d{8}$/.test(String(n))) {
+      console.warn("[SYNC/B][warn][loadDayOptional] invalid day -> (skip)", { key, raw });
       return { ok: false, value: null, raw: raw };
     }
 
-    console.log("[SYNC/B][ok][loadIntOptional] loaded", { key, raw: raw, value: n });
+    console.log("[SYNC/B][ok][loadDayOptional] loaded", { key, raw: raw, value: n });
     return { ok: true, value: n, raw: raw };
   }
 
@@ -187,13 +192,13 @@
 
     // max / max_day は「欠損を 0 として送る」と SYNC を汚すので optional 読み
     const streakMaxOpt       = loadIntOptional(KEY_STREAK_MAX);
-    const streakMaxDayOpt    = loadIntOptional(KEY_STREAK_MAX_DAY);
+    const streakMaxDayOpt    = loadDayOptional(KEY_STREAK_MAX_DAY);
 
     const s3WrongNow         = loadInt(KEY_S3_WRONG);
     const streakWrongLenNow  = loadInt(KEY_STREAK_WRONG_LEN);
 
     const streakWrongMaxOpt    = loadIntOptional(KEY_STREAK_WRONG_MAX);
-    const streakWrongMaxDayOpt = loadIntOptional(KEY_STREAK_WRONG_MAX_DAY);
+    const streakWrongMaxDayOpt = loadDayOptional(KEY_STREAK_WRONG_MAX_DAY);
 
     // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
     // Fallback-03: KEY_LAST_* miss(null) を loadInt() が 0 扱いにすることで「初回同期」として差分を作れる。

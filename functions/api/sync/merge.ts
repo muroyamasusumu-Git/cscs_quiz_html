@@ -788,6 +788,33 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     server.streakLen[qid] = v;
   }
 
+  // ★ 追加: streakLen は streakMax の下限（serverが遅れていても追従させる）
+  // - streakMaxDelta が欠落しても、streakLen が増えていれば max を単調増加で更新する
+  // - day は lastCorrectDayDelta（=確実に届いた“最終正解日”）がある場合のみセットする
+  const lastCorrectDayDeltaForMax = (delta as any).lastCorrectDayDelta || {};
+
+  for (const [qid, n] of Object.entries(delta.streakLenDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v < 0) continue;
+
+    if (!server.streakMax) server.streakMax = {};
+    if (!server.streakMaxDay) server.streakMaxDay = {};
+
+    const prevMax = typeof server.streakMax[qid] === "number" ? server.streakMax[qid] : 0;
+
+    if (v > prevMax) {
+      server.streakMax[qid] = v;
+
+      const dayRaw = (lastCorrectDayDeltaForMax as any)[qid];
+      const dayNum = Number(dayRaw);
+      const dayStr = String(dayNum);
+
+      if (Number.isFinite(dayNum) && /^\d{8}$/.test(dayStr)) {
+        server.streakMaxDay[qid] = dayNum;
+      }
+    }
+  }
+
   // streak3WrongDelta: 各 qid の「3連続不正解達成回数」の増分をサーバー側に加算
   for (const [qid, n] of Object.entries((delta as any).streak3WrongDelta || {})) {
     const v = n as number;
@@ -803,6 +830,33 @@ export const onRequestPost: PagesFunction<{ SYNC: KVNamespace }> = async ({ env,
     if (!Number.isFinite(v) || v < 0) continue;
     if (!server.streakWrongLen) server.streakWrongLen = {};
     server.streakWrongLen[qid] = v;
+  }
+
+  // ★ 追加: streakWrongLen は streakWrongMax の下限（serverが遅れていても追従させる）
+  // - streakWrongMaxDelta が欠落しても、streakWrongLen が増えていれば max を単調増加で更新する
+  // - day は lastWrongDayDelta（=確実に届いた“最終不正解日”）がある場合のみセットする
+  const lastWrongDayDeltaForMax = (delta as any).lastWrongDayDelta || {};
+
+  for (const [qid, n] of Object.entries((delta as any).streakWrongLenDelta || {})) {
+    const v = n as number;
+    if (!Number.isFinite(v) || v < 0) continue;
+
+    if (!server.streakWrongMax) server.streakWrongMax = {};
+    if (!server.streakWrongMaxDay) server.streakWrongMaxDay = {};
+
+    const prevMax = typeof server.streakWrongMax[qid] === "number" ? server.streakWrongMax[qid] : 0;
+
+    if (v > prevMax) {
+      server.streakWrongMax[qid] = v;
+
+      const dayRaw = (lastWrongDayDeltaForMax as any)[qid];
+      const dayNum = Number(dayRaw);
+      const dayStr = String(dayNum);
+
+      if (Number.isFinite(dayNum) && /^\d{8}$/.test(dayStr)) {
+        server.streakWrongMaxDay[qid] = dayNum;
+      }
+    }
   }
 
   // streakMaxDelta: 各 qid の「最高連続正解数」をサーバー側に保存
