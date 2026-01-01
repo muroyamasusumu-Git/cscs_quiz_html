@@ -484,6 +484,19 @@
               }
 
               sendOdoaModeToSync(next);
+
+              // ★ 方針:
+              //   ODOAトグル直後は「state(oncePerDayToday) / href書き換え / 表示」が一瞬ズレ得るため、
+              //   送信ログを吐いた上で短いディレイ後にリロードして整合を確定させる。
+              dlog("O.D.O.A: reload page to finalize UI/state after toggle.");
+
+              setTimeout(function(){
+                try{
+                  location.reload();
+                }catch(e){
+                  dlog("O.D.O.A: reload failed:", String(e));
+                }
+              }, 120);
             });
           }
 
