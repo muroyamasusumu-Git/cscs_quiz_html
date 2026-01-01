@@ -97,12 +97,8 @@
 // - B直叩き／リロード時はノーカウント
 // - その日初めての正解/不正解時 → *_done フラグを立てる + *_counted_total 加算
 // - 同日2回目以降 → *_uncounted_total のみ加算
-// - 正解: streak_len++、不正解: streak_len=0（反対結果で 0 にリセット）
-// - 3連正解/3連不正解のカウントは「3,6,9...」到達ごとに +1（非重複カウント）
-// - 重要: streak_len（全体/問題別）は 3 到達でリセットせず伸ばし続ける（連続回数の実数）
-// - streak_max / streak_max_day（問題別）は、この「リセットなしの streak_len」と整合する方式で更新する
-//   - 現ストリークが過去最高を上回った瞬間にのみ streak_max を更新
-//   - streak_max_day は達成日（JST YYYYMMDD）を number として保存（localStorage 上は数値文字列）
+// - 正解: streak_len++、不正解: streak_len=0
+// - 3連正解時に streak3_total +1、ログに記録
 //
 // 🕒 日付基準
 // JST (UTC+9) の "YYYYMMDD" 文字列で集計
@@ -204,13 +200,6 @@
 //     cscs_q_wrong_streak_max_day:{qid}     … 上記の最高連続不正解数を最後に更新した達成日（JST YYYYMMDD）。
 // ・注意：問題別の現ストリーク cscs_q_wrong_streak_len:{qid} は「3到達で0にリセットする非重複カウント方式」だが、
 //   最高値はリセット前の値（例: 3）を確実に記録するため、ストリーク加算直後に最大値更新判定を行う。
-// 🆕 2026-01-01 更新
-// ・ストリーク長（streak_len / cscs_q_*_streak_len:{qid}）の扱いを「3到達でリセットしない（連続回数として伸ばし続ける）」方式に統一。
-// ・反対結果が出た場合のみ、該当ストリーク長を 0 にリセットする（既存のリセット処理を活かす）。
-// ・3連達成回数（streak3_total / cscs_q_*_streak3_total:{qid}）は「3,6,9...」到達ごとに +1 の非重複カウントを維持。
-// ・最高値（cscs_q_correct_streak_max:{qid} / cscs_q_wrong_streak_max:{qid}）と達成日（*_streak_max_day:{qid}）は、
-//   「リセットなしで伸び続ける streak_len」と整合するロジックで更新（過去最高を上回った瞬間のみ更新）。
-// ・*_streak_max_day:{qid} は JST YYYYMMDD を number として保存（localStorage 上は数値文字列、例: "20251231"）。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){
@@ -680,12 +669,8 @@
             streak3_total: beforeGlobalStreak3Total
           });
 
-          // 1) 正解のたびに「全体の連続正解数」を +1 する
           sLen += 1;
-
-          // 2) 3連到達は「3,6,9...」のタイミングでのみカウント（非重複のまま）
-          //    ※ streak_len 自体はリセットせず、連続回数として伸ばし続ける
-          if((sLen % 3) === 0){
+          if(sLen >= 3){
             incIntLS("cscs_correct_streak3_total", 1);
 
             var afterGlobalStreak3Total = getIntLS("cscs_correct_streak3_total");
@@ -696,14 +681,14 @@
               streak3_total_after: afterGlobalStreak3Total
             });
 
-            // 3) 3連達成ログを追加（到達した瞬間を残す）
+            // ログ（いつ/どの問題で3連目に到達したか）
             var sLogKey = "cscs_correct_streak3_log";
             var sLog = []; try{ sLog = JSON.parse(localStorage.getItem(sLogKey)||"[]"); }catch(_){ sLog = []; }
             sLog.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(sLogKey, JSON.stringify(sLog));
+            // 非重複とするためリセット（オーバーラップ不要の場合）
+            sLen = 0;
           }
-
-          // 4) 現在の連続正解数（全体）を保存（不正解時に 0 リセットされる）
           setIntLS("cscs_correct_streak_len", sLen);
           console.log("[B:streak3/global] AFTER", {
             qid: qid,
@@ -739,8 +724,7 @@
 
           if(sLenQ > beforeMaxQ){
             setIntLS(maxKeyQ, sLenQ);
-            // 1) streak_max_day は「number YYYYMMDD」として保存する（localStorage なので数値文字列）
-            try{ localStorage.setItem(maxDayKeyQ, String(parseInt(dayPlay, 10))); }catch(_){}
+            try{ localStorage.setItem(maxDayKeyQ, String(dayPlay)); }catch(_){}
 
             console.log("[B:streakMax/q] UPDATED", {
               qid: qid,
@@ -761,9 +745,7 @@
             });
           }
 
-          // 1) 3連到達は「3,6,9...」のタイミングでのみカウント（非重複）
-          //    ※ streak_len（連続正解数）自体はリセットせず、連続回数として伸ばし続ける
-          if((sLenQ % 3) === 0){
+          if(sLenQ >= 3){
             incIntLS(streak3KeyQ, 1);
 
             var afterStreak3TotalQ = getIntLS(streak3KeyQ);
@@ -775,13 +757,12 @@
               streak3_total_q_after: afterStreak3TotalQ
             });
 
-            // 2) 問題別の3連達成ログを追加（到達した瞬間を残す）
             var sLogKeyQ = "cscs_q_correct_streak3_log:" + qid;
             var sLogQ = []; try{ sLogQ = JSON.parse(localStorage.getItem(sLogKeyQ)||"[]"); }catch(_){ sLogQ = []; }
             sLogQ.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(sLogKeyQ, JSON.stringify(sLogQ));
 
-            // 3) ⭐️0→1（=最初の3連達成）になった問題だけ「今日の新規⭐️」としてカウント
+            // ⭐️0→1 になった問題だけ「今日の新規⭐️」としてカウント
             if(beforeStreak3TotalQ === 0){
               var todayDayKey = "cscs_streak3_today_day";
               var todayQidsKey = "cscs_streak3_today_qids";
@@ -790,14 +771,13 @@
               var storedDay = null;
               try{ storedDay = localStorage.getItem(todayDayKey); }catch(_){}
 
-              // 4) 日付が変わっていたら、その日の集計としてリセット
+              // 日付が変わっていたら、その日の集計としてリセット
               if(storedDay !== dayPlay){
                 try{ localStorage.setItem(todayDayKey, dayPlay); }catch(_){}
                 try{ localStorage.removeItem(todayQidsKey); }catch(_){}
                 try{ localStorage.setItem(todayCountKey, "0"); }catch(_){}
               }
 
-              // 5) その日の「新規⭐️獲得 qid 配列」をユニークに更新
               var todayQids = [];
               try{ todayQids = JSON.parse(localStorage.getItem(todayQidsKey)||"[]"); }catch(_){ todayQids = []; }
               if(!Array.isArray(todayQids)){ todayQids = []; }
@@ -808,7 +788,6 @@
                 incIntLS(todayCountKey, 1);
               }
 
-              // 6) デバッグ用スナップショット
               var todayCountVal = 0;
               try{
                 todayCountVal = parseInt(localStorage.getItem(todayCountKey)||"0",10);
@@ -823,14 +802,13 @@
                 today_count: todayCountVal
               });
 
-              // 7) SYNC 送信用トリガー
               if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
                 window.CSCS_SYNC.recordStreak3TodayUnique();
               }
             }
-          }
 
-          // 8) 現在の連続正解数（問題別）を保存（不正解時に 0 リセットされる）
+            sLenQ = 0;
+          }
           setIntLS(sKeyQ, sLenQ);
 
           console.log("[B:streak3/q] AFTER", {
@@ -912,12 +890,8 @@
             wrong_streak3_total: beforeGlobalWrongStreak3Total
           });
 
-          // 1) 不正解のたびに「全体の連続不正解数」を +1 する
           wLen += 1;
-
-          // 2) 3連到達は「3,6,9...」のタイミングでのみカウント（非重複のまま）
-          //    ※ streak_len 自体はリセットせず、連続回数として伸ばし続ける
-          if((wLen % 3) === 0){
+          if(wLen >= 3){
             incIntLS("cscs_wrong_streak3_total", 1);
 
             var afterGlobalWrongStreak3Total = getIntLS("cscs_wrong_streak3_total");
@@ -928,14 +902,14 @@
               wrong_streak3_total_after: afterGlobalWrongStreak3Total
             });
 
-            // 3) 3連達成ログを追加（到達した瞬間を残す）
             var wLogKey = "cscs_wrong_streak3_log";
             var wLog = []; try{ wLog = JSON.parse(localStorage.getItem(wLogKey)||"[]"); }catch(_){ wLog = []; }
             wLog.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(wLogKey, JSON.stringify(wLog));
-          }
 
-          // 4) 現在の連続不正解数（全体）を保存（正解時に 0 リセットされる）
+            // 非重複カウントとするため 3連達成時にストリーク長をリセット
+            wLen = 0;
+          }
           setIntLS("cscs_wrong_streak_len", wLen);
 
           console.log("[B:streak3_wrong/global] AFTER", {
@@ -973,8 +947,7 @@
 
           if(wLenQ > beforeWrongMaxQ){
             setIntLS(wMaxKeyQ, wLenQ);
-            // 1) streak_max_day は「number YYYYMMDD」として保存する（localStorage なので数値文字列）
-            try{ localStorage.setItem(wMaxDayKeyQ, String(parseInt(dayPlay, 10))); }catch(_){}
+            try{ localStorage.setItem(wMaxDayKeyQ, String(dayPlay)); }catch(_){}
 
             console.log("[B:streakMax_wrong/q] UPDATED", {
               qid: qid,
@@ -995,9 +968,7 @@
             });
           }
 
-          // 1) 3連到達は「3,6,9...」のタイミングでのみカウント（非重複）
-          //    ※ streak_len（連続不正解数）自体はリセットせず、連続回数として伸ばし続ける
-          if((wLenQ % 3) === 0){
+          if(wLenQ >= 3){
             incIntLS(wrongStreak3KeyQ, 1);
 
             var afterWrongStreak3TotalQ = getIntLS(wrongStreak3KeyQ);
@@ -1009,19 +980,21 @@
               wrong_streak3_total_q_after: afterWrongStreak3TotalQ
             });
 
-            // 2) 3連続不正解を達成した履歴を問題別ログに追加する
+            // 3連続不正解を達成した履歴を問題別ログに追加する
             var wLogKeyQ = "cscs_q_wrong_streak3_log:" + qid;
             var wLogQ = []; try{ wLogQ = JSON.parse(localStorage.getItem(wLogKeyQ)||"[]"); }catch(_){ wLogQ = []; }
             wLogQ.push({ ts: Date.now(), qid: qid, day: dayPlay, choice: choice });
             localStorage.setItem(wLogKeyQ, JSON.stringify(wLogQ));
 
-            // 3) 「今日新しく3連続不正解を達成した問題」を日別ユニークとして記録する
+            // ★ 追加: 「今日新しく3連続不正解を達成した問題」を日別ユニークとして記録する
+            //   - JST dayPlay 単位で、初めて3連続不正解になった qid を配列に積む
+            //   - HUD / SYNC 側の streak3WrongToday（今日の💣ユニーク数）と連携するためのローカル集計
             try{
               var wrongTodayDayKey   = "cscs_streak3_wrong_today_day";
               var wrongTodayQidsKey  = "cscs_streak3_wrong_today_qids";
               var wrongTodayCountKey = "cscs_streak3_wrong_today_unique_count";
 
-              // 4) 日付が変わっていたら、その日の集計として day / qids / count をリセットする
+              // 日付が変わっていたら、その日の集計として day / qids / count をリセットする
               var storedWrongTodayDay = null;
               try{ storedWrongTodayDay = localStorage.getItem(wrongTodayDayKey); }catch(_){}
               if(storedWrongTodayDay !== dayPlay){
@@ -1030,19 +1003,19 @@
                 try{ localStorage.setItem(wrongTodayCountKey, "0"); }catch(_){}
               }
 
-              // 5) その日の「3連続不正解を初めて達成した qid 配列」を取得する
+              // その日の「3連続不正解を初めて達成した qid 配列」を取得する
               var wrongTodayQids = [];
               try{ wrongTodayQids = JSON.parse(localStorage.getItem(wrongTodayQidsKey) || "[]"); }catch(_){ wrongTodayQids = []; }
               if(!Array.isArray(wrongTodayQids)){ wrongTodayQids = []; }
 
-              // 6) まだ登録されていない qid なら配列に追加し、ユニークカウンタを +1 する
+              // まだ登録されていない qid なら配列に追加し、ユニークカウンタを +1 する
               if(wrongTodayQids.indexOf(qid) === -1){
                 wrongTodayQids.push(qid);
                 try{ localStorage.setItem(wrongTodayQidsKey, JSON.stringify(wrongTodayQids)); }catch(_){}
                 incIntLS(wrongTodayCountKey, 1);
               }
 
-              // 7) デバッグ用スナップショット
+              // デバッグ用に「今日の💣ユニーク集計」のスナップショットを出す
               var wrongTodayCountVal = 0;
               try{
                 wrongTodayCountVal = parseInt(localStorage.getItem(wrongTodayCountKey) || "0", 10);
@@ -1057,14 +1030,15 @@
                 today_count: wrongTodayCountVal
               });
 
-              // 8) SYNC 送信用トリガー
+              // SYNC 側に「今日の3連続不正解ユニーク」を送るトリガーを投げる
               if (window && window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3WrongTodayUnique === "function") {
                 window.CSCS_SYNC.recordStreak3WrongTodayUnique();
               }
             }catch(_){}
-          }
 
-          // 9) 現在の連続不正解数（問題別）を保存（正解時に 0 リセットされる）
+            // 非重複カウントとするため 3連達成時にストリーク長をリセット
+            wLenQ = 0;
+          }
           setIntLS(wKeyQ, wLenQ);
 
           console.log("[B:streak3_wrong/q] AFTER", {
