@@ -710,31 +710,9 @@
       <!-- Split（指示）入力欄 -->
       <div id="modeSplitBox" style="margin-top:10px;">
         <div class="muted sectionTitle">指示（--instruction）</div>
-
-        <div class="advGrid" style="margin-top:10px;">
-          <div class="advItem">
-            <div class="muted">project_id</div>
-            <input id="projectId" value="" placeholder="例: CSCS_SYNC / local_protocol_tool" />
-          </div>
-
-          <div class="advItem">
-            <div class="muted">task_id</div>
-            <input id="taskId" value="" list="taskIdHistoryList" placeholder="例: 2026-01-02_state-ts_day_number" />
-            <datalist id="taskIdHistoryList"></datalist>
-          </div>
-
-          <div class="advItem" style="grid-column: 1 / -1;">
-            <button id="injectMetaRules" type="button">ID＋いつものルールを挿入</button>
-            <div class="muted splitModeDesc" style="margin-top:6px;">
-              project_id / task_id をヘッダとして instruction に差し込みます（既に入っている場合はヘッダ部分だけ差し替え）。
-              task_id は自動で履歴に残り、次回以降サジェストされます。
-            </div>
-          </div>
-        </div>
-
-        <div class="ta-resize-wrap" data-target="instruction" style="margin-top:10px;">
+        <div class="ta-resize-wrap" data-target="instruction">
           <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
-          <div class="ta-resize-handle" role="separator" aria-label="Resize instruction textarea"> <div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+          <div class="ta-resize-handle" role="separator" aria-label="Resize instruction textarea"> <div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>         
         </div>
       </div>
 
@@ -901,107 +879,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
-  const TASK_ID_HISTORY_KEY = "protocol_splitter_task_id_history_v1";
-  const TASK_ID_HISTORY_MAX = 40;
-
-  function loadTaskIdHistory() {
-    try {
-      const raw = localStorage.getItem(TASK_ID_HISTORY_KEY);
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return [];
-      return arr.map(x => String(x || "").trim()).filter(x => x);
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveTaskIdHistory(arr) {
-    try {
-      const uniq = [];
-      const seen = new Set();
-      for (let i = 0; i < arr.length; i++) {
-        const v = String(arr[i] || "").trim();
-        if (!v) continue;
-        if (seen.has(v)) continue;
-        seen.add(v);
-        uniq.push(v);
-        if (uniq.length >= TASK_ID_HISTORY_MAX) break;
-      }
-      localStorage.setItem(TASK_ID_HISTORY_KEY, JSON.stringify(uniq));
-    } catch (e) {}
-  }
-
-  function refreshTaskIdDatalist() {
-    const dl = $("taskIdHistoryList");
-    if (!dl) return;
-
-    dl.innerHTML = "";
-    const hist = loadTaskIdHistory();
-
-    for (let i = 0; i < hist.length; i++) {
-      const opt = document.createElement("option");
-      opt.value = hist[i];
-      dl.appendChild(opt);
-    }
-  }
-
-  function rememberTaskId(v) {
-    const s = String(v || "").trim();
-    if (!s) return;
-
-    const hist = loadTaskIdHistory();
-    const next = [s].concat(hist);
-    saveTaskIdHistory(next);
-    refreshTaskIdDatalist();
-  }
-
-  function buildMetaRulesBlock(projectId, taskId) {
-    const p = String(projectId || "").trim();
-    const t = String(taskId || "").trim();
-
-    const lines = [];
-    lines.push("<<<TASK_META_BEGIN>>>");
-    lines.push("PROJECT_ID: " + (p ? p : "(unset)"));
-    lines.push("TASK_ID: " + (t ? t : "(unset)"));
-    lines.push("");
-    lines.push("【いつものルール】");
-    lines.push("・参照元と同じインデントで「置換前／置換後」を明確に分けて提示");
-    lines.push("・\"...\" や（中略）など省略は絶対に無し（該当箇所は完全形で）");
-    lines.push("・置換前コードブロックに“本文に無いコメント”は入れない");
-    lines.push("・フォールバック/保険/自動互換コードは勝手に追加しない");
-    lines.push("・必要なら『どのファイルの、何を、何のために直すか』を明示");
-    lines.push("<<<TASK_META_END>>>");
-    lines.push("");
-    return lines.join("\n");
-  }
-
-  function upsertMetaRulesIntoInstruction(metaBlock) {
-    const ta = $("instruction");
-    if (!ta) return;
-
-    const cur = String(ta.value || "");
-    const begin = "<<<TASK_META_BEGIN>>>";
-    const end = "<<<TASK_META_END>>>";
-
-    const i0 = cur.indexOf(begin);
-    const i1 = cur.indexOf(end);
-
-    if (i0 !== -1 && i1 !== -1 && i1 > i0) {
-      const afterEnd = i1 + end.length;
-      const before = cur.slice(0, i0);
-      const after = cur.slice(afterEnd);
-
-      const cleanedAfter = after.replace(/^\s*\n/, "\n").replace(/^\s*\r?\n/, "\n");
-      ta.value = String(before || "") + metaBlock + String(cleanedAfter || "");
-    } else {
-      if (cur.trim() === "") ta.value = metaBlock;
-      else ta.value = metaBlock + cur;
-    }
-
-    autosizeInstruction();
-    saveUiState();
-  }
+  const UI_STATE_KEY = "protocol_splitter_ui_state_v1";
 
   function loadUiState() {
     try {
@@ -1024,11 +902,6 @@
         maxlines: Number(($("maxlines") && $("maxlines").value) || 0),
         maxlogs: Number(($("maxlogs") && $("maxlogs").value) || 0),
         splitMode: String(($("splitMode") && $("splitMode").value) || "C"),
-
-        /* 追加: project_id / task_id（instruction注入用） */
-        projectId: String(($("projectId") && $("projectId").value) || ""),
-        taskId: String(($("taskId") && $("taskId").value) || ""),
-
         instruction: String(($("instruction") && $("instruction").value) || ""),
         uiMode: String((window.__uiMode || "split")),
         extractSymbols: String(($("extractSymbols") && $("extractSymbols").value) || ""),
@@ -1086,14 +959,6 @@
         const v = String(r && r.value ? r.value : "");
         r.checked = (v === s.splitMode);
       }
-    }
-
-    /* 追加: project_id / task_id を復元（ID注入が毎回ゼロからにならないようにする） */
-    if ($("projectId") && typeof s.projectId === "string") {
-      $("projectId").value = s.projectId;
-    }
-    if ($("taskId") && typeof s.taskId === "string") {
-      $("taskId").value = s.taskId;
     }
 
     if ($("instruction") && typeof s.instruction === "string") {
@@ -2151,53 +2016,6 @@
       return;
     }
 
-    /* 追加: task_id が空なら「提案だけ」出す（勝手に入力しない運用） */
-    (function(){
-      const taskEl = $("taskId");
-      if (!taskEl) return;
-
-      const curTask = String(taskEl.value || "").trim();
-      if (curTask) return;
-
-      const pid = String((($("projectId") && $("projectId").value) || "")).trim();
-
-      function ymd() {
-        const d = new Date();
-        const y = String(d.getFullYear());
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        return y + "-" + m + "-" + dd;
-      }
-
-      /* xxx は project_id から雑に作る（空なら "task"） */
-      let base = pid ? pid : "task";
-      base = base
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_\-]+/g, "_")
-        .replace(/_{2,}/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .toLowerCase();
-
-      if (!base) base = "task";
-
-      const suggestion = ymd() + "_" + base;
-
-      setStatus("task_id が空です。提案: " + suggestion + "（必要なら task_id 欄に手入力してから生成してください）");
-
-      try {
-        const ok = window.confirm(
-          "task_id が空です。\n\n提案: " + suggestion + "\n\n※ 自動入力はしません。\ntask_id 欄に貼り付けますか？"
-        );
-        if (ok) {
-          taskEl.value = suggestion;
-          saveUiState();
-          refreshTaskIdDatalist();
-          setStatus("task_id に提案を入力しました: " + suggestion);
-          try { taskEl.focus(); } catch (e) {}
-        }
-      } catch (e) {}
-    })();
-
     const text = await f.text();
     const payload = {
       filename: f.name,
@@ -2255,20 +2073,7 @@
       $("resetGen").disabled = false;
     }
 
-    (function(){
-      const pid = String((($("projectId") && $("projectId").value) || "")).trim();
-      const tid = String((($("taskId") && $("taskId").value) || "")).trim();
-
-      const pidShow = pid ? pid : "(unset)";
-      const tidShow = tid ? tid : "(unset)";
-
-      setStatus(
-        "生成完了: " + result.session_id +
-        " / parts=" + result.parts.length +
-        " / PROJECT_ID=" + pidShow +
-        " / TASK_ID=" + tidShow
-      );
-    })();
+    setStatus("生成完了: " + result.session_id + " / parts=" + result.parts.length);
   }
 
   $("run").onclick = doSplit;
@@ -2289,13 +2094,7 @@
     $("toggleExtractAll").onclick = () => {
       extractPreviewAllOn = !extractPreviewAllOn;
       renderExtractPreview();
-      /* 追加: task_id が入っている場合は履歴に残す（サジェスト用） */
-    (function(){
-      const tid = String((($("taskId") && $("taskId").value) || "")).trim();
-      if (tid) rememberTaskId(tid);
-    })();
-
-    saveUiState();
+      saveUiState();
       setStatus("extract表示: " + (extractPreviewAllOn ? "ALL: ON（全文）" : "ALL: OFF（一部）"));
     };
   }
@@ -2659,39 +2458,6 @@
     });
   }
 
-  /* 追加: project_id / task_id 入力も即保存 */
-  if ($("projectId")) {
-    $("projectId").addEventListener("input", () => {
-      saveUiState();
-    });
-  }
-
-  if ($("taskId")) {
-    $("taskId").addEventListener("input", () => {
-      saveUiState();
-    });
-    $("taskId").addEventListener("change", () => {
-      const v = String(($("taskId") && $("taskId").value) || "").trim();
-      if (v) rememberTaskId(v);
-      saveUiState();
-    });
-  }
-
-  /* 追加: 「ID＋いつものルールを挿入」ボタン */
-  if ($("injectMetaRules")) {
-    $("injectMetaRules").onclick = () => {
-      const pid = String(($("projectId") && $("projectId").value) || "").trim();
-      const tid = String(($("taskId") && $("taskId").value) || "").trim();
-
-      if (tid) rememberTaskId(tid);
-
-      const meta = buildMetaRulesBlock(pid, tid);
-      upsertMetaRulesIntoInstruction(meta);
-
-      setStatus("instruction に project_id/task_id + いつものルールを挿入しました");
-    };
-  }
-
   if ($("toggleAll")) {
     $("toggleAll").onclick = () => {
       previewAllOn = !previewAllOn;
@@ -2769,7 +2535,6 @@
   }
 
   restoreUiState();
-  refreshTaskIdDatalist();
   applyUIMode(window.__uiMode || "split");
 
   (function(){

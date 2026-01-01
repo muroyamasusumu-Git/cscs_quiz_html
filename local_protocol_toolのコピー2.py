@@ -89,64 +89,6 @@ def sha256_hex(s: str) -> str:
     return h.hexdigest()
 
 
-def sha256_8(s: str) -> str:
-    return sha256_hex(s)[:8].upper()
-
-
-def build_request_id(project_id: str, task_id: str, instruction: str) -> str:
-    """
-    依頼ごとの共通ID（REQUEST_ID）を作る。
-    - instruction（指示文）からSHA8を作るので、同じ指示なら同じIDになりやすい
-    - project/task も混ぜて、衝突確率を下げる
-    """
-    p = str(project_id or "").strip()
-    t = str(task_id or "").strip()
-    ins = str(instruction or "")
-    base = f"{p}\n{t}\n{ins}"
-    return f"REQ-{sha256_8(base)}"
-
-
-def wrap_instruction_with_ids(
-    instruction: str,
-    session_id: str,
-    project_id: str,
-    task_id: str,
-    include_rules: bool,
-) -> Tuple[str, str]:
-    """
-    instruction を「貼り付け用フォーマット」に整形して返す。
-    戻り値: (wrapped_instruction, request_id)
-    """
-    ins = str(instruction or "").strip()
-    p = str(project_id or "").strip()
-    t = str(task_id or "").strip()
-
-    request_id = build_request_id(p, t, ins)
-
-    lines: List[str] = []
-    lines.append("【WORK_HEADER（共通ID）】")
-    if p != "":
-        lines.append(f"[PROJECT: {p}]")
-    if t != "":
-        lines.append(f"[TASK: {t}]")
-    lines.append(f"[SESSION_ID: {session_id}]")
-    lines.append(f"[REQUEST_ID: {request_id}]")
-    lines.append("")
-
-    lines.append("【USER_INSTRUCTION】")
-    if ins != "":
-        lines.append(ins)
-    else:
-        lines.append("（指示が空です）")
-
-    if include_rules:
-        lines.append("")
-        lines.append("【PATCH_RULES（いつものルール）】")
-        lines.append(EXEC_TASK_PATCH_RULES.rstrip())
-
-    return ("\n".join(lines).strip() + "\n", request_id)
-
-
 def _part_top_identifiers(js_chunk: str, top_n: int) -> List[Tuple[str, int]]:
     """
     パート本文から頻出識別子 TopN を返す（簡易）
@@ -1465,19 +1407,11 @@ def write_manifest_json(
     original_sha256: str,
     instruction: str,
     original_saved_relpath: str,
-    project_id: str,
-    task_id: str,
-    request_id: str,
 ) -> None:
     manifest = {
         "session_id": session_id,
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "instruction": str(instruction),
-        "work": {
-            "project_id": str(project_id or ""),
-            "task_id": str(task_id or ""),
-            "request_id": str(request_id or ""),
-        },
         "input": {
             "filename": input_filename,
             "size_chars": sum(len(p.text) for p in parts),
@@ -1623,20 +1557,8 @@ def generate_parts(
     max_keep_logs: int,
     split_mode: str,
     iife_grace_ratio: float,
-    project_id: str,
-    task_id: str,
-    include_rules: bool,
 ) -> Tuple[str, Path, List[SplitPart], List[str]]:
     session_id = make_session_id(prefix, content)
-
-    wrapped_instruction, request_id = wrap_instruction_with_ids(
-        instruction=instruction,
-        session_id=session_id,
-        project_id=project_id,
-        task_id=task_id,
-        include_rules=include_rules,
-    )
-
     chunks = split_by_limits(
         content,
         maxchars,
@@ -1693,7 +1615,7 @@ def generate_parts(
         total_parts=total,
         max_chars=maxchars,
         max_lines=maxlines,
-        overview_text=wrapped_instruction,
+        overview_text=instruction,
     )
     protocol_epilogue = build_protocol_epilogue()
 
@@ -1707,7 +1629,7 @@ def generate_parts(
             cumulative_ids=cumulative_ids,
             expected_ids=expected_ids,
             is_last=(p.index == p.total),
-            exec_task_text=wrapped_instruction,
+            exec_task_text=instruction,
             parts=parts,
             scope_index_block=scope_index_block,
         )
@@ -1739,11 +1661,8 @@ def generate_parts(
         max_lines=maxlines,
         parts=parts,
         original_sha256=sha256_hex(content),
-        instruction=wrapped_instruction,
+        instruction=instruction,
         original_saved_relpath=original_saved_rel,
-        project_id=project_id,
-        task_id=task_id,
-        request_id=request_id,
     )
 
     # outroot 配下のログ保持数を制限し、超過分を自動削除する
@@ -1844,7 +1763,6 @@ class Handler(BaseHTTPRequestHandler):
                         continue
 
                     inp = data.get("input") or {}
-                    wk = data.get("work") or {}
                     items.append({
                         "output_dir": str(d),
                         "session_id": str(data.get("session_id") or ""),
@@ -1852,9 +1770,6 @@ class Handler(BaseHTTPRequestHandler):
                         "target_file": str(inp.get("filename") or ""),
                         "original_sha256": str(inp.get("sha256") or ""),
                         "original_saved_copy": str(inp.get("saved_copy") or ""),
-                        "project_id": str(wk.get("project_id") or ""),
-                        "task_id": str(wk.get("task_id") or ""),
-                        "request_id": str(wk.get("request_id") or ""),
                         "instruction": str(data.get("instruction") or ""),
                     })
             except Exception as e:
@@ -2060,12 +1975,6 @@ class Handler(BaseHTTPRequestHandler):
 
         instruction = str(req.get("instruction") or "")
 
-        project_id = str(req.get("project_id") or "").strip()
-        task_id = str(req.get("task_id") or "").strip()
-
-        include_rules_raw = req.get("include_rules")
-        include_rules = bool(include_rules_raw) if include_rules_raw is not None else False
-
         if content == "":
             self._send(400, b"content is empty", "text/plain; charset=utf-8")
             return
@@ -2091,9 +2000,6 @@ class Handler(BaseHTTPRequestHandler):
                 max_keep_logs=maxlogs,
                 split_mode=split_mode,
                 iife_grace_ratio=iife_grace_ratio,
-                project_id=project_id,
-                task_id=task_id,
-                include_rules=include_rules,
             )
         except Exception as e:
             self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
