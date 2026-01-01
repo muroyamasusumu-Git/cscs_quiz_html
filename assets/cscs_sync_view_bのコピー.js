@@ -1349,73 +1349,9 @@
 
       body.appendChild(pair);
 
-      // ==========================
-      // 追加：連続正解/不正解 (SYNC) を local の直下に 2列で表示
-      // ==========================
-      (function appendStreakLenSyncPairCards() {
-        var pairSync = document.createElement("div");
-        pairSync.className = "svb-streak-quad";
-
-        // 左：連続正解 (SYNC)
-        (function buildCorrectSyncCard() {
-          var card = document.createElement("div");
-          card.className = "cscs-svb-card svb-correct-streak-card";
-
-          var head = document.createElement("div");
-          head.className = "svb-correct-streak-head";
-
-          var h = document.createElement("div");
-          h.className = "cscs-svb-card-title";
-          h.textContent = "連続正解 (SYNC)";
-
-          head.appendChild(h);
-
-          var grid = document.createElement("div");
-          grid.className = "cscs-svb-card-grid";
-
-          appendGridRow(grid, "streak_len", String(model.serverStreakLen));
-
-          card.appendChild(head);
-          card.appendChild(grid);
-          pairSync.appendChild(card);
-        })();
-
-        // 右：連続不正解 (SYNC)
-        (function buildWrongSyncCard() {
-          var card = document.createElement("div");
-          card.className = "cscs-svb-card svb-wrong-streak-card";
-
-          var head = document.createElement("div");
-          head.className = "svb-correct-streak-head";
-
-          var h = document.createElement("div");
-          h.className = "cscs-svb-card-title";
-          h.textContent = "連続不正解 (SYNC)";
-
-          head.appendChild(h);
-
-          var grid = document.createElement("div");
-          grid.className = "cscs-svb-card-grid";
-
-          appendGridRow(grid, "streak_len", String(model.serverWrongStreakLen));
-
-          card.appendChild(head);
-          card.appendChild(grid);
-          pairSync.appendChild(card);
-        })();
-
-        body.appendChild(pairSync);
-
-        // ★ 何をしているか:
-        //   Once/ODOA 2枚は「SYNCペアの直下」に固定するため、この要素をアンカーとして保持する。
-        onceOdoaAnchorEl = pairSync;
-
-        console.log("[SYNC-B:view] appended Streak Len pair (SYNC correct/wrong)", {
-          qid: (info && info.qid) ? info.qid : "-",
-          serverStreakLen: model.serverStreakLen,
-          serverWrongStreakLen: model.serverWrongStreakLen
-        });
-      })();
+      // ★ 何をしているか:
+      //   Once/ODOA 2枚は「このペアの直下」に固定するため、この要素をアンカーとして保持する。
+      onceOdoaAnchorEl = pair;
 
       // ★ 何をしているか:
       //   2列ペア全体の追加が完了したことをログで確認できるようにする

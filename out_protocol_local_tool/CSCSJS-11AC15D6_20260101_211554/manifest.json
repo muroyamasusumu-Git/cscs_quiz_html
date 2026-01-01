@@ -1,0 +1,69 @@
+{
+  "session_id": "CSCSJS-11AC15D6",
+  "created_at": "2026-01-01T21:15:54",
+  "instruction": "ステータスの\n「連続正解 (local)」　と　「連続不正解 (local)」　の横並びの二つのカードの下に、\n「連続正解 (SYNC)」　と　「連続不正解 (SYNC)」　の横並びの二つのカードをつくりたい。\n値は他のSYNCの由来の値と同じように最終的にsyncに保存された値を表示させてほしい",
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 173521,
+    "sha256": "11ac15d6b7eecf54df4113a5d296c63cb0893fce5cc9384c7d1be62235cde79f",
+    "saved_copy": "original/cscs_sync_view_b.js"
+  },
+  "split": {
+    "total_parts": 5,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 5,
+      "part_id": "CSCSJS-11AC15D6-P01-of-05",
+      "part_sha256": "786ec4ac1ac68c0a808948f11176946106281a4f49f0026f57b36444970347cd",
+      "start_offset": 0,
+      "end_offset": 33950,
+      "len_chars": 33950,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 5,
+      "part_id": "CSCSJS-11AC15D6-P02-of-05",
+      "part_sha256": "aff6ed8d48dd9096918438ea8446dca4d6ed81f1443cfe781a37eeff8228abe8",
+      "start_offset": 33950,
+      "end_offset": 75150,
+      "len_chars": 41200,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 5,
+      "part_id": "CSCSJS-11AC15D6-P03-of-05",
+      "part_sha256": "3f8cb05394250da1ffcbf82ec183046b93305b899ed30ea1d150c2c517208f4c",
+      "start_offset": 75150,
+      "end_offset": 113739,
+      "len_chars": 38589,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 5,
+      "part_id": "CSCSJS-11AC15D6-P04-of-05",
+      "part_sha256": "2a2fdc6a5f8603ced0afbf06036284132828ce5c18aafb692d360a2076c113a9",
+      "start_offset": 113739,
+      "end_offset": 161011,
+      "len_chars": 47272,
+      "file": "parts/part_04.txt"
+    },
+    {
+      "index": 5,
+      "total": 5,
+      "part_id": "CSCSJS-11AC15D6-P05-of-05",
+      "part_sha256": "6539df0406b5ab550f61c43a481579810f36d4395a9d94b97d5986dd56cd7a87",
+      "start_offset": 161011,
+      "end_offset": 173521,
+      "len_chars": 12510,
+      "file": "parts/part_05.txt"
+    }
+  ]
+}

@@ -1,0 +1,1235 @@
+<<<PART_BEGIN>>>
+【分割コード(2)の開始】
+PartID: CSCSJS-11AC15D6-P02-of-05
+PartSHA256: aff6ed8d48dd9096918438ea8446dca4d6ed81f1443cfe781a37eeff8228abe8
+Range: chars 33950..75150 (len=41200)
+FirstLine:   function updateSyncBodyGrid(model) {
+LastLine: 
+EndNewline: YES
+PART_SCOPE_HINT: LineRange=L1079..L2278 | BraceDepth=1->1
+PART_SCOPE_HINT_TOP_IDENTIFIERS: model:81, svb:67, qid:67, card:62, appendChild:58, className:57, String:53, st:52, document:51, createElement:51, div:43, grid:40
+PART_SCOPE_HINT_DEFINES: updateSyncBodyGrid, addPart, makeCard, makeTodayCard, ensureCard, placeAfter, applyCollapsedClass, clearEl, buildHeader, updateOnceBtnLabel, buildGridRowsFromModel, addRow, buildLocalOnceModel, asDayNum, max2, showLabel, updatePendingBtnLabel, fmtDayPair, fmtNumPair, fmtQidsPreview, pickLocalOnlyQids, readSyncKey, fetchState, createPanel, body, onceOdoaAnchorEl, card, line, head, part, k, v, quad, h, suf, grid, pair, root, syncCard, localCard
+
+```javascript
+  function updateSyncBodyGrid(model) {
+    var body = clearSyncBody();
+    if (!body) return;
+
+    if (!model || typeof model !== "object") {
+      updateSyncBodyText("HUD model error");
+      return;
+    }
+
+    // ★ 何をしているか:
+    //   Once/ODOA 2枚（SYNC+local）を「毎回同じ位置」に置くためのアンカー（直前の要素）を保持する。
+    //   refreshOncePerDayAndOdoaWideCardsInBody() でこの直後に insert する。
+    var onceOdoaAnchorEl = null;
+
+    // --- Counts（1行表示：Counts + SYNC/local/diff を横一列） ---
+    (function appendCountsSectionInline() {
+      // ① ワイドカード（Counts行を収めるコンテナ）
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide svb-counts";
+
+      // ② 1行の横並びコンテナ（折り返しなし）
+      var line = document.createElement("div");
+      line.className = "svb-counts-inline";
+
+      // ③ 行の先頭に "Counts" を入れる（見出しも同じ行にまとめる）
+      var head = document.createElement("span");
+      head.className = "svb-counts-head";
+      head.textContent = "Totals (c/w)";
+      line.appendChild(head);
+
+      // ④ 各パート（label + value）を横に連結していく
+      function addPart(label, valueText, isMuted) {
+        var part = document.createElement("span");
+        part.className = "svb-counts-part" + (isMuted ? " is-muted" : "");
+
+        var k = document.createElement("span");
+        k.className = "svb-counts-k";
+        k.textContent = label;
+
+        var v = document.createElement("span");
+        v.className = "svb-counts-v";
+        v.textContent = valueText;
+
+        part.appendChild(k);
+        part.appendChild(v);
+        line.appendChild(part);
+      }
+
+      addPart(
+        "SYNC",
+        String(model.serverCorrect) + " / " + String(model.serverWrong),
+        false
+      );
+      addPart(
+        "local",
+        String(model.localCorrect) + " / " + String(model.localWrong),
+        false
+      );
+      addPart(
+        "diff",
+        String(model.diffCorrect) + " / " + String(model.diffWrong),
+        true
+      );
+
+      // ⑤ カードに1行を入れて body に追加
+      card.appendChild(line);
+      body.appendChild(card);
+    })();
+
+    // --- 3連続（正解/不正解）：2列×2段（左=正解 / 右=不正解、上=回数 / 下=進捗） ---
+    (function appendStreakQuad4WideCards() {
+      var quad = document.createElement("div");
+      quad.className = "svb-streak-quad";
+
+      function makeCard(titleText, rowKey, valueText) {
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-streak-card";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
+
+        var suf = document.createElement("span");
+        suf.className = "svb-title-suffix";
+        suf.textContent = "Syc/Lcl/Df";
+        h.appendChild(suf);
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(grid, rowKey, valueText);
+
+        card.appendChild(h);
+        card.appendChild(grid);
+        return card;
+      }
+
+      // 左上：3連続正解（回数）
+      quad.appendChild(
+        makeCard(
+          "⭐️3連続正解数",
+          "回数(s3)",
+          String(model.serverStreak3) + " / " + String(model.localStreak3) + " (+" + String(model.diffStreak3) + ")"
+        )
+      );
+
+      // 右上：3連続不正解（回数）
+      quad.appendChild(
+        makeCard(
+          "💣3連続不正解",
+          "回数(s3W)",
+          String(model.serverStreak3Wrong) + " / " + String(model.localStreak3Wrong) + " (+" + String(model.diffStreak3Wrong) + ")"
+        )
+      );
+
+      // 左下：3連続正解（進捗）
+      quad.appendChild(
+        makeCard(
+          "3連続正解進捗",
+          "進捗(progress)",
+          String(model.serverProgress) + "/3 / " + String(model.localProgress) + "/3 (+" + String(model.diffProgress) + ")"
+        )
+      );
+
+      // 右下：3連続不正解（進捗）
+      quad.appendChild(
+        makeCard(
+          "3連続不正解進捗",
+          "進捗(progress)",
+          String(model.serverWrongProgress) + "/3 / " + String(model.localWrongProgress) + "/3 (+" + String(model.diffWrongProgress) + ")"
+        )
+      );
+
+      body.appendChild(quad);
+    })();
+
+    // --- Today Unique（左右2列：左=Streak3TodayUnique / 右=Streak3WrongTodayUq） ---
+    (function appendTodayUniquePair() {
+      var pair = document.createElement("div");
+      pair.className = "svb-streak-quad";
+
+      function makeTodayCard(titleText, syncCnt, localCnt) {
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-streak-card";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(
+          grid,
+          "unique",
+          "sync " + String(syncCnt) + " / local " + String(localCnt)
+        );
+
+        card.appendChild(h);
+        card.appendChild(grid);
+        return card;
+      }
+
+      // 左：Streak3TodayUnique
+      pair.appendChild(
+        makeTodayCard(
+          "Streak3TodayUnique",
+          model.s3TodaySyncCnt,
+          model.localS3TodayCnt
+        )
+      );
+
+      // 右：Streak3WrongTodayUq
+      pair.appendChild(
+        makeTodayCard(
+          "Streak3WrongTodayUq",
+          model.s3WrongTodaySyncCnt,
+          model.localS3WrongTodayCnt
+        )
+      );
+
+      body.appendChild(pair);
+    })();
+
+    // --- Correct/Wrong Streak (local / b_judge_record.js) : 2列横並び ---
+    (function appendStreakMaxPairCards() {
+      // ★ 何をしているか:
+      //   連続正解ブロックと、連続不正解ブロックを「左右2列」で横並びにする。
+      //   - 既存の .svb-streak-quad を再利用（2列グリッド）
+      //   - 両カードとも、同じUI（タイトル＋折りたたみ＋3行）で統一する
+      var pair = document.createElement("div");
+      pair.className = "svb-streak-quad";
+
+      // ==========================
+      // 左：連続正解 (local)
+      // ==========================
+      (function buildCorrectCard() {
+        // ★ 何をしているか:
+        //   「連続正解」カードは折りたたみ機能を持たず、常に内容を表示する。
+        //   localStorage の collapsed 状態は参照/更新しない。
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-correct-streak-card";
+
+        // ヘッダー（タイトルのみ）
+        var head = document.createElement("div");
+        head.className = "svb-correct-streak-head";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = "連続正解 (local)";
+
+        head.appendChild(h);
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(grid, "streak_len", String(model.localStreakLen));
+        appendGridRow(grid, "streak_max", String(model.localCorrectStreakMax));
+        appendGridRow(grid, "max_day", String(model.localCorrectStreakMaxDayLabel));
+
+        card.appendChild(head);
+        card.appendChild(grid);
+        pair.appendChild(card);
+
+        console.log("[SYNC-B:view] appended Correct Streak card (pair)", {
+          qid: (info && info.qid) ? info.qid : "-",
+          streak_len: model.localStreakLen,
+          streak_max: model.localCorrectStreakMax,
+          max_day: model.localCorrectStreakMaxDayLabel
+        });
+      })();
+
+      // ==========================
+      // 右：連続不正解 (local)
+      // ==========================
+      (function buildWrongCard() {
+        // ★ 何をしているか:
+        //   「連続不正解」カードは折りたたみ機能を持たず、常に内容を表示する。
+        //   localStorage の collapsed 状態は参照/更新しない。
+        var card = document.createElement("div");
+        card.className = "cscs-svb-card svb-wrong-streak-card";
+
+        // ヘッダー（タイトルのみ）
+        var head = document.createElement("div");
+        head.className = "svb-correct-streak-head";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = "連続不正解 (local)";
+
+        head.appendChild(h);
+
+        var grid = document.createElement("div");
+        grid.className = "cscs-svb-card-grid";
+
+        appendGridRow(grid, "streak_len", String(model.localWrongStreakLen));
+        appendGridRow(grid, "streak_max", String(model.localWrongStreakMax));
+        appendGridRow(grid, "max_day", String(model.localWrongStreakMaxDayLabel));
+
+        card.appendChild(head);
+        card.appendChild(grid);
+        pair.appendChild(card);
+
+        console.log("[SYNC-B:view] appended Wrong Streak card (pair)", {
+          qid: (info && info.qid) ? info.qid : "-",
+          streak_len: model.localWrongStreakLen,
+          streak_max: model.localWrongStreakMax,
+          max_day: model.localWrongStreakMaxDayLabel
+        });
+      })();
+
+      body.appendChild(pair);
+
+      // ★ 何をしているか:
+      //   Once/ODOA 2枚は「このペアの直下」に固定するため、この要素をアンカーとして保持する。
+      onceOdoaAnchorEl = pair;
+
+      // ★ 何をしているか:
+      //   2列ペア全体の追加が完了したことをログで確認できるようにする
+      console.log("[SYNC-B:view] appended Streak Max pair (correct/wrong)", {
+        qid: (info && info.qid) ? info.qid : "-"
+      });
+    })();
+
+    // --- OncePerDayToday / O.D.O.A Mode（ワイドカード：body配下の既存カードのみ更新／生成は最初の1回だけ） ---
+    (function refreshOncePerDayAndOdoaWideCardsInBody() {
+      // ★ 何をしているか:
+      //   once/odoa は body(#cscs_sync_view_b_body) 配下に「SYNCカード1枚 + localカード1枚」を置き、
+      //   updateSyncBodyGrid() では “追加” せず “既存DOMを更新” だけ行う（唯一の真＝body）。
+      var root = body;
+
+      // ★ 何をしているか:
+      //   既存カードを body 配下だけで探索する（探索範囲固定）。
+      var syncCard = null;
+      var localCard = null;
+      try {
+        syncCard = root.querySelector(".svb-once-odoa-card:not(.svb-once-odoa-card-local)");
+        localCard = root.querySelector(".svb-once-odoa-card-local");
+      } catch (_eFindOnceCards) {
+        syncCard = null;
+        localCard = null;
+      }
+
+      // ★ 何をしているか:
+      //   生成は “最初の1回だけ”。
+      //   - init()->append() の確定地点で作るのが理想だが、
+      //     updateSyncBodyGrid() は body が確実に存在するので、ここで「未生成なら作る」に一本化する。
+      function ensureCard(cardKind) {
+        var c = document.createElement("div");
+        if (cardKind === "local") {
+          c.className = "cscs-svb-card is-wide svb-once-odoa-card svb-once-odoa-card-local";
+        } else {
+          c.className = "cscs-svb-card is-wide svb-once-odoa-card";
+        }
+        return c;
+      }
+
+      // ★ 何をしているか:
+      //   カードを「アンカー直後」に必ず配置する（初回生成でも、再描画で残っていても位置を揃える）。
+      // ★ 何をしているか:
+      //   「アンカー直後」ではなく「直前に置いた要素の直後」に順番に差し込むことで、
+      //   2回目の insert が1回目を“追い越して上に来る”問題を防ぐ（SYNC→local の順を保証）。
+      function placeAfter(refEl, cardEl) {
+        if (!cardEl) return refEl;
+
+        if (refEl && refEl.parentNode === root) {
+          if (refEl.nextSibling !== cardEl) {
+            root.insertBefore(cardEl, refEl.nextSibling);
+          }
+          return cardEl;
+        }
+
+        root.appendChild(cardEl);
+        return cardEl;
+      }
+
+      if (!syncCard) {
+        syncCard = ensureCard("sync");
+      }
+      if (!localCard) {
+        localCard = ensureCard("local");
+      }
+
+      // ★ 何をしているか:
+      //   onceOdoaAnchorEl の直後に、SYNC→local の順で必ず並べる
+      var ref = (onceOdoaAnchorEl && onceOdoaAnchorEl.parentNode === root) ? onceOdoaAnchorEl : null;
+      if (ref) {
+        ref = placeAfter(ref, syncCard);
+        ref = placeAfter(ref, localCard);
+      } else {
+        root.appendChild(syncCard);
+        root.appendChild(localCard);
+      }
+
+      // ★ 何をしているか:
+      //   折りたたみ状態は once/odoa で共通（2枚とも同じ状態にする）。
+      var onceCollapsed = false;
+      try {
+        onceCollapsed = (localStorage.getItem("cscs_sync_view_b_once_odoa_collapsed") === "1");
+      } catch (_eOnceCollapsed2) {
+        onceCollapsed = false;
+      }
+
+      function applyCollapsedClass(cardEl) {
+        if (!cardEl) return;
+        if (onceCollapsed) {
+          if (cardEl.className.indexOf("is-collapsed") === -1) {
+            cardEl.className += " is-collapsed";
+          }
+        } else {
+          cardEl.className = cardEl.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+        }
+      }
+
+      applyCollapsedClass(syncCard);
+      applyCollapsedClass(localCard);
+
+      function clearEl(el) {
+        while (el && el.firstChild) el.removeChild(el.firstChild);
+      }
+
+      function buildHeader(cardEl, titleText, allowToggle) {
+        var head = document.createElement("div");
+        head.className = "svb-once-odoa-head";
+
+        var h = document.createElement("div");
+        h.className = "cscs-svb-card-title";
+        h.textContent = titleText;
+
+        head.appendChild(h);
+
+        if (allowToggle) {
+          var btn = document.createElement("button");
+          btn.className = "svb-once-odoa-toggle";
+          btn.type = "button";
+          btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
+
+          function updateOnceBtnLabel() {
+            var chev = onceCollapsed ? "▶" : "▼";
+            var label = onceCollapsed ? "show" : "hide";
+            btn.innerHTML = "<span class=\"svb-once-odoa-chev\">" + chev + "</span>" + label;
+            btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
+          }
+
+          updateOnceBtnLabel();
+
+          btn.addEventListener("click", function () {
+            onceCollapsed = !onceCollapsed;
+
+            try {
+              localStorage.setItem("cscs_sync_view_b_once_odoa_collapsed", onceCollapsed ? "1" : "0");
+            } catch (_eSaveOnce2) {}
+
+            applyCollapsedClass(syncCard);
+            applyCollapsedClass(localCard);
+            updateOnceBtnLabel();
+          });
+
+          head.appendChild(btn);
+        }
+
+        return head;
+      }
+
+      function buildGridRowsFromModel(cardEl, modelForCard) {
+        var grid = document.createElement("div");
+        grid.className = "svb-wide-dual-grid";
+
+        function addRow(leftText, rightText, strongLeft, strongRight) {
+          var l = document.createElement("div");
+          l.className = "svb-wide-dual-cell" + (strongLeft ? " svb-wide-dual-strong" : "");
+          l.textContent = leftText;
+
+          var r = document.createElement("div");
+          r.className = "svb-wide-dual-cell is-right" + (strongRight ? " svb-wide-dual-strong" : "");
+          r.textContent = rightText;
+
+          grid.appendChild(l);
+          grid.appendChild(r);
+        }
+
+        addRow(
+          "oncePerDayToday   " + String(modelForCard.onceStateLabel),
+          "計測: " + String(modelForCard.onceMeasureOkLabel) + " ｜結果: " + String(modelForCard.onceResultLabel),
+          true,
+          false
+        );
+
+        addRow(
+          "Today             " + String(modelForCard.onceTodayDateLabel),
+          "qid: " + String(modelForCard.onceQidLabel),
+          false,
+          false
+        );
+
+        addRow(
+          "count対象         " + String(modelForCard.onceCountableLabel),
+          "記録: " + String(modelForCard.onceRecordLabel),
+          false,
+          false
+        );
+
+        (function addOdoaSingleRow() {
+          var line = document.createElement("div");
+          line.className = "svb-wide-single";
+          line.textContent = "ODOA              " + String(modelForCard.onceOdoaLabel);
+          grid.appendChild(line);
+        })();
+
+        return grid;
+      }
+
+      // ★ 何をしているか:
+      //   localカードは localStorage の oncePerDayToday を “表示専用” に読む（判定元にはしない）。
+      //   - 参照元は localStorage の確定キーのみ（フォールバック無し）。
+      function buildLocalOnceModel() {
+        var out = {
+          onceStateLabel: "未開始",
+          onceMeasureOkLabel: "-",
+          onceResultLabel: "-",
+          onceTodayDateLabel: "-",
+          onceQidLabel: (info && info.qid) ? info.qid : "-",
+          onceCountableLabel: "-",
+          onceRecordLabel: "-",
+          onceOdoaLabel: "-"
+        };
+
+        try {
+          try {
+            var now = new Date();
+            var y = now.getFullYear();
+            var m = String(now.getMonth() + 1).padStart(2, "0");
+            var d = String(now.getDate()).padStart(2, "0");
+            out.onceTodayDateLabel = String(y) + "-" + String(m) + "-" + String(d);
+          } catch (_eDate2) {
+            out.onceTodayDateLabel = "-";
+          }
+
+          var localOnce = readOncePerDayTodayFromLocal();
+          var localOnceVal = null;
+          if (localOnce &&
+              typeof localOnce.day === "number" &&
+              Number.isFinite(localOnce.day) &&
+              localOnce.results &&
+              typeof localOnce.results === "object") {
+            if (Object.prototype.hasOwnProperty.call(localOnce.results, out.onceQidLabel)) {
+              localOnceVal = localOnce.results[out.onceQidLabel];
+            }
+          }
+
+          if (localOnceVal === "correct" || localOnceVal === "wrong") {
+            out.onceStateLabel = "計測済";
+            out.onceResultLabel = String(localOnceVal);
+            out.onceMeasureOkLabel = "OK";
+            out.onceRecordLabel = String(localOnceVal);
+            out.onceCountableLabel = "No（計測済）";
+          } else {
+            out.onceStateLabel = "未開始";
+            out.onceResultLabel = "-";
+            out.onceMeasureOkLabel = "NG";
+            out.onceRecordLabel = "-";
+            out.onceCountableLabel = "Yes（未計測）";
+          }
+
+          var verifyModeOn =
+            typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on";
+
+          var odoaRaw = null;
+          try {
+            if (typeof window.CSCS_ODOA_MODE === "string") {
+              odoaRaw = window.CSCS_ODOA_MODE;
+            }
+          } catch (_eOdoaPick2) {
+            odoaRaw = null;
+          }
+
+          var odoaLower = "";
+          try {
+            odoaLower = (odoaRaw == null ? "" : String(odoaRaw)).trim().toLowerCase();
+          } catch (_eOdoaLower2) {
+            odoaLower = "";
+          }
+
+          var odoaIsOn = (odoaLower === "on");
+
+          if (verifyModeOn) {
+            out.onceCountableLabel = "No（ガード）";
+          }
+          if (odoaIsOn) {
+            out.onceCountableLabel = "No（ガード）";
+          }
+
+          var odoaResultSuffix = "nocount";
+          if (localOnceVal === "correct") {
+            odoaResultSuffix = "Correct";
+          } else if (localOnceVal === "wrong") {
+            odoaResultSuffix = "Wrong";
+          }
+
+          var addNo = false;
+          if (verifyModeOn) addNo = true;
+          if (odoaIsOn) addNo = true;
+
+          if (odoaIsOn) {
+            out.onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
+          } else {
+            out.onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
+          }
+
+        } catch (_eLocalOnceModel) {}
+
+        return out;
+      }
+
+      // ===== SYNCカード（modelの値をそのまま） =====
+      clearEl(syncCard);
+      syncCard.appendChild(buildHeader(syncCard, "OncePerDayToday / O.D.O.A Mode (SYNC)", true));
+      syncCard.appendChild(buildGridRowsFromModel(syncCard, {
+        onceStateLabel: model.onceStateLabel,
+        onceMeasureOkLabel: model.onceMeasureOkLabel,
+        onceResultLabel: model.onceResultLabel,
+        onceTodayDateLabel: model.onceTodayDateLabel,
+        onceQidLabel: model.onceQidLabel,
+        onceCountableLabel: model.onceCountableLabel,
+        onceRecordLabel: model.onceRecordLabel,
+        onceOdoaLabel: model.onceOdoaLabel
+      }));
+
+      // ===== localカード（localStorageの値だけで組む） =====
+      var localOnceModel = buildLocalOnceModel();
+      clearEl(localCard);
+      localCard.appendChild(buildHeader(localCard, "OncePerDayToday / O.D.O.A Mode (local)", true));
+      localCard.appendChild(buildGridRowsFromModel(localCard, localOnceModel));
+
+      console.log("[SYNC-B:view] refreshed once/odoa cards in body (sync+local)", {
+        qid: (info && info.qid) ? info.qid : "-"
+      });
+    })();
+
+    // --- LastDay（ヘッダー=最新レコード / 3列=項目・SYNC・local） ---
+    (function appendLastDayCard() {
+      function asDayNum(s) {
+        if (s == null) return null;
+        var t = String(s);
+        if (!/^\d{8}$/.test(t)) return null;
+        var n = parseInt(t, 10);
+        if (!Number.isFinite(n) || n <= 0) return null;
+        return n;
+      }
+
+      function max2(a, b) {
+        if (a == null && b == null) return null;
+        if (a == null) return b;
+        if (b == null) return a;
+        return a > b ? a : b;
+      }
+
+      var seenS = asDayNum(model.lastSeenSyncLabel);
+      var seenL = asDayNum(model.lastSeenLocalLabel);
+      var corS  = asDayNum(model.lastCorrectSyncLabel);
+      var corL  = asDayNum(model.lastCorrectLocalLabel);
+      var wroS  = asDayNum(model.lastWrongSyncLabel);
+      var wroL  = asDayNum(model.lastWrongLocalLabel);
+
+      var seenMax = max2(seenS, seenL);
+      var corMax  = max2(corS, corL);
+      var wroMax  = max2(wroS, wroL);
+
+      var headKey = "LastDay";
+      var best = null;
+
+      if (seenMax != null) {
+        headKey = "lastSeen";
+        best = seenMax;
+      }
+      if (corMax != null && (best == null || corMax > best)) {
+        headKey = "lastCorrect";
+        best = corMax;
+      }
+      if (wroMax != null && (best == null || wroMax > best)) {
+        headKey = "lastWrong";
+        best = wroMax;
+      }
+
+      function showLabel(n, fallback) {
+        if (n == null) return fallback;
+        return String(n);
+      }
+
+      var headSync = "-";
+      var headLocal = "-";
+
+      if (headKey === "lastSeen") {
+        headSync = showLabel(seenS, "-");
+        headLocal = showLabel(seenL, "-");
+      } else if (headKey === "lastCorrect") {
+        headSync = showLabel(corS, "-");
+        headLocal = showLabel(corL, "-");
+      } else if (headKey === "lastWrong") {
+        headSync = showLabel(wroS, "-");
+        headLocal = showLabel(wroL, "-");
+      }
+
+      var card = document.createElement("div");
+      card.className = "cscs-svb-card is-wide";
+
+      // ヘッダー（最新レコード行：横3列）
+      var head = document.createElement("div");
+      head.className = "svb-lastday-head";
+
+      var hk = document.createElement("div");
+      hk.className = "svb-lastday-k";
+      hk.textContent = headKey;
+
+      var hs = document.createElement("div");
+      // 何をしているか: LastDayの真ん中列（SYNC列）だと明示するclassを付与する（CSSで中央寄せ固定）
+      hs.className = "svb-lastday-v svb-lastday-mid";
+      hs.textContent = "SYNC " + String(headSync);
+
+      var hl = document.createElement("div");
+      // 何をしているか: 右列（local列）として通常の右寄せスタイルを維持する
+      hl.className = "svb-lastday-v";
+      hl.textContent = "local " + String(headLocal);
+
+      head.appendChild(hk);
+      head.appendChild(hs);
+      head.appendChild(hl);
+      card.appendChild(head);
+
+      // 本体（見出しと同じ項目は表示しない）
+      var grid = document.createElement("div");
+      grid.className = "svb-lastday-grid";
+
+      function addRow(kText, syncText, localText) {
+        if (kText === headKey) return;
+
+        var k = document.createElement("div");
+        k.className = "svb-lastday-k";
+        k.textContent = kText;
+
+        var s = document.createElement("div");
+        // 何をしているか: LastDayの真ん中列（SYNC列）だと明示するclassを付与する（CSSで中央寄せ固定）
+        s.className = "svb-lastday-v svb-lastday-mid";
+        s.textContent = showLabel(asDayNum(syncText), "-");
+
+        var l = document.createElement("div");
+        // 何をしているか: 右列（local列）は従来通り右寄せのまま
+        l.className = "svb-lastday-v";
+        l.textContent = showLabel(asDayNum(localText), "-");
+
+        grid.appendChild(k);
+        grid.appendChild(s);
+        grid.appendChild(l);
+      }
+
+      addRow("lastCorrect", model.lastCorrectSyncLabel, model.lastCorrectLocalLabel);
+      addRow("lastSeen", model.lastSeenSyncLabel, model.lastSeenLocalLabel);
+      addRow("lastWrong", model.lastWrongSyncLabel, model.lastWrongLocalLabel);
+
+      if (grid.childNodes.length > 0) {
+        card.appendChild(grid);
+      }
+
+      body.appendChild(card);
+
+      // ★ 何をしているか:
+      //   LastDayカードも「連続正解/連続不正解ペアの直下（OncePerDayの次）」に来たことをログで確認する
+      console.log("[SYNC-B:view] appended LastDay card (moved under streak pair, after once/odoa)", {
+        qid: (info && info.qid) ? info.qid : "-",
+        headKey: headKey,
+        headSync: headSync,
+        headLocal: headLocal
+      });
+    })();
+
+    // --- Pending (unsent) ---
+    var pendingText = "none";
+    if (model.pending && typeof model.pending === "object") {
+      var bits = [];
+
+      if (model.pending.pendingDiffCounts) bits.push("diffCounts");
+      if (model.pending.pendingOncePerDayToday) bits.push("oncePerDayToday");
+      if (model.pending.pendingLastSeenDay) bits.push("lastSeenDay");
+      if (model.pending.pendingLastCorrectDay) bits.push("lastCorrectDay");
+      if (model.pending.pendingLastWrongDay) bits.push("lastWrongDay");
+      if (model.pending.pendingStreak3Today) bits.push("streak3Today");
+      if (model.pending.pendingStreak3WrongToday) bits.push("streak3WrongToday");
+
+      if (bits.length > 0) {
+        pendingText = bits.join(", ");
+      }
+    }
+
+    // --- Pending (unsent) ---
+    var pendingCard = document.createElement("div");
+    pendingCard.className = "cscs-svb-card is-wide svb-pending-card";
+
+    // 折りたたみ状態（永続）
+    var pendingCollapsed = false;
+    try {
+      pendingCollapsed = (localStorage.getItem("cscs_sync_view_b_pending_collapsed") === "1");
+    } catch (_ePendingCollapsed) {
+      pendingCollapsed = false;
+    }
+
+    if (pendingCollapsed) {
+      pendingCard.className += " is-collapsed";
+    }
+
+    // ヘッダー行（タイトル + トグル）
+    var pendingHead = document.createElement("div");
+    pendingHead.className = "svb-pending-head";
+
+    var pendingH = document.createElement("div");
+    pendingH.className = "cscs-svb-card-title";
+    pendingH.textContent = "Pending (unsent)";
+
+    var pendingBtn = document.createElement("button");
+    pendingBtn.className = "svb-pending-toggle";
+    pendingBtn.type = "button";
+    pendingBtn.setAttribute("aria-expanded", pendingCollapsed ? "false" : "true");
+
+    function updatePendingBtnLabel() {
+      var chev = pendingCollapsed ? "▶" : "▼";
+      var label = pendingCollapsed ? "show" : "hide";
+      pendingBtn.innerHTML = "<span class=\"svb-pending-chev\">" + chev + "</span>" + label;
+      pendingBtn.setAttribute("aria-expanded", pendingCollapsed ? "false" : "true");
+    }
+
+    updatePendingBtnLabel();
+
+    pendingBtn.addEventListener("click", function () {
+      pendingCollapsed = !pendingCollapsed;
+
+      if (pendingCollapsed) {
+        if (pendingCard.className.indexOf("is-collapsed") === -1) {
+          pendingCard.className += " is-collapsed";
+        }
+      } else {
+        pendingCard.className = pendingCard.className.replace(/\bis-collapsed\b/g, "").replace(/\s{2,}/g, " ").trim();
+      }
+
+      try {
+        localStorage.setItem("cscs_sync_view_b_pending_collapsed", pendingCollapsed ? "1" : "0");
+      } catch (_eSavePending) {}
+
+      updatePendingBtnLabel();
+    });
+
+    pendingHead.appendChild(pendingH);
+    pendingHead.appendChild(pendingBtn);
+
+    var gPending = document.createElement("div");
+    gPending.className = "svb-pending-grid";
+
+    pendingCard.appendChild(pendingHead);
+    pendingCard.appendChild(gPending);
+    body.appendChild(pendingCard);
+
+    appendGridRow(gPending, "status", pendingText);
+
+    function fmtDayPair(syncDay, localDay) {
+      var s = (syncDay == null ? "-" : String(syncDay));
+      var l = (localDay == null ? "-" : String(localDay));
+      return "sync " + s + " / local " + l;
+    }
+
+    function fmtNumPair(syncNum, localNum) {
+      var s = (syncNum == null ? 0 : Number(syncNum));
+      var l = (localNum == null ? 0 : Number(localNum));
+      if (!Number.isFinite(s)) s = 0;
+      if (!Number.isFinite(l)) l = 0;
+      return "sync " + String(s) + " / local " + String(l);
+    }
+
+    function fmtQidsPreview(arr) {
+      if (!Array.isArray(arr) || arr.length === 0) return "-";
+      var head = arr.slice(0, 3).join(", ");
+      if (arr.length <= 3) return String(arr.length) + " [" + head + "]";
+      return String(arr.length) + " [" + head + ", …]";
+    }
+
+    // ★ 何をしているか:
+    //   local に居て sync に居ない qid を抽出して「未反映の差分(qids)」として可視化する
+    //   （フォールバック無し：引数で渡された配列だけを使う）
+    function pickLocalOnlyQids(syncArr, localArr) {
+      if (!Array.isArray(localArr) || localArr.length === 0) return [];
+      var set = Object.create(null);
+      if (Array.isArray(syncArr) && syncArr.length > 0) {
+        for (var i = 0; i < syncArr.length; i++) {
+          var s = syncArr[i];
+          if (typeof s === "string" && s) set[s] = 1;
+        }
+      }
+      var out = [];
+      for (var j = 0; j < localArr.length; j++) {
+        var l = localArr[j];
+        if (typeof l !== "string" || !l) continue;
+        if (!set[l]) out.push(l);
+      }
+      return out;
+    }
+
+    if (model.pending && typeof model.pending === "object") {
+      if (model.pending.pendingStreak3Today) {
+        appendGridRow(
+          gPending,
+          "streak3Today.day",
+          fmtDayPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.day : "-"),
+            (function () { try { return localStorage.getItem("cscs_streak3_today_day") || "-"; } catch (_e) { return "-"; } })()
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3Today.unique",
+          fmtNumPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3Today ? window.__cscs_sync_state.streak3Today.unique_count : 0),
+            model.localS3TodayCnt
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3Today.qids",
+          "sync " + fmtQidsPreview(model.s3TodaySyncQids) + " / local " + fmtQidsPreview(model.localS3TodayQids)
+        );
+
+        // ★ 何をしているか:
+        //   「local-only（sync未反映）」の qids を行として追加して、差分が即わかるようにする
+        var s3TodayMissing = pickLocalOnlyQids(model.s3TodaySyncQids, model.localS3TodayQids);
+        appendGridRow(
+          gPending,
+          "streak3Today.missing",
+          "local-only " + fmtQidsPreview(s3TodayMissing)
+        );
+      }
+
+      if (model.pending.pendingStreak3WrongToday) {
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.day",
+          fmtDayPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.day : "-"),
+            (function () { try { return localStorage.getItem("cscs_streak3_wrong_today_day") || "-"; } catch (_e2) { return "-"; } })()
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.unique",
+          fmtNumPair(
+            (window.__cscs_sync_state && window.__cscs_sync_state.streak3WrongToday ? window.__cscs_sync_state.streak3WrongToday.unique_count : 0),
+            model.localS3WrongTodayCnt
+          )
+        );
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.qids",
+          "sync " + fmtQidsPreview(model.s3WrongTodaySyncQids) + " / local " + fmtQidsPreview(model.localS3WrongTodayQids)
+        );
+
+        // ★ 何をしているか:
+        //   「local-only（sync未反映）」の qids を行として追加して、差分が即わかるようにする
+        var s3WrongTodayMissing = pickLocalOnlyQids(model.s3WrongTodaySyncQids, model.localS3WrongTodayQids);
+        appendGridRow(
+          gPending,
+          "streak3WrongToday.missing",
+          "local-only " + fmtQidsPreview(s3WrongTodayMissing)
+        );
+      }
+    }
+  }
+
+  function readSyncKey() {
+    // 何をしているか:
+    //   B側が使う X-CSCS-Key を「どこから取るか」を一本化する。
+    //   - まず window.CSCS_SYNC_KEY（別JSが注入している想定）
+    //   - 次に localStorage "cscs_sync_key"（永続保持している想定）
+    //   どちらにも無ければ null を返す（フォールバックで別ソースを見ない）。
+    try {
+      if (typeof window.CSCS_SYNC_KEY === "string" && window.CSCS_SYNC_KEY.trim()) {
+        return window.CSCS_SYNC_KEY.trim();
+      }
+    } catch (_eWinKey) {}
+
+    try {
+      var k = localStorage.getItem("cscs_sync_key");
+      if (typeof k === "string" && k.trim()) {
+        return k.trim();
+      }
+    } catch (_eLsKey) {}
+
+    return null;
+  }
+
+  function fetchState() {
+    // ============================================================
+    // 重要:
+    //   /api/sync/state は「bootstrap 完了後」にのみ叩いてよい。
+    //   localStorage の値は最終確定条件として信用しない。
+    //
+    //   本関数は必ず
+    //     window.__CSCS_SYNC_KEY_PROMISE__ resolve 後
+    //   に実行されることを保証する。
+    //
+    // 追加で保証すること:
+    //   - credentials: "include" を必ず付与（cookie必須の環境で安定化）
+    //   - cache: "no-store" を付与（状態の取り直しを確実化）
+    // ============================================================
+
+    if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
+      console.error("[SYNC-B:view] __CSCS_SYNC_KEY_PROMISE__ not found → fetchState aborted", {
+        endpoint: SYNC_STATE_ENDPOINT
+      });
+      throw new Error("SYNC_BOOTSTRAP_NOT_READY");
+    }
+
+    return window.__CSCS_SYNC_KEY_PROMISE__.then(function () {
+      var key = readSyncKey();
+
+      // フォールバック禁止:
+      //   bootstrap 完了後にも key が無い場合は「異常」として即失敗させる
+      if (!key) {
+        console.error("[SYNC-B:view] X-CSCS-Key missing AFTER bootstrap → fetchState aborted", {
+          endpoint: SYNC_STATE_ENDPOINT
+        });
+        throw new Error("X-CSCS-Key missing after bootstrap");
+      }
+
+      return fetch(SYNC_STATE_ENDPOINT, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          "X-CSCS-Key": key
+        }
+      });
+    }).then(function (res) {
+      if (!res.ok) {
+        throw new Error(String(res.status));
+      }
+      return res.json();
+    });
+  }
+
+  function createPanel() {
+    var box = document.createElement("div");
+    box.id = "cscs_sync_view_b";
+
+
+    var title = document.createElement("div");
+    title.id = "cscs_sync_view_b_title";
+    title.textContent = "SYNC(B): " + info.qid;
+
+    var body = document.createElement("div");
+    body.id = "cscs_sync_view_b_body";
+    body.textContent = "読み込み中…";
+
+    var statusDiv = document.createElement("div");
+    statusDiv.id = "cscs_sync_view_b_status";
+
+    // ★【超重要仕様：このボタンは「削除禁止」】
+    //   - DOM 上に存在していることが絶対条件（ID変更も禁止）。
+    //   - setTimeout(... btn.click()) のターゲットでもある。
+    //   - ここでは「手動送信用に表示」するが、DOM/ID/ボタン形状は維持すること。
+    var btn = document.createElement("button");
+    btn.id = "cscs_sync_view_b_send_btn";
+    btn.type = "button";
+    btn.textContent = "SYNC送信";
+    btn.className = "cscs-svb-send-btn";
+
+    // ★ 手動送信ボタンが押されたら「直近が手動送信である」ことを記録する
+    //   - sendDiffToServer 側でこのフラグを見て「差分ゼロでも必ず送信」に切り替える
+    //   - ここでは“送信処理そのもの”は触らない（既存のクリック処理と共存させる）
+    //   - 追加: ボタン押下直後に /api/sync/state を取り直して HUD を即時再描画し、
+    //          パネル内の全値が「押した瞬間に更新された」ことを保証する（ログで確認可能）
+    btn.addEventListener("click", function () {
+      try {
+        window.__cscs_sync_b_manual_send_ts = Date.now();
+      } catch (_eManual) {}
+
+      // ★ 何をしているか:
+      //   1) 最新 state を取得して window.__cscs_sync_state を更新
+      //   2) state + localStorage から「今この瞬間の」表示用payloadを再構築
+      //   3) renderPanel() を呼び、ステータスパネル内の全値をまとめて更新
+      (function refreshHudAllValuesAfterManualSendClick() {
+        var qid = info.qid;
+
+        console.log("[SYNC-B:view] manual send clicked → refresh HUD start", {
+          qid: qid,
+          ts: (function () { try { return window.__cscs_sync_b_manual_send_ts || 0; } catch (_e) { return 0; } })()
+        });
+
+        fetchState().then(function (st) {
+          try {
+            window.__cscs_sync_state = st;
+          } catch (_eAssign) {}
+
+          console.log("[SYNC-B:view] fetchState success → window.__cscs_sync_state updated", {
+            qid: qid,
+            hasState: !!st
+          });
+
+          // ★ 何をしているか:
+          //   server値（SYNC側）を state から拾う（無ければ 0 / "-"）
+          var serverCorrect = 0;
+          var serverWrong = 0;
+          var serverStreak3 = 0;
+          var serverStreakLen = 0;
+          var serverStreak3Wrong = 0;
+          var serverWrongStreakLen = 0;
+
+          try {
+            if (st && st.correct && typeof st.correct === "object" && st.correct[qid] != null) {
+              if (typeof st.correct[qid] === "number" && Number.isFinite(st.correct[qid]) && st.correct[qid] >= 0) {
+                serverCorrect = st.correct[qid];
+              }
+            }
+            if (st && st.incorrect && typeof st.incorrect === "object" && st.incorrect[qid] != null) {
+              if (typeof st.incorrect[qid] === "number" && Number.isFinite(st.incorrect[qid]) && st.incorrect[qid] >= 0) {
+                serverWrong = st.incorrect[qid];
+              }
+            }
+            if (st && st.streak3 && typeof st.streak3 === "object" && st.streak3[qid] != null) {
+              if (typeof st.streak3[qid] === "number" && Number.isFinite(st.streak3[qid]) && st.streak3[qid] >= 0) {
+                serverStreak3 = st.streak3[qid];
+              }
+            }
+            if (st && st.streakLen && typeof st.streakLen === "object" && st.streakLen[qid] != null) {
+              if (typeof st.streakLen[qid] === "number" && Number.isFinite(st.streakLen[qid]) && st.streakLen[qid] >= 0) {
+                serverStreakLen = st.streakLen[qid];
+              }
+            }
+            if (st && st.streak3Wrong && typeof st.streak3Wrong === "object" && st.streak3Wrong[qid] != null) {
+              if (typeof st.streak3Wrong[qid] === "number" && Number.isFinite(st.streak3Wrong[qid]) && st.streak3Wrong[qid] >= 0) {
+                serverStreak3Wrong = st.streak3Wrong[qid];
+              }
+            }
+            if (st && st.streakWrongLen && typeof st.streakWrongLen === "object" && st.streakWrongLen[qid] != null) {
+              if (typeof st.streakWrongLen[qid] === "number" && Number.isFinite(st.streakWrongLen[qid]) && st.streakWrongLen[qid] >= 0) {
+                serverWrongStreakLen = st.streakWrongLen[qid];
+              }
+            }
+          } catch (eSrvPick) {
+            console.error("[SYNC-B:view] refresh pick server values error:", eSrvPick);
+          }
+
+          // ★ 何をしているか:
+          //   local値（ローカル側）を localStorage から拾う（確定キーのみ）
+          var localCorrect = readIntFromLocalStorage("cscs_q_correct_total:" + qid);
+          var localWrong = readIntFromLocalStorage("cscs_q_wrong_total:" + qid);
+          var localStreak3 = readIntFromLocalStorage("cscs_q_correct_streak3_total:" + qid);
+          var localStreakLen = readIntFromLocalStorage("cscs_q_correct_streak_len:" + qid);
+          var localStreak3Wrong = readIntFromLocalStorage("cscs_q_wrong_streak3_total:" + qid);
+          var localWrongStreakLen = readIntFromLocalStorage("cscs_q_wrong_streak_len:" + qid);
+
+          // ★ 何をしているか:
+          //   diff（local - server）を計算（マイナスは 0 に丸める）
+          var diffCorrect = Math.max(0, localCorrect - serverCorrect);
+          var diffWrong = Math.max(0, localWrong - serverWrong);
+          var diffStreak3 = Math.max(0, localStreak3 - serverStreak3);
+          var diffStreakLen = Math.max(0, localStreakLen - serverStreakLen);
+          var diffStreak3Wrong = Math.max(0, localStreak3Wrong - serverStreak3Wrong);
+          var diffWrongStreakLen = Math.max(0, localWrongStreakLen - serverWrongStreakLen);
+
+          // ★ 何をしているか:
+          //   Pending（未送信っぽい差分）を再計算して payload に載せる
+          var pending = null;
+          try {
+            pending = computePendingFlags(st, qid);
+          } catch (_ePending) {
+            pending = null;
+          }
+
+          console.log("[SYNC-B:view] manual send clicked → refresh HUD computed", {
+            qid: qid,
+            serverCorrect: serverCorrect,
+            serverWrong: serverWrong,
+            localCorrect: localCorrect,
+            localWrong: localWrong,
+            diffCorrect: diffCorrect,
+            diffWrong: diffWrong,
+            serverStreak3: serverStreak3,
+            localStreak3: localStreak3,
+            diffStreak3: diffStreak3,
+            serverStreakLen: serverStreakLen,
+            localStreakLen: localStreakLen,
+            diffStreakLen: diffStreakLen,
+            serverStreak3Wrong: serverStreak3Wrong,
+            localStreak3Wrong: localStreak3Wrong,
+            diffStreak3Wrong: diffStreak3Wrong,
+            serverWrongStreakLen: serverWrongStreakLen,
+            localWrongStreakLen: localWrongStreakLen,
+            diffWrongStreakLen: diffWrongStreakLen,
+            pending: pending
+          });
+
+          // ★ 何をしているか:
+          //   renderPanel() に payload を渡して「パネル内の全値」をまとめて更新
+          renderPanel(box, {
+            serverCorrect: serverCorrect,
+            serverWrong: serverWrong,
+            localCorrect: localCorrect,
+            localWrong: localWrong,
+            diffCorrect: diffCorrect,
+            diffWrong: diffWrong,
+            serverStreak3: serverStreak3,
+            localStreak3: localStreak3,
+            diffStreak3: diffStreak3,
+            serverStreakLen: serverStreakLen,
+            localStreakLen: localStreakLen,
+            diffStreakLen: diffStreakLen,
+            serverStreak3Wrong: serverStreak3Wrong,
+            localStreak3Wrong: localStreak3Wrong,
+            diffStreak3Wrong: diffStreak3Wrong,
+            serverWrongStreakLen: serverWrongStreakLen,
+            localWrongStreakLen: localWrongStreakLen,
+            diffWrongStreakLen: diffWrongStreakLen,
+            statusText: "manual click → HUD refreshed",
+            pending: pending,
+            odoaStatusText: "__keep__"
+          });
+
+          console.log("[SYNC-B:view] manual send clicked → refresh HUD done", {
+            qid: qid
+          });
+        }).catch(function (e) {
+          console.error("[SYNC-B:view] manual send clicked → fetchState failed:", e);
+        });
+      })();
+    });
+
+    box.appendChild(title);
+    box.appendChild(body);
+    box.appendChild(statusDiv);
+    // ★ 非表示ボタンだが、DOM に必ず追加することで click() 自動発火のターゲットを保証する。
+    box.appendChild(btn);
+
+    return box;
+  }
+
+
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 5
+RECEIVED_TOTAL: 2
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-11AC15D6-P01-of-05
+- CSCSJS-11AC15D6-P02-of-05
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【分割コード(2)の終了】→ 次は 分割コード(3) を送ります
+【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。
+ACK: <PartID> / WAITING_NEXT
