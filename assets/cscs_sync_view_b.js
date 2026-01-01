@@ -4516,8 +4516,24 @@
       // ★ 何をしているか:
       //   SYNCカードと同じ表示並びで、local由来の内容を行単位で反映する
       //   0: oncePerDayToday（左） / 1: 計測＋結果（右）
+      var rec = (localOnceVal === "correct" || localOnceVal === "wrong") ? String(localOnceVal) : "-";
+      var okng = (rec !== "-") ? "OK" : "NG";
+      var odoaSuffix = "nocount";
+      if (localOnceVal === "correct") {
+        odoaSuffix = "Correct";
+      } else if (localOnceVal === "wrong") {
+        odoaSuffix = "Wrong";
+      }
+
+      var odoaLine = "";
+      if (String(odoaModeText).toUpperCase() === "ON") {
+        odoaLine = "ON（累計加算: No）  " + odoaSuffix;
+      } else {
+        odoaLine = "OFF（累計加算: Yes）  " + odoaSuffix;
+      }
+
       dualCells[0].textContent = "oncePerDayToday   " + onceStateLabel;
-      dualCells[1].textContent = "計測: " + ((onceRecordLabel !== "-") ? "OK" : "NG") + " ｜結果: " + onceRecordLabel;
+      dualCells[1].textContent = "計測: " + okng + " ｜結果: " + rec;
 
       //   2: Today（左） / 3: qid（右）
       dualCells[2].textContent = "Today             " + onceTodayDateLabel;
@@ -4525,11 +4541,11 @@
 
       //   4: count対象（左） / 5: 記録（右）
       dualCells[4].textContent = "count対象         " + onceCountableLabel;
-      dualCells[5].textContent = "記録: " + onceRecordLabel;
+      dualCells[5].textContent = "記録: " + rec;
 
       // ★ 何をしているか:
       //   最下段の single 行（ODOA）を更新する
-      singleCell.textContent = "ODOA              " + onceOdoaLabel;
+      singleCell.textContent = "ODOA              " + odoaLine;
 
     } catch (_e) {}
   }
