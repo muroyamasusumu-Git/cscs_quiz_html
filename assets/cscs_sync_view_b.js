@@ -4450,6 +4450,40 @@
       var onceTodayDateLabel = (localOnceDay != null) ? fmtDay8ToDateText(localOnceDay) : "-";
       var onceQidLabel = qid || "-";
       var onceCountableLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? "No（計測済）" : "Yes（未計測）";
+
+      var onceRecordLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? String(localOnceVal) : "-";
+
+      var verifyModeOn = false;
+      try {
+        verifyModeOn = (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE.toLowerCase() === "on");
+      } catch (_eVerify) {
+        verifyModeOn = false;
+      }
+
+      var odoaIsOn = false;
+      try {
+        odoaIsOn = (typeof odoaModeText === "string" && odoaModeText.trim().toUpperCase() === "ON");
+      } catch (_eOdoaOn) {
+        odoaIsOn = false;
+      }
+
+      var odoaResultSuffix = "nocount";
+      if (onceRecordLabel === "correct") {
+        odoaResultSuffix = "Correct";
+      } else if (onceRecordLabel === "wrong") {
+        odoaResultSuffix = "Wrong";
+      }
+
+      var addNo = false;
+      if (verifyModeOn) addNo = true;
+      if (odoaIsOn) addNo = true;
+
+      var onceOdoaLabel = "-";
+      if (odoaIsOn) {
+        onceOdoaLabel = "ON（累計加算: " + (addNo ? "No" : "Yes") + "）  " + odoaResultSuffix;
+      } else {
+        onceOdoaLabel = "OFF（累計加算: Yes）  " + odoaResultSuffix;
+      }
       var onceRecordLabel = (localOnceVal === "correct" || localOnceVal === "wrong") ? String(localOnceVal) : "-";
 
       var onceOdoaLabel = "-";
