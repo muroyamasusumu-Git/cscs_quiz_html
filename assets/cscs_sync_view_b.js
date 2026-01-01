@@ -1499,17 +1499,25 @@
       }
 
       // ★ 何をしているか:
-      //   折りたたみ状態は once/odoa で共通（2枚とも同じ状態にする）。
-      var onceCollapsed = false;
+      //   折りたたみ状態は once/odoa を「SYNC用」「local用」で分離し、個別に折りたたみできるようにする。
+      var onceCollapsedSync = false;
+      var onceCollapsedLocal = false;
+
       try {
-        onceCollapsed = (localStorage.getItem("cscs_sync_view_b_once_odoa_collapsed") === "1");
-      } catch (_eOnceCollapsed2) {
-        onceCollapsed = false;
+        onceCollapsedSync = (localStorage.getItem("cscs_sync_view_b_once_odoa_collapsed_sync") === "1");
+      } catch (_eOnceCollapsedSync) {
+        onceCollapsedSync = false;
       }
 
-      function applyCollapsedClass(cardEl) {
+      try {
+        onceCollapsedLocal = (localStorage.getItem("cscs_sync_view_b_once_odoa_collapsed_local") === "1");
+      } catch (_eOnceCollapsedLocal) {
+        onceCollapsedLocal = false;
+      }
+
+      function applyCollapsedClass(cardEl, isCollapsed) {
         if (!cardEl) return;
-        if (onceCollapsed) {
+        if (isCollapsed) {
           if (cardEl.className.indexOf("is-collapsed") === -1) {
             cardEl.className += " is-collapsed";
           }
@@ -1518,14 +1526,14 @@
         }
       }
 
-      applyCollapsedClass(syncCard);
-      applyCollapsedClass(localCard);
+      applyCollapsedClass(syncCard, onceCollapsedSync);
+      applyCollapsedClass(localCard, onceCollapsedLocal);
 
       function clearEl(el) {
         while (el && el.firstChild) el.removeChild(el.firstChild);
       }
 
-      function buildHeader(cardEl, titleText, allowToggle) {
+      function buildHeader(cardEl, titleText, allowToggle, storageKey, getCollapsed, setCollapsed) {
         var head = document.createElement("div");
         head.className = "svb-once-odoa-head";
 
@@ -1539,26 +1547,26 @@
           var btn = document.createElement("button");
           btn.className = "svb-once-odoa-toggle";
           btn.type = "button";
-          btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
 
           function updateOnceBtnLabel() {
-            var chev = onceCollapsed ? "▶" : "▼";
-            var label = onceCollapsed ? "show" : "hide";
+            var collapsed = !!getCollapsed();
+            var chev = collapsed ? "▶" : "▼";
+            var label = collapsed ? "show" : "hide";
             btn.innerHTML = "<span class=\"svb-once-odoa-chev\">" + chev + "</span>" + label;
-            btn.setAttribute("aria-expanded", onceCollapsed ? "false" : "true");
+            btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
           }
 
           updateOnceBtnLabel();
 
           btn.addEventListener("click", function () {
-            onceCollapsed = !onceCollapsed;
+            var next = !getCollapsed();
+            setCollapsed(next);
 
             try {
-              localStorage.setItem("cscs_sync_view_b_once_odoa_collapsed", onceCollapsed ? "1" : "0");
-            } catch (_eSaveOnce2) {}
+              localStorage.setItem(storageKey, next ? "1" : "0");
+            } catch (_eSaveOnceSplit) {}
 
-            applyCollapsedClass(syncCard);
-            applyCollapsedClass(localCard);
+            applyCollapsedClass(cardEl, next);
             updateOnceBtnLabel();
           });
 
@@ -1731,7 +1739,14 @@
 
       // ===== SYNCカード（modelの値をそのまま） =====
       clearEl(syncCard);
-      syncCard.appendChild(buildHeader(syncCard, "OncePerDayToday / O.D.O.A Mode (SYNC)", true));
+      syncCard.appendChild(buildHeader(
+        syncCard,
+        "OncePerDayToday / O.D.O.A Mode (SYNC)",
+        true,
+        "cscs_sync_view_b_once_odoa_collapsed_sync",
+        function () { return onceCollapsedSync; },
+        function (v) { onceCollapsedSync = !!v; }
+      ));
       syncCard.appendChild(buildGridRowsFromModel(syncCard, {
         onceStateLabel: model.onceStateLabel,
         onceMeasureOkLabel: model.onceMeasureOkLabel,
@@ -1746,7 +1761,14 @@
       // ===== localカード（localStorageの値だけで組む） =====
       var localOnceModel = buildLocalOnceModel();
       clearEl(localCard);
-      localCard.appendChild(buildHeader(localCard, "OncePerDayToday / O.D.O.A Mode (local)", true));
+      localCard.appendChild(buildHeader(
+        localCard,
+        "OncePerDayToday / O.D.O.A Mode (local)",
+        true,
+        "cscs_sync_view_b_once_odoa_collapsed_local",
+        function () { return onceCollapsedLocal; },
+        function (v) { onceCollapsedLocal = !!v; }
+      ));
       localCard.appendChild(buildGridRowsFromModel(localCard, localOnceModel));
 
       console.log("[SYNC-B:view] refreshed once/odoa cards in body (sync+local)", {
