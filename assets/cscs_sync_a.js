@@ -4309,22 +4309,6 @@
           </div>
 
           <div class="sync-card">
-            <div class="sync-title">連続正解 (SYNC)</div>
-            <div class="sync-body">
-              <div class="mini-grid">
-                <div class="mini-label">streak_len</div>
-                <div class="mini-val"><span class="sync-streakmax-len-sync">-</span></div>
-
-                <div class="mini-label">streak_max</div>
-                <div class="mini-val"><span class="sync-streakmax-max-sync">-</span></div>
-
-                <div class="mini-label">max_day</div>
-                <div class="mini-val"><span class="sync-streakmax-maxday-sync">-</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="sync-card">
             <div class="sync-title">連続不正解 (local)</div>
             <div class="sync-body">
               <div class="mini-grid">
@@ -4336,6 +4320,22 @@
 
                 <div class="mini-label">max_day</div>
                 <div class="mini-val"><span class="sync-wrong-streakmax-maxday-local">-</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-card">
+            <div class="sync-title">連続正解 (SYNC)</div>
+            <div class="sync-body">
+              <div class="mini-grid">
+                <div class="mini-label">streak_len</div>
+                <div class="mini-val"><span class="sync-streakmax-len-sync">-</span></div>
+
+                <div class="mini-label">streak_max</div>
+                <div class="mini-val"><span class="sync-streakmax-max-sync">-</span></div>
+
+                <div class="mini-label">max_day</div>
+                <div class="mini-val"><span class="sync-streakmax-maxday-sync">-</span></div>
               </div>
             </div>
           </div>
