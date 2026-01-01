@@ -1374,6 +1374,8 @@
           grid.className = "cscs-svb-card-grid";
 
           appendGridRow(grid, "streak_len", String(model.serverStreakLen));
+          appendGridRow(grid, "streak_max", String(model.serverCorrectStreakMax));
+          appendGridRow(grid, "max_day", String(model.serverCorrectStreakMaxDayLabel));
 
           card.appendChild(head);
           card.appendChild(grid);
@@ -1398,6 +1400,8 @@
           grid.className = "cscs-svb-card-grid";
 
           appendGridRow(grid, "streak_len", String(model.serverWrongStreakLen));
+          appendGridRow(grid, "streak_max", String(model.serverWrongStreakMax));
+          appendGridRow(grid, "max_day", String(model.serverWrongStreakMaxDayLabel));
 
           card.appendChild(head);
           card.appendChild(grid);
@@ -2401,6 +2405,68 @@
         console.error("[SYNC-B:view] wrong-streak max read error:", eWrongStreakMax);
       }
 
+      // ★ 追加: SYNC側の「最高連続正解/不正解（streak_max / max_day）」を state から読み出す
+      //   - フォールバック無し：window.__cscs_sync_state の決め打ちキーのみを見る
+      //   - 無ければ 0 / "-" のまま（“補完しない”）
+      var serverCorrectStreakMax = 0;
+      var serverCorrectStreakMaxDayLabel = "-";
+      var serverWrongStreakMax = 0;
+      var serverWrongStreakMaxDayLabel = "-";
+
+      try {
+        var stMax = null;
+        try { stMax = window.__cscs_sync_state || null; } catch (_eStMax) { stMax = null; }
+        var qidForMax = (info && info.qid) ? info.qid : null;
+
+        if (stMax && qidForMax) {
+          // 連続正解 max
+          if (stMax.streakMax &&
+              typeof stMax.streakMax === "object" &&
+              stMax.streakMax[qidForMax] != null) {
+            var cMax = stMax.streakMax[qidForMax];
+            if (typeof cMax === "number" && Number.isFinite(cMax) && cMax >= 0) {
+              serverCorrectStreakMax = cMax;
+            }
+          }
+          if (stMax.streakMaxDay &&
+              typeof stMax.streakMaxDay === "object" &&
+              stMax.streakMaxDay[qidForMax] != null) {
+            var cDay = stMax.streakMaxDay[qidForMax];
+            if (typeof cDay === "number" && Number.isFinite(cDay) && cDay > 0) {
+              serverCorrectStreakMaxDayLabel = String(cDay);
+            }
+          }
+
+          // 連続不正解 max
+          if (stMax.streakWrongMax &&
+              typeof stMax.streakWrongMax === "object" &&
+              stMax.streakWrongMax[qidForMax] != null) {
+            var wMax = stMax.streakWrongMax[qidForMax];
+            if (typeof wMax === "number" && Number.isFinite(wMax) && wMax >= 0) {
+              serverWrongStreakMax = wMax;
+            }
+          }
+          if (stMax.streakWrongMaxDay &&
+              typeof stMax.streakWrongMaxDay === "object" &&
+              stMax.streakWrongMaxDay[qidForMax] != null) {
+            var wDay = stMax.streakWrongMaxDay[qidForMax];
+            if (typeof wDay === "number" && Number.isFinite(wDay) && wDay > 0) {
+              serverWrongStreakMaxDayLabel = String(wDay);
+            }
+          }
+        }
+
+        console.log("[SYNC-B:view] streak max from SYNC state", {
+          qid: qidForMax || "-",
+          serverCorrectStreakMax: serverCorrectStreakMax,
+          serverCorrectStreakMaxDay: serverCorrectStreakMaxDayLabel,
+          serverWrongStreakMax: serverWrongStreakMax,
+          serverWrongStreakMaxDay: serverWrongStreakMaxDayLabel
+        });
+      } catch (eMaxSync) {
+        console.error("[SYNC-B:view] streak max read from SYNC state error:", eMaxSync);
+      }
+
       // statusText は内部状態としてログだけに使う
       var statusText = payload.statusText || "";
 
@@ -2854,7 +2920,13 @@
 
         // ★ 追加: b_judge_record.js 由来のローカル計測（最高連続不正解数 / 達成日）
         localWrongStreakMax: localWrongStreakMax,
-        localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel
+        localWrongStreakMaxDayLabel: localWrongStreakMaxDayLabel,
+
+        // ★ 追加: SYNC側（streak_max / max_day）
+        serverCorrectStreakMax: serverCorrectStreakMax,
+        serverCorrectStreakMaxDayLabel: serverCorrectStreakMaxDayLabel,
+        serverWrongStreakMax: serverWrongStreakMax,
+        serverWrongStreakMaxDayLabel: serverWrongStreakMaxDayLabel
       });
 
       // ★ 何をしているか:
