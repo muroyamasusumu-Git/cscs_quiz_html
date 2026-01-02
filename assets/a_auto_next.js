@@ -530,6 +530,44 @@
   var AUTO_NEXT_BAR_INNER_ID = "cscs-auto-next-bar-inner";
   var RECENT_PANEL_ID = "cscs-auto-next-recent-panel";
 
+  // =========================
+  // 直近一覧パネルのCSS（a_auto_next.js内で注入して有効化）
+  // - inline style は display 制御のみにし、見た目はCSSへ委譲する
+  // =========================
+  function ensureRecentPanelCssInjected() {
+    var STYLE_ID = "cscs-auto-next-recent-panel-style";
+    try {
+      if (document.getElementById(STYLE_ID)) {
+        return;
+      }
+      var style = document.createElement("style");
+      style.id = STYLE_ID;
+      style.type = "text/css";
+      style.textContent =
+        "#cscs-auto-next-recent-panel {\n" +
+        "    position: fixed;\n" +
+        "    right: 10px;\n" +
+        "    top: 680px;\n" +
+        "    bottom: 54px;\n" +
+        "    z-index: 10001;\n" +
+        "    overflow: auto;\n" +
+        "    padding: 10px 12px;\n" +
+        "    background: rgba(0, 0, 0, 0.85);\n" +
+        "    border: 1px solid rgba(255, 255, 255, 0.25);\n" +
+        "    font-size: 12px;\n" +
+        "    line-height: 1.6;\n" +
+        "    display: block;\n" +
+        "    pointer-events: auto;\n" +
+        "    left: 71%;\n" +
+        "    opacity: 0.5;\n" +
+        "    border-radius: 10px;\n" +
+        "}\n";
+      (document.head || document.documentElement).appendChild(style);
+    } catch (_e) {
+      // 失敗しても致命的ではないので無視
+    }
+  }
+
   // 直近一覧: qid → 問題文冒頭のキャッシュ（ネットワーク負荷を抑える）
   var RECENT_QID_HEAD_CACHE = {};
   var RECENT_QID_HEAD_CHARS = 15;
@@ -817,19 +855,11 @@
     //   - bottom はバーとの干渉回避のため維持
     //   - top を指定して高さ上限を解放
     //   - max-height は使わず、top/bottom で可変にする
+    // ▼ CSS は a_auto_next.js で注入した #cscs-auto-next-recent-panel に委譲する
+    //   inline は表示制御（開閉）だけに限定し、見た目の競合を避ける
     panel.style.cssText =
-      "position: fixed;" +
-      "left: 15px;" +
-      "top: 8px;" +
-      "bottom: 56px;" +
-      "z-index: 10001;" +
-      "overflow: auto;" +
-      "padding: 10px 12px;" +
-      "background: rgba(0,0,0,0.85);" +
-      "border: 1px solid rgba(255,255,255,0.25);" +
-      "font-size: 13px;" +
-      "line-height: 1.6;" +
-      "display: none;";
+      "display: none;" +
+      "pointer-events: none;";
 
     bodyEl.appendChild(panel);
     return panel;
@@ -837,6 +867,9 @@
 
   // 直近一覧を再描画する（縦一列リンク）
   function renderRecentPanel() {
+      
+    ensureRecentPanelCssInjected();            
+      
     var panel = getOrCreateRecentPanel();
     if (!panel) {
       return;
