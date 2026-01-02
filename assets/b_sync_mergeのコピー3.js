@@ -473,109 +473,11 @@
   // b_judge_record.js の集計が終わったタイミングに近づけるため、
   // DOM 完成後に 1 tick 遅らせて実行
   function schedule(){
-    // ★ 何をしているか:
-    //   手動送信ボタン（cscs_sync_view_b_send_btn）をこのファイル側で生成・配置し、
-    //   click / 自動クリック（1.0s後）で streak3Today / streak3WrongToday を SYNC に送る起動トリガーにする。
-    function ensureManualSendButtonAndAutoClick(){
-      try{
-        // ★ 何をしているか:
-        //   既にボタンが存在するなら何もしない（多重生成防止）
-        var existing = document.getElementById("cscs_sync_view_b_send_btn");
-        if (existing) return;
-
-        // ★【超重要仕様：このボタンは「削除禁止」】
-        //   - DOM 上に存在していることが絶対条件（ID変更も禁止）。
-        //   - setTimeout(... btn.click()) のターゲットでもある。
-        //   - ここでは「手動送信用に表示」するが、DOM/ID/ボタン形状は維持すること。
-        var btn = document.createElement("button");
-        btn.id = "cscs_sync_view_b_send_btn";
-        btn.type = "button";
-        btn.textContent = "SYNC送信";
-        btn.className = "cscs-svb-send-btn";
-
-        // ★ 何をしているか:
-        //   手動送信ボタンが押されたら「直近が手動送信である」ことを記録する
-        try{
-          btn.addEventListener("click", function (ev) {
-            try {
-              if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
-              if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
-            } catch (_eStop) {}
-
-            try {
-              window.__cscs_sync_b_manual_send_ts = Date.now();
-            } catch (_eManual) {}
-
-            // ★ 何をしているか:
-            //   streak3Today / streak3WrongToday を「手動送信」する正式トリガー
-            var promises = [];
-
-            if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3TodayUnique === "function") {
-              console.log("[SYNC-B:BTN] manual streak3Today SEND requested from button");
-              var pToday = window.CSCS_SYNC.recordStreak3TodayUnique();
-              if (pToday && typeof pToday.then === "function") {
-                promises.push(pToday);
-              }
-            } else {
-              console.warn("[SYNC-B:BTN] recordStreak3TodayUnique is not available (手動送信不可)");
-            }
-
-            if (window.CSCS_SYNC && typeof window.CSCS_SYNC.recordStreak3WrongTodayUnique === "function") {
-              console.log("[SYNC-B:BTN] manual streak3WrongToday SEND requested from button");
-              var pWrongToday = window.CSCS_SYNC.recordStreak3WrongTodayUnique();
-              if (pWrongToday && typeof pWrongToday.then === "function") {
-                promises.push(pWrongToday);
-              }
-            } else {
-              console.warn("[SYNC-B:BTN] recordStreak3WrongTodayUnique is not available (手動送信不可)");
-            }
-
-            if (promises.length > 0) {
-              Promise.all(promises).then(function () {
-                console.log("[SYNC-B:BTN] streak3Today / streak3WrongToday merge completed");
-              }).catch(function (e) {
-                console.error("[SYNC-B:BTN] streak3Today / streak3WrongToday manual send error:", e);
-              });
-            }
-          });
-        }catch(_eBind){}
-
-        // ★ 何をしているか:
-        //   可能なら SYNC(B) パネル配下へ、無ければ body へ append する（表示＝DOM生成＋append）
-        var host = document.getElementById("cscs_sync_view_b");
-        if (host) {
-          host.appendChild(btn);
-        } else {
-          document.body.appendChild(btn);
-        }
-
-        // ★【超重要仕様：この自動クリックも「削除禁止」】
-        //   - 下の setTimeout で呼ばれる btn.click() は、単なるデバッグ用ではなく、
-        //     「streak3Today / streak3WrongToday を Bパートから SYNC に送信するための正式な起動トリガー」。
-        //   - つまり、ここを削除・コメントアウト・条件分岐で無効化すると、
-        //     「localStorage 側では計測されているのに、SYNC 側の今日の⭐️/💣ユニーク数が一切増えない」
-        //     という不可視な不具合が発生する。
-        try{
-          if (!window.__CSCS_SYNC_B_SENDBTN_AUTOCLICKED__) {
-            window.__CSCS_SYNC_B_SENDBTN_AUTOCLICKED__ = true;
-            setTimeout(function () {
-              console.log("[SYNC-B:auto] 1.0秒後に SYNC 送信ボタンを自動クリックします");
-              try { btn.click(); } catch (_eClick) {}
-            }, 1000);
-          }
-        }catch(_eOnce){}
-      }catch(_e){}
-    }
-
     if (document.readyState === "loading") {
       window.addEventListener("DOMContentLoaded", function(){
-        // ★ 何をしているか:
-        //   DOM完成後にボタン生成→その後に従来どおり totals 差分送信をスケジュール
-        ensureManualSendButtonAndAutoClick();
         setTimeout(syncFromTotals, 0);
       });
     } else {
-      ensureManualSendButtonAndAutoClick();
       setTimeout(syncFromTotals, 0);
     }
   }
