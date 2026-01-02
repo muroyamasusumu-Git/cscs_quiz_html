@@ -1,0 +1,1236 @@
+<<<PART_BEGIN>>>
+【分割コード(3)の開始】
+PartID: CSCSJS-1F73660D-P03-of-05
+PartSHA256: 18c3afdc7f049663349b749a926bf1a99ab731978d34f4d63b115546fc6ff585
+Range: chars 79146..123559 (len=44413)
+FirstLine:   async function sendDelta(){
+LastLine:       //   SYNC state を唯一の正として localStorage に同期（このQID分だけ）。
+EndNewline: YES
+PART_SCOPE_HINT: LineRange=L2077..L3276 | BraceDepth=1->3
+PART_SCOPE_HINT_TOP_IDENTIFIERS: QID:122, qid:86, SYNC:71, state:66, console:64, queue:61, A:59, ok:57, v:53, mapKey:50, s:46, value:44
+PART_SCOPE_HINT_DEFINES: readHeaderStrict, readHeaderAny, readMapNumberStrict, cleanup, onReady, readStateMapNumberStrictForLs, readStateMapDayStrictForLs, writeLsStrictNumber, writeLsStrictDay, readStateMapNumberStrict, sendDelta, ensureSyncKeyReady, initialFetch, hasC, hasI, hasS3, hasSL, hasS3W, hasSLW, hasLastSeen, hasLastCorrect, hasLastWrong, payload, syncKey, v, s, res, mergeHeaders, last, sh, keys, diff, anyDiff, k, sv, mv, same, latest, correctInfo, hasCorrectMap
+
+```javascript
+  async function sendDelta(){
+    const hasC   = Object.keys(queue.correctDelta).length>0;
+    const hasI   = Object.keys(queue.incorrectDelta).length>0;
+    const hasS3  = Object.keys(queue.streak3Delta).length>0;
+    const hasSL  = Object.keys(queue.streakLenDelta).length>0;
+    const hasS3W = Object.keys(queue.streak3WrongDelta).length>0;
+    const hasSLW = Object.keys(queue.streakWrongLenDelta).length>0;
+    const hasLastSeen    = Object.keys(queue.lastSeenDayDelta).length>0;
+    const hasLastCorrect = Object.keys(queue.lastCorrectDayDelta).length>0;
+    const hasLastWrong   = Object.keys(queue.lastWrongDayDelta).length>0;
+
+    // ★ いずれの delta も空なら、送信する意味がないので終了
+    if (
+      !hasC &&
+      !hasI &&
+      !hasS3 &&
+      !hasSL &&
+      !hasS3W &&
+      !hasSLW &&
+      !hasLastSeen &&
+      !hasLastCorrect &&
+      !hasLastWrong
+    ) {
+      return;
+    }
+
+    const payload = {
+      qid: QID || null,
+      correctDelta: queue.correctDelta,
+      incorrectDelta: queue.incorrectDelta,
+      streak3Delta: queue.streak3Delta,
+      streakLenDelta: queue.streakLenDelta,
+      // ★ 追加: 不正解側ストリークの delta も Workers へ送る
+      streak3WrongDelta: queue.streak3WrongDelta,
+      streakWrongLenDelta: queue.streakWrongLenDelta,
+      // ★ 追加: 問題別 最終日情報の delta（最新値）を Workers へ送る
+      lastSeenDayDelta: queue.lastSeenDayDelta,
+      lastCorrectDayDelta: queue.lastCorrectDayDelta,
+      lastWrongDayDelta: queue.lastWrongDayDelta,
+      updatedAt: Date.now()
+    };
+
+    // ★ 追加した処理0: localStorage の SYNC key を先に読む（trim）
+    // - 空白だけも「未設定」として扱う（空白キーでログやfetchを発生させない）
+    // - フォールバックで埋めない（欠損は欠損として止める）
+    let syncKey = null;
+    try{
+      const v = localStorage.getItem("cscs_sync_key");
+      if (v !== null && v !== undefined) {
+        const s = String(v).trim();
+        syncKey = (s === "") ? null : s;
+      }
+    }catch(_){
+      syncKey = null;
+    }
+
+    // ★ 追加した処理1: syncKey が未セット/空白なら、ログもfetchも行わず例外で停止する
+    if (!syncKey) {
+      throw new Error("SYNC_KEY_MISSING_LOCAL");
+    }
+
+    // ★ 追加した処理2: syncKey が確定している場合のみ、payloadログを出す（ログ汚染を防ぐ）
+    // 送信前に、今回送る delta の中身をコンソールで確認できるようにする
+    console.log("[SYNC-A] sendDelta payload(prepare)", {
+      qid: QID,
+      hasCorrectDelta: hasC,
+      hasIncorrectDelta: hasI,
+      hasStreak3Delta: hasS3,
+      hasStreakLenDelta: hasSL,
+      hasStreak3WrongDelta: hasS3W,
+      hasStreakWrongLenDelta: hasSLW,
+      hasLastSeenDayDelta: hasLastSeen,
+      hasLastCorrectDayDelta: hasLastCorrect,
+      hasLastWrongDayDelta: hasLastWrong,
+      payload: payload
+    });
+
+    lastSyncStatus = "sending";
+    lastSyncError  = "";
+    updateMonitor();
+
+    try{
+      // ★ 処理1: merge を叩き、レスポンスヘッダも必ず取得する（欠損は欠損として null）
+      const res = await fetch("/api/sync/merge", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "X-CSCS-Key": String(syncKey) },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(String(res.status));
+
+      // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
+      function readHeaderStrict(headers, name){
+        try{
+          const v = headers ? headers.get(name) : null;
+          if (v === null || v === undefined) return null;
+          const s = String(v).trim();
+          return s === "" ? null : s;
+        }catch(_){
+          return null;
+        }
+      }
+
+      function readHeaderAny(headers, names){
+        for (let i = 0; i < names.length; i++) {
+          const v = readHeaderStrict(headers, names[i]);
+          if (v !== null) return v;
+        }
+        return null;
+      }
+
+      const mergeHeaders = {
+        // ★ 処理2-1: 明示指定ヘッダ
+        "X-CSCS-User": readHeaderStrict(res.headers, "X-CSCS-User"),
+        "Key": readHeaderAny(res.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]),
+        "OdoaMode": readHeaderAny(res.headers, ["X-CSCS-OdoaMode", "X-CSCS-ODOA-Mode", "X-ODOA-Mode"]),
+        "KV(hit|miss)": readHeaderAny(res.headers, ["X-CSCS-KV", "X-CSCS-KV-Cache", "CF-KV-Cache", "X-KV-Cache", "X-KV"]),
+        "Colo": readHeaderAny(res.headers, ["CF-Colo", "cf-colo"]),
+        "CF-Ray": readHeaderAny(res.headers, ["CF-Ray", "cf-ray"])
+      };
+
+      // ★ 処理3: merge ヘッダを “確実に” 出す（ここで missing も見える化）
+      console.log("[SYNC-A][HDR][MERGE] response headers snapshot", {
+        endpoint: "/api/sync/merge",
+        qid: QID || null,
+        headers: mergeHeaders,
+        missing: {
+          "X-CSCS-User": (mergeHeaders["X-CSCS-User"] === null),
+          "Key": (mergeHeaders["Key"] === null),
+          "OdoaMode": (mergeHeaders["OdoaMode"] === null),
+          "KV(hit|miss)": (mergeHeaders["KV(hit|miss)"] === null),
+          "Colo": (mergeHeaders["Colo"] === null),
+          "CF-Ray": (mergeHeaders["CF-Ray"] === null)
+        }
+      });
+
+      // ★ 処理4: merge ヘッダを保持し、state と一致/不一致を比較できるようにする
+      try{
+        if (!window.__cscs_sync_last_headers || typeof window.__cscs_sync_last_headers !== "object") {
+          window.__cscs_sync_last_headers = { state: null, merge: null };
+        }
+        window.__cscs_sync_last_headers.merge = mergeHeaders;
+      }catch(_){}
+
+      // ★ 処理5: state ヘッダが既にあるなら “一致/不一致” をここで判定して出す
+      try{
+        const last = (window.__cscs_sync_last_headers && typeof window.__cscs_sync_last_headers === "object")
+          ? window.__cscs_sync_last_headers
+          : null;
+
+        const sh = last && last.state ? last.state : null;
+        if (sh) {
+          const keys = ["X-CSCS-User", "Key", "OdoaMode", "KV(hit|miss)", "Colo", "CF-Ray"];
+          const diff = {};
+          let anyDiff = false;
+
+          for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            const sv = sh[k];
+            const mv = mergeHeaders[k];
+            const same = (sv === mv);
+            if (!same) {
+              anyDiff = true;
+              diff[k] = { state: sv, merge: mv };
+            }
+          }
+
+          console.log("[SYNC-A][CMP][MERGE↔STATE] headers compare", {
+            qid: QID || null,
+            match: !anyDiff,
+            diff: diff
+          });
+        } else {
+          console.log("[SYNC-A][CMP][MERGE↔STATE] headers compare skipped (state headers missing)", {
+            qid: QID || null
+          });
+        }
+      }catch(eCmp){
+        console.error("[SYNC-A][CMP][MERGE↔STATE] headers compare error", {
+          qid: QID || null,
+          error: String(eCmp && eCmp.message || eCmp)
+        });
+      }
+
+      queue.correctDelta        = {};
+      queue.incorrectDelta      = {};
+      queue.streak3Delta        = {};
+      queue.streakLenDelta      = {};
+      queue.streak3WrongDelta   = {};
+      queue.streakWrongLenDelta = {};
+      queue.lastSeenDayDelta    = {};
+      queue.lastCorrectDayDelta = {};
+      queue.lastWrongDayDelta   = {};
+
+      // ★ 処理6: JSON本文を取得し、注目項目（odoa_mode / updatedAt / correct 空か等）をログ
+      const latest = await res.json();
+
+      let correctInfo = null;
+      try{
+        const hasCorrectMap = !!(latest && latest.correct && typeof latest.correct === "object");
+        const keysLen = hasCorrectMap ? Object.keys(latest.correct).length : null;
+
+        let qidHasEntry = null;
+        let qidValue = null;
+        if (hasCorrectMap && QID) {
+          qidHasEntry = Object.prototype.hasOwnProperty.call(latest.correct, QID);
+          if (qidHasEntry) qidValue = latest.correct[QID];
+        }
+
+        correctInfo = {
+          hasCorrectMap: hasCorrectMap,
+          correctKeysLen: keysLen,
+          correctIsEmpty: (hasCorrectMap ? (keysLen === 0) : null),
+          qid: QID || null,
+          qidHasEntry: qidHasEntry,
+          qidValue: qidValue
+        };
+      }catch(eCorrect){
+        correctInfo = {
+          error: String(eCorrect && eCorrect.message || eCorrect)
+        };
+      }
+
+      console.log("[SYNC-A][BODY][MERGE] json snapshot (selected fields)", {
+        endpoint: "/api/sync/merge",
+        qid: QID || null,
+        odoa_mode: (latest && Object.prototype.hasOwnProperty.call(latest, "odoa_mode")) ? latest.odoa_mode : null,
+        updatedAt: (latest && Object.prototype.hasOwnProperty.call(latest, "updatedAt")) ? latest.updatedAt : null,
+        correct: correctInfo
+      });
+
+      // SYNC 全体状態を常に最新に保つ（streak3Today も含めて反映）
+      try{
+        window.__cscs_sync_state = latest;
+      }catch(_){}
+
+      if (QID){
+        // ============================================================
+        // ★ フォールバック無し：mergeレスポンスから「確実に取れた値だけ」を採用する
+        // ------------------------------------------------------------
+        // - 値が欠損/型不正なら console.error で原因を確実に可視化
+        // - 欠損時は dataset（UI表示の“サーバー値”）も更新しない
+        // ============================================================
+        function readMapNumberStrict(src, mapKey, qid){
+          // ★ 処理1: mapの存在チェック（無ければログ＆失敗）
+          if (!src || typeof src !== "object" || !src[mapKey] || typeof src[mapKey] !== "object") {
+            console.error("[SYNC-A][NO-FALLBACK] merge response missing map", {
+              qid: qid,
+              mapKey: mapKey,
+              gotType: src && typeof src === "object" ? typeof src[mapKey] : typeof src
+            });
+            return { ok: false, value: null, reason: "missing_map" };
+          }
+
+          // ★ 処理2: qidキーの存在チェック（無ければログ＆失敗）
+          if (!Object.prototype.hasOwnProperty.call(src[mapKey], qid)) {
+            console.error("[SYNC-A][NO-FALLBACK] merge response missing qid entry", {
+              qid: qid,
+              mapKey: mapKey
+            });
+            return { ok: false, value: null, reason: "missing_qid_entry" };
+          }
+
+          // ★ 処理3: number検証（非number/NaN/負数はログ＆失敗）
+          const v = src[mapKey][qid];
+          if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+            console.error("[SYNC-A][NO-FALLBACK] merge response invalid number", {
+              qid: qid,
+              mapKey: mapKey,
+              value: v,
+              valueType: typeof v
+            });
+            return { ok: false, value: null, reason: "type_invalid" };
+          }
+
+          // ★ 処理4: 成功ログ（必要十分な情報だけ）
+          console.log("[SYNC-A][OK] merge response value", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v
+          });
+          return { ok: true, value: v };
+        }
+
+        const rc  = readMapNumberStrict(latest, "correct", QID);
+        const ri  = readMapNumberStrict(latest, "incorrect", QID);
+        const rs3 = readMapNumberStrict(latest, "streak3", QID);
+        const rsl = readMapNumberStrict(latest, "streakLen", QID);
+        const rs3w = readMapNumberStrict(latest, "streak3Wrong", QID);
+        const rslw = readMapNumberStrict(latest, "streakWrongLen", QID);
+        const reasons = {
+          correct: (rc && rc.ok === false) ? (rc.reason || "unknown") : null,
+          incorrect: (ri && ri.ok === false) ? (ri.reason || "unknown") : null,
+          streak3: (rs3 && rs3.ok === false) ? (rs3.reason || "unknown") : null,
+          streakLen: (rsl && rsl.ok === false) ? (rsl.reason || "unknown") : null,
+          streak3Wrong: (rs3w && rs3w.ok === false) ? (rs3w.reason || "unknown") : null,
+          streakWrongLen: (rslw && rslw.ok === false) ? (rslw.reason || "unknown") : null
+        };
+
+        const failedKeys = Object.keys(reasons).filter(function(k){ return reasons[k] !== null; });
+
+        if (failedKeys.length > 0) {
+          console.log("[SYNC-A][NO-FALLBACK] state map read failed (reasons)", {
+            qid: QID,
+            failedKeys: failedKeys,
+            reasons: reasons
+          });
+        } else {
+          console.log("[SYNC-A][OK] state map read ok (all)", { qid: QID });
+        }        
+
+        // ★ 処理5: 全て取れた場合のみ、UIのサーバー値を更新する（欠損時は上書きしない）
+        if (rc.ok && ri.ok && rs3.ok && rsl.ok && rs3w.ok && rslw.ok) {
+          setServerTotalsForQid(rc.value, ri.value, rs3.value, rsl.value);
+
+          console.log("[SYNC-A][OK] sendDelta merged server snapshot for this QID", {
+            qid: QID,
+            correctTotal: rc.value,
+            wrongTotal: ri.value,
+            streak3Correct: rs3.value,
+            streakLenCorrect: rsl.value,
+            streak3Wrong: rs3w.value,
+            streakLenWrong: rslw.value
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] sendDelta skipped server totals update (missing/invalid)", {
+            qid: QID,
+            ok: {
+              correct: rc.ok,
+              incorrect: ri.ok,
+              streak3: rs3.ok,
+              streakLen: rsl.ok,
+              streak3Wrong: rs3w.ok,
+              streakWrongLen: rslw.ok
+            }
+          });
+        }
+      }
+      lastSyncStatus = "ok";
+      lastSyncTime   = new Date().toLocaleTimeString();
+      lastSyncError  = "";
+    }catch(e){
+      lastSyncStatus = "error";
+      lastSyncError  = String(e && e.message || e);
+    }finally{
+      updateMonitor();
+    }
+  }
+
+  // === ④ init（キー発行/保存）完了保証 ===
+  // 方針:
+  //   - cscs_sync_a.js 側では init（/api/sync/init）を絶対に叩かない（bootstrap に一本化）
+  //   - nav-guard と同様に、cscs_sync_bootstrap_a.js の完了後にだけ先へ進む
+  //   - フォールバックで埋めない（bootstrap が失敗/未実行なら止める）
+  async function ensureSyncKeyReady(){
+    // ★ 追加した処理1: bootstrap の共有 Promise があるなら、それを必ず待つ
+    //   - cscs_sync_bootstrap_a.js は window["__CSCS_SYNC_KEY_PROMISE__"] を唯一の“待てる導線”として提供する
+    try{
+      var p = window["__CSCS_SYNC_KEY_PROMISE__"];
+      if (p && typeof p.then === "function") {
+        await p;
+      }
+    }catch(eWait){
+      // ★ 処理: bootstrap 側が reject した場合はここで確定（推測で先へ進まない）
+      throw new Error("SYNC_BOOTSTRAP_PROMISE_REJECTED_" + String(eWait && eWait.message || eWait));
+    }
+
+    // ★ 追加した処理2: Promise が無い環境（読み込み順など）では event を待つ
+    //   - ただし「待ち続けて進む」ようなフォールバックはしない
+    //   - ready になった事実（Event）を待てない場合は missing として止める
+    if (!window["__CSCS_SYNC_KEY_PROMISE__"]) {
+      await new Promise(function(resolve, reject){
+        var done = false;
+
+        function cleanup(){
+          try{
+            window.removeEventListener("cscs:syncKeyReady", onReady);
+          }catch(_){}
+        }
+
+        function onReady(){
+          if (done) return;
+          done = true;
+          cleanup();
+          resolve(true);
+        }
+
+        try{
+          window.addEventListener("cscs:syncKeyReady", onReady);
+        }catch(eAdd){
+          cleanup();
+          reject(eAdd);
+          return;
+        }
+      });
+    }
+
+    // ★ 追加した処理3: bootstrap 完了後に localStorage のキーを読む（trim）
+    //   - 空文字/空白のみは未設定として扱う（空白キーで fetch を発生させない）
+    //   - フォールバックで別ソースから推測しない
+    try{
+      const v = localStorage.getItem("cscs_sync_key");
+      if (v !== null && v !== undefined) {
+        const s = String(v).trim();
+        if (s !== "") return s;
+      }
+    }catch(_){
+      // ★ 方針: 読めない場合も推測で埋めず missing 扱いに倒す
+    }
+
+    // ★ 追加した処理4: ここまで来て key が無いなら、bootstrap 未完了/失敗として確定停止
+    throw new Error("SYNC_KEY_MISSING_AFTER_BOOTSTRAP");
+  }
+
+  window.CSCS_SYNC = {
+    // ★ 正解1回分の計測を SYNC キューに積む（累計 correctDelta）
+    //   あわせて「最終閲覧日」「最終正解日」も localStorage から読み取り、
+    //   それぞれ lastSeenDayDelta / lastCorrectDayDelta に最新値として積む。
+    recordCorrect(){
+      if (!QID) return;
+      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
+      if (Object.prototype.hasOwnProperty.call(queue.correctDelta, QID)) {
+        queue.correctDelta[QID] = queue.correctDelta[QID] + 1;
+      } else {
+        queue.correctDelta[QID] = 1;
+      }
+
+      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
+      console.log("[SYNC-A][OK][QUEUE] correctDelta incremented", {
+        qid: QID,
+        correctDelta: queue.correctDelta[QID]
+      });
+
+      try{
+        const seenDay = readLocalLastSeenDayForQid(QID);
+        if (seenDay) {
+          queue.lastSeenDayDelta[QID] = seenDay;
+        }
+        const correctDay = readLocalLastCorrectDayForQid(QID);
+        if (correctDay) {
+          queue.lastCorrectDayDelta[QID] = correctDay;
+        }
+      }catch(_){}
+
+      console.log("[SYNC-A] recordCorrect queued", {
+        qid: QID,
+        delta: queue.correctDelta[QID],
+        lastSeenDay: queue.lastSeenDayDelta[QID] || null,
+        lastCorrectDay: queue.lastCorrectDayDelta[QID] || null
+      });
+      scheduleSend();
+    },
+
+    // ★ 不正解1回分の計測を SYNC キューに積む（累計 incorrectDelta）
+    //   あわせて「最終閲覧日」「最終不正解日」も localStorage から読み取り、
+    //   それぞれ lastSeenDayDelta / lastWrongDayDelta に最新値として積む。
+    recordIncorrect(){
+      if (!QID) return;
+      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
+      if (Object.prototype.hasOwnProperty.call(queue.incorrectDelta, QID)) {
+        queue.incorrectDelta[QID] = queue.incorrectDelta[QID] + 1;
+      } else {
+        queue.incorrectDelta[QID] = 1;
+      }
+
+      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
+      console.log("[SYNC-A][OK][QUEUE] incorrectDelta incremented", {
+        qid: QID,
+        incorrectDelta: queue.incorrectDelta[QID]
+      });
+
+      try{
+        const seenDay = readLocalLastSeenDayForQid(QID);
+        if (seenDay) {
+          queue.lastSeenDayDelta[QID] = seenDay;
+        }
+        const wrongDay = readLocalLastWrongDayForQid(QID);
+        if (wrongDay) {
+          queue.lastWrongDayDelta[QID] = wrongDay;
+        }
+      }catch(_){}
+
+      console.log("[SYNC-A] recordIncorrect queued", {
+        qid: QID,
+        delta: queue.incorrectDelta[QID],
+        lastSeenDay: queue.lastSeenDayDelta[QID] || null,
+        lastWrongDay: queue.lastWrongDayDelta[QID] || null
+      });
+      scheduleSend();
+    },
+
+    // ★ 3連続「正解」達成回数を 1 回分キューに積む
+    recordStreak3(){
+      if (!QID) return;
+      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
+      if (Object.prototype.hasOwnProperty.call(queue.streak3Delta, QID)) {
+        queue.streak3Delta[QID] = queue.streak3Delta[QID] + 1;
+      } else {
+        queue.streak3Delta[QID] = 1;
+      }
+
+      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
+      console.log("[SYNC-A][OK][QUEUE] streak3Delta incremented", {
+        qid: QID,
+        streak3Delta: queue.streak3Delta[QID]
+      });
+      try{
+        var ev = new CustomEvent("cscs:streak3-earned", {
+          detail: {
+            qid: QID,
+            ts: Date.now()
+          }
+        });
+        window.dispatchEvent(ev);
+      }catch(_){}
+      console.log("[SYNC-A] recordStreak3 queued", {
+        qid: QID,
+        delta: queue.streak3Delta[QID]
+      });
+      scheduleSend();
+    },
+
+    // ★ 3連続「不正解」達成回数を 1 回分キューに積む
+    recordWrongStreak3(){
+      if (!QID) return;
+      // ★ 処理: 「|| 0」禁止。欠損は “無い” として扱い、明示的に 1 をセットする
+      if (Object.prototype.hasOwnProperty.call(queue.streak3WrongDelta, QID)) {
+        queue.streak3WrongDelta[QID] = queue.streak3WrongDelta[QID] + 1;
+      } else {
+        queue.streak3WrongDelta[QID] = 1;
+      }
+
+      // ★ 処理: キュー加算が成功したことを確実に確認できるログ
+      console.log("[SYNC-A][OK][QUEUE] streak3WrongDelta incremented", {
+        qid: QID,
+        streak3WrongDelta: queue.streak3WrongDelta[QID]
+      });
+      try{
+        var ev = new CustomEvent("cscs:wrong-streak3-earned", {
+          detail: {
+            qid: QID,
+            ts: Date.now()
+          }
+        });
+        window.dispatchEvent(ev);
+      }catch(_){}
+      console.log("[SYNC-A] recordWrongStreak3 queued", {
+        qid: QID,
+        delta: queue.streak3WrongDelta[QID]
+      });
+      scheduleSend();
+    },
+
+    // ★ 現在の「連続正解長」を SYNC 側 streakLen[qid] に同期するための値としてキューに積む
+    recordStreakLen(){
+      if (!QID) return;
+      const currentLen = readLocalStreakLenForQid(QID);
+      queue.streakLenDelta[QID] = currentLen;
+      console.log("[SYNC-A] recordStreakLen queued", {
+        qid: QID,
+        streakLen: currentLen
+      });
+      scheduleSend();
+    },
+
+    // ★ 現在の「連続不正解長」を SYNC 側 streakWrongLen[qid] に同期するための値としてキューに積む
+    recordWrongStreakLen(){
+      if (!QID) return;
+      const currentLenWrong = readLocalWrongStreakLenForQid(QID);
+      queue.streakWrongLenDelta[QID] = currentLenWrong;
+      console.log("[SYNC-A] recordWrongStreakLen queued", {
+        qid: QID,
+        streakWrongLen: currentLenWrong
+      });
+      scheduleSend();
+    },
+
+    // ★ /api/sync/state から SYNC 全体状態を取得するユーティリティ
+    async fetchServer(syncKey){
+      // ★ 処理: NO-PULLモードがONなら、sync/state 取得を行わず例外で停止する
+      if (window.__cscs_sync_no_pull === true) {
+        throw new Error("NO_PULL_MODE");
+      }
+
+      // ★ 変更: fetchServer() は localStorage を読まない（参照元を “呼び出し側で確定した key” に固定）
+      // - await init()（ensureSyncKeyReady）で確定した key をそのまま受け取る
+      // - 空/空白は未確定として停止（フォールバックで埋めない）
+      let key = null;
+      try{
+        const s = String(syncKey).trim();
+        key = (s === "") ? null : s;
+      }catch(_){
+        key = null;
+      }
+
+      if (!key) {
+        throw new Error("SYNC_KEY_NOT_READY");
+      }
+
+      // ★ 処理: key がある場合のみ、ログしてから state を取得する
+      console.log("[CSCS][STATE] will call /api/sync/state with X-CSCS-Key", {
+        qid: QID || null
+      });
+
+      // ★ headers は「確定したキー」で作る（空キーでfetchしない）
+      const stateFetchHeaders = {
+        "X-CSCS-Key": key
+      };
+
+      // ★ 処理: /api/sync/state は「X-CSCS-Key 確定済み」の場合のみ叩く（未確定なら例外で停止）
+      if (!stateFetchHeaders || !stateFetchHeaders["X-CSCS-Key"]) {
+        throw new Error("SYNC_KEY_NOT_READY");
+      }
+
+      const r = await fetch("/api/sync/state", {
+        method: "GET",
+        credentials: "include",
+        headers: stateFetchHeaders
+      });
+
+      if (!r.ok) {
+        const errText = await r.text();
+        throw new Error("SYNC_STATE_HTTP_" + r.status + ": " + errText);
+      }
+
+      // ★ 処理2: 指定ヘッダ群を “そのまま” 抜き出す（フォールバックで埋めない）
+      function readHeaderStrict(headers, name){
+        try{
+          const v = headers ? headers.get(name) : null;
+          if (v === null || v === undefined) return null;
+          const s = String(v).trim();
+          return s === "" ? null : s;
+        }catch(_){
+          return null;
+        }
+      }
+
+      function readHeaderAny(headers, names){
+        for (let i = 0; i < names.length; i++) {
+          const v = readHeaderStrict(headers, names[i]);
+          if (v !== null) return v;
+        }
+        return null;
+      }
+
+      const stateHeaders = {
+        // ★ 処理2-1: 明示指定ヘッダ
+        "X-CSCS-User": readHeaderStrict(r.headers, "X-CSCS-User"),
+        "Key": readHeaderAny(r.headers, ["X-CSCS-Key", "X-CSCS-API-Key", "X-CSCS-Token", "X-CSCS-User-Key"]),
+        "OdoaMode": readHeaderAny(r.headers, ["X-CSCS-OdoaMode", "X-CSCS-ODOA-Mode", "X-ODOA-Mode"]),
+        "KV(hit|miss)": readHeaderAny(r.headers, ["X-CSCS-KV", "X-CSCS-KV-Cache", "CF-KV-Cache", "X-KV-Cache", "X-KV"]),
+        "Colo": readHeaderAny(r.headers, ["CF-Colo", "cf-colo"]),
+        "CF-Ray": readHeaderAny(r.headers, ["CF-Ray", "cf-ray"])
+      };
+
+      // ★ 処理3: state ヘッダを “確実に” 出す（ここで missing も見える化）
+      console.log("[SYNC-A][HDR][STATE] response headers snapshot", {
+        endpoint: "/api/sync/state",
+        qid: QID || null,
+        headers: stateHeaders,
+        missing: {
+          "X-CSCS-User": (stateHeaders["X-CSCS-User"] === null),
+          "Key": (stateHeaders["Key"] === null),
+          "OdoaMode": (stateHeaders["OdoaMode"] === null),
+          "KV(hit|miss)": (stateHeaders["KV(hit|miss)"] === null),
+          "Colo": (stateHeaders["Colo"] === null),
+          "CF-Ray": (stateHeaders["CF-Ray"] === null)
+        }
+      });
+
+      // ★ 処理4: JSON本文を取得（本文側の要点もログに出す）
+      const json = await r.json();
+
+      // ★ 処理5: 本文JSONの注目項目（od oa_mode / updatedAt / correct 空か等）をまとめてログ
+      let correctInfo = null;
+      try{
+        const hasCorrectMap = !!(json && json.correct && typeof json.correct === "object");
+        const keysLen = hasCorrectMap ? Object.keys(json.correct).length : null;
+
+        let qidHasEntry = null;
+        let qidValue = null;
+        if (hasCorrectMap && QID) {
+          qidHasEntry = Object.prototype.hasOwnProperty.call(json.correct, QID);
+          if (qidHasEntry) qidValue = json.correct[QID];
+        }
+
+        correctInfo = {
+          hasCorrectMap: hasCorrectMap,
+          correctKeysLen: keysLen,
+          correctIsEmpty: (hasCorrectMap ? (keysLen === 0) : null),
+          qid: QID || null,
+          qidHasEntry: qidHasEntry,
+          qidValue: qidValue
+        };
+      }catch(eCorrect){
+        correctInfo = {
+          error: String(eCorrect && eCorrect.message || eCorrect)
+        };
+      }
+
+      console.log("[SYNC-A][BODY][STATE] json snapshot (selected fields)", {
+        endpoint: "/api/sync/state",
+        qid: QID || null,
+        odoa_mode: (json && Object.prototype.hasOwnProperty.call(json, "odoa_mode")) ? json.odoa_mode : null,
+        updatedAt: (json && Object.prototype.hasOwnProperty.call(json, "updatedAt")) ? json.updatedAt : null,
+        correct: correctInfo
+      });
+
+      // ★ 処理6: 取得した state ヘッダを保持し、merge 側ヘッダと一致/不一致を比較できるようにする
+      try{
+        if (!window.__cscs_sync_last_headers || typeof window.__cscs_sync_last_headers !== "object") {
+          window.__cscs_sync_last_headers = { state: null, merge: null };
+        }
+        window.__cscs_sync_last_headers.state = stateHeaders;
+      }catch(_){}
+
+      // ★ 処理7: もし merge ヘッダが既にあるなら “一致/不一致” をここでも判定して出す
+      try{
+        const last = (window.__cscs_sync_last_headers && typeof window.__cscs_sync_last_headers === "object")
+          ? window.__cscs_sync_last_headers
+          : null;
+
+        const mh = last && last.merge ? last.merge : null;
+        if (mh) {
+          const keys = ["X-CSCS-User", "Key", "OdoaMode", "KV(hit|miss)", "Colo", "CF-Ray"];
+          const diff = {};
+          let anyDiff = false;
+
+          for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            const sv = stateHeaders[k];
+            const mv = mh[k];
+            const same = (sv === mv);
+            if (!same) {
+              anyDiff = true;
+              diff[k] = { state: sv, merge: mv };
+            }
+          }
+
+          console.log("[SYNC-A][CMP][STATE↔MERGE] headers compare", {
+            qid: QID || null,
+            match: !anyDiff,
+            diff: diff
+          });
+        } else {
+          console.log("[SYNC-A][CMP][STATE↔MERGE] headers compare skipped (merge headers missing)", {
+            qid: QID || null
+          });
+        }
+      }catch(eCmp){
+        console.error("[SYNC-A][CMP][STATE↔MERGE] headers compare error", {
+          qid: QID || null,
+          error: String(eCmp && eCmp.message || eCmp)
+        });
+      }
+
+      // ★ 取得した SYNC state が、3連正解系 / 3連不正解系 / 今日の3連ユニーク系を
+      //   すべて持っているかどうかをデバッグログに出す
+      console.log("[SYNC-A] fetchServer state fetched", {
+        hasCorrect: !!(json && json.correct),
+        hasIncorrect: !!(json && json.incorrect),
+        hasStreak3: !!(json && json.streak3),
+        hasStreakLen: !!(json && json.streakLen),
+        hasStreak3Wrong: !!(json && json.streak3Wrong),
+        hasStreakWrongLen: !!(json && json.streakWrongLen),
+        hasStreak3Today: !!(json && json.streak3Today),
+        hasStreak3WrongToday: !!(json && json.streak3WrongToday),
+        hasLastSeenDay: !!(json && json.lastSeenDay),
+        hasLastCorrectDay: !!(json && json.lastCorrectDay),
+        hasLastWrongDay: !!(json && json.lastWrongDay)
+      });
+      return json;
+    }
+  };
+
+  async function initialFetch(){
+    if (!QID) return;
+
+    // ★ 処理: NO-PULLモードがONなら、sync/state を取りに行かずに終了する
+    if (window.__cscs_sync_no_pull === true) {
+      lastSyncStatus = "nopull";
+      lastSyncTime   = new Date().toLocaleTimeString();
+      lastSyncError  = "";
+      updateMonitor();
+      return;
+    }
+
+    try{
+      // ★ 追加: init（キー発行/保存）が完了するまで先に進ませない
+      const syncKey = await ensureSyncKeyReady();
+
+      // ★ 変更: “確定した同一key” を headers に入れて /api/sync/state を叩く
+      const s  = await CSCS_SYNC.fetchServer(syncKey);
+
+      // ★ 追加: stateスナップショットを保持（モニタ表示はここを唯一参照）
+      try{
+        window.__cscs_sync_state = s;
+      }catch(_){}
+
+      // ============================================================
+      // ★ 追加（A）: SYNC取得 → localStorage 上書き（streak len / max / maxDay）
+      // ------------------------------------------------------------
+      // - フォールバック禁止：取れた値だけを書き込む
+      // - 欠損/型不正は console.log / console.error で可視化し、書き込まない
+      // ============================================================
+      function readStateMapNumberStrictForLs(state, mapKey, qid){
+        if (!state || typeof state !== "object" || !state[mapKey] || typeof state[mapKey] !== "object") {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing map -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_map" };
+        }
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing qid entry -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_qid_entry" };
+        }
+        const v = state[mapKey][qid];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+          console.error("[SYNC-A][NO-FALLBACK][PULL] state invalid number -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v,
+            valueType: typeof v
+          });
+          return { ok: false, value: null, reason: "type_invalid" };
+        }
+        return { ok: true, value: v, reason: null };
+      }
+
+      function readStateMapDayStrictForLs(state, mapKey, qid){
+        if (!state || typeof state !== "object" || !state[mapKey] || typeof state[mapKey] !== "object") {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing day map -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_map" };
+        }
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
+          console.log("[SYNC-A][NO-FALLBACK][PULL] state missing day entry -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null, reason: "missing_qid_entry" };
+        }
+        const v = state[mapKey][qid];
+
+        let s8 = null;
+        if (typeof v === "string") {
+          const t = v.trim();
+          s8 = (/^\d{8}$/.test(t)) ? t : null;
+        } else if (typeof v === "number" && Number.isFinite(v)) {
+          const t2 = String(Math.trunc(v));
+          s8 = (/^\d{8}$/.test(t2)) ? t2 : null;
+        }
+
+        if (!s8) {
+          console.error("[SYNC-A][NO-FALLBACK][PULL] state invalid day -> skip LS write", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v,
+            valueType: typeof v
+          });
+          return { ok: false, value: null, reason: "day_invalid" };
+        }
+        return { ok: true, value: s8, reason: null };
+      }
+
+      function writeLsStrictNumber(key, n, ctx){
+        try{
+          localStorage.setItem(key, String(n));
+          console.log("[SYNC-A][OK][PULL→LS] wrote number", {
+            key: key,
+            value: n,
+            ctx: ctx
+          });
+          return true;
+        }catch(e){
+          console.error("[SYNC-A][ERR][PULL→LS] write number failed", {
+            key: key,
+            value: n,
+            ctx: ctx,
+            error: String(e && e.message || e)
+          });
+          return false;
+        }
+      }
+
+      function writeLsStrictDay(key, s8, ctx){
+        try{
+          localStorage.setItem(key, String(s8));
+          console.log("[SYNC-A][OK][PULL→LS] wrote day", {
+            key: key,
+            value: s8,
+            ctx: ctx
+          });
+          return true;
+        }catch(e){
+          console.error("[SYNC-A][ERR][PULL→LS] write day failed", {
+            key: key,
+            value: s8,
+            ctx: ctx,
+            error: String(e && e.message || e)
+          });
+          return false;
+        }
+      }
+
+      if (QID) {
+        const a_len = readStateMapNumberStrictForLs(s, "streakLen", QID);
+        if (a_len.ok) {
+          writeLsStrictNumber("cscs_q_correct_streak_len:" + QID, a_len.value, { map: "streakLen", qid: QID });
+        }
+
+        const a_max = readStateMapNumberStrictForLs(s, "streakMax", QID);
+        if (a_max.ok) {
+          writeLsStrictNumber("cscs_q_correct_streak_max:" + QID, a_max.value, { map: "streakMax", qid: QID });
+        }
+
+        const a_maxday = readStateMapDayStrictForLs(s, "streakMaxDay", QID);
+        if (a_maxday.ok) {
+          writeLsStrictDay("cscs_q_correct_streak_max_day:" + QID, a_maxday.value, { map: "streakMaxDay", qid: QID });
+        }
+
+        const w_len = readStateMapNumberStrictForLs(s, "streakWrongLen", QID);
+        if (w_len.ok) {
+          writeLsStrictNumber("cscs_q_wrong_streak_len:" + QID, w_len.value, { map: "streakWrongLen", qid: QID });
+        }
+
+        const w_max = readStateMapNumberStrictForLs(s, "streakWrongMax", QID);
+        if (w_max.ok) {
+          writeLsStrictNumber("cscs_q_wrong_streak_max:" + QID, w_max.value, { map: "streakWrongMax", qid: QID });
+        }
+
+        const w_maxday = readStateMapDayStrictForLs(s, "streakWrongMaxDay", QID);
+        if (w_maxday.ok) {
+          writeLsStrictDay("cscs_q_wrong_streak_max_day:" + QID, w_maxday.value, { map: "streakWrongMaxDay", qid: QID });
+        }
+
+        console.log("[SYNC-A][PULL] streak len/max/maxDay applied (only if valid)", {
+          qid: QID,
+          applied: {
+            streakLen: a_len.ok,
+            streakMax: a_max.ok,
+            streakMaxDay: a_maxday.ok,
+            streakWrongLen: w_len.ok,
+            streakWrongMax: w_max.ok,
+            streakWrongMaxDay: w_maxday.ok
+          }
+        });
+      }
+
+      // ============================================================
+      // ★ フォールバック無し：server state から「確実に取れた値だけ」を採用する
+      // ------------------------------------------------------------
+      // - 欠損/型不正なら console.error で確実に可視化
+      // - 欠損時は以降の localStorage 同期（上書き）も行わない
+      // ============================================================
+      function readStateMapNumberStrict(state, mapKey, qid){
+        // ★ 処理1: mapの存在チェック
+        if (!state || typeof state !== "object" || !state[mapKey] || typeof state[mapKey] !== "object") {
+          console.error("[SYNC-A][NO-FALLBACK] state missing map", {
+            qid: qid,
+            mapKey: mapKey,
+            gotType: state && typeof state === "object" ? typeof state[mapKey] : typeof state
+          });
+          return { ok: false, value: null };
+        }
+
+        // ★ 処理2: qidキーの存在チェック
+        if (!Object.prototype.hasOwnProperty.call(state[mapKey], qid)) {
+          console.log("[SYNC-A][NO-FALLBACK][INFO] state missing qid entry", {
+            qid: qid,
+            mapKey: mapKey
+          });
+          return { ok: false, value: null };
+        }
+
+        // ★ 処理3: number検証
+        const v = state[mapKey][qid];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+          console.error("[SYNC-A][NO-FALLBACK] state invalid number", {
+            qid: qid,
+            mapKey: mapKey,
+            value: v,
+            valueType: typeof v
+          });
+          return { ok: false, value: null };
+        }
+
+        // ★ 処理4: 成功ログ
+        console.log("[SYNC-A][OK] state value", {
+          qid: qid,
+          mapKey: mapKey,
+          value: v
+        });
+        return { ok: true, value: v };
+      }
+
+      const rc  = readStateMapNumberStrict(s, "correct", QID);
+      const ri  = readStateMapNumberStrict(s, "incorrect", QID);
+      const rs3 = readStateMapNumberStrict(s, "streak3", QID);
+      const rsl = readStateMapNumberStrict(s, "streakLen", QID);
+      const rs3w = readStateMapNumberStrict(s, "streak3Wrong", QID);
+      const rslw = readStateMapNumberStrict(s, "streakWrongLen", QID);
+
+      // ★ 処理5: 以降の同期可否（全部そろってる時だけ同期する）
+      const canSyncQidNumbers = !!(rc.ok && ri.ok && rs3.ok && rsl.ok && rs3w.ok && rslw.ok);
+
+      window.__cscs_sync_state = s;
+
+      // oncePerDayToday 情報を参照して、
+      // 「今日この QID が oncePerDay 計測済みかどうか」をコンソールに出す
+      try{
+        var once = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+          ? s.oncePerDayToday
+          : null;
+
+        var todayYmd = null;
+        try{
+          var now = new Date();
+          var yy = now.getFullYear();
+          var mm = now.getMonth() + 1;
+          var dd = now.getDate();
+          todayYmd = yy * 10000 + mm * 100 + dd;  // 例: 20251203
+        }catch(_eDate){
+          todayYmd = null;
+        }
+
+        var onceLogPayload = {
+          qid: QID,
+          todayYmd: todayYmd,
+          onceDay: once && typeof once.day === "number" ? once.day : null,
+          onceResult: null,
+          measuredToday: false
+        };
+
+        if (
+          once &&
+          typeof once.day === "number" &&
+          todayYmd !== null &&
+          once.day === todayYmd &&
+          once.results &&
+          typeof once.results === "object"
+        ) {
+          var r = once.results[QID];
+          if (r === "correct" || r === "wrong") {
+            onceLogPayload.onceResult = r;
+            onceLogPayload.measuredToday = true;
+          } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+            // 値が "correct"/"wrong" 以外でも「何らかの計測済み」として扱う
+            onceLogPayload.onceResult = String(r);
+            onceLogPayload.measuredToday = true;
+          }
+        }
+
+        if (onceLogPayload.measuredToday) {
+          console.log("[SYNC-A:oncePerDay] this qid is ALREADY measured today", onceLogPayload);
+        } else {
+          console.log("[SYNC-A:oncePerDay] this qid is NOT measured today (or oncePerDayToday.day != today)", onceLogPayload);
+        }
+      }catch(_eOnce){
+        console.log("[SYNC-A:oncePerDay] oncePerDayToday check skipped (error)", _eOnce);
+      }
+
+      // ★ 追加: SYNC 側 oncePerDayToday を正として localStorage 側も同期する（欠けていた上書き）
+      //   - A の役割として「SYNC state を正」に localStorage を整流化する。
+      //   - フォールバックは増やさず、SYNC に無ければ removeItem で「無い」を正として反映する。
+      const oncePerDayToday = (s && s.oncePerDayToday && typeof s.oncePerDayToday === "object")
+        ? s.oncePerDayToday
+        : null;
+
+      try{
+        // ============================================================
+        // ★ フォールバック無し：oncePerDayToday が取れない/壊れている場合は上書きしない
+        // ------------------------------------------------------------
+        // - day が number でない / results が object でない → console.error
+        // - その場合 localStorage は setItem/removeItem を一切しない
+        // ============================================================
+        const hasOnce = !!oncePerDayToday;
+        const okDay = !!(hasOnce && typeof oncePerDayToday.day === "number" && Number.isFinite(oncePerDayToday.day));
+        const okResults = !!(hasOnce && oncePerDayToday.results && typeof oncePerDayToday.results === "object");
+
+        if (okDay && okResults) {
+          localStorage.setItem("cscs_once_per_day_today_day", String(oncePerDayToday.day));
+          localStorage.setItem("cscs_once_per_day_today_results", JSON.stringify(oncePerDayToday.results));
+
+          console.log("[SYNC-A][OK] initialFetch synced oncePerDayToday from server to localStorage", {
+            day: oncePerDayToday.day,
+            resultsKeys: Object.keys(oncePerDayToday.results || {}).length
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped oncePerDayToday localStorage sync (missing/invalid)", {
+            hasOnce: hasOnce,
+            okDay: okDay,
+            okResults: okResults,
+            dayType: hasOnce ? typeof oncePerDayToday.day : null,
+            resultsType: hasOnce ? typeof oncePerDayToday.results : null
+          });
+        }
+      }catch(eOnceSync){
+        console.error("[SYNC-A][ERROR] initialFetch oncePerDayToday sync failed", {
+          error: String(eOnceSync && eOnceSync.message || eOnceSync)
+        });
+      }
+
+      // ★ 追加: SYNC 側 streak3Today を正として localStorage 側も同期する
+      //   - state.streak3Today を唯一のソースとして、
+      //     「今日の⭐️ユニーク数」関連の localStorage を上書きする。
+      const streak3Today = (s && s.streak3Today && typeof s.streak3Today === "object")
+        ? s.streak3Today
+        : null;
+
+      try{
+        // ============================================================
+        // ★ フォールバック無し：streak3Today が取れない/壊れている場合は上書きしない
+        // ------------------------------------------------------------
+        // - day / unique_count / qids を検証し、NGなら console.error
+        // - NG時は localStorage を set/remove しない（0埋め禁止）
+        // ============================================================
+        const hasObj = !!streak3Today;
+        const okDay = !!(hasObj && ("day" in streak3Today) && String(streak3Today.day || "").trim() !== "");
+        const okCount = !!(hasObj && typeof streak3Today.unique_count === "number" && Number.isFinite(streak3Today.unique_count) && streak3Today.unique_count >= 0);
+        const okQids = !!(hasObj && Array.isArray(streak3Today.qids));
+
+        if (okDay && okCount && okQids) {
+          localStorage.setItem("cscs_streak3_today_day", String(streak3Today.day));
+          localStorage.setItem("cscs_streak3_today_unique_count", String(streak3Today.unique_count));
+          localStorage.setItem("cscs_streak3_today_qids", JSON.stringify(streak3Today.qids));
+
+          console.log("[SYNC-A][OK] initialFetch synced streak3Today from server to localStorage", {
+            day: String(streak3Today.day),
+            unique_count: streak3Today.unique_count,
+            qidsLen: streak3Today.qids.length
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped streak3Today localStorage sync (missing/invalid)", {
+            hasObj: hasObj,
+            okDay: okDay,
+            okCount: okCount,
+            okQids: okQids,
+            dayType: hasObj ? typeof streak3Today.day : null,
+            countType: hasObj ? typeof streak3Today.unique_count : null,
+            qidsIsArray: hasObj ? Array.isArray(streak3Today.qids) : null
+          });
+        }
+      }catch(eS3t){
+        console.error("[SYNC-A][ERROR] initialFetch streak3Today sync failed", {
+          error: String(eS3t && eS3t.message || eS3t)
+        });
+      }
+
+      // ★ 追加: SYNC 側 streak3WrongToday を正として localStorage 側も同期する（no-fallback）
+      //   - state.streak3WrongToday を唯一のソースとして、
+      //     「今日の3連続不正解ユニーク数」関連の localStorage を上書きする。
+      //   - 無い/壊れている場合は “0埋め” せず、上書きもしない（欠損は欠損のまま）
+      const streak3WrongToday = (s && s.streak3WrongToday && typeof s.streak3WrongToday === "object")
+        ? s.streak3WrongToday
+        : null;
+
+      try{
+        // ============================================================
+        // ★ フォールバック無し：streak3WrongToday が取れない/壊れている場合は上書きしない
+        // ============================================================
+        const hasObj = !!streak3WrongToday;
+        const okDay = !!(hasObj && ("day" in streak3WrongToday) && String(streak3WrongToday.day || "").trim() !== "");
+        const okCount = !!(hasObj && typeof streak3WrongToday.unique_count === "number" && Number.isFinite(streak3WrongToday.unique_count) && streak3WrongToday.unique_count >= 0);
+        const okQids = !!(hasObj && Array.isArray(streak3WrongToday.qids));
+
+        if (okDay && okCount && okQids) {
+          localStorage.setItem("cscs_streak3_wrong_today_day", String(streak3WrongToday.day));
+          localStorage.setItem("cscs_streak3_wrong_today_unique_count", String(streak3WrongToday.unique_count));
+          localStorage.setItem("cscs_streak3_wrong_today_qids", JSON.stringify(streak3WrongToday.qids));
+
+          console.log("[SYNC-A][OK] initialFetch synced streak3WrongToday from server to localStorage", {
+            day: String(streak3WrongToday.day),
+            unique_count: streak3WrongToday.unique_count,
+            qidsLen: streak3WrongToday.qids.length
+          });
+        } else {
+          console.error("[SYNC-A][NO-OVERWRITE] initialFetch skipped streak3WrongToday localStorage sync (missing/invalid)", {
+            hasObj: hasObj,
+            okDay: okDay,
+            okCount: okCount,
+            okQids: okQids,
+            dayType: hasObj ? typeof streak3WrongToday.day : null,
+            countType: hasObj ? typeof streak3WrongToday.unique_count : null,
+            qidsIsArray: hasObj ? Array.isArray(streak3WrongToday.qids) : null
+          });
+        }
+      }catch(eS3wt){
+        console.error("[SYNC-A][ERROR] initialFetch streak3WrongToday sync failed", {
+          error: String(eS3wt && eS3wt.message || eS3wt)
+        });
+      }
+
+      // ★ 追加: 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）を
+      //   SYNC state を唯一の正として localStorage に同期（このQID分だけ）。
+
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 5
+RECEIVED_TOTAL: 3
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-1F73660D-P01-of-05
+- CSCSJS-1F73660D-P02-of-05
+- CSCSJS-1F73660D-P03-of-05
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【分割コード(3)の終了】→ 次は 分割コード(4) を送ります
+【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。
+ACK: <PartID> / WAITING_NEXT

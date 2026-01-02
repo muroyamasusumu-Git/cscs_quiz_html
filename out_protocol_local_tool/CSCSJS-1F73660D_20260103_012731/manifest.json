@@ -1,0 +1,74 @@
+{
+  "session_id": "CSCSJS-1F73660D",
+  "created_at": "2026-01-03T01:27:31",
+  "instruction": "【WORK_HEADER（共通ID）】\n[SESSION_ID: CSCSJS-1F73660D]\n[REQUEST_ID: REQ-B8EC587F]\n\n【USER_INSTRUCTION】\nsync-nopull-btn　のボタンは　テキストベースのボタンにしてほしい　「NO-PULL:ON」　 「NO-PULL:OFF」　で\n下線のついたリンクテキストで切り替えたい。　文字は白で小さめに\n",
+  "work": {
+    "project_id": "",
+    "task_id": "",
+    "request_id": "REQ-B8EC587F"
+  },
+  "input": {
+    "filename": "cscs_sync_a.js",
+    "size_chars": 169442,
+    "sha256": "1f73660df8eb5d0a71d642af3e181d21203dc168fe5ae1c1ad6738cf072082ce",
+    "saved_copy": "original/cscs_sync_a.js"
+  },
+  "split": {
+    "total_parts": 5,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 5,
+      "part_id": "CSCSJS-1F73660D-P01-of-05",
+      "part_sha256": "a837403a89ce1421c58571917c50ef93fcae40a6038b02acc52dbbbf14eba6ae",
+      "start_offset": 0,
+      "end_offset": 38758,
+      "len_chars": 38758,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 5,
+      "part_id": "CSCSJS-1F73660D-P02-of-05",
+      "part_sha256": "2a946eca1c7b3f14caa7e37158bd50e0929f71a05364e836107cbdf29318b392",
+      "start_offset": 38758,
+      "end_offset": 79146,
+      "len_chars": 40388,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 5,
+      "part_id": "CSCSJS-1F73660D-P03-of-05",
+      "part_sha256": "18c3afdc7f049663349b749a926bf1a99ab731978d34f4d63b115546fc6ff585",
+      "start_offset": 79146,
+      "end_offset": 123559,
+      "len_chars": 44413,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 5,
+      "part_id": "CSCSJS-1F73660D-P04-of-05",
+      "part_sha256": "3dbe7c466ab58f2e299b18fd6e85cc52a44f357192c97ed8e2f504c2214fb465",
+      "start_offset": 123559,
+      "end_offset": 160302,
+      "len_chars": 36743,
+      "file": "parts/part_04.txt"
+    },
+    {
+      "index": 5,
+      "total": 5,
+      "part_id": "CSCSJS-1F73660D-P05-of-05",
+      "part_sha256": "7ee538a957ebafb361621a0c3be2cd05dac2bb5426ec9c9be48055aa26ebcef5",
+      "start_offset": 160302,
+      "end_offset": 169442,
+      "len_chars": 9140,
+      "file": "parts/part_05.txt"
+    }
+  ]
+}

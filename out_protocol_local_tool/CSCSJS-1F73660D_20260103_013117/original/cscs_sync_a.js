@@ -4101,22 +4101,10 @@
 }
 
 #cscs_sync_monitor_a .sync-nopull-btn {
-    /* ★ 目的: NO-PULL ボタンを「リンク風テキスト」にする（下線 + 小さめ + 白） */
-    appearance: none;
-    border: none;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-
-    color: #fff;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-
-    font-size: 10px;
-    font-weight: 700;
-    opacity: 0.86;
-
-    cursor: pointer;
+    font-size: 9px;
+    font-weight: 800;
+    opacity: 0.7;
+    text-shadow: none !impotant;
 }
 /* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
    once-grid の子要素は 8個（label/val ×4行）
