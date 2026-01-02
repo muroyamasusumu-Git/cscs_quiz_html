@@ -597,7 +597,8 @@
   // 追加した処理:
   // - #cscs-trace-ui の表示/非表示を切り替える（temp_hide.js の「開閉」相当）
   // - 表示状態は「このJS内部の変数」で管理し、余計な永続キーは増やさない
-  var __traceUiVisible = true;
+  // - デフォルトは「閉」
+  var __traceUiVisible = false;
 
   function setTraceUiVisible(isVisible) {
     // 追加した処理:
