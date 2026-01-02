@@ -263,24 +263,37 @@
     }
 
     try {
-      // ★ state.ts は X-CSCS-Key 必須。bootstrap が確定した key を厳密に拾う（取れなければ終了）
+      // ★ 最重要: /api/sync/state を叩く前に bootstrap 完了を必ず待つ（LSだけで確定扱い禁止）
+      if (typeof window === "undefined") {
+        console.error("correct_star.js: window が存在しないため /api/sync/state を呼べません");
+        return {
+          streakLenCorrect: 0,
+          streakLenWrong: 0,
+          oncePerDayStatus: null
+        };
+      }
+
+      var p = window.__CSCS_SYNC_KEY_PROMISE__;
+      if (!p || typeof p.then !== "function") {
+        console.error("correct_star.js: __CSCS_SYNC_KEY_PROMISE__ が見つからないため /api/sync/state を呼べません");
+        return {
+          streakLenCorrect: 0,
+          streakLenWrong: 0,
+          oncePerDayStatus: null
+        };
+      }
+
+      await p;
+
       var syncKey = "";
       try {
-        if (typeof window !== "undefined") {
-          if (typeof window.__cscs_sync_key === "string" && window.__cscs_sync_key.trim()) {
-            syncKey = window.__cscs_sync_key.trim();
-          } else if (typeof window.CSCS_SYNC_KEY === "string" && window.CSCS_SYNC_KEY.trim()) {
-            syncKey = window.CSCS_SYNC_KEY.trim();
-          } else if (typeof window.CSCS_SYNC_KEY_RAW === "string" && window.CSCS_SYNC_KEY_RAW.trim()) {
-            syncKey = window.CSCS_SYNC_KEY_RAW.trim();
-          }
-        }
+        syncKey = (typeof window.__CSCS_SYNC_KEY__ === "string") ? String(window.__CSCS_SYNC_KEY__).trim() : "";
       } catch (_eKey) {
         syncKey = "";
       }
 
       if (!syncKey) {
-        console.error("correct_star.js: sync key が取得できないため /api/sync/state を呼べません (X-CSCS-Key required)");
+        console.error("correct_star.js: __CSCS_SYNC_KEY__ が空のため /api/sync/state を呼べません (X-CSCS-Key required)");
         return {
           streakLenCorrect: 0,
           streakLenWrong: 0,
@@ -289,6 +302,7 @@
       }
 
       var res = await fetch("/api/sync/state", {
+        method: "GET",
         cache: "no-store",
         credentials: "include",
         headers: {
