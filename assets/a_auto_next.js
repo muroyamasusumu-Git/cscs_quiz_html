@@ -876,6 +876,19 @@
     }
 
     var list = loadRecentQids().slice();
+
+    // ▼ 追加: 現在表示中のQIDは履歴パネルから除外する
+    try {
+      var infoNow = parseSlideInfo();
+      if (infoNow) {
+        var num3Now = String(infoNow.idx).padStart(3, "0");
+        var currentQid = infoNow.day + "-" + num3Now;
+        list = list.filter(function (qid) {
+          return qid !== currentQid;
+        });
+      }
+    } catch (_e) {}
+
     list.reverse(); // 直近が上
 
     var html = "";
