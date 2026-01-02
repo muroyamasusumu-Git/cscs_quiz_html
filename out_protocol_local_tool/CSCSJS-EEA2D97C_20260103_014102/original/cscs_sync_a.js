@@ -2853,13 +2853,6 @@
 
     // ★ 処理: NO-PULLモードがONなら、sync/state を取りに行かずに終了する
     if (window.__cscs_sync_no_pull === true) {
-      // ★ 処理: NO-PULLで pull をスキップした事実をログに出す（起動時の挙動確認用）
-      console.log("[SYNC-A][NO-PULL] initialFetch skipped /api/sync/state", {
-        qid: QID || null,
-        no_pull: true,
-        at: new Date().toLocaleTimeString()
-      });
-
       lastSyncStatus = "nopull";
       lastSyncTime   = new Date().toLocaleTimeString();
       lastSyncError  = "";

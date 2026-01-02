@@ -1,0 +1,1022 @@
+<<<PART_BEGIN>>>
+【分割コード(2)の開始】
+PartID: CSCSJS-EEA2D97C-P02-of-05
+PartSHA256: 2a946eca1c7b3f14caa7e37158bd50e0929f71a05364e836107cbdf29318b392
+Range: chars 38758..79146 (len=40388)
+FirstLine:       if (box) {
+LastLine: 
+EndNewline: YES
+PART_SCOPE_HINT: LineRange=L1090..L2076 | BraceDepth=3->1
+PART_SCOPE_HINT_TOP_IDENTIFIERS: sync:79, box:65, textContent:65, querySelector:62, once:50, day:45, s:37, div:36, toDisplayText:35, QID:34, local:33, oncePerDayToday:30
+PART_SCOPE_HINT_DEFINES: isTodayYmdString, ymdToNum8, pickLatestType, consider, ymdNumToIso, ymdStrToIso, getTodayYmdNum, scheduleSend, qEl, s3tDayEl, s3tSyncEl, s3tLocalEl, s3tDaySyncEl, s3tDayLocalEl, s3tDayIsTodayEl, s3wtDaySyncEl, s3wtDayLocalEl, s3wtDayIsTodayEl, onceDaySyncEl, onceDayLocalEl, onceDayIsTodayEl, streakMaxLenEl, streakMaxValEl, streakMaxDayEl, streakMaxLenSyncEl, streakMaxValSyncEl, streakMaxDaySyncEl, wrongStreakMaxLenEl, wrongStreakMaxValEl, wrongStreakMaxDayEl, wrongStreakMaxLenSyncEl, wrongStreakMaxValSyncEl, wrongStreakMaxDaySyncEl, qdCwEl, qdS3El, qdSLel, qdS3wEl, qdSLwEl, qdSeenEl, qdCorEl
+
+```javascript
+      if (box) {
+        const qEl  = box.querySelector(".sync-qid");
+
+        const s3tDayEl   = box.querySelector(".sync-streak3today-day");
+        const s3tSyncEl  = box.querySelector(".sync-streak3today-sync");
+        const s3tLocalEl = box.querySelector(".sync-streak3today-local");
+
+        // ★ 追加: 日付の「SYNC day / local day / 今日一致」を見える化する要素（A）
+        const s3tDaySyncEl      = box.querySelector(".sync-streak3today-day-sync");
+        const s3tDayLocalEl     = box.querySelector(".sync-streak3today-day-local");
+        const s3tDayIsTodayEl   = box.querySelector(".sync-streak3today-day-istoday");
+
+        const s3wtDaySyncEl     = box.querySelector(".sync-streak3wrongtoday-day-sync");
+        const s3wtDayLocalEl    = box.querySelector(".sync-streak3wrongtoday-day-local");
+        const s3wtDayIsTodayEl  = box.querySelector(".sync-streak3wrongtoday-day-istoday");
+
+        const onceDaySyncEl     = box.querySelector(".sync-onceperday-day-sync");
+        const onceDayLocalEl    = box.querySelector(".sync-onceperday-day-local");
+        const onceDayIsTodayEl  = box.querySelector(".sync-onceperday-day-istoday");
+
+        // ★ 追加: streak max カード（A）表示用要素（local）
+        const streakMaxLenEl    = box.querySelector(".sync-streakmax-len-local");
+        const streakMaxValEl    = box.querySelector(".sync-streakmax-max-local");
+        const streakMaxDayEl    = box.querySelector(".sync-streakmax-maxday-local");
+
+        // ★ 追加: streak max カード（A）表示用要素（SYNC）
+        const streakMaxLenSyncEl = box.querySelector(".sync-streakmax-len-sync");
+        const streakMaxValSyncEl = box.querySelector(".sync-streakmax-max-sync");
+        const streakMaxDaySyncEl = box.querySelector(".sync-streakmax-maxday-sync");
+
+        // ★ 追加: 不正解 streak max カード（A）表示用要素（local）
+        const wrongStreakMaxLenEl = box.querySelector(".sync-wrong-streakmax-len-local");
+        const wrongStreakMaxValEl = box.querySelector(".sync-wrong-streakmax-max-local");
+        const wrongStreakMaxDayEl = box.querySelector(".sync-wrong-streakmax-maxday-local");
+
+        // ★ 追加: 不正解 streak max カード（A）表示用要素（SYNC）
+        const wrongStreakMaxLenSyncEl = box.querySelector(".sync-wrong-streakmax-len-sync");
+        const wrongStreakMaxValSyncEl = box.querySelector(".sync-wrong-streakmax-max-sync");
+        const wrongStreakMaxDaySyncEl = box.querySelector(".sync-wrong-streakmax-maxday-sync");
+
+        // ★ 追加: キュー（+Δ）詳細（A）
+        const qdCwEl     = box.querySelector(".sync-queue-cw");
+        const qdS3El     = box.querySelector(".sync-queue-s3");
+        const qdSLel     = box.querySelector(".sync-queue-sl");
+        const qdS3wEl    = box.querySelector(".sync-queue-s3w");
+        const qdSLwEl    = box.querySelector(".sync-queue-slw");
+        const qdSeenEl   = box.querySelector(".sync-queue-lastseen");
+        const qdCorEl    = box.querySelector(".sync-queue-lastcorrect");
+        const qdWrgEl    = box.querySelector(".sync-queue-lastwrong");
+
+        // ★ 問題別 最終日情報表示用要素（詳細テーブル）
+        const lastSeenSyncEl     = box.querySelector(".sync-last-seen-sync");
+        const lastCorrectSyncEl  = box.querySelector(".sync-last-correct-sync");
+        const lastWrongSyncEl    = box.querySelector(".sync-last-wrong-sync");
+        const lastSeenLocalEl    = box.querySelector(".sync-last-seen-local");
+        const lastCorrectLocalEl = box.querySelector(".sync-last-correct-local");
+        const lastWrongLocalEl   = box.querySelector(".sync-last-wrong-local");
+
+        // ★ 追加: lastday サマリー（summary 1行）
+        const lastdaySummaryTypeEl  = box.querySelector(".sync-lastday-summary-type");
+        const lastdaySummarySyncEl  = box.querySelector(".sync-lastday-summary-sync");
+        const lastdaySummaryLocalEl = box.querySelector(".sync-lastday-summary-local");
+
+        if (s3tDayEl) {
+          // ★ 変更: Streak3TodayUnique の day 項目は UI から削除（非表示）
+          s3tDayEl.textContent = "";
+          s3tDayEl.style.display = "none";
+        }
+        if (s3tSyncEl) {
+          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→-）
+          s3tSyncEl.textContent = toDisplayText(streak3TodayCountForUi, "-");
+        }
+        if (s3tLocalEl) {
+          s3tLocalEl.textContent = toDisplayText(
+            Number.isFinite(localStreakCount) ? localStreakCount : "",
+            "-"
+          );
+        }
+
+        // ★ 今日の3連続不正解ユニーク数をモニタUIに反映する
+        //   - unique: sync 側 unique_count と localStorage 側の値を並列表記
+        const s3wtDayEl   = box.querySelector(".sync-streak3wrongtoday-day");
+        const s3wtSyncEl  = box.querySelector(".sync-streak3wrongtoday-sync");
+        const s3wtLocalEl = box.querySelector(".sync-streak3wrongtoday-local");
+        if (s3wtDayEl) {
+          // ★ 変更: Streak3WrongTodayUq の day 項目は UI から削除（非表示）
+          s3wtDayEl.textContent = "";
+          s3wtDayEl.style.display = "none";
+        }
+        if (s3wtSyncEl) {
+          // ★ 処理: SYNC側 unique_count も「取れた時だけ」採用（無ければ欠損→-）
+          s3wtSyncEl.textContent = toDisplayText(streak3WrongTodayCountForUi, "-");
+        }
+        if (s3wtLocalEl) {
+          s3wtLocalEl.textContent = toDisplayText(
+            Number.isFinite(localWrongStreakCount) ? localWrongStreakCount : "",
+            "-"
+          );
+        }
+
+        // ★ 追加: localStorage 側の「day」も読み取って表示に出す（A）
+        let localStreakDayRaw = "";
+        let localWrongStreakDayRaw = "";
+        try{
+          localStreakDayRaw = localStorage.getItem("cscs_streak3_today_day") || "";
+          localWrongStreakDayRaw = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+        }catch(_){}
+
+        // ★ 追加: oncePerDayToday の day（SYNC/local）も見える化（A）
+        let syncOnceDayRaw = "";
+        let localOnceDayRaw = "";
+        try{
+          const stateForOnceDay = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+          const onceObj = stateForOnceDay && stateForOnceDay.oncePerDayToday && typeof stateForOnceDay.oncePerDayToday === "object"
+            ? stateForOnceDay.oncePerDayToday
+            : null;
+          if (onceObj && typeof onceObj.day === "number" && Number.isFinite(onceObj.day) && onceObj.day > 0) {
+            syncOnceDayRaw = String(onceObj.day);
+          } else if (onceObj && typeof onceObj.day === "string" && onceObj.day.trim() !== "") {
+            syncOnceDayRaw = onceObj.day.trim();
+          } else {
+            syncOnceDayRaw = "";
+          }
+        }catch(_){}
+
+        try{
+          localOnceDayRaw = localStorage.getItem("cscs_once_per_day_today_day") || "";
+        }catch(_){}
+
+        // ★ 追加: “そのdayが今日なのか” を明示（A）
+        //   - ここでは「YYYYMMDD（数値化できる場合）」で今日比較する
+        function isTodayYmdString(ymdStr){
+          try{
+            const s = String(ymdStr || "").trim();
+            if (!/^\d{8}$/.test(s)) return "unknown";
+            const now = new Date();
+            const yy = now.getFullYear();
+            const mm = now.getMonth() + 1;
+            const dd = now.getDate();
+            const today = String(yy * 10000 + mm * 100 + dd);
+            return s === today ? "YES" : "NO";
+          }catch(_){
+            return "unknown";
+          }
+        }
+
+        // ★ 変更: Streak3TodayUnique / Streak3WrongTodayUq の day 比較欄は UI から削除（非表示）
+        if (s3tDaySyncEl)    { s3tDaySyncEl.textContent = "";  s3tDaySyncEl.style.display = "none"; }
+        if (s3tDayLocalEl)   { s3tDayLocalEl.textContent = ""; s3tDayLocalEl.style.display = "none"; }
+        if (s3tDayIsTodayEl) { s3tDayIsTodayEl.textContent = ""; s3tDayIsTodayEl.style.display = "none"; }
+
+        if (s3wtDaySyncEl)    { s3wtDaySyncEl.textContent = "";  s3wtDaySyncEl.style.display = "none"; }
+        if (s3wtDayLocalEl)   { s3wtDayLocalEl.textContent = ""; s3wtDayLocalEl.style.display = "none"; }
+        if (s3wtDayIsTodayEl) { s3wtDayIsTodayEl.textContent = ""; s3wtDayIsTodayEl.style.display = "none"; }
+
+        if (onceDaySyncEl)    onceDaySyncEl.textContent  = toDisplayText(syncOnceDayRaw, "-");
+        if (onceDayLocalEl)   onceDayLocalEl.textContent = toDisplayText(localOnceDayRaw, "-");
+        if (onceDayIsTodayEl) onceDayIsTodayEl.textContent = isTodayYmdString(syncOnceDayRaw);
+
+        // ★ 最終日情報（LastSeen / LastCorrect / LastWrong）を UI に反映（詳細テーブル）
+        if (lastSeenSyncEl) {
+          lastSeenSyncEl.textContent = toDisplayText(lastSeenSync, "-");
+        }
+        if (lastCorrectSyncEl) {
+          lastCorrectSyncEl.textContent = toDisplayText(lastCorrectSync, "-");
+        }
+        if (lastWrongSyncEl) {
+          lastWrongSyncEl.textContent = toDisplayText(lastWrongSync, "-");
+        }
+        if (lastSeenLocalEl) {
+          lastSeenLocalEl.textContent = toDisplayText(lastSeenLocal, "-");
+        }
+        if (lastCorrectLocalEl) {
+          lastCorrectLocalEl.textContent = toDisplayText(lastCorrectLocal, "-");
+        }
+        if (lastWrongLocalEl) {
+          lastWrongLocalEl.textContent = toDisplayText(lastWrongLocal, "-");
+        }
+
+        // ★ 追加: lastday の「最新正誤記録」を 1行サマリーに反映
+        //   - lastCorrect と lastWrong のうち、日付が新しい方を「最新」として採用
+        //   - 表示は「ラベル + SYNC値 + local値」の1行にする
+        //   - フォールバックで別ソースから推測しない（取れている値だけで判定）
+        function ymdToNum8(v){
+          const s = String(v || "").trim();
+          if (!/^\d{8}$/.test(s)) return null;
+          const n = parseInt(s, 10);
+          if (!Number.isFinite(n) || n <= 0) return null;
+          return n;
+        }
+
+        function pickLatestType(){
+          const cS = ymdToNum8(lastCorrectSync);
+          const wS = ymdToNum8(lastWrongSync);
+          const cL = ymdToNum8(lastCorrectLocal);
+          const wL = ymdToNum8(lastWrongLocal);
+
+          let bestType = "lastCorrect";
+          let bestNum = null;
+
+          function consider(type, n){
+            if (n === null) return;
+
+            // ★ 処理1: まだ候補が無い or より新しい日付なら更新
+            if (bestNum === null || n > bestNum) {
+              bestNum = n;
+              bestType = type;
+              return;
+            }
+
+            // ★ 処理2: 同日タイなら correct 優先（lastWrong が勝っていたら lastCorrect に戻す）
+            if (bestNum !== null && n === bestNum) {
+              if (type === "lastCorrect" && bestType === "lastWrong") {
+                bestType = "lastCorrect";
+              }
+            }
+          }
+
+          consider("lastCorrect", cS);
+          consider("lastWrong",  wS);
+          consider("lastCorrect", cL);
+          consider("lastWrong",  wL);
+
+          return bestType;
+        }
+
+        const latestType = pickLatestType();
+        const latestSyncVal  = (latestType === "lastWrong") ? lastWrongSync  : lastCorrectSync;
+        const latestLocalVal = (latestType === "lastWrong") ? lastWrongLocal : lastCorrectLocal;
+
+        if (lastdaySummaryTypeEl) {
+          // ★ summary の種別表示は 1行で読みやすい “LastWrong / LastCorrect” に統一
+          lastdaySummaryTypeEl.textContent = (latestType === "lastWrong") ? "LastWrong" : "LastCorrect";
+        }
+        if (lastdaySummarySyncEl) {
+          // ★ summary の SYNC 値（8桁日付 or データなし）
+          //   - 表示は「SYNC 20251210」のようにラベル込みにする
+          lastdaySummarySyncEl.textContent = "SYNC " + toDisplayText(latestSyncVal, "-");
+        }
+        if (lastdaySummaryLocalEl) {
+          // ★ summary の local 値（8桁日付 or データなし）
+          //   - 表示は「local 20251210」のようにラベル込みにする
+          lastdaySummaryLocalEl.textContent = "local " + toDisplayText(latestLocalVal, "-");
+        }
+
+        // ★ 追加: 見出しと下の詳細が “同じ情報で二重表示” にならないように調整する
+        // ★ 処理1: 見出しが LastCorrect の場合 → 下の lastCorrect 行を非表示
+        // ★ 処理2: 見出しが LastWrong   の場合 → 下の lastWrong 行を非表示
+        // ★ 処理3: 見出しがどちらでもない/未判定の場合 → 両方表示（ここではフォールバック推測はしない）
+        try{
+          const hideCorrect = (latestType === "lastCorrect");
+          const hideWrong   = (latestType === "lastWrong");
+
+          const correctRows = box.querySelectorAll(".lastday-grid .ld-row-lastcorrect");
+          const wrongRows   = box.querySelectorAll(".lastday-grid .ld-row-lastwrong");
+
+          correctRows.forEach(function(el){
+            el.style.display = hideCorrect ? "none" : "";
+          });
+          wrongRows.forEach(function(el){
+            el.style.display = hideWrong ? "none" : "";
+          });
+        }catch(_){}
+
+        // ★ lastday は折りたたみ無し：見出し差し替え（open判定）は不要
+
+        const lEl  = box.querySelector(".sync-local");
+        const qdEl = box.querySelector(".sync-queue");
+        const stEl = box.querySelector(".sync-status");
+        const s3El = box.querySelector(".sync-streak3-val");
+        const s3sEl = box.querySelector(".sync-streak3-server");
+        const slEl = box.querySelector(".sync-streaklen-val");
+        const slsEl = box.querySelector(".sync-streaklen-server");
+        const slsProgEl = box.querySelector(".sync-streaklen-server-progress");
+        const sllProgEl = box.querySelector(".sync-streaklen-local-progress");
+
+        // ★ 不正解ストリーク用 DOM 取得
+        const s3wEl  = box.querySelector(".sync-wrong-streak3-val");
+        const s3wsEl = box.querySelector(".sync-wrong-streak3-server");
+        const slwEl  = box.querySelector(".sync-wrong-streaklen-val");
+        const slwsEl = box.querySelector(".sync-wrong-streaklen-server");
+        const slwsProgEl = box.querySelector(".sync-wrong-streaklen-server-progress");
+        const sllwProgEl = box.querySelector(".sync-wrong-streaklen-local-progress");
+
+        if (qEl)   qEl.textContent  = QID ? QID : "-";
+        if (lEl) {
+          // ★ 処理1: null は "-" 表示（0埋め禁止）
+          const lcText = (lc === null) ? "-" : String(lc);
+          const liText = (li === null) ? "-" : String(li);
+          lEl.textContent  = "local  " + lcText + " / " + liText;
+
+          // ★ 処理2: 反映成功ログ（欠損有無も出す）
+          console.log("[SYNC-A][UI] local totals display updated", {
+            qid: QID,
+            correct: lc,
+            wrong: li,
+            missing: (lc === null || li === null)
+          });
+        }
+
+        if (qdEl)  qdEl.textContent = "+Δ    " + dC + " / " + dI;
+
+        if (s3El) {
+          // ★ 処理3: null は "-" 表示（0埋め禁止）
+          s3El.textContent = (ls === null) ? "-" : String(ls);
+
+          // ★ 処理4: 反映成功ログ
+          console.log("[SYNC-A][UI] local streak3 display updated", {
+            qid: QID,
+            streak3: ls,
+            missing: (ls === null)
+          });
+        }
+
+        // ★ 処理: server streak3 は欠損なら "-"（0埋め禁止）
+        if (s3sEl) s3sEl.textContent = (ss === null) ? "-" : String(ss);
+
+        // ★ 追加: streak max カード（A）に localStorage の値を反映（local）
+        //   - len: 現在の連続正解数（cscs_q_correct_streak_len:{qid}）
+        //   - max: 最高連続正解数（cscs_q_correct_streak_max:{qid}）
+        //   - day: 最高を更新した日（cscs_q_correct_streak_max_day:{qid}）
+        if (streakMaxLenEl) streakMaxLenEl.textContent = toDisplayText(ll, "-");
+        if (streakMaxValEl) streakMaxValEl.textContent = toDisplayText(lMax, "-");
+        if (streakMaxDayEl) streakMaxDayEl.textContent = toDisplayText(lMaxDay, "-");
+
+        // ★ 追加: streak max カード（A）に __cscs_sync_state の値を反映（SYNC）
+        //   - len: 現在の連続正解数（server streakLen）
+        //   - max: 最高連続正解数（streakMax[qid]）
+        //   - day: 最高を更新した日（streakMaxDay[qid]）
+        if (streakMaxLenSyncEl) streakMaxLenSyncEl.textContent = toDisplayText(sl, "-");
+        if (streakMaxValSyncEl) streakMaxValSyncEl.textContent = toDisplayText(sMax, "-");
+        if (streakMaxDaySyncEl) streakMaxDaySyncEl.textContent = toDisplayText(sMaxDay, "-");
+
+        // ★ 追加: 不正解 streak max カード（A）に localStorage の値を反映（local）
+        //   - len: 現在の連続不正解数（cscs_q_wrong_streak_len:{qid}）
+        //   - max: 最高連続不正解数（cscs_q_wrong_streak_max:{qid}）
+        //   - day: 最高を更新した日（cscs_q_wrong_streak_max_day:{qid}）
+        if (wrongStreakMaxLenEl) wrongStreakMaxLenEl.textContent = toDisplayText(llWrong, "-");
+        if (wrongStreakMaxValEl) wrongStreakMaxValEl.textContent = toDisplayText(lWrongMax, "-");
+        if (wrongStreakMaxDayEl) wrongStreakMaxDayEl.textContent = toDisplayText(lWrongMaxDay, "-");
+
+        // ★ 追加: 不正解 streak max カード（A）に __cscs_sync_state の値を反映（SYNC）
+        //   - len: 現在の連続不正解数（server streakWrongLen）
+        //   - max: 最高連続不正解数（streakWrongMax[qid]）
+        //   - day: 最高を更新した日（streakWrongMaxDay[qid]）
+        if (wrongStreakMaxLenSyncEl) wrongStreakMaxLenSyncEl.textContent = toDisplayText(slWrong, "-");
+        if (wrongStreakMaxValSyncEl) wrongStreakMaxValSyncEl.textContent = toDisplayText(sWrongMax, "-");
+        if (wrongStreakMaxDaySyncEl) wrongStreakMaxDaySyncEl.textContent = toDisplayText(sWrongMaxDay, "-");
+
+        // ★ 追加: 初回だけ「UI反映に成功した」ログを出す（コンソールで確認可能）
+        if (!loggedStreakMaxUiOnce) {
+          console.log("[SYNC-A] streak-max card updated (localStorage)", {
+            qid: QID,
+            streakLen: ll,
+            streakMax: lMax,
+            streakMaxDay: lMaxDay
+          });
+          loggedStreakMaxUiOnce = true;
+        }
+
+        // ★ 追加: 初回だけ「不正解 streak max カード反映に成功した」ログを出す（コンソールで確認可能）
+        if (!loggedWrongStreakMaxUiOnce) {
+          console.log("[SYNC-A] wrong-streak-max card updated (localStorage)", {
+            qid: QID,
+            wrongStreakLen: llWrong,
+            wrongStreakMax: lWrongMax,
+            wrongStreakMaxDay: lWrongMaxDay
+          });
+          loggedWrongStreakMaxUiOnce = true;
+        }
+
+        if (slEl) {
+          // ★ 処理1: null は "-" 表示（0埋め禁止）
+          slEl.textContent = (ll === null) ? "-" : String(ll);
+
+          // ★ 処理2: 反映成功ログ
+          console.log("[SYNC-A][UI] local streakLen display updated", {
+            qid: QID,
+            streakLen: ll,
+            missing: (ll === null)
+          });
+        }
+
+        // ★ 処理: server streakLen は欠損なら "-"（0埋め禁止）
+        if (slsEl)       slsEl.textContent       = (sl === null) ? "-" : String(sl);
+
+        if (slsProgEl) {
+          // ★ 処理3: null は "-" 表示（推測で 0 にしない）
+          slsProgEl.textContent = (serverProgress === null) ? "-" : String(serverProgress);
+
+          // ★ 処理4: 反映成功ログ
+          console.log("[SYNC-A][UI] server progress display updated", {
+            qid: QID,
+            serverProgress: serverProgress,
+            missing: (serverProgress === null)
+          });
+        }
+
+        if (sllProgEl) {
+          // ★ 処理5: null は "-" 表示（推測で 0 にしない）
+          sllProgEl.textContent = (localProgress === null) ? "-" : String(localProgress);
+
+          // ★ 処理6: 反映成功ログ
+          console.log("[SYNC-A][UI] local progress display updated", {
+            qid: QID,
+            localProgress: localProgress,
+            missing: (localProgress === null)
+          });
+        }
+
+        // ★ 不正解ストリークの値を UI に反映（欠損は "-"、0 は本当に 0 の時だけ）
+        if (s3wEl)  s3wEl.textContent  = (lsWrong === null) ? "-" : String(lsWrong);
+        if (s3wsEl) s3wsEl.textContent = (ssWrong === null) ? "-" : String(ssWrong);
+        if (slwEl)  slwEl.textContent  = (llWrong === null) ? "-" : String(llWrong);
+        if (slwsEl) slwsEl.textContent = (slWrong === null) ? "-" : String(slWrong);
+
+        // ★ 処理: progress は “計算できる時だけ” 数字、できなければ "-"（0埋め禁止）
+        if (slwsProgEl) slwsProgEl.textContent = (serverWrongProgress === null) ? "-" : String(serverWrongProgress);
+        if (sllwProgEl) sllwProgEl.textContent  = (localWrongProgress === null) ? "-" : String(localWrongProgress);
+
+        // ★ 追加: キュー（+Δ）に “Totals(c/w) 以外” の溜まり具合を表示（A）
+        //   - streakLenDelta / streakWrongLenDelta は「増分」ではなく「最新値」なので、そのまま表示する
+        //   - last*DayDelta も「最新値」なので、そのまま表示する
+        // ★ 処理: 「|| 0」禁止。欠損は null のまま保持して “取れていない” を明確化する
+        const hasQdS3  = Object.prototype.hasOwnProperty.call(queue.streak3Delta, QID);
+        const qdS3     = hasQdS3 ? queue.streak3Delta[QID] : null;
+
+        const qdSL  = Object.prototype.hasOwnProperty.call(queue.streakLenDelta, QID) ? queue.streakLenDelta[QID] : null;
+
+        const hasQdS3W = Object.prototype.hasOwnProperty.call(queue.streak3WrongDelta, QID);
+        const qdS3W    = hasQdS3W ? queue.streak3WrongDelta[QID] : null;
+
+        const qdSLW = Object.prototype.hasOwnProperty.call(queue.streakWrongLenDelta, QID) ? queue.streakWrongLenDelta[QID] : null;
+
+        // ★ 処理: 欠損/数値をコンソールで確実に判別できるログ
+        console.log("[SYNC-A][NO-FALLBACK][QUEUE] detail snapshot", {
+          qid: QID,
+          qdS3: qdS3,
+          qdS3W: qdS3W,
+          qdSL: qdSL,
+          qdSLW: qdSLW,
+          missing: { qdS3: !hasQdS3, qdS3W: !hasQdS3W }
+        });
+
+        const qdSeen = Object.prototype.hasOwnProperty.call(queue.lastSeenDayDelta, QID) ? queue.lastSeenDayDelta[QID] : "";
+        const qdCor  = Object.prototype.hasOwnProperty.call(queue.lastCorrectDayDelta, QID) ? queue.lastCorrectDayDelta[QID] : "";
+        const qdWrg  = Object.prototype.hasOwnProperty.call(queue.lastWrongDayDelta, QID) ? queue.lastWrongDayDelta[QID] : "";
+
+        // ★ 処理1: 欠損（null/undefined）を "0" で埋めず、「-」として可視化する
+        if (qdCwEl)   qdCwEl.textContent   = toDisplayText(dC, "-") + " / " + toDisplayText(dI, "-");
+        // ★ 処理2: 欠損（null/undefined）を "0" で埋めず、「-」として可視化する
+        if (qdS3El)   qdS3El.textContent   = toDisplayText(qdS3, "-");
+        // ★ 処理3: streakLenDelta は「最新値」なので、欠損時のみ「（なし）」を表示する（推測で数値化しない）
+        if (qdSLel)   qdSLel.textContent   = toDisplayText(qdSL !== null && qdSL !== undefined ? qdSL : "", "（なし）");
+        // ★ 処理4: 欠損（null/undefined）を "0" で埋めず、「-」として可視化する
+        if (qdS3wEl)  qdS3wEl.textContent  = toDisplayText(qdS3W, "-");
+        // ★ 処理5: streakWrongLenDelta は「最新値」なので、欠損時のみ「（なし）」を表示する（推測で数値化しない）
+        if (qdSLwEl)  qdSLwEl.textContent  = toDisplayText(qdSLW !== null && qdSLW !== undefined ? qdSLW : "", "（なし）");
+
+        // ★ 処理6: 反映が確実に成功したかをコンソールで確認できるログ（欠損/表示文字列も併記）
+        console.log("[SYNC-A][OK][UI] queue detail text updated (no-fallback)", {
+          qid: QID,
+          raw: {
+            dC: dC,
+            dI: dI,
+            qdS3: qdS3,
+            qdS3W: qdS3W,
+            qdSL: qdSL,
+            qdSLW: qdSLW
+          },
+          rendered: {
+            cw: (qdCwEl ? qdCwEl.textContent : null),
+            s3: (qdS3El ? qdS3El.textContent : null),
+            sl: (qdSLel ? qdSLel.textContent : null),
+            s3w: (qdS3wEl ? qdS3wEl.textContent : null),
+            slw: (qdSLwEl ? qdSLwEl.textContent : null)
+          }
+        });
+
+        if (qdSeenEl) qdSeenEl.textContent = toDisplayText(qdSeen, "（なし）");
+        if (qdCorEl)  qdCorEl.textContent  = toDisplayText(qdCor, "（なし）");
+        if (qdWrgEl)  qdWrgEl.textContent  = toDisplayText(qdWrg, "（なし）");
+
+        const time = lastSyncTime ? lastSyncTime : "-";
+        const err  = lastSyncError ? (" err:" + lastSyncError) : "";
+
+        // oncePerDayToday の計測状況を別行として表示するためのラベル文字列を作成
+        // ★ 追加: ODOA: ON/OFF / count対象 / 理由 を同じ行に付加して表示する
+        let onceLabel = "";
+        let odoaLabel = "ODOA: unknown";
+        let countLabel = "count対象: unknown";
+        let reasonLabel = "理由: unknown";
+
+        try{
+          const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+
+          let todayYmd = null;
+          try{
+            const now = new Date();
+            const yy = now.getFullYear();
+            const mm = now.getMonth() + 1;
+            const dd = now.getDate();
+            todayYmd = yy * 10000 + mm * 100 + dd;
+          }catch(_eDate){
+            todayYmd = null;
+          }
+
+          const once = state && state.oncePerDayToday && typeof state.oncePerDayToday === "object"
+            ? state.oncePerDayToday
+            : null;
+
+          if (
+            once &&
+            typeof once.day === "number" &&
+            todayYmd !== null &&
+            once.day === todayYmd &&
+            once.results &&
+            typeof once.results === "object"
+          ) {
+            const r = once.results[QID];
+            if (r === "correct" || r === "wrong") {
+              // 計測済（correct / wrong）
+              onceLabel = "計測済(" + r + ")";
+            } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+              // 何かしら値はあるが unknown の場合
+              onceLabel = "計測済(unknown)";
+            } else {
+              // 今日の日付だがこの QID は未計測
+              onceLabel = "未計測";
+            }
+          } else {
+            // oncePerDayToday 自体が今日ではない or データなし
+            onceLabel = "未計測";
+          }
+        }catch(_eOnce){
+          // oncePerDayToday 表示に失敗してもステータス自体は出す
+          onceLabel = "";
+        }
+
+        // ★ 変更: ODOA の状態と count対象判定は「唯一の参照元」を固定する
+        //   参照元:
+        //     (1) window.CSCS_ODOA_MODE            … "on" / "off"
+        //     (2) window.__cscs_sync_state.oncePerDayToday … { day, results }
+        //     (3) window.CSCS_VERIFY_MODE         … "on" の場合は常に計測対象外
+        //   方針:
+        //     - localStorage 等へのフォールバックは行わない（取れなければ unknown 表示）
+        try{
+          // (1) ODOA モード表示：window.CSCS_ODOA_MODE をそのまま正とする
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          if (odoaMode === "on") {
+            odoaLabel = "ODOA: ON";
+          } else if (odoaMode === "off") {
+            odoaLabel = "ODOA: OFF";
+          } else {
+            odoaLabel = "ODOA: unknown";
+          }
+
+          // (2) VERIFY モード：ON の場合は常に「count対象: NO」
+          const verifyModeOn =
+            (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
+
+          if (verifyModeOn) {
+            countLabel = "count対象: NO";
+            reasonLabel = "理由: VERIFY_MODE";
+          } else {
+            // (3) oncePerDayToday を __cscs_sync_state から取得（ここ以外からは取らない）
+            const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+              ? window.__cscs_sync_state
+              : null;
+
+            const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+              ? state.oncePerDayToday
+              : null;
+
+            // (4) 今日 YYYYMMDD（数値）を作る（once.day が number の想定に合わせる）
+            let todayYmd = null;
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              todayYmd = yy * 10000 + mm * 100 + dd;
+            }catch(_eDate){
+              todayYmd = null;
+            }
+
+            // (5) count対象判定
+            //   - ODOA: OFF → count対象: YES（ODOA制限が無い）
+            //   - ODOA: ON  → 今日すでに oncePerDayToday.results[QID] があれば count対象: NO
+            //   - 情報が取れない場合は unknown
+            if (odoaMode === "off") {
+              countLabel = "count対象: YES";
+              reasonLabel = "理由: ODOA_OFF";
+            } else if (odoaMode === "on") {
+              if (
+                once &&
+                typeof once.day === "number" &&
+                todayYmd !== null &&
+                once.day === todayYmd &&
+                once.results &&
+                typeof once.results === "object"
+              ) {
+                const hasEntry = Object.prototype.hasOwnProperty.call(once.results, QID);
+                if (hasEntry) {
+                  countLabel = "count対象: NO";
+                  reasonLabel = "理由: ALREADY_MEASURED_TODAY";
+                } else {
+                  countLabel = "count対象: YES";
+                  reasonLabel = "理由: NOT_MEASURED_TODAY";
+                }
+              } else {
+                countLabel = "count対象: unknown";
+                reasonLabel = "理由: ONCEPERDAY_STATE_UNAVAILABLE";
+              }
+            } else {
+              countLabel = "count対象: unknown";
+              reasonLabel = "理由: ODOA_MODE_UNKNOWN";
+            }
+          }
+        }catch(_eOdoa){
+          // ★ 補足: 参照元が壊れていた/例外になった場合は unknown 表示に倒す（フォールバック取得はしない）
+          odoaLabel = "ODOA: unknown";
+          countLabel = "count対象: unknown";
+          reasonLabel = "理由: unknown";
+        }
+
+        if (stEl) stEl.textContent = lastSyncStatus + " (" + time + ")" + err;
+
+        const onceElSync  = box.querySelector(".sync-onceperday.sync");
+        const onceElLocal = box.querySelector(".sync-onceperday.local");
+
+        // ============================================================
+        // ★ SYNC由来カード：既存ロジック（参照元 = window.__cscs_sync_state）を維持して描画
+        // ------------------------------------------------------------
+        // - 表示は従来の4行構成
+        // - フォールバックで別ソースから埋め合わせない（取れなければ取れない表示）
+        // ============================================================
+        if (onceElSync) {
+          function ymdNumToIso(ymdNum){
+            try{
+              const s = String(ymdNum);
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function ymdStrToIso(ymdStr){
+            try{
+              const s = String(ymdStr || "").trim();
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function getTodayYmdNum(){
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              return yy * 10000 + mm * 100 + dd;
+            }catch(_){
+              return null;
+            }
+          }
+
+          // ★ 処理: 参照元を固定（SYNC snapshot のみ）
+          const state = (window.__cscs_sync_state && typeof window.__cscs_sync_state === "object")
+            ? window.__cscs_sync_state
+            : null;
+
+          const once = (state && state.oncePerDayToday && typeof state.oncePerDayToday === "object")
+            ? state.oncePerDayToday
+            : null;
+
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          const odoaText = (odoaMode === "on") ? "ON" : (odoaMode === "off") ? "OFF" : "unknown";
+
+          const todayYmd = getTodayYmdNum();
+
+          let isTodayOnce = false;
+          let onceDayIso = "";
+          let lastRecordedDayIso = "";
+          let measuredResult = null; // "correct" | "wrong" | null
+
+          try{
+            let onceDayNum = null;
+
+            if (once && typeof once.day === "number" && Number.isFinite(once.day) && once.day > 0) {
+              onceDayNum = once.day;
+              const iso = ymdNumToIso(onceDayNum);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+            } else if (once && typeof once.day === "string") {
+              const iso = ymdStrToIso(once.day);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+              if (/^\d{8}$/.test(String(once.day || "").trim())) {
+                onceDayNum = parseInt(String(once.day).trim(), 10);
+              }
+            }
+
+            if (todayYmd !== null && onceDayNum !== null && onceDayNum === todayYmd) {
+              isTodayOnce = true;
+              onceDayIso = ymdNumToIso(todayYmd);
+
+              if (once && once.results && typeof once.results === "object") {
+                const r = once.results[QID];
+                if (r === "correct" || r === "wrong") {
+                  measuredResult = r;
+                } else if (Object.prototype.hasOwnProperty.call(once.results, QID)) {
+                  measuredResult = "unknown";
+                } else {
+                  measuredResult = null;
+                }
+              } else {
+                measuredResult = null;
+              }
+            }
+          }catch(_){
+            isTodayOnce = false;
+            measuredResult = null;
+          }
+
+          let line1 = "";
+          let line2 = "";
+          let line3 = "";
+          let line4 = "";
+
+          if (!isTodayOnce) {
+            line1 = "oncePerDayToday: 未開始";
+            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "-");
+            line3 = "count対象: 判定可能";
+            line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
+          } else {
+            line1 = "oncePerDayToday: 計測中";
+            line2 = "Today: " + (onceDayIso ? onceDayIso : "-");
+
+            if (measuredResult === "correct" || measuredResult === "wrong") {
+              line3 = "count対象: No 計測済(" + measuredResult + ")";
+            } else if (measuredResult === "unknown") {
+              line3 = "count対象: No 計測済(unknown)";
+            } else {
+              line3 = "count対象: Yes 未計測";
+            }
+
+            let addYesNo = "Yes";
+            if (odoaMode === "off") {
+              addYesNo = "Yes";
+            } else if (odoaMode === "on") {
+              const counted = (measuredResult === "correct" || measuredResult === "wrong" || measuredResult === "unknown");
+              addYesNo = counted ? "No" : "Yes";
+            } else {
+              addYesNo = "unknown";
+            }
+            line4 = "ODOA: " + odoaText + " (累計加算: " + addYesNo + ")";
+          }
+
+          onceElSync.innerHTML =
+            '<div class="once-grid">' +
+
+              '<div class="once-label">oncePerDayToday</div>' +
+              '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
+
+              '<div class="once-label">' +
+                (isTodayOnce ? 'Today' : 'lastRecordedDay') +
+              '</div>' +
+              '<div class="once-val">' +
+                (isTodayOnce
+                  ? line2.replace(/^Today:\s*/, "")
+                  : line2.replace(/^lastRecordedDay:\s*/, "")
+                ) +
+              '</div>' +
+
+              '<div class="once-label">count対象</div>' +
+              '<div class="once-val">' +
+                line3.replace(/^count対象:\s*/, "") +
+              '</div>' +
+
+              '<div class="once-label">ODOA</div>' +
+              '<div class="once-val">' +
+                line4.replace(/^ODOA:\s*/, "") +
+              '</div>' +
+
+            '</div>';
+        }
+
+        // ============================================================
+        // ★ local由来カード：参照元 = localStorage（SYNC snapshot を参照しない）
+        // ------------------------------------------------------------
+        // - oncePerDayToday: localStorage の day/results をそのまま読む
+        // - ODOA/VERIFY: window のフラグだけを読む（localStorage等へフォールバックしない）
+        // - 欠損は欠損として扱い、0埋め・推測はしない
+        // ============================================================
+        if (onceElLocal) {
+          function ymdNumToIso(ymdNum){
+            try{
+              const s = String(ymdNum);
+              if (!/^\d{8}$/.test(s)) return "";
+              return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8);
+            }catch(_){
+              return "";
+            }
+          }
+
+          function getTodayYmdNum(){
+            try{
+              const now = new Date();
+              const yy = now.getFullYear();
+              const mm = now.getMonth() + 1;
+              const dd = now.getDate();
+              return yy * 10000 + mm * 100 + dd;
+            }catch(_){
+              return null;
+            }
+          }
+
+          // ★ 処理: localStorage から oncePerDayToday の day/results を取得する
+          let localDayNum = null;
+          let localResults = null;
+
+          try{
+            const rawDay = localStorage.getItem("cscs_once_per_day_today_day");
+            if (rawDay !== null && rawDay !== undefined) {
+              const s = String(rawDay).trim();
+              if (/^\d{8}$/.test(s)) {
+                localDayNum = parseInt(s, 10);
+              }
+            }
+          }catch(_){
+            localDayNum = null;
+          }
+
+          try{
+            const rawRes = localStorage.getItem("cscs_once_per_day_today_results");
+            if (rawRes !== null && rawRes !== undefined) {
+              const s = String(rawRes).trim();
+              if (s !== "") {
+                const parsed = JSON.parse(s);
+                if (parsed && typeof parsed === "object") {
+                  localResults = parsed;
+                }
+              }
+            }
+          }catch(_){
+            localResults = null;
+          }
+
+          const odoaMode = (typeof window.CSCS_ODOA_MODE === "string") ? window.CSCS_ODOA_MODE : "";
+          const odoaText = (odoaMode === "on") ? "ON" : (odoaMode === "off") ? "OFF" : "unknown";
+
+          const verifyModeOn =
+            (typeof window.CSCS_VERIFY_MODE === "string" && window.CSCS_VERIFY_MODE === "on");
+
+          const todayYmd = getTodayYmdNum();
+
+          let isTodayOnce = false;
+          let onceDayIso = "";
+          let lastRecordedDayIso = "";
+          let measuredResult = null; // "correct" | "wrong" | "unknown" | null
+
+          try{
+            if (localDayNum !== null) {
+              const iso = ymdNumToIso(localDayNum);
+              if (iso) {
+                lastRecordedDayIso = iso;
+              }
+            }
+
+            if (todayYmd !== null && localDayNum !== null && localDayNum === todayYmd) {
+              isTodayOnce = true;
+              onceDayIso = ymdNumToIso(todayYmd);
+
+              if (localResults && typeof localResults === "object") {
+                const r = localResults[QID];
+                if (r === "correct" || r === "wrong") {
+                  measuredResult = r;
+                } else if (Object.prototype.hasOwnProperty.call(localResults, QID)) {
+                  measuredResult = "unknown";
+                } else {
+                  measuredResult = null;
+                }
+              } else {
+                measuredResult = null;
+              }
+            }
+          }catch(_){
+            isTodayOnce = false;
+            measuredResult = null;
+          }
+
+          let line1 = "";
+          let line2 = "";
+          let line3 = "";
+          let line4 = "";
+
+          if (!isTodayOnce) {
+            // ★ 処理: localの oncePerDayToday が今日でない（または欠損）場合は未開始扱いで表示する
+            line1 = "oncePerDayToday: 未開始";
+            line2 = "lastRecordedDay: " + (lastRecordedDayIso ? lastRecordedDayIso : "-");
+            line3 = "count対象: 判定可能";
+            line4 = "ODOA: " + odoaText + " (累計加算: Yes)";
+          } else {
+            line1 = "oncePerDayToday: 計測中";
+            line2 = "Today: " + (onceDayIso ? onceDayIso : "-");
+
+            // ★ 処理: VERIFY_MODE は常に count対象: NO として表示する
+            if (verifyModeOn) {
+              line3 = "count対象: NO 理由: VERIFY_MODE";
+            } else {
+              if (measuredResult === "correct" || measuredResult === "wrong") {
+                line3 = "count対象: No 計測済(" + measuredResult + ")";
+              } else if (measuredResult === "unknown") {
+                line3 = "count対象: No 計測済(unknown)";
+              } else {
+                line3 = "count対象: Yes 未計測";
+              }
+            }
+
+            // ★ 処理: ODOAの累計加算表示（local判定のcount対象と連動して Yes/No を出す）
+            let addYesNo = "Yes";
+            if (odoaMode === "off") {
+              addYesNo = "Yes";
+            } else if (odoaMode === "on") {
+              const counted = (verifyModeOn || measuredResult === "correct" || measuredResult === "wrong" || measuredResult === "unknown");
+              addYesNo = counted ? "No" : "Yes";
+            } else {
+              addYesNo = "unknown";
+            }
+            line4 = "ODOA: " + odoaText + " (累計加算: " + addYesNo + ")";
+          }
+
+          onceElLocal.innerHTML =
+            '<div class="once-grid">' +
+
+              '<div class="once-label">oncePerDayToday</div>' +
+              '<div class="once-val">' + line1.replace(/^oncePerDayToday:\s*/, "") + '</div>' +
+
+              '<div class="once-label">' +
+                (isTodayOnce ? 'Today' : 'lastRecordedDay') +
+              '</div>' +
+              '<div class="once-val">' +
+                (isTodayOnce
+                  ? line2.replace(/^Today:\s*/, "")
+                  : line2.replace(/^lastRecordedDay:\s*/, "")
+                ) +
+              '</div>' +
+
+              '<div class="once-label">count対象</div>' +
+              '<div class="once-val">' +
+                line3.replace(/^count対象:\s*/, "") +
+              '</div>' +
+
+              '<div class="once-label">ODOA</div>' +
+              '<div class="once-val">' +
+                line4.replace(/^ODOA:\s*/, "") +
+              '</div>' +
+
+            '</div>';
+        }
+      }
+    }catch(_){
+      // UI更新失敗は握りつぶし
+    }
+  }
+
+  function scheduleSend(){
+    if (!navigator.onLine) {
+      lastSyncStatus = "offline";
+      updateMonitor();
+      return;
+    }
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(sendDelta, 1000);
+    updateMonitor();
+  }
+
+
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 5
+RECEIVED_TOTAL: 2
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-EEA2D97C-P01-of-05
+- CSCSJS-EEA2D97C-P02-of-05
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【分割コード(2)の終了】→ 次は 分割コード(3) を送ります
+【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。
+ACK: <PartID> / WAITING_NEXT
