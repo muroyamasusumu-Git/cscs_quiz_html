@@ -924,14 +924,22 @@
 
   function loadAutoAdvanceEnabled() {
     try {
+      // 追加した処理:
+      // - 初回（未保存）時の既定値を OFF にする（ユーザー要望: デフォルトOFF）
       var v = localStorage.getItem(AUTO_ENABLED_KEY);
       if (v === null) {
-        return true; // 保存されてなければデフォルトは ON
+        // 追加した処理:
+        // - 保存値が無い（初回）場合は OFF 扱いにする
+        return false;
       }
+
+      // 追加した処理:
+      // - 保存値が "1" のときだけ ON（それ以外は OFF）
       return v === "1";
     } catch (_e) {
-      // localStorage が使えない場合も、とりあえず ON 扱い
-      return true;
+      // 追加した処理:
+      // - localStorage が使えない環境では、意図しない自動遷移を避けるため OFF 扱いにする
+      return false;
     }
   }
 
