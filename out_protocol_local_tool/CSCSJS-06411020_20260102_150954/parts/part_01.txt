@@ -1,0 +1,1688 @@
+<<<PART_BEGIN>>>
+【分割コード(1)の開始】
+PartID: CSCSJS-06411020-P01-of-05
+PartSHA256: 786ec4ac1ac68c0a808948f11176946106281a4f49f0026f57b36444970347cd
+Range: chars 0..33950 (len=33950)
+FirstLine: // assets/cscs_sync_view_b.js
+LastLine: 
+EndNewline: YES
+PART_SCOPE_HINT: LineRange=L1..L1078 | BraceDepth=0->1
+PART_SCOPE_HINT_TOP_IDENTIFIERS: svb:104, qid:60, cscs_sync_view_b_body:54, syncState:53, state:42, grid:41, SYNC:39, card:38, localStorage:36, day:36, text:30, lastday:30
+PART_SCOPE_HINT_DEFINES: upsertStyleTag, ensureSyncViewBStyles, detectInfo, readIntFromLocalStorage, readDayFromLocalStorage, readTotalQuestionsFromLocalStorage, readOncePerDayTodayFromLocal, computePendingFlags, buildOncePerDayTodayDelta, clearSyncBody, updateSyncBodyText, appendGridRow, appendGridSection, SYNC_STATE_ENDPOINT, SYNC_MERGE_ENDPOINT, CSCS_SYNC_VIEW_B_CSS, head, el, path, m, day, num3, qid, info, raw, n, key, dayStr, results, dayNum, flags, localOnce, localOnceVal, serverOnceVal, locSeen, locCor, locWro, srvSeen, srvCor, srvWro
+
+【プロトコル宣言（PART_01=宣言 / LAST_PART=EXEC_TASK）】
+SessionID: CSCSJS-06411020
+TargetFile: cscs_sync_view_b.js
+Split: total_parts=5, max_chars_per_part=60000, max_lines_per_part=1200
+
+【あなた（ChatGPT）への最重要ルール（厳守）】
+0) 分割コード受領中は、内容の解釈・要約・推測・修正案提示を一切禁止。
+1) 分割コード(1..N-1)受領時の返答は必ず：
+   ACK: <PartID> / WAITING_NEXT
+2) 最終分割コード(N)受領時は、末尾の RECEIPT_INPUT を用いて受領確認を実施すること。
+3) 受領確認は、最終メッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用（会話履歴参照は禁止）。
+4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の文は参考であり実行根拠にしない。
+5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。
+6) JOIN（連結）ルール（強制）:
+   - 分割コードを連結して“完全なJS”を作る際、パート境界に改行や空白を勝手に追加してはならない。
+   - 各パート本文は『提示された文字列をそのまま』連結する（パート間に暗黙の改行は存在しない）。
+   - したがって、分割コード同士の間に改行の明記が無い限りは『必ず連続行として読み取る』こと。
+   - 各パートには EndNewline: YES/NO が付く。境界が連続行かどうかはこれを唯一の根拠として判定する。
+
+【指示内容（概要：参考用／実行根拠にしない）】
+【WORK_HEADER（共通ID）】
+[SESSION_ID: CSCSJS-06411020]
+[REQUEST_ID: REQ-1361B2E9]
+
+【USER_INSTRUCTION】
+手動送信ボタンとその表示と自動クリックの処理部分のみを　以下の最新のb_sync_merge.js　にすべて移動させたい
+
+// assets/b_sync_merge.js
+// Bパート → SYNC 連携（attempt_log 廃止版）
+/**
+ * 【キー対応表（LocalStorage ⇔ SYNC state ⇔ delta payload）】
+ *  ※このファイルで「新しくキーを追加／既存キー名を変更」した場合は、
+ *    必ずこの表を更新すること（恒久ルール）。
+ *
+ * ▼ 問題別累計
+ *   - localStorage: "cscs_q_correct_total:" + qid
+ *       ⇔ SYNC state: correct[qid]
+ *       ⇔ delta payload: correctDelta[qid]
+ *   - localStorage: "cscs_q_wrong_total:" + qid
+ *       ⇔ SYNC state: incorrect[qid]
+ *       ⇔ delta payload: incorrectDelta[qid]
+ *
+ * ▼ 問題別 3 連続正解（⭐️用）
+ *   - localStorage: "cscs_q_correct_streak3_total:" + qid
+ *       ⇔ SYNC state: streak3[qid]
+ *       ⇔ delta payload: streak3Delta[qid]
+ *   - localStorage: "cscs_q_correct_streak_len:" + qid
+ *       ⇔ SYNC state: streakLen[qid]
+ *       ⇔ delta payload: streakLenDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_correct_streak_max:" + qid
+ *       ⇔ SYNC state: streakMax[qid]
+ *       ⇔ delta payload: streakMaxDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_correct_streak_max_day:" + qid
+ *       ⇔ SYNC state: streakMaxDay[qid]
+ *       ⇔ delta payload: streakMaxDayDelta[qid]（「増分」ではなく最新値 / JST YYYYMMDD）
+ *
+ * ▼ 問題別 3 連続不正解（💣用）
+ *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
+ *       ⇔ SYNC state: streak3Wrong[qid]
+ *       ⇔ delta payload: streak3WrongDelta[qid]
+ *   - localStorage: "cscs_q_wrong_streak_len:" + qid
+ *       ⇔ SYNC state: streakWrongLen[qid]
+ *       ⇔ delta payload: streakWrongLenDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_wrong_streak_max:" + qid
+ *       ⇔ SYNC state: streakWrongMax[qid]
+ *       ⇔ delta payload: streakWrongMaxDelta[qid]（「増分」ではなく最新値）
+ *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
+ *       ⇔ SYNC state: streakWrongMaxDay[qid]
+ *       ⇔ delta payload: streakWrongMaxDayDelta[qid]（「増分」ではなく最新値 / JST YYYYMMDD）
+ *
+ * ▼ B専用「前回 SYNC 済み累計」のローカルキャッシュ（SYNC state には存在しない）
+ *   - localStorage: "cscs_sync_last_c:"   + qid … 正解累計の前回同期値
+ *   - localStorage: "cscs_sync_last_w:"   + qid … 不正解累計の前回同期値
+ *   - localStorage: "cscs_sync_last_s3:"  + qid … 3連続正解累計の前回同期値
+ *   - localStorage: "cscs_sync_last_ws3:" + qid … 3連続不正解累計の前回同期値
+ *
+ * ============================================================
+ * 【フォールバック一覧（このファイル内で “欠損・矛盾” を丸める箇所の索引）】
+ * ------------------------------------------------------------
+ *  Fallback-01: loadInt() で localStorage miss(null) を 0 扱い
+ *    - 発生条件: localStorage.getItem(key) が null
+ *    - 処理内容: 0 を返して処理継続（送信 payload は壊さない）
+ *    - 影響/注意: 「本当はキー欠損（計測未実行/別namespace/別端末）」でも
+ *                 “0基準の差分” が成立してしまい、問題が隠れる可能性がある。
+ *
+ *  Fallback-02: loadInt() で parseInt 失敗(NaN等) を 0 扱い
+ *    - 発生条件: 値が数値文字列でない / 破損値
+ *    - 処理内容: 0 を返して処理継続
+ *    - 影響/注意: 破損値が入っても “無かったこと” にして進むため、
+ *                 監視なしだと原因究明が遅れる可能性がある。
+ *
+ *  Fallback-03: 「前回SYNC済み累計(KEY_LAST_*)」が未保存でも 0 基準で差分計算
+ *    - 発生条件: 初回同期 / KEY_LAST_* が null
+ *    - 処理内容: cLast/wLast/s3Last/s3WrongLast を 0 として delta を作る
+ *    - 影響/注意: 初回同期の利便性は上がるが、
+ *                 「KEY_LAST_* が消えた/別namespaceで読んでいる」状況でも
+ *                 初回扱いで “全量差分” が送れてしまい、問題が隠れる可能性がある。
+ *
+ *  Fallback-04: s3Last > s3Now を検出したら KEY_LAST_S3 を now に clamp（下げる）
+ *    - 発生条件: 前回同期キャッシュが現在累計より大きい（矛盾）
+ *    - 処理内容: s3Last = s3Now にして localStorage(KEY_LAST_S3) を上書き
+ *    - 影響/注意: “減算送信” を避ける目的だが、
+ *                 「キャッシュが別namespace由来で大きい」等でも
+ *                 強制的に帳尻を合わせてしまい、ズレの原因が見えにくくなる。
+ *
+ *  Fallback-05: s3WrongLast > s3WrongNow を検出したら KEY_LAST_S3_WRONG を now に clamp（下げる）
+ *    - 発生条件: 前回同期キャッシュが現在累計より大きい（矛盾）
+ *    - 処理内容: s3WrongLast = s3WrongNow にして localStorage(KEY_LAST_S3_WRONG) を上書き
+ *    - 影響/注意: Fallback-04 と同様。矛盾の “原因” を覆い隠すリスクがある。
+ *
+ *  Fallback-06: delta が負になったら 0 に丸める（減算送信禁止のため）
+ *    - 発生条件: (now - last) < 0
+ *    - 処理内容: Math.max(0, rawDelta) で 0 にする
+ *    - 影響/注意: “ズレている” こと自体はログで警告されるが、
+ *                 結果として送信が進んでしまうため、根本原因の特定が遅れやすい。
+ *
+ *  Fallback-07: SYNC_KEY の取得が失敗した場合でも例外にして処理を落とす（送信しない）
+ *    - 発生条件: localStorage 例外 / cscs_sync_key が空
+ *    - 処理内容: throw("SYNC_KEY_MISSING_LOCAL") → merge を叩かない
+ *    - 影響/注意: “送信できない” を明示するガード（これはフォールバックというより停止ガード）。
+ * ============================================================
+ *
+ * このファイルは「localStorage → /api/sync/merge の delta payload」を組み立てる役割だけを持つ。
+ * SYNC 側の完全な構造は merge.ts / state.ts の仕様コメントを参照すること。
+ *
+ * 【重要】このファイルは /api/sync/state を参照しないため、
+ *          “どの namespace / KV を見ているか” は検知できない。
+ *          そのため、上記フォールバックが働くと「ズレていても送れてしまう」状況が起きうる。
+ */
+
+(function(){
+  // Bページの URL から qid = "YYYYMMDD-NNN" を取得
+  function detectInfo(){
+    const m = location.pathname.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b/);
+    if (!m) return null;
+
+    const day = m[1];       // 例: "20250926"（文字列。qid生成に使う）
+    const n3  = m[2];       // 例: "001"
+    const qid = `${day}-${n3}`;
+
+    const dayNum = Number(day); // ★ 統一: number（YYYYMMDD）
+    if (!Number.isFinite(dayNum) || !/^\d{8}$/.test(String(dayNum))) return null;
+
+    return { day, dayNum, n3, qid };
+  }
+
+  const info = detectInfo();
+  if (!info) return;
+
+  // b_judge_record.js が管理している「本物の累積キー」
+  const KEY_COR                  = `cscs_q_correct_total:${info.qid}`;
+  const KEY_WRG                  = `cscs_q_wrong_total:${info.qid}`;
+  const KEY_S3                   = `cscs_q_correct_streak3_total:${info.qid}`;
+  const KEY_STREAK_LEN           = `cscs_q_correct_streak_len:${info.qid}`;
+  const KEY_STREAK_MAX           = `cscs_q_correct_streak_max:${info.qid}`;
+  const KEY_STREAK_MAX_DAY       = `cscs_q_correct_streak_max_day:${info.qid}`;
+  const KEY_S3_WRONG             = `cscs_q_wrong_streak3_total:${info.qid}`;
+  const KEY_STREAK_WRONG_LEN     = `cscs_q_wrong_streak_len:${info.qid}`;
+  const KEY_STREAK_WRONG_MAX     = `cscs_q_wrong_streak_max:${info.qid}`;
+  const KEY_STREAK_WRONG_MAX_DAY = `cscs_q_wrong_streak_max_day:${info.qid}`;
+
+  // B側だけで使う「最後に SYNC 済みだったときの累積値」
+  const KEY_LAST_COR      = `cscs_sync_last_c:${info.qid}`;
+  const KEY_LAST_WRG      = `cscs_sync_last_w:${info.qid}`;
+  const KEY_LAST_S3       = `cscs_sync_last_s3:${info.qid}`;
+  const KEY_LAST_S3_WRONG = `cscs_sync_last_ws3:${info.qid}`;
+
+  // B側だけで使う「最後に SYNC 済みだったときの max / max_day（最新値送信の基準）」
+  const KEY_LAST_STREAK_MAX           = `cscs_sync_last_streak_max:${info.qid}`;
+  const KEY_LAST_STREAK_MAX_DAY       = `cscs_sync_last_streak_max_day:${info.qid}`;
+  const KEY_LAST_STREAK_WRONG_MAX     = `cscs_sync_last_streak_wmax:${info.qid}`;
+  const KEY_LAST_STREAK_WRONG_MAX_DAY = `cscs_sync_last_streak_wmax_day:${info.qid}`;
+
+  function loadInt(key){
+    // Fallback-01: localStorage miss(null) → 0
+    // 補足: ここで 0 扱いにすると「本当はキーが無い（namespaceズレ/計測未実行/別端末）」でも
+    //       処理が継続し、結果として“送れてしまう”＝問題が隠れる可能性がある。
+    const v = localStorage.getItem(key);
+    if (v == null) {
+      console.log("[SYNC/B][fallback][loadInt] localStorage miss -> 0", { key });
+      return 0;
+    }
+
+    // Fallback-02: parseInt 失敗(NaN等) → 0
+    // 補足: 値の破損や想定外フォーマットでも 0 として進むため、
+    //       監視が弱いと「壊れているのに送れてしまう」状態になりやすい。
+    const n = parseInt(v, 10);
+    if (!Number.isFinite(n)) {
+      console.warn("[SYNC/B][fallback][loadInt] parseInt failed -> 0", { key, raw: v });
+      return 0;
+    }
+
+    // 正常系
+    console.log("[SYNC/B][ok][loadInt] loaded", { key, raw: v, value: n });
+    return n;
+  }
+
+  function loadDayOptional(key){
+    const raw = localStorage.getItem(key);
+    if (raw == null) {
+      console.log("[SYNC/B][ok][loadDayOptional] localStorage miss -> (skip)", { key });
+      return { ok: false, value: null, raw: null };
+    }
+
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || !/^\d{8}$/.test(String(n))) {
+      console.warn("[SYNC/B][warn][loadDayOptional] invalid day -> (skip)", { key, raw });
+      return { ok: false, value: null, raw: raw };
+    }
+
+    console.log("[SYNC/B][ok][loadDayOptional] loaded", { key, raw: raw, value: n });
+    return { ok: true, value: n, raw: raw };
+  }
+
+  function loadIntOptional(key){
+    const raw = localStorage.getItem(key);
+    if (raw == null) {
+      console.log("[SYNC/B][ok][loadIntOptional] localStorage miss -> (skip)", { key });
+      return { ok: false, value: null, raw: null };
+    }
+
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n)) {
+      console.warn("[SYNC/B][warn][loadIntOptional] parseInt failed -> (skip)", { key, raw: raw });
+      return { ok: false, value: null, raw: raw };
+    }
+
+    console.log("[SYNC/B][ok][loadIntOptional] loaded", { key, raw: raw, value: n });
+    return { ok: true, value: n, raw: raw };
+  }
+
+  function saveInt(key, value){
+    localStorage.setItem(key, String(value));
+  }
+  
+  async function syncFromTotals(){
+    // 1) 現在の累積（b_judge_record.js が書いた値）
+    const cNow              = loadInt(KEY_COR);
+    const wNow              = loadInt(KEY_WRG);
+    const s3Now             = loadInt(KEY_S3);
+    const streakLenNow      = loadInt(KEY_STREAK_LEN);
+
+    // max / max_day は「欠損を 0 として送る」と SYNC を汚すので optional 読み
+    const streakMaxOpt       = loadIntOptional(KEY_STREAK_MAX);
+    const streakMaxDayOpt    = loadDayOptional(KEY_STREAK_MAX_DAY);
+
+    const s3WrongNow         = loadInt(KEY_S3_WRONG);
+    const streakWrongLenNow  = loadInt(KEY_STREAK_WRONG_LEN);
+
+    const streakWrongMaxOpt    = loadIntOptional(KEY_STREAK_WRONG_MAX);
+    const streakWrongMaxDayOpt = loadDayOptional(KEY_STREAK_WRONG_MAX_DAY);
+
+    // 2) 前回 SYNC 時点の値（存在しなければ 0 扱い）
+    // Fallback-03: KEY_LAST_* miss(null) を loadInt() が 0 扱いにすることで「初回同期」として差分を作れる。
+    // 補足: 便利だが、KEY_LAST_* が消えた/別namespaceの値を見ている等でも “初回扱い” になり、
+    //       「ズレてても送れてしまう」＝問題が隠れる可能性がある。
+    const cLast       = loadInt(KEY_LAST_COR);
+    const wLast       = loadInt(KEY_LAST_WRG);
+    let   s3Last      = loadInt(KEY_LAST_S3);
+    let   s3WrongLast = loadInt(KEY_LAST_S3_WRONG);
+
+    console.log("[SYNC/B][ok][lastTotals] loaded last totals (0 means first sync or missing)", {
+      qid: info.qid,
+      KEY_LAST_COR,
+      KEY_LAST_WRG,
+      KEY_LAST_S3,
+      KEY_LAST_S3_WRONG,
+      cLast,
+      wLast,
+      s3Last,
+      s3WrongLast
+    });
+
+    // correct 側の 3連続正解累計について、local が s3Last より小さい場合 → s3Last を local に強制修正
+    // Fallback-04: KEY_LAST_S3（前回同期キャッシュ）が現在累計(s3Now)を超える矛盾が出たら、
+    //              “減算送信”を起こさないために KEY_LAST_S3 を now に clamp（下げて上書き）する。
+    // 補足: ここで帳尻を合わせると「なぜ矛盾したか（namespaceズレ/キャッシュ破損/手動操作）」が
+    //       追いにくくなる。＝ズレの根本原因が隠れるリスクがある。
+    if (s3Last > s3Now) {
+      console.warn("[SYNC/B][fallback][guard] s3Last > s3Now -> clamp last to now", {
+        qid: info.qid,
+        KEY_LAST_S3,
+        before_s3Last: s3Last,
+        s3Now
+      });
+
+      s3Last = s3Now;
+      saveInt(KEY_LAST_S3, s3Last);
+
+      console.log("[SYNC/B][ok][guard] saved corrected KEY_LAST_S3", {
+        qid: info.qid,
+        KEY_LAST_S3,
+        after_s3Last: s3Last
+      });
+    }
+
+    // wrong 側の 3連続不正解累計についても同様にガード
+    // Fallback-05: KEY_LAST_S3_WRONG（前回同期キャッシュ）が現在累計(s3WrongNow)を超える矛盾が出たら、
+    //              “減算送信”を起こさないために KEY_LAST_S3_WRONG を now に clamp（下げて上書き）する。
+    // 補足: Fallback-04 と同様、帳尻合わせにより「ズレている理由」が見えにくくなる可能性がある。
+    if (s3WrongLast > s3WrongNow) {
+      console.warn("[SYNC/B][fallback][guard] s3WrongLast > s3WrongNow -> clamp last to now", {
+        qid: info.qid,
+        KEY_LAST_S3_WRONG,
+        before_s3WrongLast: s3WrongLast,
+        s3WrongNow
+      });
+
+      s3WrongLast = s3WrongNow;
+      saveInt(KEY_LAST_S3_WRONG, s3WrongLast);
+
+      console.log("[SYNC/B][ok][guard] saved corrected KEY_LAST_S3_WRONG", {
+        qid: info.qid,
+        KEY_LAST_S3_WRONG,
+        after_s3WrongLast: s3WrongLast
+      });
+    }
+
+    // 3) 差分（マイナスは送らない）
+    // Fallback-06: delta は加算専用のため (now - last) が負なら 0 に丸めて「送らない」。
+    // 補足: ここで “ズレ” を 0 に潰すので、表面上は送信処理が進み得る。
+    //       ログ警告を見落とすと「ズレがあっても運用できてしまう」＝問題が隠れる可能性がある。
+    const rawDc       = cNow       - cLast;
+    const rawDw       = wNow       - wLast;
+    const rawDs3      = s3Now      - s3Last;
+    const rawDs3Wrong = s3WrongNow - s3WrongLast;
+
+    const dc       = Math.max(0, rawDc);
+    const dw       = Math.max(0, rawDw);
+    const ds3      = Math.max(0, rawDs3);
+    const ds3Wrong = Math.max(0, rawDs3Wrong);
+
+    if (rawDc < 0 || rawDw < 0 || rawDs3 < 0 || rawDs3Wrong < 0) {
+      console.warn("[SYNC/B][fallback][deltaClamp] negative delta detected -> clamped to 0", {
+        qid: info.qid,
+        rawDc,
+        rawDw,
+        rawDs3,
+        rawDs3Wrong,
+        dc,
+        dw,
+        ds3,
+        ds3Wrong,
+        cNow,
+        cLast,
+        wNow,
+        wLast,
+        s3Now,
+        s3Last,
+        s3WrongNow,
+        s3WrongLast
+      });
+    } else {
+      console.log("[SYNC/B][ok][delta] computed delta (all non-negative)", {
+        qid: info.qid,
+        dc,
+        dw,
+        ds3,
+        ds3Wrong
+      });
+    }
+
+    // streak3TodayDelta は cscs_sync_view_b.js 側からのみ送信するため、
+    // ここでは streak3Today 系は一切扱わない。
+    // 3連続不正解関連も「今日のユニーク」ではなく累計・現在長だけを扱う。
+    if (!dc && !dw && !ds3 && !ds3Wrong && streakLenNow === 0 && streakWrongLenNow === 0 && !maxChanged && !wrongMaxChanged) {
+      console.log("[SYNC/B] ★送信なし（no delta）", {
+        qid: info.qid,
+        cNow,
+        wNow,
+        s3Now,
+        streakLenNow,
+        s3WrongNow,
+        streakWrongLenNow,
+        cLast,
+        wLast,
+        s3Last,
+        s3WrongLast,
+        maxChanged,
+        wrongMaxChanged
+      });
+      return;
+    }
+
+    // max / max_day は「更新が起きたときだけ」送信するため、前回送信値を読む
+    const lastMaxOpt          = loadIntOptional(KEY_LAST_STREAK_MAX);
+    const lastMaxDayOpt       = loadDayOptional(KEY_LAST_STREAK_MAX_DAY);
+    const lastWrongMaxOpt     = loadIntOptional(KEY_LAST_STREAK_WRONG_MAX);
+    const lastWrongMaxDayOpt  = loadDayOptional(KEY_LAST_STREAK_WRONG_MAX_DAY);
+
+    const maxChanged = (
+      (streakMaxOpt.ok && (!lastMaxOpt.ok || lastMaxOpt.value !== streakMaxOpt.value)) ||
+      (streakMaxDayOpt.ok && (!lastMaxDayOpt.ok || lastMaxDayOpt.value !== streakMaxDayOpt.value))
+    );
+
+    const wrongMaxChanged = (
+      (streakWrongMaxOpt.ok && (!lastWrongMaxOpt.ok || lastWrongMaxOpt.value !== streakWrongMaxOpt.value)) ||
+      (streakWrongMaxDayOpt.ok && (!lastWrongMaxDayOpt.ok || lastWrongMaxDayOpt.value !== streakWrongMaxDayOpt.value))
+    );
+
+    // 4) /api/sync/merge へ「差分だけ」を送信
+    const payload = {
+      // 追加: payload のトップレベルに種別を明示し、「diff（差分）」送信であることをサーバ側に伝える
+      payloadType: "diff",
+
+      // 既存: 差分（増分）で送るキー（qid→delta）
+      correctDelta:         dc       > 0 ? { [info.qid]: dc       } : {},
+      incorrectDelta:       dw       > 0 ? { [info.qid]: dw       } : {},
+      streak3Delta:         ds3      > 0 ? { [info.qid]: ds3      } : {},
+      streak3WrongDelta:    ds3Wrong > 0 ? { [info.qid]: ds3Wrong } : {},
+
+      // 既存: 「増分」ではなく “最新値” を送るキー（qid→current）
+      streakLenDelta:                      { [info.qid]: streakLenNow },
+      streakWrongLenDelta:                { [info.qid]: streakWrongLenNow },
+
+      // ★追加: 「最高連続」(max / max_day) は “更新が起きたときだけ” 最新値送信（欠損は送らない）
+      streakMaxDelta:                      (maxChanged && streakMaxOpt.ok) ? { [info.qid]: streakMaxOpt.value } : {},
+      streakMaxDayDelta:                   (maxChanged && streakMaxDayOpt.ok) ? { [info.qid]: streakMaxDayOpt.value } : {},
+      streakWrongMaxDelta:                 (wrongMaxChanged && streakWrongMaxOpt.ok) ? { [info.qid]: streakWrongMaxOpt.value } : {},
+      streakWrongMaxDayDelta:              (wrongMaxChanged && streakWrongMaxDayOpt.ok) ? { [info.qid]: streakWrongMaxDayOpt.value } : {},
+
+      // 既存: 送信時刻
+      updatedAt: Date.now()
+    };
+
+    console.log("[SYNC/B] merge payload (no streak3TodayDelta)", {
+      qid: info.qid,
+      cNow,
+      wNow,
+      s3Now,
+      streakLenNow,
+      s3WrongNow,
+      streakWrongLenNow,
+      cLast,
+      wLast,
+      s3Last,
+      s3WrongLast,
+      dc,
+      dw,
+      ds3,
+      ds3Wrong,
+      payload
+    });
+
+    try{
+      let _syncKey = "";
+      try{
+        _syncKey = localStorage.getItem("cscs_sync_key") || "";
+      }catch(_){
+        // 補足: localStorage 例外時はキー取得を諦めて空文字にする（ここで送信は止まる）。
+        //       “送れちゃう” 方向の隠れではなく、「送れない原因」がキー取得失敗に集約される点に注意。
+        _syncKey = "";
+      }
+
+      // ============================================================
+      // 重要:
+      //   /api/sync/merge は「bootstrap 完了後」にのみ叩いてよい。
+      //   localStorage の値は “bootstrap 完了後に読む” ことに意味がある。
+      //   → 先に promise を待って、未準備なら明確に異常停止する。
+      // ============================================================
+      if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
+        throw new Error("SYNC_BOOTSTRAP_NOT_READY");
+      }
+
+      await window.__CSCS_SYNC_KEY_PROMISE__;
+
+      if (!_syncKey) {
+        // 補足: bootstrap 完了後にも SYNC_KEY が無い場合は異常。
+        //       フォールバックで継続せず、問題を顕在化させる停止ガード。
+        throw new Error("SYNC_KEY_MISSING_LOCAL");
+      }
+
+      const res = await fetch("/api/sync/merge", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "X-CSCS-Key": String(_syncKey) },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(String(res.status));
+
+      // 5) 成功したら「今回送信後の累積値」を保存して次回差分の基準にする
+      if (dc)       saveInt(KEY_LAST_COR,      cNow);
+      if (dw)       saveInt(KEY_LAST_WRG,      wNow);
+      if (ds3)      saveInt(KEY_LAST_S3,       s3Now);
+      if (ds3Wrong) saveInt(KEY_LAST_S3_WRONG, s3WrongNow);
+
+      // max/max_day は「更新が起きたときだけ」送っているので、その時だけ last を更新する
+      if (maxChanged && streakMaxOpt.ok)       saveInt(KEY_LAST_STREAK_MAX, streakMaxOpt.value);
+      if (maxChanged && streakMaxDayOpt.ok)    saveInt(KEY_LAST_STREAK_MAX_DAY, streakMaxDayOpt.value);
+      if (wrongMaxChanged && streakWrongMaxOpt.ok)    saveInt(KEY_LAST_STREAK_WRONG_MAX, streakWrongMaxOpt.value);
+      if (wrongMaxChanged && streakWrongMaxDayOpt.ok) saveInt(KEY_LAST_STREAK_WRONG_MAX_DAY, streakWrongMaxDayOpt.value);
+
+      console.log("[SYNC/B] ★送信成功（merge OK）", {
+        qid: info.qid
+      });
+    }catch(e){
+      console.warn("[SYNC/B] ★送信失敗（merge failed）", e);
+    }
+  }
+
+  // b_judge_record.js の集計が終わったタイミングに近づけるため、
+  // DOM 完成後に 1 tick 遅らせて実行
+  function schedule(){
+    if (document.readyState === "loading") {
+      window.addEventListener("DOMContentLoaded", function(){
+        setTimeout(syncFromTotals, 0);
+      });
+    } else {
+      setTimeout(syncFromTotals, 0);
+    }
+  }
+
+  function showStreakStatus(){
+    const localTotalCorrect  = loadInt(KEY_S3);
+    const syncedTotalCorrect = loadInt(KEY_LAST_S3);
+    const localTotalWrong    = loadInt(KEY_S3_WRONG);
+    const syncedTotalWrong   = loadInt(KEY_LAST_S3_WRONG);
+
+    console.log("== Bパート: 3連続正解 / 3連続不正解 SYNC ステータス ==");
+    console.log("qid:", info.qid);
+
+    // 3連続正解側のステータス
+    console.log("--- 3連続正解(⭐️) ---");
+    console.log("localStorage[KEY_S3] =", localStorage.getItem(KEY_S3), "→", localTotalCorrect);
+    console.log("localStorage[KEY_LAST_S3] =", localStorage.getItem(KEY_LAST_S3), "→", syncedTotalCorrect);
+
+    if (localTotalCorrect === 0 && syncedTotalCorrect === 0) {
+      console.log("ℹ まだこの問題では 3回連続正解が発生していません。");
+    } else if (localTotalCorrect === syncedTotalCorrect) {
+      console.log("✅ 3連続正解回数: SYNC " + String(syncedTotalCorrect) + " 回 / local " + String(localTotalCorrect) + " 回（完全一致）です。");
+    } else if (syncedTotalCorrect < localTotalCorrect) {
+      console.warn(
+        "⚠ 同期待ちの 3連続正解があります。",
+        "SYNC 側 =", syncedTotalCorrect, "/ local 側 =", localTotalCorrect,
+        "（次回の Bパート遷移時に追加送信される可能性があります。）"
+      );
+    } else {
+      console.error(
+        "✕ 異常: SYNC 側の 3連続正解回数の方が大きくなっています (SYNC > local)。",
+        "SYNC 側 =", syncedTotalCorrect, "/ local 側 =", localTotalCorrect,
+        "一度リセットしてから再テストした方が良いかもしれません。"
+      );
+    }
+
+    // 3連続不正解側のステータス（💣）
+    console.log("--- 3連続不正解(💣) ---");
+    console.log("localStorage[KEY_S3_WRONG] =", localStorage.getItem(KEY_S3_WRONG), "→", localTotalWrong);
+    console.log("localStorage[KEY_LAST_S3_WRONG] =", localStorage.getItem(KEY_LAST_S3_WRONG), "→", syncedTotalWrong);
+
+    if (localTotalWrong === 0 && syncedTotalWrong === 0) {
+      console.log("ℹ まだこの問題では 3回連続不正解が発生していません。");
+    } else if (localTotalWrong === syncedTotalWrong) {
+      console.log("✅ 3連続不正解回数: SYNC " + String(syncedTotalWrong) + " 回 / local " + String(localTotalWrong) + " 回（完全一致）です。");
+    } else if (syncedTotalWrong < localTotalWrong) {
+      console.warn(
+        "⚠ 同期待ちの 3連続不正解があります。",
+        "SYNC 側 =", syncedTotalWrong, "/ local 側 =", localTotalWrong,
+        "（次回の Bパート遷移時に追加送信される可能性があります。）"
+      );
+    } else {
+      console.error(
+        "✕ 異常: SYNC 側の 3連続不正解回数の方が大きくなっています (SYNC > local)。",
+        "SYNC 側 =", syncedTotalWrong, "/ local 側 =", localTotalWrong,
+        "一度リセットしてから再テストした方が良いかもしれません。"
+      );
+    }
+
+    console.log("== Bパート: 3連続正解 / 3連続不正解 SYNC ステータス終了 ==");
+  }
+
+  schedule();
+  showStreakStatus();
+})();
+
+【分割コード貼り付け開始】
+以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。
+
+```javascript
+// assets/cscs_sync_view_b.js
+(function () {
+  "use strict";
+
+  // ============================================================
+  // SYNC endpoints（B view 用）
+  //
+  // 【重要・恒久ルール】
+  // - SYNC_STATE_ENDPOINT は「表示・参照専用」。
+  // - X-CSCS-Key の取得・再確定には一切使用しない。
+  // - key の唯一の確定ルートは cscs_sync_bootstrap_a.js。
+  // ============================================================
+  var SYNC_STATE_ENDPOINT = "/api/sync/state";
+  var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
+
+  /**
+   * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
+   * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
+   *
+   * 【重要：開発ルール（恒久）】
+   *   📌 このファイルで使用する LocalStorage / SYNC キー名に
+   *       「変更」または「新規追加」が発生した場合は、
+   *       必ず **本キー対応表コメントに追記すること**。
+   *   - b_judge_record.js・SYNC Worker（merge/state.ts）側と
+   *     キー仕様の不整合が生じることを防ぐ目的。
+   *   - ここに書かれていないキーは原則として使用禁止。
+   *
+   * ▼ 問題別累計
+   *   - localStorage: "cscs_q_correct_total:" + qid
+   *       ⇔ SYNC state: state.correct[qid]
+   *   - localStorage: "cscs_q_wrong_total:" + qid
+   *       ⇔ SYNC state: state.incorrect[qid]
+   *
+   * ▼ 問題別 3 連続正解（⭐️用）
+   *   - localStorage: "cscs_q_correct_streak3_total:" + qid
+   *       ⇔ SYNC state: state.streak3[qid]
+   *   - localStorage: "cscs_q_correct_streak_len:" + qid
+   *       ⇔ SYNC state: state.streakLen[qid]
+   *   - payload(merge): streak3Delta[qid] / streakLenDelta[qid]
+   *
+   * ▼ 問題別 3 連続不正解
+   *   - localStorage: "cscs_q_wrong_streak3_total:" + qid
+   *       ⇔ SYNC state: state.streak3Wrong[qid]
+   *   - localStorage: "cscs_q_wrong_streak_len:" + qid
+   *       ⇔ SYNC state: state.streakWrongLen[qid]
+   *   - payload(merge): streak3WrongDelta[qid] / streakWrongLenDelta[qid]
+   *
+   * ▼ 問題別 連続不正解（ローカル計測：b_judge_record.js）
+   *   - localStorage: "cscs_q_wrong_streak_max:" + qid
+   *       （最高連続不正解数）
+   *   - localStorage: "cscs_q_wrong_streak_max_day:" + qid
+   *       （その達成日 JST YYYYMMDD）
+   *
+   * ▼ 今日の⭐️ユニーク数（Streak3Today）
+   *   - localStorage: "cscs_streak3_today_day"（string: "YYYYMMDD"）
+   *       ⇔ SYNC state: state.streak3Today.day（string: "YYYYMMDD"）
+   *   - localStorage: "cscs_streak3_today_qids"
+   *       ⇔ SYNC state: state.streak3Today.qids
+   *   - localStorage: "cscs_streak3_today_unique_count"
+   *       ⇔ SYNC state: state.streak3Today.unique_count
+   *   - payload(merge): streak3TodayDelta { day, qids }（day: string "YYYYMMDD"）
+   *
+   * ▼ 今日の3連続不正解ユニーク数（Streak3WrongToday）
+   *   - localStorage: "cscs_streak3_wrong_today_day"（string: "YYYYMMDD"）
+   *       ⇔ SYNC state: state.streak3WrongToday.day（string: "YYYYMMDD"）
+   *   - localStorage: "cscs_streak3_wrong_today_qids"
+   *       ⇔ SYNC state: state.streak3WrongToday.qids
+   *   - localStorage: "cscs_streak3_wrong_today_unique_count"
+   *       ⇔ SYNC state: state.streak3WrongToday.unique_count
+   *   - payload(merge): streak3WrongTodayDelta { day, qids }（day: string "YYYYMMDD"）
+   *
+   * ▼ 1 日 1 回計測モード（oncePerDayToday）
+   *   - localStorage: "cscs_once_per_day_today_day"
+   *       ⇔ SYNC state: state.oncePerDayToday.day（number: YYYYMMDD）
+   *   - localStorage: "cscs_once_per_day_today_results"
+   *       ⇔ SYNC state: state.oncePerDayToday.results[qid]
+   *   - payload(merge): oncePerDayTodayDelta { day, results }（day: number YYYYMMDD）
+   *
+   * ▼ 問題別 最終日情報（lastSeen / lastCorrect / lastWrong）
+   *   - localStorage: "cscs_q_last_seen_day:" + qid
+   *       ⇔ SYNC state: state.lastSeenDay[qid]
+   *   - localStorage: "cscs_q_last_correct_day:" + qid
+   *       ⇔ SYNC state: state.lastCorrectDay[qid]
+   *   - localStorage: "cscs_q_last_wrong_day:" + qid
+   *       ⇔ SYNC state: state.lastWrongDay[qid]
+   *   - payload(merge): lastSeenDayDelta[qid] / lastCorrectDayDelta[qid] / lastWrongDayDelta[qid]
+   *
+   * ▼ グローバル情報
+   *   - localStorage: "cscs_total_questions"
+   *       ⇔ SYNC state: state.global.totalQuestions
+   *       ⇔ payload(merge): global.totalQuestions
+   *
+   * ▼ O.D.O.A / 検証モード関連
+   *   - SYNC state: state.odoa_mode ("on" / "off")
+   *   - runtime: window.CSCS_VERIFY_MODE ("on" / "off")
+   *
+   * ▼ HUD(Bビュー) 表示状態
+   *   - localStorage: "cscs_sync_view_b_pending_collapsed"
+   *       → "1" のとき Pending (unsent) を折りたたみ表示にする
+   *   - localStorage: "cscs_sync_view_b_correct_streak_collapsed"
+   *       → "1" のとき Correct Streak を折りたたみ表示にする
+   *   - localStorage: "cscs_sync_view_b_once_odoa_collapsed"
+   *       → "1" のとき OncePerDayToday / O.D.O.A Mode を折りたたみ表示にする（見出し＋1行目のみ）
+   */
+
+  // ★ 何をしているか:
+  //   OncePerDayToday / O.D.O.A Mode の表示は「body 専用」に一本化するため、
+  //   status(#cscs_sync_view_b_status) 用の表示状態保持は廃止する。
+
+  // ★ このファイル内で管理する CSS（ここにどんどん追記していく）
+  //   - #cscs_sync_view_b が現行のパネルID
+  //   - 将来 #cscs_sync_monitor_b に変えても同じCSSが効くよう、両方を対象にしている
+  var CSCS_SYNC_VIEW_B_CSS = [
+    "/* cscs_sync_view_b.js injected CSS */",
+    "#cscs_sync_view_b,",
+    "#cscs_sync_monitor_b {",
+    "  position: fixed;",
+    "  right: 10px;",
+    "  top: 110px;",
+    "  color: #eee;",
+    "  padding: 8px;",
+    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  max-width: 46vw;",
+    "  width: 310px;",
+    "  opacity: 0.55;",
+    "  z-index: 2147483647;",
+    "}",
+    "",
+    "/* --- card layout for status body --- */",
+    "#cscs_sync_view_b_title {",
+    "  text-align: right;",
+    "  margin-right: 7px;",
+    "  opacity: 0.60;",
+    "  font-size: 10px;",
+    "  font-weight: 400;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr;",
+    "  gap: 1px;",
+    "  margin-top: 6px;",
+    "  padding-top: 0px;",
+    "  border-top: none;",
+    "}",
+    "",
+    "/* --- 3連続（正解/不正解）4枚を 2列×2段で固定配置 --- */",
+    "#cscs_sync_view_b_body .svb-streak-quad {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr 1fr;",
+    "  gap: 1px 1px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-streak-quad .svb-streak-card {",
+    "  width: 100%;",
+    "  box-sizing: border-box;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card {",
+    "    background: rgba(0,0,0,0.52);",
+    "    border: 1px solid rgba(255,255,255,0.14);",
+    "    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);",
+    "    border-radius: 10px;",
+    "    padding: 10px 10px;",
+    "    width: 100%;",
+    "    box-sizing: border-box;",
+    "    line-height: 1;",
+    "}",
+    "",
+    "/* --- Counts card only: tighter padding --- */",
+    "#cscs_sync_view_b_body .cscs-svb-card.svb-counts {",
+    "  padding: 5px 10px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card.is-wide {",
+    "  grid-column: 1 / -1;",
+    "  font-weight: 350;",
+    "}",
+    "",
+    "/* --- wide card: 左右カラム幅を同一に固定（key/value を等幅） --- */",
+    "#cscs_sync_view_b_body .cscs-svb-card.is-wide .cscs-svb-card-grid {",
+    "  grid-template-columns: minmax(0, 1fr) auto;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card-title {",
+    "  font-weight: 500;",
+    "  opacity: 0.90;",
+    "  margin-bottom: 5px;",
+    "  letter-spacing: 0.2px;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-title-suffix {",
+    "  font-size: 9px;",
+    "  font-weight: 600;",
+    "  opacity: 0.55;",
+    "  margin-left: 6px;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-card-grid {",
+    "  display: grid;",
+    "  grid-template-columns: minmax(0, 1fr) auto;",
+    "  column-gap: 0px;",
+    "  row-gap: 3px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "/* --- Pending card only: 縦積み（key→value→...） --- */",
+    "#cscs_sync_view_b_body .svb-pending-grid {",
+    "  display: grid;",
+    "  grid-template-columns: 1fr;",
+    "  row-gap: 4px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-k {",
+    "  opacity: 0.85;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-grid .cscs-svb-v {",
+    "  text-align: left;",
+    "  white-space: pre-line;",
+    "}",
+    "",
+    "/* --- Pending fold (collapsible) --- */",
+    "#cscs_sync_view_b_body .svb-pending-head {",
+    "  display: flex;",
+    "  align-items: baseline;",
+    "  justify-content: space-between;",
+    "  gap: 10px;",
+    "  height: 13px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-toggle {",
+    "  appearance: none;",
+    "  -webkit-appearance: none;",
+    "  border: none;",
+    "  background: transparent;",
+    "  color: inherit;",
+    "  padding: 0;",
+    "  margin: 0;",
+    "  font: inherit;",
+    "  cursor: pointer;",
+    "  opacity: 0.80;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-toggle:hover {",
+    "  opacity: 0.95;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-toggle .svb-pending-chev {",
+    "  display: inline-block;",
+    "  width: 1.2em;",
+    "  text-align: center;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-pending-card.is-collapsed .svb-pending-grid {",
+    "  display: none;",
+    "}",
+    "",
+    "/* --- Correct Streak fold (collapsible) --- */",
+    "#cscs_sync_view_b_body .svb-correct-streak-head {",
+    "  display: flex;",
+    "  align-items: baseline;",
+    "  justify-content: space-between;",
+    "  gap: 10px;",
+    "  height: 13px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-correct-streak-toggle {",
+    "  appearance: none;",
+    "  -webkit-appearance: none;",
+    "  border: none;",
+    "  background: transparent;",
+    "  color: inherit;",
+    "  padding: 0;",
+    "  margin: 0;",
+    "  font: inherit;",
+    "  cursor: pointer;",
+    "  opacity: 0.80;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-correct-streak-toggle:hover {",
+    "  opacity: 0.95;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-correct-streak-toggle .svb-correct-streak-chev {",
+    "  display: inline-block;",
+    "  width: 1.2em;",
+    "  text-align: center;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-correct-streak-card.is-collapsed .cscs-svb-card-grid {",
+    "  display: none;",
+    "}",
+    "",
+    "/* --- OncePerDayToday / O.D.O.A fold (collapsible) --- */",
+    "#cscs_sync_view_b_body .svb-once-odoa-head {",
+    "  display: flex;",
+    "  align-items: baseline;",
+    "  justify-content: space-between;",
+    "  gap: 10px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-once-odoa-toggle {",
+    "  appearance: none;",
+    "  -webkit-appearance: none;",
+    "  border: none;",
+    "  background: transparent;",
+    "  color: inherit;",
+    "  padding: 0;",
+    "  margin: 0;",
+    "  font: inherit;",
+    "  cursor: pointer;",
+    "  opacity: 0.80;",
+    "  white-space: nowrap;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-once-odoa-toggle:hover {",
+    "  opacity: 0.95;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-once-odoa-toggle .svb-once-odoa-chev {",
+    "  display: inline-block;",
+    "  width: 1.2em;",
+    "  text-align: center;",
+    "}",
+    "",
+    "/* 折りたたみ時：1行目（最初の2セル）だけ残す */",
+    "#cscs_sync_view_b_body .svb-once-odoa-card.is-collapsed .svb-wide-dual-grid > :nth-child(n+3) {",
+    "  display: none;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-k {",
+    "  opacity: 0.85;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-v {",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "  min-width: 0;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .cscs-svb-muted {",
+    "  opacity: 0.70;",
+    "}",
+    "",
+    "/* --- Counts: 1行（Counts + SYNC/local/diff を横一列） --- */",
+    "#cscs_sync_view_b_body .svb-counts-inline {",
+    "  display: flex;",
+    "  align-items: baseline;",
+    "  gap: 10px;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-head {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
+    "  min-width: 0;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-head {",
+    "  font-weight: 800;",
+    "  opacity: 0.90;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part {",
+    "  display: inline-flex;",
+    "  align-items: baseline;",
+    "  justify-content: center;",
+    "  gap: 6px;",
+    "  flex: 1 1 0;",
+    "  min-width: 0;",
+    "  text-align: center;",
+    "  box-shadow: none;",
+    "  background: transparent;",
+    "  border: none;",
+    "  padding: 0;",
+    "  overflow: hidden;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-part.is-muted {",
+    "  opacity: 0.78;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-k {",
+    "  opacity: 0.85;",
+    "  white-space: nowrap;",
+    "  min-width: 0;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-counts-inline .svb-counts-v {",
+    "  text-align: left;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "  min-width: 0;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "/* --- Wide card: dual-column text rows (OncePerDayToday / O.D.O.A) --- */",
+    "#cscs_sync_view_b_body .svb-wide-dual-grid {",
+    "  display: grid;",
+    "  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);",
+    "  column-gap: 10px;",
+    "  row-gap: 3px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-wide-dual-cell {",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-wide-dual-cell.is-right {",
+    "  text-align: right;",
+    "  font-variant-numeric: tabular-nums;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-wide-dual-strong {",
+    "  opacity: 0.70;",
+    "  font-weight: 500;",
+    "}",
+    "",
+    "/* --- Wide card: single full-width row (ODOA line) --- */",
+    "#cscs_sync_view_b_body .svb-wide-single {",
+    "  grid-column: 1 / -1;",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "/* --- LastDay: 3 columns (label / SYNC / local) --- */",
+    "#cscs_sync_view_b_body {",
+    "  /* 何をしているか: LastDayの列幅ルールをCSS変数として1箇所に集約し、見出し/本文のズレ要因を排除する */",
+    "  --svb-lastday-col-1: minmax(0, 1fr);",
+    "  --svb-lastday-col-2: minmax(0, 14ch);",
+    "  --svb-lastday-col-3: minmax(0, 14ch);",
+    "  /* 何をしているか: 見出し/本文で同一の列間ギャップを“共有”し、微妙なズレを防ぐ */",
+    "  --svb-lastday-col-gap: 10px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-head {",
+    "  display: grid;",
+    "  /* 何をしているか: 見出し/本文で同一の列定義(変数)を使い、列幅を完全一致させる */",
+    "  grid-template-columns: var(--svb-lastday-col-1) var(--svb-lastday-col-2) var(--svb-lastday-col-3);",
+    "  /* 何をしているか: グリッドがカード幅いっぱいに伸びるように明示し、左端起点を揃える */",
+    "  width: 100%;",
+    "  box-sizing: border-box;",
+    "  /* 何をしているか: 3列ブロック内の“開始位置”を固定する（縮小時のズレ抑制） */",
+    "  justify-items: stretch;",
+    "  column-gap: var(--svb-lastday-col-gap);",
+    "  row-gap: 3px;",
+    "  align-items: baseline;",
+    "  opacity: 0.90;",
+    "  font-weight: 500;",
+    "  margin-bottom: 5px;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-k {",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-v {",
+    "  /* 何をしているか: 見出し側も本文側と同様に縮小耐性(min-width:0)を持たせ、列幅計算の差を消す */",
+    "  min-width: 0;",
+    "  text-align: right;",
+    "  justify-self: end;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "/* --- LastDay: 見出しの真ん中列（SYNC列）だけ“センター寄り”に固定 --- */",
+    "#cscs_sync_view_b_body .svb-lastday-head .svb-lastday-v.svb-lastday-mid {",
+    "  text-align: center;",
+    "  justify-self: center;",
+    "}",
+    "",
+    "/* --- LastDay: 真ん中列（SYNC）だけ中央揃え（nth-child依存をやめてclass指定にする） --- */",
+    "/* 何をしているか: LastDayの真ん中列に付与する .svb-lastday-mid を中央寄せに固定する */",
+    "#cscs_sync_view_b_body .svb-lastday-mid {",
+    "  text-align: center;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-grid {",
+    "  display: grid;",
+    "  /* 何をしているか: 見出しと同一の列定義(変数)を使い、本文の3列ブロック位置を完全一致させる */",
+    "  grid-template-columns: var(--svb-lastday-col-1) var(--svb-lastday-col-2) var(--svb-lastday-col-3);",
+    "  /* 何をしているか: 本文側もカード幅いっぱいに伸ばし、列幅計算の起点を一致させる */",
+    "  width: 100%;",
+    "  box-sizing: border-box;",
+    "  /* 何をしているか: 見出しと同一の“列間ギャップ(変数)”を使い、横位置を揃える */",
+    "  column-gap: var(--svb-lastday-col-gap);",
+    "  row-gap: 3px;",
+    "  opacity: 0.60;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-k {",
+    "  opacity: 0.85;",
+    "  min-width: 0;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "}",
+    "",
+    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-v {",
+    "  text-align: right;",
+    "  justify-self: end;",
+    "  font-variant-numeric: tabular-nums;",
+    "  white-space: nowrap;",
+    "  overflow: hidden;",
+    "  text-overflow: ellipsis;",
+    "  min-width: 0;",
+    "}",
+    "",
+    "/* --- LastDay: 本文の真ん中列（SYNC列）だけ“センター寄り”に固定 --- */",
+    "#cscs_sync_view_b_body .svb-lastday-grid .svb-lastday-v.svb-lastday-mid {",
+    "  text-align: center;",
+    "  justify-self: center;",
+    "}",
+    "",
+    "/* --- O.D.O.A status line: 表示しない（DOMは残す） --- */",
+    "#cscs_sync_view_b_status {",
+    "  display: none !important;",
+    "}",
+    "/* --- SYNC send button (manual) --- */",
+    "#cscs_sync_view_b_send_btn {",
+    "  margin-top: 6px;",
+    "  width: 100%;",
+    "  padding: 8px 10px;",
+    "  border-radius: 10px;",
+    "  border: 1px solid rgba(255,255,255,0.14);",
+    "  background: rgba(0,0,0,0.52);",
+    "  color: #eee;",
+    "  font: 11px/1.2 system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;",
+    "  opacity: 0.85;",
+    "  cursor: pointer;",
+    "}",
+    "",
+    "#cscs_sync_view_b_send_btn:hover {",
+    "  opacity: 0.98;",
+    "}",
+    "",
+    "#cscs_sync_view_b_send_btn:active {",
+    "  transform: translateY(1px);",
+    "}",
+    ""
+  ].join("\n");
+
+  // ★ styleタグを1回だけ注入（同じidがあれば中身を更新して上書き）
+  function upsertStyleTag(styleId, cssText) {
+    try {
+      var head = document.head || document.getElementsByTagName("head")[0] || null;
+      if (!head) {
+        return;
+      }
+
+      var el = document.getElementById(styleId);
+      if (!el) {
+        el = document.createElement("style");
+        el.id = styleId;
+        el.type = "text/css";
+        head.appendChild(el);
+      }
+
+      if (el.textContent !== cssText) {
+        el.textContent = cssText;
+      }
+    } catch (e) {
+      console.error("[SYNC-B:view] upsertStyleTag failed:", e);
+    }
+  }
+
+  function ensureSyncViewBStyles() {
+    upsertStyleTag("cscs_sync_view_b_inline_css", CSCS_SYNC_VIEW_B_CSS);
+  }
+
+  function detectInfo() {
+    var path = window.location.pathname || "";
+    var m = path.match(/_build_cscs_(\d{8})\/slides\/q(\d{3})_b(?:\.html)?$/);
+    if (!m) return null;
+    var day = m[1];
+    var num3 = m[2];
+    var qid = day + "-" + num3;
+    return { day: day, num3: num3, qid: qid };
+  }
+
+  var info = detectInfo();
+  if (!info) {
+    return;
+  }
+
+  function readIntFromLocalStorage(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined) {
+        return 0;
+      }
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n < 0) {
+        return 0;
+      }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to read int from localStorage:", key, e);
+      return 0;
+    }
+  }
+
+  // ★ JST 日付(YYYYMMDD) を localStorage から安全に読み出すヘルパー
+  //   - 正規の "YYYYMMDD" でなければ null を返し、SYNC には載せない
+  function readDayFromLocalStorage(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined || raw === "") {
+        return null;
+      }
+      if (!/^\d{8}$/.test(raw)) {
+        return null;
+      }
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        return null;
+      }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to read day from localStorage:", key, e);
+      return null;
+    }
+  }
+
+  // ★ 総問題数 cscs_total_questions を安全に読み出す専用ヘルパー
+  //   - 正の整数として保存されていなければ null を返し、送信しない
+  function readTotalQuestionsFromLocalStorage() {
+    var key = "cscs_total_questions";
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (raw === null || raw === undefined) {
+        return null;
+      }
+      var n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        return null;
+      }
+      return n;
+    } catch (e) {
+      console.error("[SYNC-B:view] failed to read cscs_total_questions:", e);
+      return null;
+    }
+  }
+
+  // ★ oncePerDay ローカル状態を読み出す
+  //   - day: number | null（YYYYMMDD）
+  //   - results: { qid: "correct" | "wrong" }
+  function readOncePerDayTodayFromLocal() {
+    var dayStr = null;
+    try {
+      dayStr = window.localStorage.getItem("cscs_once_per_day_today_day");
+    } catch (_e) {
+      dayStr = null;
+    }
+
+    var results = {};
+    try {
+      var raw = window.localStorage.getItem("cscs_once_per_day_today_results") || "{}";
+      results = JSON.parse(raw);
+    } catch (_e2) {
+      results = {};
+    }
+    if (!results || typeof results !== "object") {
+      results = {};
+    }
+
+    var dayNum = null;
+    if (dayStr && /^\d{8}$/.test(dayStr)) {
+      var n = parseInt(dayStr, 10);
+      if (Number.isFinite(n)) {
+        dayNum = n;
+      }
+    }
+
+    return {
+      day: dayNum,
+      results: results
+    };
+  }
+  
+    // ★ HUD用：送信待機（SYNC未反映っぽいもの）を判定して返す
+  //   - ローカルと SYNC(state) を比較して「未反映の可能性」を拾う
+  //   - フォールバックで別ソースを見ない（localStorage と window.__cscs_sync_state のみ）
+  function computePendingFlags(syncState, qid) {
+    var flags = {
+      pendingDiffCounts: false,
+      pendingOncePerDayToday: false,
+      pendingLastSeenDay: false,
+      pendingLastCorrectDay: false,
+      pendingLastWrongDay: false,
+      pendingStreak3Today: false,
+      pendingStreak3WrongToday: false,
+      details: []
+    };
+
+    try {
+      // ---- oncePerDayToday（このqidがSYNCに入ってるか）----
+      try {
+        var localOnce = readOncePerDayTodayFromLocal();
+        if (localOnce && typeof localOnce.day === "number" && localOnce.results && typeof localOnce.results === "object") {
+          var localOnceVal = localOnce.results[qid];
+          if (localOnceVal === "correct" || localOnceVal === "wrong") {
+            var serverOnceVal = null;
+            if (syncState &&
+                syncState.oncePerDayToday &&
+                typeof syncState.oncePerDayToday === "object" &&
+                typeof syncState.oncePerDayToday.day === "number" &&
+                syncState.oncePerDayToday.results &&
+                typeof syncState.oncePerDayToday.results === "object") {
+              if (syncState.oncePerDayToday.day === localOnce.day) {
+                if (Object.prototype.hasOwnProperty.call(syncState.oncePerDayToday.results, qid)) {
+                  serverOnceVal = syncState.oncePerDayToday.results[qid];
+                }
+              }
+            }
+            if (serverOnceVal !== localOnceVal) {
+              flags.pendingOncePerDayToday = true;
+              flags.details.push("oncePerDayToday");
+            }
+          }
+        }
+      } catch (_eOnce) {}
+
+      // ---- lastDay（localに値があり、SYNCと違う）----
+      try {
+        var locSeen = readDayFromLocalStorage("cscs_q_last_seen_day:" + qid);
+        var locCor  = readDayFromLocalStorage("cscs_q_last_correct_day:" + qid);
+        var locWro  = readDayFromLocalStorage("cscs_q_last_wrong_day:" + qid);
+
+        var srvSeen = null;
+        var srvCor  = null;
+        var srvWro  = null;
+
+        if (syncState) {
+          if (syncState.lastSeenDay && typeof syncState.lastSeenDay === "object" && syncState.lastSeenDay[qid] != null) {
+            if (typeof syncState.lastSeenDay[qid] === "number" && Number.isFinite(syncState.lastSeenDay[qid]) && syncState.lastSeenDay[qid] > 0) {
+              srvSeen = syncState.lastSeenDay[qid];
+            }
+          }
+          if (syncState.lastCorrectDay && typeof syncState.lastCorrectDay === "object" && syncState.lastCorrectDay[qid] != null) {
+            if (typeof syncState.lastCorrectDay[qid] === "number" && Number.isFinite(syncState.lastCorrectDay[qid]) && syncState.lastCorrectDay[qid] > 0) {
+              srvCor = syncState.lastCorrectDay[qid];
+            }
+          }
+          if (syncState.lastWrongDay && typeof syncState.lastWrongDay === "object" && syncState.lastWrongDay[qid] != null) {
+            if (typeof syncState.lastWrongDay[qid] === "number" && Number.isFinite(syncState.lastWrongDay[qid]) && syncState.lastWrongDay[qid] > 0) {
+              srvWro = syncState.lastWrongDay[qid];
+            }
+          }
+        }
+
+        if (locSeen !== null && locSeen !== srvSeen) {
+          flags.pendingLastSeenDay = true;
+          flags.details.push("lastSeenDay");
+        }
+        if (locCor !== null && locCor !== srvCor) {
+          flags.pendingLastCorrectDay = true;
+          flags.details.push("lastCorrectDay");
+        }
+        if (locWro !== null && locWro !== srvWro) {
+          flags.pendingLastWrongDay = true;
+          flags.details.push("lastWrongDay");
+        }
+      } catch (_eLast) {}
+
+      // ---- streak3Today（local qidsがあるのにSYNC側に反映されてなさそう）----
+      try {
+        var localDay = "";
+        var localQids = [];
+        try {
+          localDay = localStorage.getItem("cscs_streak3_today_day") || "";
+          var raw = localStorage.getItem("cscs_streak3_today_qids");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              localQids = parsed.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+        } catch (_eS3t) {
+          localDay = "";
+          localQids = [];
+        }
+
+        if (localDay && localQids.length > 0) {
+          var syncDay = "";
+          var syncQids = [];
+          if (syncState && syncState.streak3Today && typeof syncState.streak3Today === "object") {
+            if (typeof syncState.streak3Today.day === "number" && Number.isFinite(syncState.streak3Today.day)) {
+              syncDay = String(syncState.streak3Today.day);
+            }
+            if (Array.isArray(syncState.streak3Today.qids)) {
+              syncQids = syncState.streak3Today.qids.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+
+          var missing = false;
+          if (syncDay !== localDay) {
+            missing = true;
+          } else {
+            var set = Object.create(null);
+            for (var i = 0; i < syncQids.length; i++) {
+              set[syncQids[i]] = 1;
+            }
+            for (var j = 0; j < localQids.length; j++) {
+              if (!set[localQids[j]]) {
+                missing = true;
+                break;
+              }
+            }
+          }
+
+          if (missing) {
+            flags.pendingStreak3Today = true;
+            flags.details.push("streak3Today");
+          }
+        }
+      } catch (_eS3t2) {}
+
+      // ---- streak3WrongToday（local qidsがあるのにSYNC側に反映されてなさそう）----
+      try {
+        var localDayW = "";
+        var localQidsW = [];
+        try {
+          localDayW = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
+          var rawW = localStorage.getItem("cscs_streak3_wrong_today_qids");
+          if (rawW) {
+            var parsedW = JSON.parse(rawW);
+            if (Array.isArray(parsedW)) {
+              localQidsW = parsedW.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+        } catch (_eS3w) {
+          localDayW = "";
+          localQidsW = [];
+        }
+
+        if (localDayW && localQidsW.length > 0) {
+          var syncDayW = "";
+          var syncQidsW = [];
+          if (syncState && syncState.streak3WrongToday && typeof syncState.streak3WrongToday === "object") {
+            if (typeof syncState.streak3WrongToday.day === "number" && Number.isFinite(syncState.streak3WrongToday.day)) {
+              syncDayW = String(syncState.streak3WrongToday.day);
+            }
+            if (Array.isArray(syncState.streak3WrongToday.qids)) {
+              syncQidsW = syncState.streak3WrongToday.qids.filter(function (x) { return typeof x === "string" && x; });
+            }
+          }
+
+          var missingW = false;
+          if (syncDayW !== localDayW) {
+            missingW = true;
+          } else {
+            var setW = Object.create(null);
+            for (var k = 0; k < syncQidsW.length; k++) {
+              setW[syncQidsW[k]] = 1;
+            }
+            for (var t = 0; t < localQidsW.length; t++) {
+              if (!setW[localQidsW[t]]) {
+                missingW = true;
+                break;
+              }
+            }
+          }
+
+          if (missingW) {
+            flags.pendingStreak3WrongToday = true;
+            flags.details.push("streak3WrongToday");
+          }
+        }
+      } catch (_eS3w2) {}
+
+    } catch (_eAll) {}
+
+    return flags;
+  }
+
+  // ★ サーバ state.oncePerDayToday と比較して delta を作る
+  //   - 差分が無ければ null を返す
+  //   - 何かしら差分があれば { day, results } を返す
+  function buildOncePerDayTodayDelta(syncState) {
+    try {
+      var local = readOncePerDayTodayFromLocal();
+      if (!local.day) {
+        console.log("[SYNC-B:oncePerDay] local has no valid day → deltaなし", {
+          local: local
+        });
+        return null;
+      }
+
+      var server = null;
+      if (
+        syncState &&
+        syncState.oncePerDayToday &&
+        typeof syncState.oncePerDayToday === "object"
+      ) {
+        server = syncState.oncePerDayToday;
+      }
+
+      var deltaResults = {};
+      if (!server || typeof server.day !== "number" || server.day !== local.day) {
+        // サーバ側にデータが無い or 別日 → 当日ローカルを丸ごと送る
+        deltaResults = local.results;
+      } else {
+        // 同じ日付 → 値が違うものだけ送る
+        var serverResults = server.results || {};
+        for (var qid in local.results) {
+          if (!Object.prototype.hasOwnProperty.call(local.results, qid)) continue;
+          var localVal = local.results[qid];
+          var serverVal = serverResults[qid];
+          if (localVal !== serverVal) {
+            deltaResults[qid] = localVal;
+          }
+        }
+      }
+
+      var keys = Object.keys(deltaResults);
+      if (!keys.length) {
+        console.log("[SYNC-B:oncePerDay] server と local で差分なし → delta送信不要", {
+          day: local.day
+        });
+        return null;
+      }
+
+      var delta = {
+        day: local.day,
+        results: deltaResults
+      };
+
+      console.log("[SYNC-B:oncePerDay] buildOncePerDayTodayDelta", {
+        local: local,
+        server: server,
+        delta: delta
+      });
+
+      return delta;
+    } catch (e) {
+      console.error("[SYNC-B:oncePerDay] buildOncePerDayTodayDelta error:", e);
+      return null;
+    }
+  }
+
+  function clearSyncBody() {
+    var body = document.getElementById("cscs_sync_view_b_body");
+    if (!body) return null;
+
+    // ★ 何をしているか:
+    //   リロード時の再描画で body を全消しすると Once/ODOA の2枚（SYNC/local）が一瞬消える（ちらつく）ため、
+    //   ".svb-once-odoa-card"（先頭=SYNC想定）と ".svb-once-odoa-card-local" の2枚だけは DOM 上に残し、
+    //   それ以外の子要素のみ削除する。
+    var keepSync = null;
+    var keepLocal = null;
+    try {
+      var cards = body.querySelectorAll(".svb-once-odoa-card");
+      if (cards && cards.length > 0) {
+        keepSync = cards[0];
+      }
+      keepLocal = body.querySelector(".svb-once-odoa-card-local");
+    } catch (_eKeep) {
+      keepSync = null;
+      keepLocal = null;
+    }
+
+    var node = body.firstChild;
+    while (node) {
+      var next = node.nextSibling;
+
+      if (keepSync && node === keepSync) {
+        node = next;
+        continue;
+      }
+      if (keepLocal && node === keepLocal) {
+        node = next;
+        continue;
+      }
+
+      body.removeChild(node);
+      node = next;
+    }
+
+    return body;
+  }
+
+  function updateSyncBodyText(text) {
+    var body = clearSyncBody();
+    if (!body) return;
+
+    // エラー時など：カード1枚で表示（狭い/広い両方で崩れにくい）
+    var card = document.createElement("div");
+    card.className = "cscs-svb-card is-wide";
+
+    var title = document.createElement("div");
+    title.className = "cscs-svb-card-title";
+    title.textContent = "Status";
+
+    var grid = document.createElement("div");
+    grid.className = "cscs-svb-card-grid";
+
+    var k = document.createElement("div");
+    k.className = "cscs-svb-k cscs-svb-muted";
+    k.textContent = "message";
+
+    var v = document.createElement("div");
+    v.className = "cscs-svb-v";
+    v.textContent = String(text);
+
+    grid.appendChild(k);
+    grid.appendChild(v);
+
+    card.appendChild(title);
+    card.appendChild(grid);
+    body.appendChild(card);
+  }
+
+  function appendGridRow(gridEl, key, value, keyClass, valClass) {
+    var k = document.createElement("div");
+    k.className = "cscs-svb-k" + (keyClass ? " " + keyClass : "");
+    k.textContent = key;
+
+    var v = document.createElement("div");
+    v.className = "cscs-svb-v" + (valClass ? " " + valClass : "");
+    v.textContent = value;
+
+    gridEl.appendChild(k);
+    gridEl.appendChild(v);
+  }
+
+  function appendGridSection(body, title, options) {
+    options = options || {};
+    var wide = !!options.wide;
+
+    var card = document.createElement("div");
+    card.className = "cscs-svb-card" + (wide ? " is-wide" : "");
+
+    var h = document.createElement("div");
+    h.className = "cscs-svb-card-title";
+    h.textContent = title;
+
+    var grid = document.createElement("div");
+    grid.className = "cscs-svb-card-grid";
+
+    card.appendChild(h);
+    card.appendChild(grid);
+    body.appendChild(card);
+
+    return grid;
+  }
+
+
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 5
+RECEIVED_TOTAL: 1
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-06411020-P01-of-05
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【分割コード(1)の終了】→ 次は 分割コード(2) を送ります
+【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。
+ACK: <PartID> / WAITING_NEXT
