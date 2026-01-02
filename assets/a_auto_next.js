@@ -559,7 +559,7 @@
         "    display: block;\n" +
         "    pointer-events: auto;\n" +
         "    left: 71%;\n" +
-        "    opacity: 0.5;\n" +
+        "    opacity: 0.4;\n" +
         "    border-radius: 10px;\n" +
         "}\n";
       (document.head || document.documentElement).appendChild(style);
