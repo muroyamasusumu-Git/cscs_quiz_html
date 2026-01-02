@@ -546,7 +546,7 @@
       style.textContent =
         "#cscs-auto-next-recent-panel {\n" +
         "    position: fixed;\n" +
-        "    right: 10px;\n" +
+        "    right: 12px;\n" +
         "    height: 100px;\n" +
         "    bottom: 54px;\n" +
         "    z-index: 10001;\n" +
