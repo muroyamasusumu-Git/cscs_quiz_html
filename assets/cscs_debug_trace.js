@@ -590,8 +590,59 @@
     statusEl: null,
     btnStart: null,
     btnStop: null,
-    btnReset: null
+    btnReset: null,
+    openBtn: null
   };
+
+  // 追加した処理:
+  // - #cscs-trace-ui の表示/非表示を切り替える（temp_hide.js の「開閉」相当）
+  // - 表示状態は「このJS内部の変数」で管理し、余計な永続キーは増やさない
+  var __traceUiVisible = true;
+
+  function setTraceUiVisible(isVisible) {
+    // 追加した処理:
+    // - 既に mount 済みなら display を切り替えるだけ
+    // - mount 前に呼ばれても落とさない（参照できる範囲で反映）
+    __traceUiVisible = !!isVisible;
+
+    if (ui.root) {
+      ui.root.style.display = __traceUiVisible ? "block" : "none";
+    }
+
+    if (ui.openBtn) {
+      ui.openBtn.textContent = "LOG";
+    }
+  }
+
+  function toggleTraceUiVisible() {
+    // 追加した処理:
+    // - trace UI がまだ無ければ先に mount してから表示切替を反映する
+    // - ここでは「探して補完」などはせず、同一要素（#cscs-trace-ui）のみを対象にする
+    if (!ui.root) {
+      try { mountTraceUi(); } catch (_eMount) {}
+    }
+    setTraceUiVisible(!__traceUiVisible);
+  }
+
+  function buildLogOpenButtonOnce() {
+    // 追加した処理:
+    // - LOGボタン（#cscs-log-openbtn）を1回だけ生成
+    // - クリックで trace UI を表示/非表示トグル
+    if (!document || !document.body) return;
+    if (document.getElementById("cscs-log-openbtn")) return;
+
+    var btn = document.createElement("button");
+    btn.id = "cscs-log-openbtn";
+    btn.type = "button";
+    btn.textContent = "LOG";
+
+    btn.addEventListener("click", function () {
+      toggleTraceUiVisible();
+    });
+
+    document.body.appendChild(btn);
+    ui.openBtn = btn;
+  }
 
   function formatBytes(n) {
     if (!n || n <= 0) return "0B";
@@ -762,6 +813,27 @@
 }
 
 /* ============================================================================
+ * LOGボタン（#cscs-log-openbtn）
+ * - 右下固定で、temp_hide.js の HIDE ボタンの左隣に配置する
+ * - クリックで #cscs-trace-ui の表示/非表示を切り替える
+ * ========================================================================== */
+#cscs-log-openbtn {
+    position: fixed !important;
+    right: 220px;
+    bottom: 10px;
+    z-index: 999999 !important;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.55);
+    color: rgb(255, 255, 255);
+    height: 34px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ============================================================================
  * 追記用エリア（将来拡張）
  *
  * 例:
@@ -826,6 +898,12 @@
     pre.addEventListener("click", function () { onUiStatus(); });
 
     updateTraceUi();
+
+    // 追加した処理:
+    // - LOGボタンを生成（右下固定・HIDEの左隣）
+    // - 現在の表示状態（__traceUiVisible）を UI に反映
+    buildLogOpenButtonOnce();
+    setTraceUiVisible(__traceUiVisible);
   }
 
   if (document && document.readyState === "loading") {
