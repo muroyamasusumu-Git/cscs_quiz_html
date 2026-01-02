@@ -239,6 +239,15 @@
 
   // ===== 現在の連続正解数 / 連続不正解数 と oncePerDayToday ステータスを SYNC から取得 =====
   /**
+   * 【重要前提（参照元）】
+   *   - assets/cscs_sync_bootstrap_a.js :
+   *       /api/sync/state を叩く前に、必ず bootstrap 完了
+   *       （window.__CSCS_SYNC_KEY_PROMISE__ resolve 待ち）が必要。
+   *   - functions/api/sync/state.ts :
+   *       X-CSCS-Key ヘッダ必須。
+   *       認証ユーザーと一致しない key は 403。
+   *       推測・補完・フォールバックは行われない。
+   *
    * SYNC (/api/sync/state) から
    *  - streakLen[qid]       … 現在の連続正解数
    *  - streakWrongLen[qid]  … 現在の連続不正解数

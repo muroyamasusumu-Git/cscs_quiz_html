@@ -4,6 +4,15 @@
 //   - key を localStorage と window 共有 Promise に格納する
 //   - 後続が待てるように window.dispatchEvent(new Event("cscs:syncKeyReady")) を投げる
 //
+// 【重要事項（このファイルは “state を叩くための通行証発行所”）】
+//   - /api/sync/state を叩く前に、必ず「サーバー確定の sync key」を取って完了を待つこと。
+//   - 完了待ちの正規ルートは次のどちらか（同値）:
+//       1) window.__CSCS_SYNC_KEY_PROMISE__ が resolve した後
+//       2) "cscs:syncKeyReady" イベントが dispatch された後
+//   - 禁止事項:
+//       - localStorage の値だけで「確定扱い」して /api/sync/state を叩くこと
+//       - Promise を待たずに /api/sync/state を叩くこと
+//
 // 【最重要ルール（プロジェクト恒久・見落とし防止）】
 //   /api/sync/state を叩く処理を含む JS は、必ずこの bootstrap の「処理完了後」に起動すること。
 //   ここでいう「処理完了」は、次のいずれかを満たしたタイミングを指す（同値）:
