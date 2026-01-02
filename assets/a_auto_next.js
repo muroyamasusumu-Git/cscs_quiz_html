@@ -2798,6 +2798,17 @@
     // 左端に「↑前の問題へ」ボタンを作る（押下で一覧ウィンドウ開閉）
     createPrevQuestionToggleButton();
 
+    // ▼ 追加: 直近一覧パネルをデフォルトで開いた状態にする
+    try {
+      var p = getOrCreateRecentPanel();
+      if (p) {
+        recentPanelOpen = true;
+        renderRecentPanel();
+        p.style.display = "block";
+        p.style.pointerEvents = "auto";
+      }
+    } catch (_eOpen) {}
+
     // まず ODOA / oncePerDayToday を考慮した「次の URL」を計算
     NEXT_URL = await buildNextUrlConsideringOdoa();
     if (!NEXT_URL) {
