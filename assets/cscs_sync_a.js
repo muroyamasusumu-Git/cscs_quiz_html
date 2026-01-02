@@ -4113,24 +4113,23 @@
     border: none;
     background: transparent;
     padding: 0;
-    margin: 0;
-
+    margin: 0 0 0 5px;
     color: #fff;
     text-decoration: underline;
     text-underline-offset: 2px;
-
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 9px;
+    font-weight: 500;
     opacity: 0.86;
-
-    cursor: pointer;
+    cursor: pointer;    
 }
+
 /* 折りたたみ時：once-grid のうち「3行目（count対象）」だけ残す
    once-grid の子要素は 8個（label/val ×4行）
    3行目は 5番目(label) と 6番目(val) */
 #cscs_sync_monitor_a .sync-card.once-card.once-collapsed .once-grid > :not(:nth-child(5)):not(:nth-child(6)){
   display: none !important;
 }
+
 
 /* ============================================================
    ★ 右ブロック（値側）を右寄せに統一
