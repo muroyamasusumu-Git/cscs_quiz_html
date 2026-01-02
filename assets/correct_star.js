@@ -263,7 +263,39 @@
     }
 
     try {
-      var res = await fetch("/api/sync/state", { cache: "no-store" });
+      // ★ state.ts は X-CSCS-Key 必須。bootstrap が確定した key を厳密に拾う（取れなければ終了）
+      var syncKey = "";
+      try {
+        if (typeof window !== "undefined") {
+          if (typeof window.__cscs_sync_key === "string" && window.__cscs_sync_key.trim()) {
+            syncKey = window.__cscs_sync_key.trim();
+          } else if (typeof window.CSCS_SYNC_KEY === "string" && window.CSCS_SYNC_KEY.trim()) {
+            syncKey = window.CSCS_SYNC_KEY.trim();
+          } else if (typeof window.CSCS_SYNC_KEY_RAW === "string" && window.CSCS_SYNC_KEY_RAW.trim()) {
+            syncKey = window.CSCS_SYNC_KEY_RAW.trim();
+          }
+        }
+      } catch (_eKey) {
+        syncKey = "";
+      }
+
+      if (!syncKey) {
+        console.error("correct_star.js: sync key が取得できないため /api/sync/state を呼べません (X-CSCS-Key required)");
+        return {
+          streakLenCorrect: 0,
+          streakLenWrong: 0,
+          oncePerDayStatus: null
+        };
+      }
+
+      var res = await fetch("/api/sync/state", {
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          "X-CSCS-Key": syncKey
+        }
+      });
+
       if (!res.ok) {
         console.error("correct_star.js: /api/sync/state 取得失敗(streakLen / streakWrongLen / oncePerDayToday):", res.status);
         return {
