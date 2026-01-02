@@ -819,7 +819,7 @@
  * ========================================================================== */
 #cscs-log-openbtn {
     position: fixed !important;
-    right: 245px;
+    right: 243px;
     bottom: 10px;
     z-index: 999999 !important;
     font-size: 11px;
