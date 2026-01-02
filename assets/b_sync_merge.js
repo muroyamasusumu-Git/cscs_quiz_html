@@ -493,6 +493,12 @@
         btn.textContent = "SYNC送信";
         btn.className = "cscs-svb-send-btn";
 
+        // 便宜上「非表示」にしているだけ（削除禁止）。
+        // このボタンは DOM 上に存在すること自体が仕様で、
+        // setTimeout(... btn.click()) による自動送信トリガーとしても使われる。
+        // 見た目だけ隠し、ID/要素は維持する。
+        btn.style.display = "none";
+
         // ★ 何をしているか:
         //   手動送信ボタンが押されたら「直近が手動送信である」ことを記録する
         try{
@@ -533,6 +539,12 @@
             if (promises.length > 0) {
               Promise.all(promises).then(function () {
                 console.log("[SYNC-B:BTN] streak3Today / streak3WrongToday merge completed");
+
+                // ★表示更新のための通知（state は更新できても、UIが自動で再描画されないことがある）
+                // ここでイベントを投げて、表示側（cscs_sync_view_b.js 等）が拾えるようにする。
+                try {
+                  window.dispatchEvent(new Event("cscs:sync:todayUniqueUpdated"));
+                } catch (_eEvent) {}
               }).catch(function (e) {
                 console.error("[SYNC-B:BTN] streak3Today / streak3WrongToday manual send error:", e);
               });

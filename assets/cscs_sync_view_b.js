@@ -2206,6 +2206,51 @@
 
   function renderPanel(box, payload) {
     try {
+      // ★ 何をしているか:
+      //   b_sync_merge.js の "cscs:sync:todayUniqueUpdated" を受けたときに
+      //   “同じHUD” を再描画できるよう、最後に描画した参照を保持する。
+      try {
+        window.__CSCS_SYNC_VIEW_B_LAST_BOX__ = box || null;
+        window.__CSCS_SYNC_VIEW_B_LAST_PAYLOAD__ = payload || null;
+      } catch (_eKeepLast) {}
+
+      // ★ 追加②：イベント cscs:sync:todayUniqueUpdated を受けたら再描画
+      //   何をしているか:
+      //   - b_sync_merge.js が Today系ユニーク数（localStorage / state）を更新した合図を受け取る
+      //   - 最後に描画した “同じHUD” をもう一度 renderPanel で描画し直す（payload は最後の参照を再利用）
+      //   - 多重登録防止のため、リスナーは1回だけ登録する
+      try {
+        if (!window.__CSCS_SYNC_VIEW_B_TODAY_UNIQUE_LISTENER_INSTALLED__) {
+          window.__CSCS_SYNC_VIEW_B_TODAY_UNIQUE_LISTENER_INSTALLED__ = true;
+
+          window.addEventListener("cscs:sync:todayUniqueUpdated", function (_ev) {
+            try {
+              var lastBox = null;
+              var lastPayload = null;
+
+              try { lastBox = window.__CSCS_SYNC_VIEW_B_LAST_BOX__ || null; } catch (_e1) { lastBox = null; }
+              try { lastPayload = window.__CSCS_SYNC_VIEW_B_LAST_PAYLOAD__ || null; } catch (_e2) { lastPayload = null; }
+
+              if (!lastBox || !lastPayload) {
+                console.log("[SYNC-B:view] todayUniqueUpdated received but no last render refs", {
+                  hasBox: !!lastBox,
+                  hasPayload: !!lastPayload
+                });
+                return;
+              }
+
+              console.log("[SYNC-B:view] todayUniqueUpdated -> rerender same HUD", {
+                qid: (lastPayload && lastPayload.info && lastPayload.info.qid) ? lastPayload.info.qid : "-"
+              });
+
+              renderPanel(lastBox, lastPayload);
+            } catch (eRerender) {
+              console.error("[SYNC-B:view] rerender on todayUniqueUpdated error:", eRerender);
+            }
+          });
+        }
+      } catch (_eInstallTodayUniqueListener) {}
+
       var serverCorrect = payload.serverCorrect || 0;
       var serverWrong = payload.serverWrong || 0;
       var localCorrect = payload.localCorrect || 0;
