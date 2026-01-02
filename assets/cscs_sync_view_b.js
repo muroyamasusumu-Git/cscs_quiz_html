@@ -4716,9 +4716,10 @@
       // ④ 追加: ページロード後約1.0秒で「SYNC送信ボタン」を自動クリックして、
       //    手動クリックと同じ挙動（diff POST 抑制 + streak3TodayDelta / streak3WrongTodayDelta 送信）を一度だけ実行する
       if (btn) {
-        console.log(
-          "[SYNC-B:auto] 自動クリックは現在一時無効化されています（btn.click() は実行しません）"
-        );
+        setTimeout(function () {
+          console.log("[SYNC-B:auto] 1.0秒後に SYNC 送信ボタンを自動クリックします");
+          btn.click();
+        }, 1000);
       } else {
         console.log("[SYNC-B:auto] SYNC 送信ボタンが見つからないため、自動クリックを行いません");
       }
