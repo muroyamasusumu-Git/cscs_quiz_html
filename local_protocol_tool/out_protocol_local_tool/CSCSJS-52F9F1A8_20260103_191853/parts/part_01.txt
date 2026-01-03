@@ -1,3 +1,65 @@
+<<<PART_BEGIN>>>
+【分割コード(1)の開始】
+PartID: CSCSJS-52F9F1A8-P01-of-01
+PartSHA256: 52f9f1a813b3b86b8ae826216565a6e3923b21ff633f21b22ebb894d4d81f296
+Range: chars 0..25349 (len=25349)
+FirstLine: // assets/b_sync_merge.js
+LastLine: })();
+EndNewline: NO
+PART_SCOPE_HINT: LineRange=L1..L657 | BraceDepth=0->0
+PART_SCOPE_HINT_TOP_IDENTIFIERS: qid:89, SYNC:63, console:44, info:41, localStorage:40, ok:32, log:30, B:28, value:27, raw:25, loadInt:21, delta:20
+PART_SCOPE_HINT_DEFINES: detectInfo, loadInt, loadDayOptional, loadIntOptional, saveInt, schedule, ensureManualSendButtonAndAutoClick, showStreakStatus, syncFromTotals, m, day, n3, qid, dayNum, info, KEY_COR, KEY_WRG, KEY_S3, KEY_STREAK_LEN, KEY_STREAK_MAX, KEY_STREAK_MAX_DAY, KEY_S3_WRONG, KEY_STREAK_WRONG_LEN, KEY_STREAK_WRONG_MAX, KEY_STREAK_WRONG_MAX_DAY, KEY_LAST_COR, KEY_LAST_WRG, KEY_LAST_S3, KEY_LAST_S3_WRONG, KEY_LAST_STREAK_MAX, KEY_LAST_STREAK_MAX_DAY, KEY_LAST_STREAK_WRONG_MAX, KEY_LAST_STREAK_WRONG_MAX_DAY, v, n, raw, cNow, wNow, s3Now, streakLenNow
+
+【プロトコル宣言（PART_01=宣言 / LAST_PART=EXEC_TASK）】
+SessionID: CSCSJS-52F9F1A8
+TargetFile: b_sync_merge.js
+Split: total_parts=1, max_chars_per_part=60000, max_lines_per_part=1200
+
+【あなた（ChatGPT）への最重要ルール（厳守）】
+0) 分割コード受領中は、内容の解釈・要約・推測・修正案提示を一切禁止。
+1) 分割コード(1..N-1)受領時の返答は必ず：
+   ACK: <PartID> / WAITING_NEXT
+2) 最終分割コード(N)受領時は、末尾の RECEIPT_INPUT を用いて受領確認を実施すること。
+3) 受領確認は、最終メッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用（会話履歴参照は禁止）。
+4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の文は参考であり実行根拠にしない。
+5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。
+6) JOIN（連結）ルール（強制）:
+   - 分割コードを連結して“完全なJS”を作る際、パート境界に改行や空白を勝手に追加してはならない。
+   - 各パート本文は『提示された文字列をそのまま』連結する（パート間に暗黙の改行は存在しない）。
+   - したがって、分割コード同士の間に改行の明記が無い限りは『必ず連続行として読み取る』こと。
+   - 各パートには EndNewline: YES/NO が付く。境界が連続行かどうかはこれを唯一の根拠として判定する。
+
+【指示内容（概要：参考用／実行根拠にしない）】
+【WORK_HEADER（共通ID）】
+[SESSION_ID: CSCSJS-52F9F1A8]
+[REQUEST_ID: REQ-1C8F7127]
+
+【USER_INSTRUCTION】
+✅ cscs_sync_view_b.js（表示専任）
+	•	/api/sync/state を読んで window.CSCS_SYNC_DATA を更新
+	•	localStorage の値と突き合わせて「今どういう状態か」を正確に表示する
+	•	/api/sync/merge を叩かない
+	•	payload を組まない
+	•	増分計算をしない
+
+✅ b_sync_merge.js（送信専任）
+	•	localStorage を読み、増分や最新値を組み立てて /api/sync/merge にPOST
+	•	recordStreak3TodayUnique / recordStreak3WrongTodayUnique / recordStreakLen を ここで実装
+	•	B遷移直後の自動送信トリガー（いまの hidden button + autoclick）は維持してOK（送信“専任”の範囲）
+
+
+Bページでの正しい順番は：
+	1.	cscs_sync_bootstrap_a.js（最速）
+	2.	b_judge_record.js（計測して localStorage を更新）
+	3.	b_sync_merge.js（local → merge を送る、record* を提供）
+	4.	cscs_sync_view_b.js（state取得して表示）
+
+二つのjsの役割分担をこのようにはっきり分けたい。「cscs_sync_view_b.js」がしていたStreak3TodayUnique Streak3WrongTodayUnique　のマージ処理を以下の 「b_sync_merge.js」に移動させる。
+
+【分割コード貼り付け開始】
+以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。
+
+```javascript
 // assets/b_sync_merge.js
 // Bパート → SYNC 連携（attempt_log 廃止版）
 /**
@@ -655,3 +717,519 @@
   schedule();
   showStreakStatus();
 })();
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 1
+RECEIVED_TOTAL: 1
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-52F9F1A8-P01-of-01
+
+EXPECTED_PARTIDS_WITH_SHA256:
+- CSCSJS-52F9F1A8-P01-of-01 | 52f9f1a813b3b86b8ae826216565a6e3923b21ff633f21b22ebb894d4d81f296
+
+【ChatGPTへの強制ルール】
+・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。
+・会話履歴から PartID を再収集しないこと（禁止）。
+・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
+【WORK_HEADER（共通ID）】
+[SESSION_ID: CSCSJS-52F9F1A8]
+[REQUEST_ID: REQ-1C8F7127]
+
+【USER_INSTRUCTION】
+✅ cscs_sync_view_b.js（表示専任）
+	•	/api/sync/state を読んで window.CSCS_SYNC_DATA を更新
+	•	localStorage の値と突き合わせて「今どういう状態か」を正確に表示する
+	•	/api/sync/merge を叩かない
+	•	payload を組まない
+	•	増分計算をしない
+
+✅ b_sync_merge.js（送信専任）
+	•	localStorage を読み、増分や最新値を組み立てて /api/sync/merge にPOST
+	•	recordStreak3TodayUnique / recordStreak3WrongTodayUnique / recordStreakLen を ここで実装
+	•	B遷移直後の自動送信トリガー（いまの hidden button + autoclick）は維持してOK（送信“専任”の範囲）
+
+
+Bページでの正しい順番は：
+	1.	cscs_sync_bootstrap_a.js（最速）
+	2.	b_judge_record.js（計測して localStorage を更新）
+	3.	b_sync_merge.js（local → merge を送る、record* を提供）
+	4.	cscs_sync_view_b.js（state取得して表示）
+
+二つのjsの役割分担をこのようにはっきり分けたい。「cscs_sync_view_b.js」がしていたStreak3TodayUnique Streak3WrongTodayUnique　のマージ処理を以下の 「b_sync_merge.js」に移動させる。
+
+【SCOPE_INDEX（連結後JSの探索用索引）】
+・この索引は、分割前の元JS全文（= 連結後JS）から抽出しています。
+・まずここを見て「存在する/しない」を確定し、不要な全文探索や見落としを減らしてください。
+・識別子だけでなく DOM/selector/storage key も含めています。
+
+【SUMMARY】
+TOTAL_IDENTIFIERS_UNIQ: 294
+TOTAL_DOM_IDS_UNIQ: 2
+TOTAL_DOM_CLASSES_UNIQ: 0
+TOTAL_DOM_NAMES_UNIQ: 0
+TOTAL_SELECTORS_UNIQ: 0
+TOTAL_LOCALSTORAGE_KEYS_UNIQ: 1
+TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
+
+【IDENTIFIERS_TOP_FREQUENT（頻出上位）】
+- qid (89)
+- SYNC (63)
+- console (44)
+- info (41)
+- localStorage (40)
+- ok (32)
+- log (30)
+- B (28)
+- value (27)
+- raw (25)
+- loadInt (21)
+- delta (20)
+- payload (19)
+- key (18)
+- s3Last (17)
+- state (15)
+- Fallback (15)
+- s3WrongLast (15)
+- KEY_LAST_S3 (15)
+- KEY_LAST_S3_WRONG (15)
+- window (15)
+- btn (14)
+- s3Now (13)
+- s3WrongNow (13)
+- n (13)
+- warn (13)
+- max (11)
+- merge (11)
+- saveInt (11)
+- now (10)
+- local (10)
+- getItem (9)
+- String (9)
+- loadDayOptional (8)
+- loadIntOptional (8)
+- dc (8)
+- dw (8)
+- ds3 (8)
+- ds3Wrong (8)
+- localTotalCorrect (8)
+- syncedTotalCorrect (8)
+- localTotalWrong (8)
+- syncedTotalWrong (8)
+- parseInt (7)
+- cLast (7)
+- wLast (7)
+- sync (7)
+- streakMaxOpt (7)
+- streakMaxDayOpt (7)
+- streakWrongMaxOpt (7)
+- streakWrongMaxDayOpt (7)
+- streak3Today (7)
+- streak3WrongToday (7)
+- CSCS_SYNC (7)
+- maxChanged (7)
+- wrongMaxChanged (7)
+- ev (7)
+- miss (6)
+- clamp (6)
+- last (6)
+- max_day (6)
+- cNow (6)
+- wNow (6)
+- click (6)
+- setTimeout (6)
+- BTN (6)
+- js (5)
+- KEY_LAST_ (5)
+- Math (5)
+- api (5)
+- day (5)
+- Number (5)
+- KEY_S3 (5)
+- KEY_S3_WRONG (5)
+- v (5)
+- fallback (5)
+- streakLenNow (5)
+- streakWrongLenNow (5)
+- _syncKey (5)
+- document (5)
+
+【IDENTIFIERS_ALL（ユニーク識別子一覧）】
+- B
+- BTN
+- CSCS
+- CSCS_SYNC
+- Content
+- DOM
+- DOMContentLoaded
+- Date
+- Error
+- Event
+- Fallback
+- ID
+- JSON
+- JST
+- KEY_COR
+- KEY_LAST_
+- KEY_LAST_COR
+- KEY_LAST_S3
+- KEY_LAST_S3_WRONG
+- KEY_LAST_STREAK_MAX
+- KEY_LAST_STREAK_MAX_DAY
+- KEY_LAST_STREAK_WRONG_MAX
+- KEY_LAST_STREAK_WRONG_MAX_DAY
+- KEY_LAST_WRG
+- KEY_S3
+- KEY_S3_WRONG
+- KEY_STREAK_LEN
+- KEY_STREAK_MAX
+- KEY_STREAK_MAX_DAY
+- KEY_STREAK_WRONG_LEN
+- KEY_STREAK_WRONG_MAX
+- KEY_STREAK_WRONG_MAX_DAY
+- KEY_WRG
+- KV
+- Key
+- LocalStorage
+- Math
+- NNN
+- Number
+- OK
+- POST
+- Promise
+- SEND
+- SYNC
+- SYNC_BOOTSTRAP_NOT_READY
+- SYNC_KEY
+- SYNC_KEY_MISSING_LOCAL
+- String
+- Type
+- URL
+- X
+- YYYYMMDD
+- _
+- __CSCS_SYNC_B_SENDBTN_AUTOCLICKED__
+- __CSCS_SYNC_KEY_PROMISE__
+- __cscs_sync_b_manual_send_ts
+- _b
+- _build_cscs_
+- _e
+- _eBind
+- _eClick
+- _eEvent
+- _eManual
+- _eOnce
+- _eStop
+- _syncKey
+- addEventListener
+- after_s3Last
+- after_s3WrongLast
+- all
+- api
+- append
+- appendChild
+- application
+- assets
+- async
+- attempt_log
+- auto
+- available
+- b_judge_record
+- b_sync_merge
+- before_s3Last
+- before_s3WrongLast
+- body
+- bootstrap
+- btn
+- button
+- cLast
+- cNow
+- clamp
+- clamped
+- className
+- click
+- completed
+- computed
+- console
+- correct
+- correctDelta
+- corrected
+- createElement
+- cscs
+- cscs_q_correct_streak3_total
+- cscs_q_correct_streak_len
+- cscs_q_correct_streak_max
+- cscs_q_correct_streak_max_day
+- cscs_q_correct_total
+- cscs_q_wrong_streak3_total
+- cscs_q_wrong_streak_len
+- cscs_q_wrong_streak_max
+- cscs_q_wrong_streak_max_day
+- cscs_q_wrong_total
+- cscs_sync_key
+- cscs_sync_last_c
+- cscs_sync_last_s3
+- cscs_sync_last_streak_max
+- cscs_sync_last_streak_max_day
+- cscs_sync_last_streak_wmax
+- cscs_sync_last_streak_wmax_day
+- cscs_sync_last_w
+- cscs_sync_last_ws3
+- cscs_sync_view_b
+- cscs_sync_view_b_send_btn
+- current
+- d
+- day
+- dayNum
+- dc
+- delta
+- deltaClamp
+- detectInfo
+- detected
+- diff
+- dispatchEvent
+- display
+- document
+- ds3
+- ds3Wrong
+- dw
+- e
+- ensureManualSendButtonAndAutoClick
+- error
+- ev
+- existing
+- failed
+- fallback
+- fetch
+- first
+- from
+- getElementById
+- getItem
+- guard
+- headers
+- host
+- id
+- incorrect
+- incorrectDelta
+- info
+- invalid
+- is
+- isFinite
+- js
+- json
+- key
+- last
+- lastMaxDayOpt
+- lastMaxOpt
+- lastTotals
+- lastWrongMaxDayOpt
+- lastWrongMaxOpt
+- length
+- loadDayOptional
+- loadInt
+- loadIntOptional
+- loaded
+- loading
+- local
+- localStorage
+- localTotalCorrect
+- localTotalWrong
+- location
+- log
+- m
+- manual
+- match
+- max
+- maxChanged
+- max_day
+- means
+- merge
+- method
+- miss
+- missing
+- n
+- n3
+- namespace
+- negative
+- no
+- non
+- none
+- not
+- now
+- number
+- ok
+- optional
+- or
+- pToday
+- pWrongToday
+- parseInt
+- pathname
+- payload
+- payloadType
+- preventDefault
+- promise
+- promises
+- push
+- q
+- qid
+- raw
+- rawDc
+- rawDelta
+- rawDs3
+- rawDs3Wrong
+- rawDw
+- readyState
+- recordStreak3TodayUnique
+- recordStreak3WrongTodayUnique
+- requested
+- res
+- s3Last
+- s3Now
+- s3WrongLast
+- s3WrongNow
+- saveInt
+- saved
+- schedule
+- send
+- setItem
+- setTimeout
+- showStreakStatus
+- skip
+- slides
+- state
+- status
+- stopPropagation
+- streak3
+- streak3Delta
+- streak3Today
+- streak3TodayDelta
+- streak3Wrong
+- streak3WrongDelta
+- streak3WrongToday
+- streakLen
+- streakLenDelta
+- streakLenNow
+- streakMax
+- streakMaxDay
+- streakMaxDayDelta
+- streakMaxDayOpt
+- streakMaxDelta
+- streakMaxOpt
+- streakWrongLen
+- streakWrongLenDelta
+- streakWrongLenNow
+- streakWrongMax
+- streakWrongMaxDay
+- streakWrongMaxDayDelta
+- streakWrongMaxDayOpt
+- streakWrongMaxDelta
+- streakWrongMaxOpt
+- stringify
+- style
+- svb
+- sync
+- syncFromTotals
+- syncedTotalCorrect
+- syncedTotalWrong
+- test
+- textContent
+- then
+- tick
+- to
+- todayUniqueUpdated
+- totals
+- ts
+- type
+- updatedAt
+- v
+- value
+- wLast
+- wNow
+- warn
+- window
+- wrong
+- wrongMaxChanged
+
+【DOM_IDS（getElementById の文字列）】
+- cscs_sync_view_b
+- cscs_sync_view_b_send_btn
+
+【DOM_CLASSES（getElementsByClassName の文字列）】
+
+【DOM_NAMES（getElementsByName の文字列）】
+
+【SELECTORS（querySelector/querySelectorAll の文字列）】
+
+【LOCALSTORAGE_KEYS】
+- cscs_sync_key
+
+【SESSIONSTORAGE_KEYS】
+
+【出力仕様（パッチ規約：厳守）】
+- 参照元のコードから「確実に検索できる」形で提示すること（検索しやすい連続行を含める）
+- 必ず参照元と「同じインデント」で提示すること
+- 「置換前／置換後」を明確に分けること（それぞれ別のコードブロック）
+- 「...」「（中略）」「省略」などの省略表現は禁止（置換対象行は省略なし）
+- 出力は「フル」ではなく「置換部分のみ」
+- 置換前コードブロック内に「参照元本文に無いコメント」を追加しないこと
+- フォールバックの設定・保険・自動互換コードの追加は基本的に禁止（必要なら理由と影響を明示して停止し確認を取る）
+- 追加した処理には、処理ごとに『何をしているか』の補足コメントを置換後側に入れること
+
+【ChatGPT 実行ルール（強制）】
+・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。
+・SCOPE_CHECK は原則として OK / WARN の2段階のみ（FAIL を返して停止することは禁止）。
+・識別子/DOM/関数が『SCOPE_INDEX に見当たらない』場合でも、ただちに停止しない。まず次を必ず実施する：
+  1) SCOPE_INDEX の確認（スペル違い/大文字小文字/略称を含め再確認）
+  2) 受領した各パート本文の範囲で全文検索（Partごとの PART_SCOPE_HINT も活用）
+  3) 近似一致の探索（例：大小文字差 / _-差 / 前後の接頭辞差）を試し、最も近い候補を採用する
+  4) EXEC_TASK は『可能な範囲で推測して前進』する（作業を止めない）
+・見つからない場合は SCOPE_CHECK: WARN を返し、次を必ず出力する：
+  - NOT_FOUND: 見つからなかった識別子/DOM/関数（名称をそのまま列挙）
+  - SEARCHED_IN: 検索した範囲（SCOPE_INDEX / PartID一覧 / 具体的キーワード）
+  - INFERRED_ACTION: 推測で行った判断（どの候補に寄せたか / どこに挿入したか）
+  - EXEC_CONTINUED: 続行できた作業内容（未実施があれば『未実施』として明示）
+  - USER_EXTRACT_REQUEST: 次の4項目を、ユーザーが『元のJS』から抽出して提示するよう要求する（この4項目のみ例外的に要求を許可）
+    * EXTRACT_SYMBOLS: 抽出したい関数名/識別子（カンマ区切り）
+    * EXTRACT_NEEDLES: 抽出したい検索語（カンマ区切り）
+    * PURPOSE: 抽出の目的（1行）
+    * DEPENDS: 依存関数/依存データの存在列挙（カンマ区切り）
+    （追加した処理: WARN時にユーザーへ extract 実行を誘導し、必要メタ4項目の“値”を確実に回収する）
+・重要：SCOPE_CHECK: WARN でも『ユーザーへ追加情報を要求する行為』は禁止。
+  （追加した処理: ただし EXTRACT_SYMBOLS / EXTRACT_NEEDLES / PURPOSE / DEPENDS の4項目の提示要求だけは例外として許可する）
+・重要：SCOPE_CHECK: WARN の場合でも、最終アウトプットは必ず提示する（停止しない）。
+
+【分割コード(1)の終了】→ これで最後です（全1分割）
+
+【分割終了宣言】
+これで分割コードは最後です。直後の RECEIPT_INPUT（このメッセージ内）を用いて受領確認を実施してください。
+
+【ChatGPTへの最終手順（強制）】
+1) このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS を受領一覧として採用する（会話履歴参照は禁止）。
+2) このメッセージ内の EXPECTED_PARTIDS と照合し、欠落/重複/不一致を判定する。
+3) 判定結果を以下の形式で必ず返す：
+   RECEIPT_CHECK: OK もしくは NG
+   RECEIPT_MISSING: （不足があれば列挙、なければ EMPTY）
+   RECEIPT_DUPLICATE: （重複があれば列挙、なければ EMPTY）
+   RECEIPT_MISMATCH: （不一致があれば列挙、なければ EMPTY）
+
+4) 重要：RECEIPT_CHECK: OK の場合、同じ返答の中で必ず続けて次も出力し、直ちに実行する：
+   JOIN_READY: YES
+   JOIN_ACTION: P01→P02→...→Pn の順に全パートを連結して完全なJSを構築する
+   EXEC_START: このメッセージ内の EXEC_TASK（唯一の実行指示）を完全なJSに対して実行し、結果を提示する
+
+5) 重要：RECEIPT_CHECK: NG の場合、同じ返答の中で必ず続けて次も出力して終了する：
+   JOIN_READY: NO
+   RESEND_REQUEST: 不足/重複/不一致の PartID をそのまま列挙して再送要求する
+   EXEC_START: BLOCKED
+
+【禁止事項（再掲）】
+・受領確認OK前に、コードの要約/推測/修正提案/作業開始をしない。
+・RECEIPT_CHECK: OK の場合でも、上記の JOIN_READY/JOIN_ACTION/EXEC_START を同じ返答で出す前に止まらない。
+・実行根拠は最終メッセージ内 EXEC_TASK のみ。PART_01の文を理由に別作業を開始しない。
+

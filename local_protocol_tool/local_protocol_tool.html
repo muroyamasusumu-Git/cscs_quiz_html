@@ -1,0 +1,975 @@
+<!doctype html>
+<!--
+============================================================
+★ IMPORTANT: このHTMLは単体では成立しない（3ファイル密結合）
+------------------------------------------------------------
+local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
+「1つのローカルツール」として設計された不可分セット。
+
+このHTMLの役割:
+  - UI と DOM 構造の定義（id / layout / 表示責務のみ）
+  - JS は DOM id に強く依存しているため、
+    id の変更・削除は local_protocol_tool.js を必ず同時確認すること。
+
+密接に連動するファイル:
+  1) local_protocol_tool.html
+     - DOM id（#instruction, #file, #run, #partsList, #extractPreview 等）を定義
+     - 見た目・操作導線・UI状態の“入れ物”
+
+  2) local_protocol_tool.js
+     - このHTMLの DOM id を前提に UI ロジックを実装
+     - /api/split /api/extract /api/check /api/instructions* を呼び出す
+     - 表示・コピー・履歴・モード切替を制御
+
+  3) local_protocol_tool.py
+     - ローカルHTTPサーバ（例: http://127.0.0.1:8787）
+     - /api/split /api/extract /api/check 等の API 契約を提供
+     - split / extract の出力フォーマット（<<<PART_BEGIN>>> 等）を生成
+
+⚠ 注意:
+  - HTML の id 名変更は JS を即座に破壊する
+  - API の入出力変更は JS / UI 表示を破壊する
+  - 出力プロトコル変更は「コピー用途」を破壊する
+
+→ 修正時は必ず 3 ファイルを同時に確認・更新すること
+============================================================
+-->
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Protocol Splitter Local Tool</title>
+  <style>
+    :root{
+      --bg: #0b0d10;
+      --panel: #11151b;
+      --panel2: #0f1217;
+      --border: #242b36;
+      --text: #e7eaf0;
+      --muted: #9aa4b2;
+      --codebg: #0a0c10;
+
+      /* 見出しの水色（.sectionTitle と合わせる） */
+      --accent: rgba(125, 211, 252, 0.95);
+      /* ホバー等で少し弱めに使う水色 */
+      --accentSoft: rgba(125, 211, 252, 0.70);
+
+      --focus: #3b82f6;
+      --ok: #22c55e;
+      --danger: #ef4444;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans JP";
+      font-size: 15px; /* 全体の基準文字サイズを少し上げて読みやすくする */
+      line-height: 1.65; /* 行間を広げて可読性を上げる */
+      letter-spacing: 0.01em; /* わずかに字間を広げて読みやすくする */
+      margin: 16px 20px;
+      background: radial-gradient(1200px 600px at 30% -10%, #111827 0%, var(--bg) 55%);
+      color: var(--text);
+    }
+
+    h2 {
+      margin: 6px 0 10px;
+      font-size: 24px; /* 見出しとして視認性を上げる */
+      line-height: 1.25; /* 見出しの詰まりを防ぐ */
+      letter-spacing: 0.02em; /* 見出しは少し字間を広げる */
+      text-align: center;
+    }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 15px;
+      margin: 12px 0;
+
+      /* 各 card ごとの色味調整用（デフォルト） */
+      background: linear-gradient(
+        180deg,
+        var(--card-panel, var(--panel)) 0%,
+        var(--card-panel2, var(--panel2)) 100%
+      );
+
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    /* JSファイルブロックのカードだけ、ほんの少し明るくする */
+    .card.card-file {
+      --card-panel:  #16202a;
+      --card-panel2: #141d27;
+    }
+
+    /* ============================================================
+       card ごとの色味バリエーション（並び順ベース）
+       ------------------------------------------------------------
+       目的:
+         - 視線誘導の補助
+         - セクション境界を直感的に分かりやすくする
+         - コントラストは変えず、色相のみを微調整
+    ============================================================ */
+
+    .card:nth-of-type(1n) {
+      --card-panel:  #11151b; /* 基本（既存） */
+      --card-panel2: #0f1217;
+    }
+
+    .card:nth-of-type(2n) {
+      --card-panel:  #101824; /* わずかに青寄り */
+      --card-panel2: #0e141d;
+    }
+
+    .card:nth-of-type(3n) {
+      --card-panel:  #121826; /* 少しシアン寄り */
+      --card-panel2: #101624;
+    }
+
+    .card:nth-of-type(4n) {
+      --card-panel:  #141827; /* わずかに紫寄り */
+      --card-panel2: #121524;
+    }
+
+    textarea {
+      box-sizing: border-box; /* padding/border込みでwidth計算し、親からはみ出さないようにする */
+      width: 100%;
+      min-height: 80px;
+      font-size: 14px; /* 入力文字を読みやすくする */
+      line-height: 1.6; /* 入力欄の行間を少し広げる */
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Noto Sans Mono";
+      background: #0c1016;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px; /* 視認性のため少し余白を増やす */
+      outline: none;
+
+      overflow: auto;  /* リサイズ/UIと相性が良い */
+      resize: vertical; /* デフォルトは縦リサイズ可 */
+    }
+
+    textarea#instruction {
+      overflow: hidden; /* autosize用：内部スクロール無し */
+      resize: none;     /* autosize用：手動リサイズ無し */
+    }
+
+    select, input[type="number"], input#prefix {
+      box-sizing: border-box; /* input/selectも同様に、横はみ出し防止 */
+      width: 100%; /* 4列の各セル内に確実に収める */
+      font-size: 14px; /* ラベル/入力値を読みやすくする */
+      line-height: 1.4; /* 高さのバランスを整える */
+      padding: 9px 10px; /* 視認性のため少しだけ余白を増やす */
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      outline: none;
+      height: 34px;
+    }
+
+    /* extract: カンマ区切り入力は「大きめ」にする（打ちやすさ優先） */
+    input#extractSymbols, input#extractNeedles, input#extractSessionId, input#extractPurpose, input#extractDepends {
+      box-sizing: border-box;
+      width: 100%;
+      font-size: 14px;
+      line-height: 1.4;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      outline: none;
+      height: 44px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Noto Sans Mono";
+    }
+    
+    /* =========================
+   全 input の placeholder を薄くする
+   ========================= */
+
+    input::placeholder {
+      color: rgba(231, 234, 240, 0.30);
+      opacity: 1; /* Safari / Chrome 対策 */
+    }
+    
+    /* Firefox 対応 */
+    input::-moz-placeholder {
+      color: rgba(231, 234, 240, 0.30);
+      opacity: 1;
+    }
+    
+    /* Edge / 旧仕様互換（念のため） */
+    input:-ms-input-placeholder {
+      color: rgba(231, 234, 240, 0.30);
+    }
+
+    /* extract: 数値2つは「小さめ」にする（面積を取りすぎない） */
+    input#extractContextLines, input#extractMaxMatches {
+      box-sizing: border-box;
+      width: 100%;
+      font-size: 12px;
+      line-height: 1.2;
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      outline: none;
+      height: 30px;
+    }
+
+    input[type="file"] {
+      color: var(--muted);
+    }
+
+    textarea:focus, select:focus, input[type="number"]:focus, input#prefix:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
+    }
+
+    button {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      font-size: 14px; /* ボタン文字の読みやすさを上げる */
+      line-height: 1.2; /* ボタン内の縦詰まりを防ぐ */
+      transition: transform 80ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease, opacity 120ms ease;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+      user-select: none;
+      cursor: pointer;
+    }
+
+    /* 指定ボタン（生成 / 抽出 / 入力モード切替 / このパートをコピー / 次のパートを表示）：横幅を大きくして押しやすくする */
+    #run, #runExtract, #copyCurrent, #copyNext, #copyExtract, #modeSplitBtn, #modeExtractBtn {
+      min-width: 220px;     /* 横幅を確保（画面幅が狭い時は折り返しに任せる） */
+      padding-left: 16px;   /* 見た目の“横に大きい”感を出す */
+      padding-right: 16px;  /* 同上 */
+    }
+
+    /* マウスオーバー時：ボーダー色を見出しの水色に合わせる */
+    button:hover {
+      border-color: var(--accentSoft);
+      box-shadow: 0 10px 22px rgba(0,0,0,0.45);
+    }
+
+    button:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    }
+
+    /* ON（強調）状態：primary のボーダー色も見出し水色に合わせる */
+    button.primary {
+      border-color: var(--accent);
+      box-shadow: 0 12px 26px rgba(125,211,252,0.10), 0 10px 22px rgba(0,0,0,0.45);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    button.flash-ok {
+      border-color: rgba(34,197,94,0.9);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.18), 0 12px 26px rgba(0,0,0,0.45);
+    }
+
+    button.flash-ng {
+      border-color: rgba(239,68,68,0.9);
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.18), 0 12px 26px rgba(0,0,0,0.45);
+    }
+
+    @keyframes partSwitchPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(125,211,252,0.00);
+        border-color: var(--border);
+      }
+      40% {
+        box-shadow: 0 0 0 4px rgba(125,211,252,0.20);
+        border-color: var(--accent);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(125,211,252,0.00);
+        border-color: var(--border);
+      }
+    }
+
+    .flash-part-switch {
+      animation: partSwitchPulse 520ms ease-out 1;
+      border-radius: 14px;
+    }
+
+    pre {
+      background: var(--codebg);
+      color: #e8edf7;
+      padding: 12px;
+      margin: 5px 0;
+      border-radius: 14px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      font-size: 13px; /* コードを読みやすくする */
+      line-height: 1.55; /* コード行間を確保する */
+    }
+
+    .muted { color: var(--muted); }
+    .muted.small  {
+    font-size: 12px;
+    }
+    
+    .sectionTitle {
+      font-weight: 700; /* 見出しを太字 */
+      color: rgba(125, 211, 252, 0.95); /* 水色っぽい（少し淡いシアン） */
+      margin-bottom: 5px;
+      font-size: 18px; 
+    }
+
+    .sectionTitleHist {
+      color: rgba(231,234,240,0.78); /* 白で薄く（過去の指示 見出しだけ） */
+    }
+
+    .currentPartMeta {
+      color: rgba(231,234,240,0.72); /* 白で薄め（情報表示用） */
+      font-weight: 400;             /* 見出しより軽く */
+    }
+
+    .histMeta {
+      font-size: 11px; /* 参照先などの補助情報は小さく */
+      line-height: 1.25;
+      color: rgba(154,164,178,0.78); /* さらに薄め */
+    }
+
+    .parts { display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+    /* パート一覧（#partsList）だけ、カード同士の上下余白を詰める */
+    #partsList .card {
+      margin: 0;      /* .card の 12px 0 を打ち消す */
+      padding: 10px;  /* ついでに少し詰めたいなら。不要なら消してOK */
+    }
+
+    .partHeader { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .partTitleRow {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between; /* 右端にパート切替ボタン列を置く */
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 0px;
+    }
+
+    .partJump {
+      display: flex;              /* パート番号ボタン列 */
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .partJumpBtn {
+      padding: 6px 10px;          /* 小さめの番号ボタン */
+      min-width: 38px;
+      border-radius: 999px;
+      font-size: 13px;
+      line-height: 1.1;
+    }
+
+    .pillBig {
+      font-size: 14px;     /* ← ここが視認性UPの本体 */
+      padding: 6px 10px;   /* ← pill自体も少し大きく */
+      color: var(--text);  /* 重要情報は少し白寄せ */
+    }
+
+    .pill {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+    }
+
+    #status {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+    }
+
+    body.dragover {
+      outline: 2px dashed rgba(59,130,246,0.85); /* ドラッグ中であることを分かりやすく表示する */
+      outline-offset: 10px; /* 画面端から少し内側に表示して視認性を上げる */
+    }
+    
+    details.adv {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    summary.advSummary {
+      cursor: pointer;
+      user-select: none;
+      color: var(--text);
+      font-weight: 600;
+      list-style: none;
+      outline: none;
+    }
+
+    summary.advSummary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary.advSummary::before {
+      content: "▶";
+      display: inline-block;
+      margin-right: 8px;
+      color: var(--muted);
+      transform: translateY(-1px);
+    }
+
+    details[open] > summary.advSummary::before {
+      content: "▼";
+    }
+    
+    .advGrid {
+      display: grid;
+      gap: 6px;
+      align-items: end;
+
+      /* 4列が成立する時だけ4列（1カラムの最低幅を小さくして4列成立しやすくする） */
+      grid-template-columns: repeat(4, minmax(100px, 1fr));
+    }
+
+    /* 4列が成立しない幅になったら、必ず縦1列 */
+    @media (max-width: 400px) {
+      .advGrid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .advItem {
+      min-width: 0; /* grid内で要素がはみ出すのを防ぐ */
+    }
+
+    .splitModePick {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+      color: var(--text);
+      min-height: 34px;
+      box-sizing: border-box;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .splitModePick input[type="radio"] {
+      transform: translateY(1px);
+    }
+
+    .splitModeDesc {
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: rgba(154,164,178,0.86);
+    }
+
+    /* ============================================================
+       履歴（過去の指示）だけ：視認性を下げて“詰める”
+       ------------------------------------------------------------
+       目的:
+         - フォントを小さめ
+         - 行間を詰める
+         - 余白/カード間隔を詰める
+         - ボタン・pillも小さめ
+         ※ 他の .card / pre / .partHeader には影響させない
+    ============================================================ */
+    #instructionHistory .card {
+      padding: 8px;
+      margin: 0px 0px;
+      border-radius: 12px;
+    }
+
+    #instructionHistory .partHeader {
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    #instructionHistory .pill {
+      font-size: 10px;
+      padding: 2px 6px;
+    }
+
+    #instructionHistory button {
+      padding: 6px 8px;
+      font-size: 11px;
+      line-height: 1.15;
+      border-radius: 10px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.28);
+    }
+
+    #instructionHistory pre {
+      padding: 8px;
+      font-size: 9px;
+      line-height: 1.35;
+      border-radius: 12px;
+      margin: 0;
+      color: rgba(231,234,240,0.72); /* 履歴本文だけ薄くする */
+
+      /* ===== はみ出し防止（ここが本体） ===== */
+      box-sizing: border-box;
+      max-width: 100%;
+      min-width: 0;
+
+      /* 横スクロールにせず折り返す */
+      overflow-x: hidden;
+      overflow-y: hidden;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    #instructionHistory .pill {
+      color: rgba(154,164,178,0.72); /* pill もさらに薄く */
+    }
+
+    #instructionHistory .muted {
+      color: rgba(154,164,178,0.68); /* 履歴内の muted も薄く */
+    }
+
+    #instructionHistory button {
+      color: rgba(231,234,240,0.78); /* ボタン文字も少し薄く */
+    }
+
+    /* extract 専用グリッド：2行×2列 */
+    .extractGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-auto-rows: auto;
+      gap: 10px 14px;
+    }
+
+    /* 上段（symbols / needles）は少し広く見せたい */
+    .extractWide {
+      min-height: 72px;
+    }
+
+    /* 下段（数値）はコンパクトに */
+    .extractNarrow {
+      min-height: 48px;
+    }
+    
+    /* extract結果表示専用：長文なのでスクロール可＋高さを確保 */
+    textarea#extractPreview {
+      overflow: auto;
+      resize: vertical;
+      font-size: 14px; /* 追加した処理: extractPreview の既定文字サイズ（JSで上書き可） */
+    }
+
+    /* 追加した処理: EXEC_TASK（instruction原文）入力欄は長文になりやすいので高さを確保し、折り返して見やすくする */
+    textarea#extractExecTask {
+      min-height: 80px;
+      overflow: auto !important;
+      resize: vertical !important;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    
+    .ta-resize-wrap {
+      position: relative;
+      width: 100%;
+    }
+    
+    /* 細い標準グリップを消して、ハンドルに一本化 */
+    .ta-resize-wrap textarea{
+      resize: none !important;
+      padding-bottom: 34px; /* 右下オーバーレイのハンドルに被らないための余白 */
+    }
+    
+    /* 右下オーバーレイ・広い掴み領域（幅1/3）＋文言で明示 */
+    .ta-resize-handle{
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+    
+      width: 25%;
+      height: 24px;
+    
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    
+      cursor: ns-resize;
+      user-select: none;
+    
+      border-radius: 999px;
+      background: rgba(231,234,240,0.18);
+      border: 1px solid rgba(231,234,240,0.28);
+      backdrop-filter: blur(2px);
+      opacity: 0.85;
+    }
+    
+    /* hoverで「掴める感」を強調 */
+    .ta-resize-wrap:hover .ta-resize-handle{
+      opacity: 1;
+      background: rgba(231,234,240,0.26);
+      border-color: rgba(231,234,240,0.45);
+    }
+    
+    /* ドラッグ中の強調 */
+    .ta-resize-wrap.is-resizing .ta-resize-handle{
+      background: rgba(120,180,255,0.30);
+      border-color: rgba(120,180,255,0.60);
+    }
+    
+    /* 旧hintは使わないなら非表示（残すならこの行を消してOK） */
+    .ta-resize-hint{
+      opacity: 0.85;
+    }
+    
+  </style>
+</head>
+<body>
+  <h2>Protocol Splitter（ローカル専用）</h2>
+  <div class="muted">① assets内のJSを選ぶ（ドラッグ&ドロップも可） → ② 指示を書く → ③ 生成 → ④ パートを表示してコピー</div>
+  <div class="muted small">cd /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/local_protocol_tool<br>
+  python3 local_protocol_tool.py<br>
+  http://127.0.0.1:8787</div>
+  
+
+  <div class="card card-file">
+    <div class="row">
+      <div>
+        <div class="muted sectionTitle">JSファイル</div>
+        <input id="file" type="file" accept=".js,.mjs,.cjs,.txt" multiple />
+
+        <!-- ============================================================
+             ★ 読み込んだJS一覧（チェックボックス）
+             ------------------------------------------------------------
+             - Split: sourcesチェックONのファイルだけを /api/split の files:[...] に投げる
+             - Extract:
+                 sources: チェックONを sources:[...]
+                 extract_from: チェックONを extract_from:[...]
+             ※ 実際の生成/抽出ロジックは local_protocol_tool.js が担当
+        ============================================================ -->
+        <div id="js_file_list" style="margin-top:10px;">
+          <div class="muted" style="font-size:12px; line-height:1.35; margin-bottom:8px;">
+            読み込んだJS一覧（Split / Extractで送る対象をチェック）
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div style="border:1px solid var(--border); border-radius:14px; padding:10px; background:rgba(255,255,255,0.02);">
+              <div class="muted" style="font-weight:600; margin-bottom:6px;">sources（読む側）</div>
+              <div class="muted" style="font-size:11px; line-height:1.35; margin-bottom:8px; opacity:0.85;">
+                Split / Extract 共通。ONのファイルだけを送ります。
+              </div>
+              <div id="js_file_list_sources" class="muted" style="font-size:12px; line-height:1.35;"></div>
+            </div>
+
+            <div style="border:1px solid var(--border); border-radius:14px; padding:10px; background:rgba(255,255,255,0.02);">
+              <div class="muted" style="font-weight:600; margin-bottom:6px;">extract_from（抽出対象）</div>
+              <div class="muted" style="font-size:11px; line-height:1.35; margin-bottom:8px; opacity:0.85;">
+                Extract専用。symbols / needles の抽出対象だけをONにします。
+              </div>
+              <div id="js_file_list_extract_from" class="muted" style="font-size:12px; line-height:1.35;"></div>
+            </div>
+          </div>
+
+          <div class="muted" style="font-size:11px; line-height:1.35; margin-top:8px; opacity:0.80;">
+            ※ チェックボックスの実体（&lt;label&gt;&lt;input type="checkbox"&gt; ...）は JS がここに挿入します。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <details class="adv" style="margin-top:10px;">
+      <summary class="advSummary">詳細設定（Prefix / Lang / split制限）</summary>
+
+      <div class="advGrid" style="margin-top:10px;">
+        <div class="advItem">
+          <div class="muted">Prefix</div>
+          <input id="prefix" value="CSCSJS" />
+        </div>
+        <div class="advItem">
+          <div class="muted">Lang</div>
+          <select id="lang">
+            <option value="javascript">javascript</option>
+            <option value="text">text</option>
+          </select>
+        </div>
+        <div class="advItem">
+          <div class="muted">maxchars</div>
+          <input id="maxchars" type="number" value="60000" />
+        </div>
+        <div class="advItem">
+          <div class="muted">maxlines</div>
+          <input id="maxlines" type="number" value="1200" />
+        </div>
+
+        <div class="advItem">
+          <div class="muted">maxlogs</div>
+          <input id="maxlogs" type="number" value="50" />
+        </div>
+
+        <div class="advItem">
+          <div class="muted">splitMode (C)</div>
+          <label class="splitModePick">
+            <input type="radio" name="splitModeRadio" value="C">
+            <span>C: 通常</span>
+          </label>
+          <div class="muted splitModeDesc">
+            上限（maxchars/maxlines）をまず守る方針。上限内の末尾付近で
+            <code style="color:rgba(231,234,240,0.88);">})();</code> /
+            <code style="color:rgba(231,234,240,0.88);">});</code> /
+            <code style="color:rgba(231,234,240,0.88);">}</code>
+            など“境界っぽい行”を後方探索し、見つからなければ改行で切る。
+            サイズは安定するが、IIFEの途中で切れる可能性がある。
+          </div>
+        </div>
+
+        <div class="advItem">
+          <div class="muted">splitMode (B)</div>
+          <label class="splitModePick">
+            <input type="radio" name="splitModeRadio" value="B">
+            <span>B: ハイブリッド</span>
+          </label>
+          <div class="muted splitModeDesc">
+            上限付近から <b style="color:rgba(231,234,240,0.88);">上限+30%</b> まで「少し粘って」
+            IIFE終端 <code style="color:rgba(231,234,240,0.88);">})();</code> を探す。
+            見つかれば“キレイに切る”、見つからなければ改行で切ってサイズを安定させる。
+            運用が一番バランス良く、破綻しにくい。
+          </div>
+        </div>
+
+        <div class="advItem">
+          <div class="muted">splitMode (A)</div>
+          <label class="splitModePick">
+            <input type="radio" name="splitModeRadio" value="A">
+            <span>A: IIFE終端最優先</span>
+          </label>
+
+          <input type="hidden" id="splitMode" value="C" />
+
+          <div class="muted splitModeDesc">
+            IIFE終端 <code style="color:rgba(231,234,240,0.88);">})();</code> を最優先で探して「そこで切る」。
+            上限は“目安”になりやすく、巨大IIFEだと 1パートが上限を大幅に超えて大きくなることがある。
+            その代わり「IIFE途中で切って壊す」リスクを強く避けられる。
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div style="margin-top:12px;">
+      <div class="row" style="align-items:center;">
+        <div class="muted sectionTitle" style="margin-bottom:0;">入力モード</div>
+        <button class="primary" id="modeSplitBtn" type="button">指示（--instruction）</button>
+        <button id="modeExtractBtn" type="button">symbols / needles</button>
+      </div>
+
+      <!-- Split（指示）入力欄 -->
+      <div id="modeSplitBox" style="margin-top:10px;">
+        <div class="muted sectionTitle">指示（--instruction）</div>
+
+        <div class="advGrid" style="margin-top:10px;">
+          <div class="advItem">
+            <div class="muted">project_id</div>
+            <input id="projectId" value="" placeholder="例: CSCS_SYNC / local_protocol_tool" />
+          </div>
+
+          <div class="advItem">
+            <div class="muted">task_id</div>
+            <input id="taskId" value="" list="taskIdHistoryList" placeholder="例: 2026-01-02_state-ts_day_number" />
+            <datalist id="taskIdHistoryList"></datalist>
+          </div>
+
+          <div class="advItem" style="grid-column: 1 / -1;">
+            <button id="injectMetaRules" type="button">ID＋いつものルールを挿入</button>
+            <div class="muted splitModeDesc" style="margin-top:6px;">
+              project_id / task_id をヘッダとして instruction に差し込みます（既に入っている場合はヘッダ部分だけ差し替え）。
+              task_id は自動で履歴に残り、次回以降サジェストされます。
+            </div>
+          </div>
+        </div>
+
+        <div class="ta-resize-wrap" data-target="instruction" style="margin-top:10px;">
+          <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
+          <div class="ta-resize-handle" role="separator" aria-label="Resize instruction textarea"> <div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+        </div>
+      </div>
+
+      <!-- Extract（symbols/needles）入力欄 -->
+      <div id="modeExtractBox" style="margin-top:10px; display:none;">
+        <div class="muted sectionTitle">symbols / needles（extract用）</div>
+
+        <div class="advGrid extractGrid" style="margin-top:10px;">
+          <!-- 上段：文字系（横2列） -->
+          <div class="advItem extractWide">
+            <div class="muted">EXTRACT_SYMBOLS（必須 / カンマ区切り）</div>
+            <input id="extractSymbols" value="" placeholder="例: split_by_limits, build_exec_task_block" />
+          </div>
+
+          <div class="advItem extractWide">
+            <div class="muted">EXTRACT_NEEDLES（カンマ区切り / 空も可）</div>
+            <input id="extractNeedles" value="" placeholder="例: SCOPE_INDEX, RECEIPT_CHECK" />
+          </div>
+
+          <!-- 追加した処理: split直後の result.session_id を受け取り、extractヘッダへ必ず出すための入力欄 -->
+          <div class="advItem extractWide">
+            <div class="muted">SESSION_ID（split直後に自動入力 / 手入力・コピペ可）</div>
+            <input id="extractSessionId" value="" placeholder="例: CSCSJS-1A2B3C4D" />
+          </div>
+
+          <!-- 追加した処理: CODE_ONLY を SESSION_ID の隣に移動し、抽出実行前に“表示モード”を並べて確認できるようにする -->
+          <div class="advItem extractNarrow">
+            <div class="muted">CODE_ONLY（厳格 / 抽出コード以外を表示しない）</div>
+            <label class="splitModePick" style="height: 44px; padding:6px 13px; margin-bottom: 4px;">
+              <input id="extractCodeOnly" type="checkbox" />
+              <span>ON</span>
+            </label>
+          </div>
+
+          <!-- 追加した処理: split直後の instruction 原文（EXEC_TASK）を保持し、extractヘッダへ必ず出すための入力欄 -->
+          <div class="advItem extractWide" style="grid-column: 1 / -1;">
+            <div class="muted">EXEC_TASK（split直後に自動入力 / 手入力・コピペ可）</div>
+            <div class="ta-resize-wrap" data-target="extractExecTask">
+              <textarea id="extractExecTask" placeholder="例: ここに split の指示（--instruction 原文）が入る（EXEC_TASK）"></textarea>
+              <div class="ta-resize-handle" role="separator" aria-label="Resize EXEC_TASK textarea"><div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+            </div>
+          </div>
+
+          <!-- 追加した処理: 抽出の目的（LLMの判断ブレ低減）を1行で添える -->
+          <div class="advItem extractWide">
+            <div class="muted">PURPOSE（1行）</div>
+            <input id="extractPurpose" value="" placeholder="例: createPanel 内の「手動送信クリック後HUD再描画」周辺を修正したい" />
+          </div>
+
+          <!-- 追加した処理: 依存関数/依存データの“存在だけ”をメタで列挙（中身不要） -->
+          <div class="advItem extractWide">
+            <div class="muted">DEPENDS（カンマ区切り / 任意）</div>
+            <input id="extractDepends" value="" placeholder="例: fetchState, renderPanel, readIntFromLocalStorage, computePendingFlags, info.qid" />
+          </div>
+
+          <!-- 下段：数値系（横2列） -->
+          <div class="advItem extractNarrow">
+            <div class="muted">EXTRACT_CONTEXT_LINES</div>
+            <input id="extractContextLines" type="number" value="25" />
+          </div>
+
+          <div class="advItem extractNarrow">
+            <div class="muted">EXTRACT_MAX_MATCHES</div>
+            <input id="extractMaxMatches" type="number" value="50" />
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top:8px;">
+          ※ symbols は「関数まるごと抽出」対象、needles は「周辺行抽出」対象（複数指定OK）
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <button class="primary" id="run">生成（split）</button>
+      <button id="runExtract" style="display:none;">抽出（extract）</button>
+      <button id="copyExtract" style="display:none;" disabled>抽出結果をコピー</button>
+      <button id="resetExtract" style="display:none;" disabled>抽出をリセット</button>
+      <button id="copyNext" disabled>次のパートを表示</button>
+      <button id="resetGen" disabled>生成をリセット</button>
+      <span class="muted" id="status" style="display:none;"></span>
+    </div>
+  </div>
+
+  <!-- Split（分割）モード用：現在のパート -->
+  <div class="card" id="currentPartCard">
+    <div class="partTitleRow">
+      <div class="muted sectionTitle" id="currentPartTitle">
+        <span class="currentPartLabel">現在のパート</span>
+        <span class="currentPartMeta">　Part: - / -　(SessionID: -)</span>
+      </div>
+
+      <!-- 右端：パート番号ボタン -->
+      <div id="partJump" class="partJump"></div>
+    </div>
+
+    <div class="partHeader">
+      <span class="pill pillBig" id="pidPill">PartID: -</span>
+      <span class="pill pillBig" id="sha8Pill">SHA8: -</span>
+      <button id="copyCurrent" disabled>このパートをコピー</button>
+      <button id="toggleAll" disabled>ALL: OFF</button>
+    </div>
+    <pre id="preview">(まだ生成していません)</pre>
+  </div>
+
+  <!-- Extract（抽出）モード用：抽出結果専用 -->
+  <div class="card" id="extractResultCard" style="display:none;">
+    <!-- 追加した処理: 抽出結果も split と同様に「ALL: OFF/ON」で全文/一部表示を切替できるようにする -->
+    <div class="partHeader" style="justify-content:space-between; gap:10px;">
+      <div class="muted sectionTitle" style="margin-bottom:0;">抽出結果（extract）</div>
+
+      <div class="row" style="align-items:center; margin:0; gap:10px;">
+        <!-- 追加した処理: extractPreview の文字サイズをスライダーで変更 -->
+        <span class="pill" style="display:flex; align-items:center; gap:8px;">
+          <span style="color:rgba(154,164,178,0.90);">Font</span>
+          <input id="extractPreviewFont"
+                 type="range"
+                 min="10"
+                 max="28"
+                 step="1"
+                 value="14"
+                 style="width:160px; height:18px;" />
+          <span id="extractPreviewFontLabel" style="min-width:44px; text-align:right;">14px</span>
+        </span>
+
+        <button id="toggleExtractAll" disabled>ALL: OFF</button>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:6px;">
+      ※ ここに <<<EXTRACT_BEGIN>>> から全部出ます（そのままコピペ用途）
+    </div>
+    
+    <div class="ta-resize-wrap" data-target="extractPreview">
+      <textarea
+        id="extractPreview"
+        readonly
+        placeholder="(まだ抽出していません)">
+      </textarea>
+      <div class="ta-resize-handle"><div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+    </div>
+
+    <!-- 追加した処理: FOUND:false をコピー対象外の“小ログ”として textarea 外に表示する -->
+    <div class="muted" id="extractNotFoundLog"
+         style="margin-top:10px; font-size:12px; line-height:1.35; white-space:pre-wrap; opacity:0.85;">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="muted sectionTitle">パート一覧</div>
+    <div class="parts" id="partsList"></div>
+  </div>
+
+  <div class="card">
+    <div class="muted sectionTitle sectionTitleHist">過去の指示（--instruction）</div>
+    <div class="muted histMeta" id="histRoot" style="margin-top:6px;">参照先: （未取得）</div>
+    <div class="row" style="margin-top:10px;">
+      <button id="histClear">履歴クリア</button>
+      <span class="muted" id="histStatus"></span>
+    </div>
+    <div class="parts" id="instructionHistory" style="margin-top:6px;"></div>
+  </div>
+
+<script src="local_protocol_tool.js"></script>
+</body>
+</html>

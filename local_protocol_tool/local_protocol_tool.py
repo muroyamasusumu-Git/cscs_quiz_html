@@ -1,6 +1,41 @@
 #!/usr/bin/env python3
 # local_protocol_tool.py
 # -*- coding: utf-8 -*-
+#
+# ============================================================
+# ★ IMPORTANT: このスクリプトは単体では成立しない（3ファイル密結合）
+# ------------------------------------------------------------
+# local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
+# 「1つのローカル補助ツール」として設計された不可分セットである。
+#
+# ChatGPT や人間が本ファイルだけを読んで
+# 「CLIツール」「単独HTTPサーバ」「Pythonユーティリティ」
+# と誤解しないよう、役割と契約をここに明示する。
+#
+# 【役割分担】
+#   1) local_protocol_tool.html
+#      - UI と DOM 構造のみを定義
+#      - input / textarea / button / list 等の id を提供
+#      - JS は DOM id に強く依存（id変更＝即破壊）
+#
+#   2) local_protocol_tool.js
+#      - UIロジック担当（fetch / copy / history / mode）
+#      - /api/split /api/extract /api/check /api/instructions* を呼び出す
+#      - 表示・コピー・履歴・UI状態管理を担う
+#
+#   3) local_protocol_tool.py（このファイル）
+#      - ローカルHTTPサーバ（127.0.0.1）
+#      - HTML配信（"/"）および API 実装を担当
+#      - split / extract / check の中核ロジックと
+#        出力プロトコル（<<<PART_BEGIN>>> 等）を生成
+#
+# 【重要な設計契約（変更時は3ファイル同時確認）】
+#   - HTMLのDOM id変更 → JSが壊れる
+#   - APIの入出力形式変更 → JS/UIが壊れる
+#   - 出力プロトコル変更 → ユーザーの貼り付け運用が壊れる
+#
+# → 修正時は必ず html / js / py を「同時に」確認・更新すること
+# ============================================================
 
 import json
 import hashlib
@@ -1766,6 +1801,24 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, body, "text/html; charset=utf-8")
             return
 
+        # ------------------------------------------------------------
+        # ★ 静的ファイル配信（同ディレクトリ限定）
+        # - local_protocol_tool.html から参照される local_protocol_tool.js を返す
+        # - __file__ と同階層のファイルのみ許可（ディレクトリトラバーサル防止）
+        # ------------------------------------------------------------
+        if self.path == "/local_protocol_tool.js":
+            try:
+                p = Path(__file__).resolve().with_name("local_protocol_tool.js")
+                body = p.read_bytes()
+                self._send(200, body, "application/javascript; charset=utf-8")
+                return
+            except FileNotFoundError:
+                self._send(404, b"local_protocol_tool.js not found", "text/plain; charset=utf-8")
+                return
+            except Exception as e:
+                self._send(500, f"failed to read local_protocol_tool.js: {e}".encode("utf-8"), "text/plain; charset=utf-8")
+                return
+
         if self.path == "/health":
             self._send(200, b"OK", "text/plain; charset=utf-8")
             return
@@ -1935,10 +1988,38 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, body, "application/json; charset=utf-8")
                 return
 
+        # ------------------------------------------------------------
+        # ★ 複数ファイルI/F（files / sources）対応
+        # ------------------------------------------------------------
+        # 互換: 従来どおり filename/content も受け付ける
+        files_raw = req.get("files")
+        sources_raw = req.get("sources")
+
+        files: List[dict] = []
+        sources: List[dict] = []
+
+        if isinstance(files_raw, list):
+            for it in files_raw:
+                if isinstance(it, dict):
+                    fn = str(it.get("filename") or "").strip()
+                    ct = str(it.get("content") or "")
+                    if fn != "" and ct != "":
+                        files.append({"filename": fn, "content": ct})
+
+        if isinstance(sources_raw, list):
+            for it in sources_raw:
+                if isinstance(it, dict):
+                    fn = str(it.get("filename") or "").strip()
+                    ct = str(it.get("content") or "")
+                    if fn != "" and ct != "":
+                        sources.append({"filename": fn, "content": ct})
+
+        # 互換用の単体入力
         filename = str(req.get("filename") or "input.js")
         content = str(req.get("content") or "")
 
         if self.path == "/api/check":
+            # check は単体チェック（UI側で複数チェックしたい場合は複数回呼ぶ想定）
             if content == "":
                 body = json.dumps({"ok": False, "error": "content is empty"}, ensure_ascii=False).encode("utf-8")
                 self._send(200, body, "application/json; charset=utf-8")
@@ -1951,7 +2032,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/api/extract":
             # 抽出は「ファイル全文」から行う（splitとは別）
-            if content == "":
+            # - 単体: content
+            # - 複数: sources + extract_from（選択対象）
+            if content == "" and not sources:
                 body = json.dumps({"ok": False, "error": "content is empty"}, ensure_ascii=False).encode("utf-8")
                 self._send(200, body, "application/json; charset=utf-8")
                 return
@@ -1986,52 +2069,89 @@ class Handler(BaseHTTPRequestHandler):
             if max_matches <= 0:
                 max_matches = DEFAULT_EXTRACT_MAX_MATCHES
 
-            blocks = []
+            # ------------------------------------------------------------
+            # ★ 抽出元の選択（チェックボックス想定）
+            # - 単体: content を1ソースとして扱う
+            # - 複数: sources を使い、extract_from に含まれる filename だけを対象にする
+            # ------------------------------------------------------------
+            extract_from_raw = req.get("extract_from")
+            extract_from: List[str] = []
 
-            # 1) 関数まるごと抽出
-            for name in symbols:
-                found, header, body = extract_function_whole(js_text=content, name=name)
-                blocks.append({
-                    "kind": "function_whole",
-                    "name": name,
-                    "found": bool(found),
-                    "header": str(header),
-                    "text": str(body),
-                    "sha256": sha256_hex(str(body)) if found else "",
-                })
+            if isinstance(extract_from_raw, list):
+                extract_from = [str(x).strip() for x in extract_from_raw if str(x).strip() != ""]
+            elif isinstance(extract_from_raw, str):
+                extract_from = [x.strip() for x in extract_from_raw.split(",") if x.strip() != ""]
 
-            # 2) 呼び出し周辺抽出
-            for nd in needles:
-                hit_count, ctx_blocks = extract_context_around(
-                    js_text=content,
-                    needle=nd,
-                    context_lines=ctx_lines,
-                    max_matches=max_matches,
-                )
-                blocks.append({
-                    "kind": "context",
-                    "needle": nd,
-                    "hit_count": int(hit_count),
-                    "context_lines": int(ctx_lines),
-                    "max_matches": int(max_matches),
-                    "items": [
-                        {
-                            "header": str(h),
-                            "text": str(t),
-                            "sha256": sha256_hex(str(t)),
-                        }
-                        for (h, t) in ctx_blocks
-                    ],
+            selected_sources: List[dict] = []
+
+            if sources:
+                if extract_from:
+                    allow = set(extract_from)
+                    for it in sources:
+                        if str(it.get("filename") or "") in allow:
+                            selected_sources.append(it)
+                else:
+                    selected_sources = list(sources)
+            else:
+                selected_sources = [{"filename": filename, "content": content}]
+
+            results = []
+
+            for src in selected_sources:
+                src_filename = str(src.get("filename") or "input.js")
+                src_content = str(src.get("content") or "")
+
+                blocks = []
+
+                # 1) 関数まるごと抽出
+                for name in symbols:
+                    found, header, body = extract_function_whole(js_text=src_content, name=name)
+                    blocks.append({
+                        "kind": "function_whole",
+                        "name": name,
+                        "found": bool(found),
+                        "header": str(header),
+                        "text": str(body),
+                        "sha256": sha256_hex(str(body)) if found else "",
+                    })
+
+                # 2) 呼び出し周辺抽出
+                for nd in needles:
+                    hit_count, ctx_blocks = extract_context_around(
+                        js_text=src_content,
+                        needle=nd,
+                        context_lines=ctx_lines,
+                        max_matches=max_matches,
+                    )
+                    blocks.append({
+                        "kind": "context",
+                        "needle": nd,
+                        "hit_count": int(hit_count),
+                        "context_lines": int(ctx_lines),
+                        "max_matches": int(max_matches),
+                        "items": [
+                            {
+                                "header": str(h),
+                                "text": str(t),
+                                "sha256": sha256_hex(str(t)),
+                            }
+                            for (h, t) in ctx_blocks
+                        ],
+                    })
+
+                results.append({
+                    "filename": src_filename,
+                    "blocks": blocks,
                 })
 
             resp = {
                 "ok": True,
-                "filename": filename,
                 "symbols": symbols,
                 "needles": needles,
                 "context_lines": int(ctx_lines),
                 "max_matches": int(max_matches),
-                "blocks": blocks,
+                "extract_from": extract_from,
+                "results": results,
             }
 
             body = json.dumps(resp, ensure_ascii=False).encode("utf-8")
@@ -2066,10 +2186,6 @@ class Handler(BaseHTTPRequestHandler):
         include_rules_raw = req.get("include_rules")
         include_rules = bool(include_rules_raw) if include_rules_raw is not None else False
 
-        if content == "":
-            self._send(400, b"content is empty", "text/plain; charset=utf-8")
-            return
-
         if instruction.strip() == "":
             # 生成時に instruction が空なら拒否する（空EXEC_TASK防止）
             self._send(400, b"instruction is empty", "text/plain; charset=utf-8")
@@ -2078,53 +2194,100 @@ class Handler(BaseHTTPRequestHandler):
         outroot = Path(__file__).resolve().parent / DEFAULT_OUTROOT
         safe_mkdir(outroot)
 
-        try:
-            session_id, out_dir, parts, payloads = generate_parts(
-                filename=filename,
-                content=content,
-                prefix=prefix,
-                lang=lang,
-                maxchars=maxchars,
-                maxlines=maxlines,
-                instruction=instruction,
-                outroot=outroot,
-                max_keep_logs=maxlogs,
-                split_mode=split_mode,
-                iife_grace_ratio=iife_grace_ratio,
-                project_id=project_id,
-                task_id=task_id,
-                include_rules=include_rules,
-            )
-        except Exception as e:
-            self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
+        # ------------------------------------------------------------
+        # ★ split 対象の選択
+        # - 複数: files
+        # - 単体: filename/content
+        # ------------------------------------------------------------
+        split_targets: List[dict] = []
+        if files:
+            split_targets = list(files)
+        else:
+            if content == "":
+                self._send(400, b"content is empty", "text/plain; charset=utf-8")
+                return
+            split_targets = [{"filename": filename, "content": content}]
+
+        results = []
+
+        for tgt in split_targets:
+            t_filename = str(tgt.get("filename") or "input.js")
+            t_content = str(tgt.get("content") or "")
+
+            if t_content == "":
+                continue
+
+            try:
+                session_id, out_dir, parts, payloads = generate_parts(
+                    filename=t_filename,
+                    content=t_content,
+                    prefix=prefix,
+                    lang=lang,
+                    maxchars=maxchars,
+                    maxlines=maxlines,
+                    instruction=instruction,
+                    outroot=outroot,
+                    max_keep_logs=maxlogs,
+                    split_mode=split_mode,
+                    iife_grace_ratio=iife_grace_ratio,
+                    project_id=project_id,
+                    task_id=task_id,
+                    include_rules=include_rules,
+                )
+            except Exception as e:
+                self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
+                return
+
+            results.append({
+                "filename": t_filename,
+                "session_id": session_id,
+                "output_dir": str(out_dir),
+                "parts": [
+                    {
+                        "index": p.index,
+                        "total": p.total,
+                        "part_id": p.part_id,
+
+                        # UI表示用: パート本文SHA256（貼り間違い検出）
+                        "part_sha256": p.part_sha256,
+
+                        # UI表示用: SHA8（人間が一瞬で照合できる短縮）
+                        "part_sha8": p.part_sha256[:8].upper(),
+
+                        "start_offset": p.start_offset,
+                        "end_offset": p.end_offset,
+                        "len_chars": len(p.text),
+                        "payload": payloads[p.index - 1],
+                    }
+                    for p in parts
+                ],
+            })
+
+        # ★ 生成対象が1件も無い場合はエラー（UI側の想定外クラッシュ防止）
+        if len(results) == 0:
+            self._send(400, b"no valid input files (all contents were empty?)", "text/plain; charset=utf-8")
             return
 
+        # ------------------------------------------------------------
+        # ★ 後方互換を強制
+        # ------------------------------------------------------------
+        # 従来UIはトップレベルの session_id/output_dir/parts を前提にしている可能性が高い。
+        # 複数ファイルでも「先頭結果」を legacy fields として必ず併記し、
+        # 新I/F は results に全件を載せる。
+        first = results[0]
+
         resp = {
-            "session_id": session_id,
-            "output_dir": str(out_dir),
-            "parts": [
-                {
-                    "index": p.index,
-                    "total": p.total,
-                    "part_id": p.part_id,
-
-                    # UI表示用: パート本文SHA256（貼り間違い検出）
-                    "part_sha256": p.part_sha256,
-
-                    # UI表示用: SHA8（人間が一瞬で照合できる短縮）
-                    "part_sha8": p.part_sha256[:8].upper(),
-
-                    "start_offset": p.start_offset,
-                    "end_offset": p.end_offset,
-                    "len_chars": len(p.text),
-                    "payload": payloads[p.index - 1],
-                }
-                for p in parts
-            ],
+            "ok": True,
+            "session_id": str(first.get("session_id") or ""),
+            "output_dir": str(first.get("output_dir") or ""),
+            "parts": list(first.get("parts") or []),
+            "results": results,
+            "multi": bool(len(results) > 1),
         }
 
         body = json.dumps(resp, ensure_ascii=False).encode("utf-8")
         self._send(200, body, "application/json; charset=utf-8")
+        return
 
 
 def main() -> None:
