@@ -910,10 +910,10 @@
 
       html +=
         '<div style="margin: 2px 0;">' +
-        '<a href="' + url + '" data-cscs-recent-qid="' + qid + '" style="color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.45);">' +
-        '<span style="display:inline-block; width: 18px; color: rgba(255,255,255,0.9);">' + mark + "</span>" +
-        qid +
-        '<span id="' + spanId + '" data-cscs-filled="0" style="display:inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: rgba(255,255,255,0.78);"></span>' +
+        '<a href="' + url + '" data-cscs-recent-qid="' + qid + '" style="display: flex; align-items: center; gap: 6px; width: 100%; color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.45); white-space: nowrap;">' +
+        '<span style="flex: 0 0 18px; width: 18px; color: rgba(255,255,255,0.9);">' + mark + "</span>" +
+        '<span style="flex: 0 0 auto;">' + qid + "</span>" +
+        '<span id="' + spanId + '" data-cscs-filled="0" style="flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,0.78);"></span>' +
         "</a>" +
         "</div>";
     }
