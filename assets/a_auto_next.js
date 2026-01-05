@@ -570,7 +570,7 @@
 
   // 直近一覧: qid → 問題文冒頭のキャッシュ（ネットワーク負荷を抑える）
   var RECENT_QID_HEAD_CACHE = {};
-  var RECENT_QID_HEAD_CHARS = 15;
+  var RECENT_QID_HEAD_CHARS = 30;
 
   // 直前の回答結果（qidごと）を保存するキー（localStorage）
   // - "○" = 正解, "×" = 不正解
