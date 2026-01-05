@@ -205,262 +205,6 @@
   function saveInt(key, value){
     localStorage.setItem(key, String(value));
   }
-
-  // ★ 何をしているか:
-  //   record* をこのファイル（送信専任）で提供するための名前空間を確保する
-  if (typeof window.CSCS_SYNC === "undefined" || window.CSCS_SYNC === null) {
-    window.CSCS_SYNC = {};
-  }
-
-  // ★ 何をしているか:
-  //   今日の⭐️ユニーク（streak3Today）を localStorage から読み、/api/sync/merge に送る（送信専任）
-  window.CSCS_SYNC.recordStreak3TodayUnique = async function () {
-    try {
-      // ★ 何をしているか:
-      //   O.D.O.A = on_nocount のときは「今日ユニーク」を送らない（★だけ増える事故防止）
-      var st = null;
-      try {
-        st = window.__cscs_sync_state || null;
-      } catch(_e0) {
-        st = null;
-      }
-      if (st && (st.odoaMode === "on_nocount" || st.odoa_mode === "on_nocount")) {
-        console.log("[SYNC-B:streak3Today] skip because O.D.O.A = on_nocount");
-        return;
-      }
-
-      // ★ 何をしているか:
-      //   Bパートからの todayUnique は「オンライン時だけ」送る（オフライン再送は設計から除外）
-      if (!navigator.onLine) {
-        console.warn("[SYNC-B:streak3Today] offline → 送信スキップ");
-        return;
-      }
-
-      var day = "";
-      var qids = [];
-
-      try {
-        day = localStorage.getItem("cscs_streak3_today_day") || "";
-        var rawQids = localStorage.getItem("cscs_streak3_today_qids");
-
-        if (rawQids) {
-          var parsed = JSON.parse(rawQids);
-          if (Array.isArray(parsed)) {
-            qids = parsed.filter(function (x) {
-              return typeof x === "string" && x;
-            });
-          }
-        }
-      } catch (_e1) {
-        day = "";
-        qids = [];
-      }
-
-      console.group("[SYNC-B:streak3Today] recordStreak3TodayUnique CALLED");
-      console.log("local.day =", day);
-      console.log("local.qids =", qids);
-      console.groupEnd();
-
-      // ★ 何をしているか:
-      //   空データはサーバを壊さないために送らない（正常スキップ）
-      if (!day || qids.length === 0) {
-        console.log("[SYNC-B:streak3Today] day 又は qids が空 → 正常スキップ（まだ送るべきデータがない）", {
-          day: day,
-          qidsLength: qids.length
-        });
-        return;
-      }
-
-      var payload = {
-        payloadType: "diff",
-        streak3TodayDelta: {
-          day: day,
-          qids: qids
-        },
-        updatedAt: Date.now()
-      };
-
-      console.group("[SYNC-B:streak3Today] SEND payload");
-      console.log(payload);
-      console.groupEnd();
-
-      // ★ 何をしているか:
-      //   X-CSCS-Key は bootstrap の完了を待ち、その結果のみを使用する（/api/sync/state からは取らない）
-      if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
-        throw new Error("SYNC_BOOTSTRAP_NOT_READY");
-      }
-
-      await window.__CSCS_SYNC_KEY_PROMISE__;
-
-      var keyForMerge = "";
-      try {
-        keyForMerge = String(localStorage.getItem("cscs_sync_key") || "").trim();
-      } catch (_e2) {
-        keyForMerge = "";
-      }
-
-      if (!keyForMerge) {
-        throw new Error("SYNC_KEY_MISSING_LOCAL");
-      }
-
-      var res = await fetch("/api/sync/merge", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSCS-Key": keyForMerge
-        },
-        body: JSON.stringify(payload),
-        keepalive: true,
-        credentials: "include"
-      });
-
-      if (!res.ok) {
-        console.error("[SYNC-B:streak3Today] merge FAILED:", res.status);
-        return;
-      }
-
-      var merged = null;
-      try {
-        merged = await res.json();
-      } catch (_e3) {
-        merged = null;
-      }
-
-      console.group("[SYNC-B:streak3Today] MERGE result");
-      console.log("mergeResponse =", merged);
-      console.groupEnd();
-
-      // ★ 何をしているか:
-      //   表示側が再描画できるように通知を投げる（view側は /api/sync/state を読むだけ）
-      try {
-        window.dispatchEvent(new Event("cscs:sync:todayUniqueUpdated"));
-      } catch (_e4) {}
-
-    } catch (e) {
-      console.error("[SYNC-B:streak3Today] fatal error:", e);
-    }
-  };
-
-  // ★ 何をしているか:
-  //   今日の💣ユニーク（streak3WrongToday）を localStorage から読み、/api/sync/merge に送る（送信専任）
-  window.CSCS_SYNC.recordStreak3WrongTodayUnique = async function () {
-    try {
-      // ★ 何をしているか:
-      //   O.D.O.A = on_nocount のときは「今日ユニーク」を送らない（💣だけ増える事故防止）
-      var st = null;
-      try {
-        st = window.__cscs_sync_state || null;
-      } catch(_e0) {
-        st = null;
-      }
-      if (st && (st.odoaMode === "on_nocount" || st.odoa_mode === "on_nocount")) {
-        console.log("[SYNC-B:streak3WrongToday] skip because O.D.O.A = on_nocount");
-        return;
-      }
-
-      if (!navigator.onLine) {
-        console.warn("[SYNC-B:streak3WrongToday] offline → 送信スキップ");
-        return;
-      }
-
-      var day = "";
-      var qids = [];
-
-      try {
-        day = localStorage.getItem("cscs_streak3_wrong_today_day") || "";
-        var rawQids = localStorage.getItem("cscs_streak3_wrong_today_qids");
-
-        if (rawQids) {
-          var parsed = JSON.parse(rawQids);
-          if (Array.isArray(parsed)) {
-            qids = parsed.filter(function (x) {
-              return typeof x === "string" && x;
-            });
-          }
-        }
-      } catch (_e1) {
-        day = "";
-        qids = [];
-      }
-
-      console.group("[SYNC-B:streak3WrongToday] recordStreak3WrongTodayUnique CALLED");
-      console.log("local.day =", day);
-      console.log("local.qids =", qids);
-      console.groupEnd();
-
-      if (!day || qids.length === 0) {
-        console.log("[SYNC-B:streak3WrongToday] day 又は qids が空 → 正常スキップ（まだ送るべきデータがない）", {
-          day: day,
-          qidsLength: qids.length
-        });
-        return;
-      }
-
-      var payload = {
-        payloadType: "diff",
-        streak3WrongTodayDelta: {
-          day: day,
-          qids: qids
-        },
-        updatedAt: Date.now()
-      };
-
-      console.group("[SYNC-B:streak3WrongToday] SEND payload");
-      console.log(payload);
-      console.groupEnd();
-
-      if (!window.__CSCS_SYNC_KEY_PROMISE__ || typeof window.__CSCS_SYNC_KEY_PROMISE__.then !== "function") {
-        throw new Error("SYNC_BOOTSTRAP_NOT_READY");
-      }
-
-      await window.__CSCS_SYNC_KEY_PROMISE__;
-
-      var keyForMerge = "";
-      try {
-        keyForMerge = String(localStorage.getItem("cscs_sync_key") || "").trim();
-      } catch (_e2) {
-        keyForMerge = "";
-      }
-
-      if (!keyForMerge) {
-        throw new Error("SYNC_KEY_MISSING_LOCAL");
-      }
-
-      var res = await fetch("/api/sync/merge", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSCS-Key": keyForMerge
-        },
-        body: JSON.stringify(payload),
-        keepalive: true,
-        credentials: "include"
-      });
-
-      if (!res.ok) {
-        console.error("[SYNC-B:streak3WrongToday] merge FAILED:", res.status);
-        return;
-      }
-
-      var merged = null;
-      try {
-        merged = await res.json();
-      } catch (_e3) {
-        merged = null;
-      }
-
-      console.group("[SYNC-B:streak3WrongToday] MERGE result");
-      console.log("mergeResponse =", merged);
-      console.groupEnd();
-
-      try {
-        window.dispatchEvent(new Event("cscs:sync:todayUniqueUpdated"));
-      } catch (_e4) {}
-
-    } catch (e) {
-      console.error("[SYNC-B:streak3WrongToday] fatal error:", e);
-    }
-  };
   
   async function syncFromTotals(){
     // 1) 現在の累積（b_judge_record.js が書いた値）
@@ -589,22 +333,6 @@
       });
     }
 
-    // max / max_day は「更新が起きたときだけ」送信するため、前回送信値を読む
-    const lastMaxOpt          = loadIntOptional(KEY_LAST_STREAK_MAX);
-    const lastMaxDayOpt       = loadDayOptional(KEY_LAST_STREAK_MAX_DAY);
-    const lastWrongMaxOpt     = loadIntOptional(KEY_LAST_STREAK_WRONG_MAX);
-    const lastWrongMaxDayOpt  = loadDayOptional(KEY_LAST_STREAK_WRONG_MAX_DAY);
-
-    const maxChanged = (
-      (streakMaxOpt.ok && (!lastMaxOpt.ok || lastMaxOpt.value !== streakMaxOpt.value)) ||
-      (streakMaxDayOpt.ok && (!lastMaxDayOpt.ok || lastMaxDayOpt.value !== streakMaxDayOpt.value))
-    );
-
-    const wrongMaxChanged = (
-      (streakWrongMaxOpt.ok && (!lastWrongMaxOpt.ok || lastWrongMaxOpt.value !== streakWrongMaxOpt.value)) ||
-      (streakWrongMaxDayOpt.ok && (!lastWrongMaxDayOpt.ok || lastWrongMaxDayOpt.value !== streakWrongMaxDayOpt.value))
-    );
-
     // 重要:
     //   - この syncFromTotals() が作る merge payload には「今日のユニーク（streak3Today / streak3WrongToday）」は含めない。
     //   - 今日ユニークの送信は、window.CSCS_SYNC.recordStreak3TodayUnique() / recordStreak3WrongTodayUnique() 側で行い、
@@ -628,6 +356,22 @@
       });
       return;
     }
+
+    // max / max_day は「更新が起きたときだけ」送信するため、前回送信値を読む
+    const lastMaxOpt          = loadIntOptional(KEY_LAST_STREAK_MAX);
+    const lastMaxDayOpt       = loadDayOptional(KEY_LAST_STREAK_MAX_DAY);
+    const lastWrongMaxOpt     = loadIntOptional(KEY_LAST_STREAK_WRONG_MAX);
+    const lastWrongMaxDayOpt  = loadDayOptional(KEY_LAST_STREAK_WRONG_MAX_DAY);
+
+    const maxChanged = (
+      (streakMaxOpt.ok && (!lastMaxOpt.ok || lastMaxOpt.value !== streakMaxOpt.value)) ||
+      (streakMaxDayOpt.ok && (!lastMaxDayOpt.ok || lastMaxDayOpt.value !== streakMaxDayOpt.value))
+    );
+
+    const wrongMaxChanged = (
+      (streakWrongMaxOpt.ok && (!lastWrongMaxOpt.ok || lastWrongMaxOpt.value !== streakWrongMaxOpt.value)) ||
+      (streakWrongMaxDayOpt.ok && (!lastWrongMaxDayOpt.ok || lastWrongMaxDayOpt.value !== streakWrongMaxDayOpt.value))
+    );
 
     // 4) /api/sync/merge へ「差分だけ」を送信
     const payload = {
