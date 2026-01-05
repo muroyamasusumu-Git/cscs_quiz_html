@@ -1,6 +1,51 @@
 // assets/b_sync_merge.js
 // Bパート → SYNC 連携（attempt_log 廃止版）
 /**
+ * ============================================================
+ * 【このファイルが行う SYNC 送信（Bパート側の責務）】
+ * ------------------------------------------------------------
+ * 1) totals 差分（diff）送信:
+ *    - b_judge_record.js が localStorage に書いた「問題別累計/ストリーク」を読み、
+ *      「前回SYNC済み累計（B専用キャッシュ）」との差分を /api/sync/merge に送る。
+ *      * correctDelta / incorrectDelta
+ *      * streak3Delta / streak3WrongDelta
+ *      * streakLenDelta / streakWrongLenDelta（増分ではなく最新値）
+ *      * streakMaxDelta / streakMaxDayDelta（更新がある時だけ最新値）
+ *      * streakWrongMaxDelta / streakWrongMaxDayDelta（更新がある時だけ最新値）
+ *
+ * 2) 今日ユニーク（streak3Today / streak3WrongToday）の「送信そのもの」は行わない:
+ *    - このファイルは “送信トリガー” として hidden ボタン（cscs_sync_view_b_send_btn）を生成し、
+ *      自動クリックで window.CSCS_SYNC.recordStreak3TodayUnique() /
+ *      window.CSCS_SYNC.recordStreak3WrongTodayUnique() を起動するだけ。
+ *    - 送信の実体（online判定 / O.D.O.A on_nocount ブロック / merge送信）は cscs_sync_view_b.js 側の責務。
+ *
+ * ============================================================
+ * 【b_sync_merge.js が “送信していないもの”（= cscs_sync_view_b.js 側の送信）】
+ * ------------------------------------------------------------
+ * A) refreshAndSend() → sendDiffToServer()
+ *    - diff を送った後に /api/sync/state を再取得して HUD を「送信後の最新 state」に更新する処理
+ *      （このファイルは /api/sync/state を参照しない）
+ *
+ * B) oncePerDayTodayDelta（O.D.O.A / once-per-day 計測）
+ *    - /api/sync/state のスナップショット(syncState)と local を突き合わせ、
+ *      「今日の初回だけ計測する」結果を差分として /api/sync/merge に送る処理
+ *
+ * C) window.CSCS_SYNC.recordStreak3TodayUnique()
+ *    - localStorage（cscs_streak3_today_day / cscs_streak3_today_qids 等）を読み、
+ *      streak3TodayDelta（day, qids）を /api/sync/merge に送る処理
+ *    - O.D.O.A が on_nocount の場合は送信をブロックする安全ガード
+ *
+ * D) window.CSCS_SYNC.recordStreak3WrongTodayUnique()
+ *    - localStorage（cscs_streak3_wrong_today_day / cscs_streak3_wrong_today_qids 等）を読み、
+ *      streak3WrongTodayDelta（day, qids）を /api/sync/merge に送る処理
+ *    - O.D.O.A が on_nocount の場合は送信をブロックする安全ガード
+ *
+ * E) 明示ガード（このファイルは “同等の判定” を持たない）
+ *    - navigator.onLine === false の明示ブロック
+ *    - CSCS_VERIFY_MODE=on の明示ブロック（diff送信なし）
+ *    - O.D.O.A on_nocount の明示ブロック（今日ユニーク送信ブロック）
+ *
+ * ============================================================
  * 【キー対応表（LocalStorage ⇔ SYNC state ⇔ delta payload）】
  *  ※このファイルで「新しくキーを追加／既存キー名を変更」した場合は、
  *    必ずこの表を更新すること（恒久ルール）。
