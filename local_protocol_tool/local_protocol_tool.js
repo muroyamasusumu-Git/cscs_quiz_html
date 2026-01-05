@@ -51,6 +51,11 @@
   const TASK_ID_HISTORY_KEY = "protocol_splitter_task_id_history_v1";
   const TASK_ID_HISTORY_MAX = 40;
 
+  /* 追加: extract symbols / needles の履歴 */
+  const EXTRACT_SYMBOLS_HISTORY_KEY = "protocol_splitter_extract_symbols_history_v1";
+  const EXTRACT_NEEDLES_HISTORY_KEY = "protocol_splitter_extract_needles_history_v1";
+  const EXTRACT_TEXT_HISTORY_MAX = 40;
+
   function loadTaskIdHistory() {
     try {
       const raw = localStorage.getItem(TASK_ID_HISTORY_KEY);
@@ -77,6 +82,47 @@
       }
       localStorage.setItem(TASK_ID_HISTORY_KEY, JSON.stringify(uniq));
     } catch (e) {}
+  }
+
+  /* 追加: text履歴（symbols/needles）共通 */
+  function loadTextHistory(storageKey) {
+    try {
+      const raw = localStorage.getItem(String(storageKey || ""));
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr.map(x => String(x || "").trim()).filter(x => x);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveTextHistory(storageKey, arr, maxN) {
+    try {
+      const lim = (typeof maxN === "number" && isFinite(maxN) && maxN > 0) ? Math.floor(maxN) : EXTRACT_TEXT_HISTORY_MAX;
+
+      const uniq = [];
+      const seen = new Set();
+      for (let i = 0; i < arr.length; i++) {
+        const v = String(arr[i] || "").trim();
+        if (!v) continue;
+        if (seen.has(v)) continue;
+        seen.add(v);
+        uniq.push(v);
+        if (uniq.length >= lim) break;
+      }
+
+      localStorage.setItem(String(storageKey || ""), JSON.stringify(uniq));
+    } catch (e) {}
+  }
+
+  function rememberTextHistory(storageKey, v) {
+    const s = String(v || "").trim();
+    if (!s) return;
+
+    const hist = loadTextHistory(storageKey);
+    const next = [s].concat(hist);
+    saveTextHistory(storageKey, next, EXTRACT_TEXT_HISTORY_MAX);
   }
 
   function refreshTaskIdDatalist() {
@@ -232,7 +278,14 @@
 
   function restoreUiState() {
     const s = loadUiState();
-    if (!s) return;
+    if (!s) {
+      /* 初回（UI_STATEが無い）だけ: CODE_ONLY をデフォルトONにする */
+      if ($("extractCodeOnly")) {
+        $("extractCodeOnly").checked = true;
+      }
+      saveUiState();
+      return;
+    }
 
     if ($("prefix") && typeof s.prefix === "string" && s.prefix) {
       $("prefix").value = s.prefix;
@@ -672,8 +725,12 @@
 
       const btn = document.createElement("button");
       btn.className = "partJumpBtn" + (i === currentIndex ? " primary" : "");
-      btn.textContent = String((p && (p._display_index || p.index)) || ""); /* 1..N の番号だけ */
-
+      btn.textContent = String((p && p._display_index) ? (p._display_index) : (i + 1));
+      /*
+       * 何をしているか:
+       *   - ジャンプボタンの番号も _display_index に統一する
+       *   - UI内で番号解釈が分岐しないようにする
+       */
       btn.onclick = () => {
         currentIndex = i;
         renderCurrent();
@@ -859,7 +916,11 @@
       chkEx.type = "checkbox";
       chkEx.checked = !!e.extractFromChecked;
       chkEx.addEventListener("change", () => {
-        e.extractFromChecked = !!chkEx.checked;
+        const next = !!chkEx.checked;
+
+        // extract_from は “複数選択” を許可する
+        e.extractFromChecked = next;
+
         saveUiState();
       });
 
@@ -895,6 +956,76 @@
 
   let lastSyntaxCheckOk = null;
   let lastSyntaxCheckMessage = "";
+
+  // ============================================================
+  // ★ EXTRACT 診断ログ設定（コンソールで一発で状況を追うため）
+  // ------------------------------------------------------------
+  // 何をしているか:
+  //   - EXTRACT_DIAG_ENABLED を true にすると、doExtract() の重要状態を
+  //     console に必ず出す（UIの status だけでは追えない原因を可視化）。
+  //   - false にすると一切出さない（通常運用へ即戻せる）。
+  // ============================================================
+  const EXTRACT_DIAG_ENABLED = true;
+  
+  // ============================================================
+  // ★ EXTRACT input history picker（右クリックで履歴→反映）
+  // ------------------------------------------------------------
+  // 何をしているか:
+  //   - extractSymbols / extractNeedles の過去入力を localStorage に保存
+  //   - テキストエリア上で右クリックすると履歴一覧を prompt で表示
+  //   - 番号選択でそのまま入力へ反映
+  // ============================================================
+  function openTextHistoryPicker(storageKey, targetTextareaId, label) {
+    try {
+      const ta = $(String(targetTextareaId || ""));
+      if (!ta) return;
+
+      const hist = loadTextHistory(storageKey);
+      if (!hist || hist.length === 0) {
+        setStatus(String(label || "履歴") + "：履歴がありません");
+        return;
+      }
+
+      const lines = [];
+      lines.push(String(label || "履歴") + "（新しい順）");
+      lines.push("番号を入力すると、その値を反映します。空でキャンセル。");
+      lines.push("");
+      for (let i = 0; i < hist.length; i++) {
+        lines.push(String(i + 1).padStart(2, "0") + ": " + hist[i]);
+      }
+
+      const ans = window.prompt(lines.join("\n"), "");
+      if (ans === null) return;
+
+      const n = Number(String(ans || "").trim());
+      if (!isFinite(n) || n <= 0) return;
+
+      const idx = Math.floor(n) - 1;
+      if (idx < 0 || idx >= hist.length) return;
+
+      ta.value = hist[idx];
+      saveUiState();
+      try { ta.focus(); } catch (e) {}
+
+      setStatus(String(label || "履歴") + "：反映しました（#" + String(n) + "）");
+    } catch (e) {}
+  }  
+
+  function diagExtract(label, obj) {
+    /*
+     * 何をしているか:
+     *   - ログ出力を 1箇所に集約して、出力形式を安定化させる
+     *   - label と payload をまとめて出す（後で検索しやすい）
+     */
+    if (!EXTRACT_DIAG_ENABLED) return;
+    try {
+      if (obj !== undefined) {
+        console.log("[LPT][EXTRACT][DIAG] " + String(label || ""), obj);
+      } else {
+        console.log("[LPT][EXTRACT][DIAG] " + String(label || ""));
+      }
+    } catch (e) {}
+  }
 
   async function runSyntaxCheckForFile(file) {
     if (!file) return;
@@ -1351,8 +1482,13 @@
         label.textContent = "現在のパート";
       }
       if (meta) {
-        const di = (p && (p._display_index || p.index)) || "-";
-        const dt = (p && (p._display_total || p.total)) || "-";
+        const di = (p && p._display_index) || "-";
+        const dt = (p && p._display_total) || "-";
+        /*
+         * 何をしているか:
+         *   - UI表示のパート番号は _display_index のみを使用する
+         *   - p.index へのフォールバックを廃止し、生成物とUI表示のズレを防ぐ
+         */
 
         const srcName = String((p && p._source_filename) || "").trim();
         const srcSid  = String((p && p._source_session_id) || "").trim();
@@ -1416,8 +1552,13 @@
       header.className = "partHeader";
       const t1 = document.createElement("span");
       t1.className = "pill";
-      const di = (p && (p._display_index || p.index)) || 0;
+      const di = (p && p._display_index) || 0;
       t1.textContent = "part_" + String(di).padStart(2, "0") + ".txt";
+      /*
+       * 何をしているか:
+       *   - 一覧表示でも _display_index のみを使用する
+       *   - 単一ファイル split 時に part_02.txt が誤表示される問題を防止
+       */
       const t2 = document.createElement("span");
       t2.className = "pill";
       t2.textContent = p.part_id;
@@ -1596,7 +1737,10 @@
       maxlogs: Number($("maxlogs").value || 50),
       split_mode: ($("splitMode") && $("splitMode").value) ? String($("splitMode").value) : "C",
       iife_grace_ratio: 0.30,
-      instruction: instr
+      instruction: instr,
+
+      /* 追加した処理: SCOPE CHECK 用の抽出コードを split payload に含めて /api/split へ渡す（そのまま値を送る） */
+      scope_extract_code: document.getElementById("scope_extract_code").value
     };
 
     setStatus("分割中...");
@@ -1632,6 +1776,59 @@
       const raw = result;
 
       if (!raw || typeof raw !== "object") return;
+
+      // ============================================================
+      // ★ 単一 / 複数 を分岐して正規化する
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - raw.parts がある場合は「単一レスポンス」として扱い、これを最優先する
+      //   - raw.parts が無い場合のみ raw.results（複数レスポンス）を flatten する
+      //   - UIは常に result.parts[] を読むため、ここで形を一本化する
+      // ============================================================
+
+      // ============================================================
+      // 1) 単一レスポンス: { session_id, parts:[...] } を優先
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - raw.parts をそのまま UI 用に採用する（results があっても flatten しない）
+      //   - UIジャンプ用に _display_index/_display_total を付与する
+      // ============================================================
+      if (Array.isArray(raw.parts)) {
+        const partsIn = raw.parts;
+        const out = [];
+
+        for (let i = 0; i < partsIn.length; i++) {
+          const p0 = partsIn[i] || {};
+          const di = i + 1;
+
+          const p = Object.assign({}, p0, {
+            _display_index: di,
+            _display_total: 0
+          });
+
+          out.push(p);
+        }
+
+        for (let i = 0; i < out.length; i++) {
+          out[i]._display_total = out.length;
+        }
+
+        result = {
+          session_id: String(raw.session_id || "").trim(),
+          parts: out,
+          _multi: false
+        };
+        return;
+      }
+
+      // ============================================================
+      // 2) 複数レスポンス: { ok, results:[ { filename, session_id, parts:[...] }, ... ] }
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - results[].parts を flatten して UI が読む result.parts[] にまとめる
+      //   - どのファイル由来か追えるように _source_filename/_source_session_id を付与する
+      //   - UIジャンプ用に _display_index/_display_total を付与する
+      // ============================================================
       if (!Array.isArray(raw.results)) return;
 
       const flat = [];
@@ -1639,8 +1836,8 @@
       for (let i = 0; i < raw.results.length; i++) {
         const r = raw.results[i] || {};
 
-        const fname = String(r.filename || r.target_file || r.file || "").trim();
-        const sid = String(r.session_id || raw.session_id || "").trim();
+        const fname = String(r.filename || "").trim();
+        const sid = String(r.session_id || "").trim();
 
         const parts = Array.isArray(r.parts) ? r.parts : [];
 
@@ -1663,8 +1860,15 @@
         flat[i]._display_total = flat.length;
       }
 
+      // ============================================================
+      // 3) UIの session_id を決める
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - 複数レスポンスでは raw.session_id が無いケースがあるため、
+      //     UI側は first part の _source_session_id を代表として採用する
+      // ============================================================
       const uiSessionId =
-        String(raw.session_id || (flat[0] && flat[0]._source_session_id) || "").trim();
+        String((flat[0] && flat[0]._source_session_id) || "").trim();
 
       result = {
         session_id: uiSessionId,
@@ -1674,7 +1878,6 @@
     })();
 
     currentIndex = 0;
-    restoreUiStatePostResult();
     renderList();
     renderCurrent();
     renderInstructionHistory();
@@ -1743,9 +1946,21 @@
 
   if ($("extractSymbols")) {
     $("extractSymbols").addEventListener("input", () => saveUiState());
+
+    /* 追加: 右クリックで履歴ピッカー */
+    $("extractSymbols").addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      openTextHistoryPicker(EXTRACT_SYMBOLS_HISTORY_KEY, "extractSymbols", "EXTRACT_SYMBOLS 履歴");
+    });
   }
   if ($("extractNeedles")) {
     $("extractNeedles").addEventListener("input", () => saveUiState());
+
+    /* 追加: 右クリックで履歴ピッカー */
+    $("extractNeedles").addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      openTextHistoryPicker(EXTRACT_NEEDLES_HISTORY_KEY, "extractNeedles", "EXTRACT_NEEDLES 履歴");
+    });
   }
   /* 追加した処理: SESSION_ID / EXEC_TASK も入力変更で即保存（split後の自動入力→手修正も保持） */
   if ($("extractSessionId")) {
@@ -1777,19 +1992,45 @@
     const sourcesSel = getSelectedSourceEntries();
     const extractFromSel = getSelectedExtractFromEntries();
 
+    // ============================================================
+    // ★ 診断ログ: 選択状態（source / extract_from）の“実態”を最初に出す
+    // ------------------------------------------------------------
+    // 何をしているか:
+    //   - UI上ではチェックが入ってる“つもり”でも、内部配列が空/ズレていると
+    //     そこで止まる。その瞬間の配列数とファイル名を確実に可視化する。
+    // ============================================================
+    diagExtract("selection snapshot", {
+      sourcesSel_len: sourcesSel ? sourcesSel.length : null,
+      extractFromSel_len: extractFromSel ? extractFromSel.length : null,
+      sourcesSel_names: (sourcesSel || []).map(e => String((e && e.name) || "")),
+      extractFromSel_names: (extractFromSel || []).map(e => String((e && e.name) || "")),
+    });
+
     if (!sourcesSel || sourcesSel.length === 0) {
+      diagExtract("stop: sources empty");
       setStatus("extractの sources が空です（js_file_list で source にチェックしてください）");
       return;
     }
     if (!extractFromSel || extractFromSel.length === 0) {
+      diagExtract("stop: extract_from empty");
       setStatus("extract対象（extract_from）が空です（js_file_list で extract_from にチェックしてください）");
       return;
     }
 
-    // 構文チェックNGが混ざってたら止める
+    // ============================================================
+    // ★ 診断ログ: 構文チェック状態（NGで止まる理由を確実に出す）
+    // ------------------------------------------------------------
+    // 何をしているか:
+    //   - syntaxOk=false が混じって止まる場合、どのファイルで止まったか
+    //     consoleに必ず残す（UIのstatusは上書きされうる）。
+    // ============================================================
     for (let i = 0; i < sourcesSel.length; i++) {
       const e = sourcesSel[i];
       if (e && e.syntaxOk === false) {
+        diagExtract("stop: syntax NG in sources", {
+          name: String(e.name || ""),
+          syntaxMsg: String(e.syntaxMsg || "")
+        });
         setStatus("構文チェックNGのため抽出を中止します: " + String(e.name || "") + " / " + String(e.syntaxMsg || ""));
         return;
       }
@@ -1797,6 +2038,10 @@
     for (let i = 0; i < extractFromSel.length; i++) {
       const e = extractFromSel[i];
       if (e && e.syntaxOk === false) {
+        diagExtract("stop: syntax NG in extract_from", {
+          name: String(e.name || ""),
+          syntaxMsg: String(e.syntaxMsg || "")
+        });
         setStatus("構文チェックNGのため抽出を中止します: " + String(e.name || "") + " / " + String(e.syntaxMsg || ""));
         return;
       }
@@ -1804,6 +2049,10 @@
 
     const sym = String(($("extractSymbols") && $("extractSymbols").value) || "").trim();
     const ndl = String(($("extractNeedles") && $("extractNeedles").value) || "").trim();
+
+    /* 追加: 実行時に現在の入力を履歴へ保存（空は除外・重複は潰す） */
+    rememberTextHistory(EXTRACT_SYMBOLS_HISTORY_KEY, sym);
+    rememberTextHistory(EXTRACT_NEEDLES_HISTORY_KEY, ndl);
 
     const ctxRaw = String(($("extractContextLines") && $("extractContextLines").value) || "25").trim();
     const mxmRaw = String(($("extractMaxMatches") && $("extractMaxMatches").value) || "50").trim();
@@ -1817,12 +2066,42 @@
     const context_lines = ctxRaw ? Number(ctxRaw) : 25;
     const max_matches = mxmRaw ? Number(mxmRaw) : 50;
 
+    // ============================================================
+    // ★ 診断ログ: 入力（symbols/needles/パラメータ）を“そのまま”出す
+    // ------------------------------------------------------------
+    // 何をしているか:
+    //   - symbols/needles が空や意図と違う分割になっていると、
+    //     抽出が常に0になる。ここで確実に確認できるようにする。
+    // ============================================================
+    diagExtract("inputs", {
+      sym_raw: sym,
+      ndl_raw: ndl,
+      symbols_len: symbols.length,
+      needles_len: needles.length,
+      context_lines: context_lines,
+      max_matches: max_matches,
+      codeOnly: codeOnly
+    });
+
     const sourcesPayload = [];
     for (let i = 0; i < sourcesSel.length; i++) {
       const e = sourcesSel[i];
       const f = e && e.file ? e.file : null;
       if (!f) continue;
+
+      // ============================================================
+      // ★ 診断ログ: File.text() が失敗していないか／サイズがゼロでないか
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - “チェックは入ってるが content が空” だと抽出は成立しない。
+      //   - ここで filename と文字数を出して確実に検出できるようにする。
+      // ============================================================
       const text = await f.text();
+      diagExtract("read source file", {
+        filename: String(f.name || ""),
+        chars: String(text || "").length
+      });
+
       sourcesPayload.push({ filename: String(f.name || ""), content: String(text || "") });
     }
 
@@ -1831,7 +2110,20 @@
       const e = extractFromSel[i];
       const f = e && e.file ? e.file : null;
       if (!f) continue;
+
+      // ============================================================
+      // ★ 診断ログ: extract_from の読み込み実態（空/読めてない）を潰す
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - extract_from が空だと、symbols/needles があってもヒットしない。
+      //   - filename と文字数を必ず出す。
+      // ============================================================
       const text = await f.text();
+      diagExtract("read extract_from file", {
+        filename: String(f.name || ""),
+        chars: String(text || "").length
+      });
+
       extractFromPayload.push({ filename: String(f.name || ""), content: String(text || "") });
     }
 
@@ -1843,6 +2135,25 @@
       context_lines: context_lines,
       max_matches: max_matches
     };
+
+    // ============================================================
+    // ★ 診断ログ: /api/extract へ送る payload の要約を出す
+    // ------------------------------------------------------------
+    // 何をしているか:
+    //   - 「送っているはず」が崩れている箇所（空配列/想定外ファイル数）を
+    //     ここで確実に確定させる。
+    //   - content の中身は出さず、数だけ出す（ログ爆発防止）。
+    // ============================================================
+    diagExtract("payload summary", {
+      sources_n: payload.sources.length,
+      extract_from_n: payload.extract_from.length,
+      symbols_n: payload.symbols.length,
+      needles_n: payload.needles.length,
+      context_lines: payload.context_lines,
+      max_matches: payload.max_matches,
+      sources_files: payload.sources.map(x => String((x && x.filename) || "")),
+      extract_from_files: payload.extract_from.map(x => String((x && x.filename) || "")),
+    });
 
     setStatus("抽出中...");
     $("run").disabled = true;
@@ -1858,13 +2169,51 @@
       $("run").disabled = false;
       if ($("runExtract")) $("runExtract").disabled = false;
 
+      // ============================================================
+      // ★ 診断ログ: HTTP ステータス（ここで失敗してるとJS側ロジック以前）
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - res.ok / status / statusText を確実に出す
+      // ============================================================
+      diagExtract("response status", {
+        ok: !!res.ok,
+        status: res.status,
+        statusText: String(res.statusText || "")
+      });
+
       if (!res.ok) {
         const t = await res.text();
+
+        // ============================================================
+        // ★ 診断ログ: サーバが返した本文（JSONでなくてもそのまま）
+        // ------------------------------------------------------------
+        // 何をしているか:
+        //   - /api/extract 側の例外やバリデーション結果がここに出る。
+        // ============================================================
+        diagExtract("response body (non-ok)", {
+          text_len: String(t || "").length,
+          text_head_600: String(t || "").slice(0, 600)
+        });
+
         setStatus("抽出エラー: " + t);
         return;
       }
 
       const data = await res.json();
+
+      // ============================================================
+      // ★ 診断ログ: 返ってきたJSONの“骨格”を出す
+      // ------------------------------------------------------------
+      // 何をしているか:
+      //   - ok / error / blocks数 が想定通りかを一発確認できるようにする。
+      // ============================================================
+      diagExtract("response json summary", {
+        ok: !!(data && data.ok),
+        error: String((data && data.error) || ""),
+        filename: String((data && data.filename) || ""),
+        blocks_len: (data && Array.isArray(data.blocks)) ? data.blocks.length : null
+      });
+
       if (!data || !data.ok) {
         setStatus("抽出失敗: " + String((data && data.error) || "unknown"));
         return;
@@ -2029,8 +2378,14 @@
         if (b.kind === "context") {
           outLines.push("【CONTEXT】 " + String(b.needle || ""));
           outLines.push("HITS: " + String(b.hit_count || 0));
-          outLines.push("LINES: ±" + String(b.context_lines || 0));
-          outLines.push("MAX_MATCHES: " + String(b.max_matches || 0));
+
+          /* 追加した処理:
+             CODE_ONLY（厳格）=ON のときは抽出結果内に LINES / MAX_MATCHES を入れない */
+          if (!codeOnly) {
+            outLines.push("LINES: ±" + String(b.context_lines || 0));
+            outLines.push("MAX_MATCHES: " + String(b.max_matches || 0));
+          }
+
           outLines.push("");
 
           const items = b.items || [];
@@ -2393,4 +2748,4 @@
         }
       }
     } catch (e) {}
-  });  
+  });

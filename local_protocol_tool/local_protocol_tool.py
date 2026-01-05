@@ -97,8 +97,18 @@ EXEC_TASK_PATCH_RULES = """【出力仕様（パッチ規約：厳守）】
 
 @dataclass
 class SplitPart:
+    # ★ 追加した処理: 複数ファイルを「1セッション」に束ねるためのメタ
+    source_filename: str
+    file_tag: str
+
+    # ★ 追加した処理: “全体の何番目”か（全ファイル通しの連番）
+    global_index: int
+    global_total: int
+
+    # 互換のため残す（ただし multi では global_index/global_total を正として扱う）
     index: int
     total: int
+
     part_id: str
     text: str
     start_offset: int
@@ -265,7 +275,25 @@ def _part_defines(js_chunk: str, max_items: int) -> List[str]:
 def make_session_id(prefix: str, file_text: str) -> str:
     digest8 = sha256_hex(file_text)[:8].upper()
     return f"{prefix}-{digest8}"
-
+    
+def make_session_id_multi(prefix: str, targets: List[dict]) -> str:
+    """
+    ★ 追加した処理: 複数JSを「1セッション」に束ねる共通 SessionID を作る。
+    - ファイル順序も含めて固定化（順序が変わると別IDになる）
+    - instruction には依存させない（“同じJS束”なら同じSessionIDにしたい想定）
+    """
+    lines: List[str] = []
+    for t in targets:
+        fn = str(t.get("filename") or "")
+        ct = str(t.get("content") or "")
+        lines.append("===FILE_BEGIN===")
+        lines.append(fn)
+        lines.append(str(len(ct)))
+        lines.append(ct)
+        lines.append("===FILE_END===")
+    base = "\n".join(lines)
+    digest8 = sha256_hex(base)[:8].upper()
+    return f"{prefix}-{digest8}"
 
 def safe_mkdir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
@@ -703,8 +731,9 @@ def split_by_limits(
     return parts
 
 
-def build_part_id(session_id: str, idx: int, total: int) -> str:
-    return f"{session_id}-P{idx:02d}-of-{total:02d}"
+def build_part_id(session_id: str, global_idx: int, global_total: int) -> str:
+    # ★ 追加した処理: 複数ファイルでも PartID が衝突しないよう “全体連番” を正とする
+    return f"{session_id}-P{global_idx:02d}-of-{global_total:02d}"
 
 
 def _line_start_offsets(s: str) -> List[int]:
@@ -1078,7 +1107,8 @@ def build_expected_partids(parts: List[SplitPart]) -> List[str]:
 
 
 def build_cumulative_partids(parts: List[SplitPart], upto_index_inclusive: int) -> List[str]:
-    return [p.part_id for p in parts if p.index <= upto_index_inclusive]
+    # ★ 修正: 複数ファイル対応では “全体連番(global_index)” が正
+    return [p.part_id for p in parts if p.global_index <= upto_index_inclusive]
 
 
 def build_scope_index_block(full_js_text: str) -> str:
@@ -1267,17 +1297,69 @@ def build_scope_index_block(full_js_text: str) -> str:
 
     return "\n".join(lines)
 
+def split_scope_extract_code_into_blocks(scope_extract_code: str) -> List[str]:
+    """
+    SCOPE_CHECK 抽出コードを「ブロック単位」で分割する。
+
+    ブロック定義（ユーザー仕様）:
+      HEADER:
+      SHA256:
+      ```javascript
+      ...
+      ```
+
+    ルール:
+      - ブロック内部（```javascript ... ```）では絶対に分割しない
+      - ブロックの境界（次の HEADER: が始まる位置）でのみ分割する
+      - ブロックが検出できない場合は [] を返す（呼び出し側で互換フォールバック）
+    """
+    s = str(scope_extract_code or "")
+    if s.strip() == "":
+        return []
+
+    lines = s.splitlines(True)  # 改行保持
+    n = len(lines)
+    if n <= 0:
+        return []
+
+    starts: List[int] = []
+    for i, ln in enumerate(lines):
+        if ln.startswith("HEADER:"):
+            starts.append(i)
+
+    if not starts:
+        return []
+
+    blocks: List[str] = []
+    for idx, st in enumerate(starts):
+        ed = starts[idx + 1] if idx + 1 < len(starts) else n
+        chunk = "".join(lines[st:ed]).strip()
+        if chunk == "":
+            continue
+
+        # 最低限の形（SHA256 と ```javascript を含む）を満たすものだけ“ブロック”として採用する
+        # ※厳密パースにしない（ユーザーの入力ゆらぎ耐性）
+        if "SHA256:" in chunk and "```javascript" in chunk and "```" in chunk:
+            blocks.append(chunk)
+        else:
+            # 形が崩れている HEADER: 断片は、全体を壊さないためブロック扱いしない
+            # （呼び出し側は blocks==[] の場合に従来フォールバックする）
+            return []
+
+    return blocks
 
 def build_exec_task_block(exec_task_text: str, scope_index_block: str) -> str:
     lines: List[str] = []
     lines.append("【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】")
+    # 追加した処理: 参照元の根拠を明文化し、「どのファイルのコードか」を SourceFile ヘッダで一意に確定させる安全装置
+    lines.append("REFERENCE_SOURCE: 各 <<<PART_BEGIN>>> ヘッダの SourceFile を参照元の唯一の根拠として扱うこと（推測で他ファイル由来にしない）")
     if exec_task_text.strip():
         lines.append(exec_task_text.strip())
     else:
         lines.append("（EXEC_TASK が空です。ユーザー指示が不足しています。）")
 
     lines.append("")
-    # 追加した処理: 最終パートに SCOPE_INDEX を埋め込み、識別子の有無確認を先に確定できるようにする
+    # 追加した処理: 最終パートには EXEC_TASK を小さく保つため、SCOPE_INDEX のみを埋め込む（抽出コードは別パートへ移動）
     if scope_index_block.strip():
         lines.append(scope_index_block.rstrip())
         lines.append("")
@@ -1287,6 +1369,8 @@ def build_exec_task_block(exec_task_text: str, scope_index_block: str) -> str:
     lines.append("")
     lines.append("【ChatGPT 実行ルール（強制）】")
     lines.append("・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。")
+    lines.append("・重要：指示に対してプロトコル内の『禁止項目』により実行不可となった処理がある場合は、その事実を必ず簡潔に明記すること。")
+    lines.append("  - 出力形式（1行固定）: BLOCKED_BY_PROTOCOL: <実行不可になった処理> | <該当した禁止項目>")
 
     # SCOPE_CHECK を柔軟化（FAIL禁止 / 追加要求禁止 / 推測で前進）
     # 追加した処理: SCOPE_CHECK: FAIL を“仕様として不可能”にし、見つからない場合でも WARN で作業を止めずに推測で前進させる
@@ -1320,6 +1404,7 @@ def build_receipt_input_block(
     exec_task_text: str,
     parts: List[SplitPart],
     scope_index_block: str,
+    scope_extract_code: str,
 ) -> str:
     lines: List[str] = []
     lines.append("【RECEIPT_INPUT（このメッセージ内だけを真とする）】")
@@ -1340,9 +1425,12 @@ def build_receipt_input_block(
 
     lines.append("")
     lines.append("【ChatGPTへの強制ルール】")
-    lines.append("・受領確認は、このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用すること。")
-    lines.append("・会話履歴から PartID を再収集しないこと（禁止）。")
-    lines.append("・受領確認OK前に、コード内容の解釈・要約・推測・修正案提示をしないこと（禁止）。")
+    # 追加した処理: 受領確認・実行フェーズを問わず、同一 SessionID の過去 PART 本文は常に参照可能とする
+    lines.append("・受領確認および実行フェーズでは、同一 SessionID に属する過去PART本文を必ず全て参照すること。")
+    # 追加した処理: SessionID が異なる PART の混入のみを禁止対象とする
+    lines.append("・参照対象は、同一 SessionID の EXPECTED_PARTIDS に含まれる PART に限定すること。")
+    # 追加した処理: 受領確認完了前は作業開始のみ禁止し、参照自体は禁止しない
+    lines.append("・受領確認OK前は、作業開始（JOIN/EXEC）を行わないこと。")
     lines.append("")
     lines.append("RECEIPT_REQUIRED_RESPONSE_TEMPLATE:")
     lines.append("ACK: <PartID> <PartSHA256_8> / WAITING_NEXT")
@@ -1350,6 +1438,8 @@ def build_receipt_input_block(
     if is_last:
         lines.append("")
         # 追加した処理: 最終パートの EXEC_TASK ブロック内に SCOPE_INDEX を埋め込む
+        # 追加した処理: さらに SCOPE_CHECK 用の抽出コード（ユーザー入力）を「最終パートにだけ」固定挿入する
+        # 追加した処理: 最終パートは EXEC_TASK のみに寄せる（抽出コードは別パートへ移動）
         lines.append(build_exec_task_block(exec_task_text, scope_index_block))
 
     lines.append("")
@@ -1365,7 +1455,8 @@ def build_protocol_preamble(
     overview_text: str,
 ) -> str:
     lines: List[str] = []
-    lines.append("【プロトコル宣言（PART_01=宣言 / LAST_PART=EXEC_TASK）】")
+    # 追加した処理: PART1 は「前文専用パート（PROTOCOL_PREAMBLE）」であり、コード本文は PART2 から始まることを明文化する
+    lines.append("【プロトコル宣言（PART_01=PROTOCOL_PREAMBLE / PART_02..=CODE / LAST_PART=EXEC_TASK）】")
     lines.append(f"SessionID: {session_id}")
     lines.append(f"TargetFile: {input_filename}")
     lines.append(f"Split: total_parts={total_parts}, max_chars_per_part={max_chars}, max_lines_per_part={max_lines}")
@@ -1375,8 +1466,12 @@ def build_protocol_preamble(
     lines.append("1) 分割コード(1..N-1)受領時の返答は必ず：")
     lines.append("   ACK: <PartID> / WAITING_NEXT")
     lines.append("2) 最終分割コード(N)受領時は、末尾の RECEIPT_INPUT を用いて受領確認を実施すること。")
-    lines.append("3) 受領確認は、最終メッセージ内の CUMULATIVE_RECEIVED_PARTIDS と EXPECTED_PARTIDS のみを使用（会話履歴参照は禁止）。")
-    lines.append("4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01の文は参考であり実行根拠にしない。")
+    # 追加した処理: 同一 SessionID の過去 PART は、受領確認・実行フェーズを問わず常に参照可能とする
+    lines.append("3) 同一 SessionID に属する EXPECTED_PARTIDS の過去PART本文は、常に参照対象とする。")
+    # 追加した処理: SessionID 境界のみを唯一の安全境界とする
+    lines.append("3.5) 異なる SessionID の PART を参照することは禁止する。")
+    # 追加した処理: 実行根拠の除外対象を「PART_01（前文専用）」として明確化する
+    lines.append("4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01（PROTOCOL_PREAMBLE）は参考であり実行根拠にしない。")
     lines.append("5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。")
     lines.append("6) JOIN（連結）ルール（強制）:")
     lines.append("   - 分割コードを連結して“完全なJS”を作る際、パート境界に改行や空白を勝手に追加してはならない。")
@@ -1451,8 +1546,11 @@ def make_part_payload(
 
     header_lines: List[str] = []
     header_lines.append("<<<PART_BEGIN>>>")
-    header_lines.append(f"【分割コード({part.index})の開始】")
+    # ★ 修正: 表示上の「分割コード(n)」は multi でも一致するよう “全体連番(global_index)” を使う
+    header_lines.append(f"【分割コード({part.global_index})の開始】")
     header_lines.append(f"PartID: {part.part_id}")
+    # 追加した処理: 各パートが「どの入力ファイル由来か」をヘッダに明示し、貼り付け後も由来を一目で追えるようにする
+    header_lines.append(f"SourceFile: {part.source_filename}")
     header_lines.append(f"PartSHA256: {part.part_sha256}")
     header_lines.append(f"Range: chars {part.start_offset}..{part.end_offset} (len={len(part.text)})")
     header_lines.append(f"FirstLine: {part.first_line}")
@@ -1467,8 +1565,8 @@ def make_part_payload(
 
     header_lines.append("")
 
-    if part.index == 1:
-        header_lines.append(protocol_preamble)
+    # 追加した処理: protocol_preamble は「前文専用パート（PROTOCOL_PREAMBLE）」として独立出力するため、
+    #               コード本文パートへ混在させない（Part1本文未受領扱い事故の主因を除去）
 
     header_lines.append(f"```{language_tag}")
     header_text = "\n".join(header_lines)
@@ -1478,12 +1576,12 @@ def make_part_payload(
     footer_lines.append("<<<PART_END>>>")
     footer_lines.append(receipt_input_block)
 
-    if part.index < part.total:
-        footer_lines.append(f"【分割コード({part.index})の終了】→ 次は 分割コード({part.index + 1}) を送ります")
+    if part.global_index < part.global_total:
+        footer_lines.append(f"【分割コード({part.global_index})の終了】→ 次は 分割コード({part.global_index + 1}) を送ります（全{part.global_total}分割）")
         footer_lines.append("【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。")
         footer_lines.append("ACK: <PartID> / WAITING_NEXT")
     else:
-        footer_lines.append(f"【分割コード({part.index})の終了】→ これで最後です（全{part.total}分割）")
+        footer_lines.append(f"【分割コード({part.global_index})の終了】→ これで最後です（全{part.global_total}分割）")
         footer_lines.append(protocol_epilogue)
 
     return header_text + "\n" + part.text + "\n" + "\n".join(footer_lines) + "\n"
@@ -1527,14 +1625,15 @@ def write_manifest_json(
         },
         "parts": [
             {
-                "index": p.index,
-                "total": p.total,
+                # ★ 修正: manifest も “全体連番(global_index/global_total)” を正として記録する
+                "index": p.global_index,
+                "total": p.global_total,
                 "part_id": p.part_id,
                 "part_sha256": p.part_sha256,
                 "start_offset": p.start_offset,
                 "end_offset": p.end_offset,
                 "len_chars": len(p.text),
-                "file": f"parts/part_{p.index:02d}.txt",
+                "file": f"parts/part_{p.global_index:02d}.txt",
             }
             for p in parts
         ],
@@ -1647,8 +1746,7 @@ def enforce_max_log_dirs(outroot: Path, max_keep: int) -> Tuple[int, int]:
 
 
 def generate_parts(
-    filename: str,
-    content: str,
+    split_targets: List[dict],
     prefix: str,
     lang: str,
     maxchars: int,
@@ -1661,8 +1759,10 @@ def generate_parts(
     project_id: str,
     task_id: str,
     include_rules: bool,
+    scope_extract_code: str,
 ) -> Tuple[str, Path, List[SplitPart], List[str]]:
-    session_id = make_session_id(prefix, content)
+    # ★ 追加した処理: 複数ファイルを「1セッション」に束ねる
+    session_id = make_session_id_multi(prefix, split_targets)
 
     wrapped_instruction, request_id = wrap_instruction_with_ids(
         instruction=instruction,
@@ -1672,116 +1772,354 @@ def generate_parts(
         include_rules=include_rules,
     )
 
-    chunks = split_by_limits(
-        content,
-        maxchars,
-        maxlines,
-        split_mode=split_mode,
-        iife_grace_ratio=iife_grace_ratio,
-    )
-    total = len(chunks)
-
-    # PART_SCOPE_HINT 用：行番号（1-based）変換のための前処理
-    line_starts = _line_start_offsets(content)
-
     out_dir = outroot / f"{session_id}_{now_tag()}"
     parts_dir = out_dir / "parts"
     safe_mkdir(parts_dir)
 
+    # ------------------------------------------------------------
+    # 1) まず全ファイルを分割して “全体パート数” を確定
+    # ------------------------------------------------------------
+    per_file_chunks: List[dict] = []
+    global_total = 0
+
+    for file_idx, tgt in enumerate(split_targets, start=1):
+        t_filename = str(tgt.get("filename") or "input.js")
+        t_content = str(tgt.get("content") or "")
+        if t_content == "":
+            continue
+
+        chunks = split_by_limits(
+            t_content,
+            maxchars,
+            maxlines,
+            split_mode=split_mode,
+            iife_grace_ratio=iife_grace_ratio,
+        )
+
+        file_tag = f"F{file_idx:02d}"
+        per_file_chunks.append({
+            "file_idx": int(file_idx),
+            "file_tag": file_tag,
+            "filename": t_filename,
+            "content": t_content,
+            "chunks": chunks,
+        })
+        global_total += int(len(chunks))
+
+    if global_total <= 0:
+        raise ValueError("no valid input files (all contents were empty?)")
+
+    # ------------------------------------------------------------
+    # 2) SCOPE_INDEX は「全ファイル結合テキスト」から1回だけ作る
+    # ------------------------------------------------------------
+    concat_lines: List[str] = []
+    for it in per_file_chunks:
+        concat_lines.append("/* ===CSCS_MULTI_FILE_BEGIN=== */")
+        concat_lines.append(f"/* FILE: {str(it.get('filename') or '')} */")
+        concat_lines.append(str(it.get("content") or ""))
+        concat_lines.append("/* ===CSCS_MULTI_FILE_END=== */")
+    concat_text = "\n".join(concat_lines)
+    scope_index_block = build_scope_index_block(concat_text)
+
+    # ------------------------------------------------------------
+    # 3) SplitPart を “全体連番” で作る
+    # ------------------------------------------------------------
     parts: List[SplitPart] = []
-    for idx, (st, ed, ch, depth_start, depth_end) in enumerate(chunks, start=1):
-        part_id = build_part_id(session_id, idx, total)
-        lines = ch.splitlines()
-        first_line = lines[0] if lines else ""
-        last_line = lines[-1] if lines else ""
+    global_idx = 0
 
-        # PART_SCOPE_HINT: 行範囲（1-based）
-        start_line = _offset_to_line_index(line_starts, st) + 1
-        end_line = _offset_to_line_index(line_starts, max(st, ed - 1)) + 1
+    for it in per_file_chunks:
+        t_filename = str(it.get("filename") or "input.js")
+        t_content = str(it.get("content") or "")
+        file_tag = str(it.get("file_tag") or "")
+        chunks = it.get("chunks") or []
 
-        parts.append(SplitPart(
-            index=idx,
-            total=total,
-            part_id=part_id,
-            text=ch,
-            start_offset=st,
-            end_offset=ed,
+        # PART_SCOPE_HINT 用：行番号（1-based）
+        line_starts = _line_start_offsets(t_content)
 
-            # PART_SCOPE_HINT 用
-            start_line=start_line,
-            end_line=end_line,
-            brace_depth_start=int(depth_start),
-            brace_depth_end=int(depth_end),
+        file_total = int(len(chunks))
+        for local_idx, (st, ed, ch, depth_start, depth_end) in enumerate(chunks, start=1):
+            global_idx += 1
+            part_id = build_part_id(session_id, global_idx, global_total)
 
-            # パート本文の完全性検証用
-            part_sha256=sha256_hex(ch),
+            lines = ch.splitlines()
+            first_line = lines[0] if lines else ""
+            last_line = lines[-1] if lines else ""
 
-            # 人間向け視認ヒント
-            first_line=first_line,
-            last_line=last_line,
-        ))
+            start_line = _offset_to_line_index(line_starts, st) + 1
+            end_line = _offset_to_line_index(line_starts, max(st, ed - 1)) + 1
+
+            parts.append(SplitPart(
+                source_filename=t_filename,
+                file_tag=file_tag,
+                global_index=int(global_idx),
+                global_total=int(global_total),
+
+                index=int(local_idx),
+                total=int(file_total),
+
+                part_id=part_id,
+                text=ch,
+                start_offset=st,
+                end_offset=ed,
+
+                start_line=start_line,
+                end_line=end_line,
+                brace_depth_start=int(depth_start),
+                brace_depth_end=int(depth_end),
+
+                part_sha256=sha256_hex(ch),
+
+                first_line=first_line,
+                last_line=last_line,
+            ))
 
     expected_ids = build_expected_partids(parts)
-    protocol_preamble = build_protocol_preamble(
-        session_id=session_id,
-        input_filename=filename,
-        total_parts=total,
-        max_chars=maxchars,
-        max_lines=maxlines,
-        overview_text=wrapped_instruction,
-    )
+
+    # ------------------------------------------------------------
+    # 4) プロトコル文言（前文）は「最終パート列が確定した後」に生成する
+    # ------------------------------------------------------------
+    # 追加した処理:
+    # - protocol_preamble は Part1（前文専用パート）にのみ出す
+    # - total_parts は「最終確定後の総数」を使う（ズレ根絶）
+    file_list_lines: List[str] = []
+    file_list_lines.append("【MULTI_FILE_TARGETS（順序固定）】")
+    for it in per_file_chunks:
+        file_list_lines.append(f"- {str(it.get('file_tag') or '')}: {str(it.get('filename') or '')}")
+
+    overview_text = wrapped_instruction.rstrip() + "\n\n" + "\n".join(file_list_lines) + "\n"
+
+    protocol_preamble = ""
     protocol_epilogue = build_protocol_epilogue()
 
-    # 追加した処理: 連結後JS（= 元の全文）から SCOPE_INDEX を一度だけ生成し、最終パートへ埋め込む
-    scope_index_block = build_scope_index_block(content)
+    # ------------------------------------------------------------
+    # 4.5) SCOPE_CHECK 抽出コードを「追加パート」としてぶら下げる（最終パート固定挿入を廃止）
+    # ------------------------------------------------------------
+    # 追加した処理:
+    # - 抽出コードは「ブロック単位（HEADER/SHA256/```javascript ... ```）」で扱う
+    # - ブロック内部（コードフェンス内）では分割しない
+    # - maxlines 上限で“詰めて”複数の追加パートにする（最終パート肥大化を防ぐ）
+    # - 最後のパートは EXEC_TASK 専用（小さく保つ）
+    extract_parts_texts: List[str] = []
+
+    if str(scope_extract_code or "").strip():
+        blocks = split_scope_extract_code_into_blocks(str(scope_extract_code))
+
+        if blocks:
+            cur_lines = 0
+            cur_buf: List[str] = []
+
+            for i, b in enumerate(blocks, start=1):
+                block_text = ""
+                block_text += "【SCOPE_CHECK_EXTRACT_CODE（追加パート：ブロック単位／ブロック内部は分割しない）】\n"
+                block_text += f"【SCOPE_CHECK_EXTRACT_BLOCK: {i}/{len(blocks)}】\n"
+                block_text += b.rstrip() + "\n"
+
+                block_line_count = block_text.count("\n")
+
+                # 追加した処理: 1200行上限で“パート詰め”する（ブロック単位でのみ移動）
+                if cur_buf and (cur_lines + block_line_count) > int(maxlines):
+                    extract_parts_texts.append("\n".join(cur_buf).rstrip() + "\n")
+                    cur_buf = []
+                    cur_lines = 0
+
+                cur_buf.append(block_text.rstrip())
+                cur_lines += block_line_count
+
+            if cur_buf:
+                extract_parts_texts.append("\n".join(cur_buf).rstrip() + "\n")
+
+        else:
+            # 追加した処理: ブロック検出できない場合は、従来互換として“丸ごと1追加パート”にする（最終パートには入れない）
+            extract_parts_texts.append(
+                "【SCOPE_CHECK_EXTRACT_CODE（追加パート：ブロック区切り検出不能のため丸ごと）】\n"
+                "```javascript\n"
+                + str(scope_extract_code).rstrip()
+                + "\n```\n"
+            )
+
+    # ------------------------------------------------------------
+    # 5) EXEC_TASK 専用の「最終パート」を追加する（本文コードは空）
+    # ------------------------------------------------------------
+    exec_part = SplitPart(
+        source_filename="EXEC_TASK",
+        file_tag="EXEC_TASK",
+        global_index=0,
+        global_total=0,
+        index=0,
+        total=0,
+        part_id="",
+        text="",
+        start_offset=0,
+        end_offset=0,
+        start_line=0,
+        end_line=0,
+        brace_depth_start=0,
+        brace_depth_end=0,
+        part_sha256=sha256_hex(""),
+        first_line="",
+        last_line="",
+    )
+
+    # ------------------------------------------------------------
+    # 6) parts を再構成（JSパート → 抽出追加パート → EXEC_TASK最終パート）
+    # ------------------------------------------------------------
+    rebuilt_parts: List[SplitPart] = []
+
+    for p in parts:
+        rebuilt_parts.append(p)
+
+    for idx, t in enumerate(extract_parts_texts, start=1):
+        rebuilt_parts.append(SplitPart(
+            source_filename="SCOPE_CHECK_EXTRACT_CODE",
+            file_tag="SCOPE_EXTRACT",
+            global_index=0,
+            global_total=0,
+            index=0,
+            total=0,
+            part_id="",
+            text=str(t or ""),
+            start_offset=0,
+            end_offset=0,
+            start_line=0,
+            end_line=0,
+            brace_depth_start=0,
+            brace_depth_end=0,
+            part_sha256=sha256_hex(str(t or "")),
+            first_line=str(t or "").splitlines()[0] if str(t or "").splitlines() else "",
+            last_line=str(t or "").splitlines()[-1] if str(t or "").splitlines() else "",
+        ))
+
+    rebuilt_parts.append(exec_part)
+
+    # ------------------------------------------------------------
+    # 6.5) PROTOCOL_PREAMBLE（前文専用パート）を先頭に挿入する
+    # ------------------------------------------------------------
+    # 追加した処理:
+    # - Part1 に「長い前文 + コード」が混在する事故を構造的に排除する
+    # - total_parts は「前文パート込みの最終総数」で確定させる
+    final_total_with_preamble = int(len(rebuilt_parts) + 1)
+
+    protocol_preamble = build_protocol_preamble(
+        session_id=session_id,
+        input_filename="MULTI_FILES",
+        total_parts=final_total_with_preamble,
+        max_chars=maxchars,
+        max_lines=maxlines,
+        overview_text=overview_text,
+    )
+
+    preamble_part = SplitPart(
+        source_filename="PROTOCOL_PREAMBLE",
+        file_tag="PROTOCOL_PREAMBLE",
+        global_index=0,
+        global_total=0,
+        index=0,
+        total=0,
+        part_id="",
+        text=str(protocol_preamble or ""),
+        start_offset=0,
+        end_offset=0,
+        start_line=0,
+        end_line=0,
+        brace_depth_start=0,
+        brace_depth_end=0,
+        part_sha256=sha256_hex(str(protocol_preamble or "")),
+        first_line=str(protocol_preamble or "").splitlines()[0] if str(protocol_preamble or "").splitlines() else "",
+        last_line=str(protocol_preamble or "").splitlines()[-1] if str(protocol_preamble or "").splitlines() else "",
+    )
+
+    # 追加した処理: PROTOCOL_PREAMBLE を必ず先頭に置く（PART_01 専用）
+    # - JS本文はこの直後（PART_02 以降）から始まる構造に固定する
+    parts = [preamble_part] + rebuilt_parts
+
+    # ★ 修正1（最重要）:
+    # 最終parts確定後に、全パートの PartID を必ず振り直す（payload生成より前）
+    # - parts を再構成（前文/抽出/EXEC_TASK を含む）した結果に合わせて
+    #   global_index / global_total / part_id を“最終列”で再確定する
+    global_total_new = int(len(parts))
+    for gi, p in enumerate(parts, start=1):
+        # 追加した処理: “全体の何番目か”を最終列に合わせて更新する
+        p.global_index = int(gi)
+
+        # 追加した処理: “最終総数”を全パートに反映する
+        p.global_total = int(global_total_new)
+
+        # 追加した処理: PartID を最終列に合わせて必ず再発番する（旧PartIDの残留を防ぐ）
+        p.part_id = build_part_id(session_id, int(gi), int(global_total_new))
+
+    # 追加した処理: 受領照合用の expected_ids も、再発番後の PartID 群で作り直す
+    expected_ids = build_expected_partids(parts)
 
     payloads: List[str] = []
     for p in parts:
-        cumulative_ids = build_cumulative_partids(parts, p.index)
+        # ★ 追加した処理: 受領確認は “全体連番” を使う
+        cumulative_ids = build_cumulative_partids(parts, p.global_index)
+
+        # ★ 追加した処理: EXEC_TASK を載せるのは “全体の最終パートだけ”（最終パートは EXEC_TASK 専用）
+        is_last_overall = (p.global_index == p.global_total)
+
+        # 追加した処理: 抽出追加パートは本文が “text” なので language_tag を切り替える
+        lang_tag = lang
+        # 追加した処理: PROTOCOL_PREAMBLE / 抽出追加パート / EXEC_TASK はコード本文ではないため text 扱いにする
+        if str(p.source_filename) in ("PROTOCOL_PREAMBLE", "SCOPE_CHECK_EXTRACT_CODE", "EXEC_TASK"):
+            lang_tag = "text"
+
         receipt_input = build_receipt_input_block(
             cumulative_ids=cumulative_ids,
             expected_ids=expected_ids,
-            is_last=(p.index == p.total),
-            exec_task_text=wrapped_instruction,
+            is_last=bool(is_last_overall),
+            exec_task_text=wrapped_instruction if is_last_overall else "",
             parts=parts,
-            scope_index_block=scope_index_block,
+            scope_index_block=scope_index_block if is_last_overall else "",
+            scope_extract_code="",
         )
+
+        # 追加した処理: protocol_preamble は前文専用パートの本文として出すため、
+        #               make_part_payload() 側へ混在させない（常に空を渡す）
         payload = make_part_payload(
             part=p,
-            language_tag=lang,
-            protocol_preamble=protocol_preamble,
+            language_tag=lang_tag,
+            protocol_preamble="",
             receipt_input_block=receipt_input,
             protocol_epilogue=protocol_epilogue,
         )
-        (parts_dir / f"part_{p.index:02d}.txt").write_text(payload, encoding="utf-8")
+
+        (parts_dir / f"part_{p.global_index:02d}.txt").write_text(payload, encoding="utf-8")
         payloads.append(payload)
 
-    original_basename = Path(str(filename or "input.js")).name
+    # ------------------------------------------------------------
+    # 5) manifest は “MULTI_FILES” として残し、original は全ファイル保存する
+    # ------------------------------------------------------------
     original_dir = out_dir / "original"
     safe_mkdir(original_dir)
 
-    original_saved = original_dir / original_basename
-    original_saved.write_text(str(content or ""), encoding="utf-8")
+    for it in per_file_chunks:
+        fn = Path(str(it.get("filename") or "input.js")).name
+        (original_dir / fn).write_text(str(it.get("content") or ""), encoding="utf-8")
 
-    original_saved_rel = str(Path("original") / original_basename)
+    # manifest は最小限の互換情報として “先頭ファイル” を代表に入れる
+    rep_filename = str(per_file_chunks[0].get("filename") or "MULTI_FILES")
+    rep_sha256 = sha256_hex(str(per_file_chunks[0].get("content") or ""))
 
     write_manifest_json(
         out_dir=out_dir,
         session_id=session_id,
-        input_filename=filename,
-        total_parts=total,
+        input_filename=rep_filename,
+        # ★ 修正2:
+        # manifest.json の total_parts は “最終総数(len(parts))” に必ず合わせる
+        # - 前文パート / 抽出追加パート / EXEC_TASK最終パート を含む最終列の総数を記録する
+        total_parts=int(len(parts)),
         max_chars=maxchars,
         max_lines=maxlines,
         parts=parts,
-        original_sha256=sha256_hex(content),
+        original_sha256=rep_sha256,
         instruction=wrapped_instruction,
-        original_saved_relpath=original_saved_rel,
+        original_saved_relpath="original/",
         project_id=project_id,
         task_id=task_id,
         request_id=request_id,
     )
 
-    # outroot 配下のログ保持数を制限し、超過分を自動削除する
     enforce_max_log_dirs(outroot=outroot, max_keep=max_keep_logs)
 
     return session_id, out_dir, parts, payloads
@@ -1867,6 +2205,27 @@ class Handler(BaseHTTPRequestHandler):
 
                 if not src.exists():
                     self._send(404, b"original js not found", "text/plain; charset=utf-8")
+                    return
+
+                # saved_copy がディレクトリ（例: "original/"）の場合は、input.filename の実ファイルを返す
+                if src.is_dir():
+                    orig_name = Path(str(inp.get("filename") or "")).name
+                    if orig_name == "":
+                        self._send(404, b"input.filename not found in manifest", "text/plain; charset=utf-8")
+                        return
+
+                    src_file = (src / orig_name).resolve()
+
+                    if not str(src_file).startswith(str(target_path) + os.sep):
+                        self._send(403, b"forbidden: invalid original file path", "text/plain; charset=utf-8")
+                        return
+
+                    if not src_file.exists():
+                        self._send(404, b"original js file not found in original/", "text/plain; charset=utf-8")
+                        return
+
+                    body = src_file.read_text(encoding="utf-8").encode("utf-8")
+                    self._send(200, body, "text/plain; charset=utf-8")
                     return
 
                 body = src.read_text(encoding="utf-8").encode("utf-8")
@@ -2074,26 +2433,129 @@ class Handler(BaseHTTPRequestHandler):
             # - 単体: content を1ソースとして扱う
             # - 複数: sources を使い、extract_from に含まれる filename だけを対象にする
             # ------------------------------------------------------------
+            def _extract_log_summary(stage: str, info: dict) -> None:
+                """
+                extract のログを「要点だけ」にする。
+                - 1ステージ = 1行（短い）
+                - payload 全部は出さない（巨大ログ防止）
+                """
+                try:
+                    # 重要フィールドだけを固定順で出す（見やすさ優先）
+                    keys = [
+                        "sources_count",
+                        "extract_from_count",
+                        "selected_count",
+                        "symbols_count",
+                        "needles_count",
+                        "context_lines",
+                        "max_matches",
+                        "selected_filenames",
+                        "reason",
+                    ]
+                    brief = {k: info.get(k) for k in keys if k in info}
+                    print("[EXTRACT][SUM]", stage, json.dumps(brief, ensure_ascii=False))
+                except Exception:
+                    try:
+                        print("[EXTRACT][SUM]", stage, str(info))
+                    except Exception:
+                        pass
+
+            def _extract_log_warn(stage: str, info: dict) -> None:
+                """
+                例外系だけは WARN で出す（ただし巨大dumpは禁止）。
+                - 文字列が長すぎる場合は強制的に短縮する。
+                - リストが長すぎる場合は先頭だけにする。
+                """
+                def _shrink(v):
+                    try:
+                        if isinstance(v, str):
+                            if len(v) > 240:
+                                return v[:240] + "...(truncated)"
+                            return v
+                        if isinstance(v, list):
+                            if len(v) > 20:
+                                head = v[:20]
+                                return head + ["...(truncated)"]
+                            return [_shrink(x) for x in v]
+                        if isinstance(v, dict):
+                            out = {}
+                            for k, vv in v.items():
+                                out[str(k)] = _shrink(vv)
+                            return out
+                        return v
+                    except Exception:
+                        return "(shrink_failed)"
+
+                try:
+                    safe_info = _shrink(info if isinstance(info, dict) else {"info": info})
+                    print("[EXTRACT][WARN]", stage, json.dumps(safe_info, ensure_ascii=False))
+                except Exception:
+                    try:
+                        print("[EXTRACT][WARN]", stage, str(info))
+                    except Exception:
+                        pass
+
             extract_from_raw = req.get("extract_from")
             extract_from: List[str] = []
 
             if isinstance(extract_from_raw, list):
-                extract_from = [str(x).strip() for x in extract_from_raw if str(x).strip() != ""]
+                tmp: List[str] = []
+                for x in extract_from_raw:
+                    if isinstance(x, dict):
+                        fnx = str(x.get("filename") or "").strip()
+                        if fnx != "":
+                            tmp.append(fnx)
+                    else:
+                        sx = str(x).strip()
+                        if sx != "":
+                            tmp.append(sx)
+                extract_from = tmp
             elif isinstance(extract_from_raw, str):
                 extract_from = [x.strip() for x in extract_from_raw.split(",") if x.strip() != ""]
+
+            # ------------------------------------------------------------
+            # ★ 要点ログ（巨大dump禁止）
+            # ------------------------------------------------------------
+            _extract_log_summary("request", {
+                "sources_count": int(len(sources)),
+                "extract_from_count": int(len(extract_from)),
+                "symbols_count": int(len(symbols)),
+                "needles_count": int(len(needles)),
+                "context_lines": int(ctx_lines),
+                "max_matches": int(max_matches),
+            })
 
             selected_sources: List[dict] = []
 
             if sources:
                 if extract_from:
                     allow = set(extract_from)
+
                     for it in sources:
-                        if str(it.get("filename") or "") in allow:
+                        fn_it = str(it.get("filename") or "")
+                        if fn_it in allow:
                             selected_sources.append(it)
                 else:
                     selected_sources = list(sources)
             else:
                 selected_sources = [{"filename": filename, "content": content}]
+
+            _extract_log_summary("select", {
+                "sources_count": int(len(sources)),
+                "extract_from_count": int(len(extract_from)),
+                "selected_count": int(len(selected_sources)),
+                "selected_filenames": [str(it.get("filename") or "") for it in selected_sources],
+            })
+
+            if sources and extract_from and len(selected_sources) == 0:
+                _extract_log_warn("select_empty", {
+                    "reason": "no sources matched extract_from",
+                    "extract_from_list": list(extract_from),
+                    "sources_filenames": [str(it.get("filename") or "") for it in sources],
+                })
+                body = json.dumps({"ok": False, "error": "no sources selected by extract_from"}, ensure_ascii=False).encode("utf-8")
+                self._send(200, body, "application/json; charset=utf-8")
+                return
 
             results = []
 
@@ -2110,7 +2572,7 @@ class Handler(BaseHTTPRequestHandler):
                         "kind": "function_whole",
                         "name": name,
                         "found": bool(found),
-                        "header": str(header),
+                        "header": f"SOURCE_FILE: {src_filename} | {str(header)}",  # 追加した処理: 抽出元ファイル名をヘッダに埋め込み、UI表示だけで由来が分かるようにする
                         "text": str(body),
                         "sha256": sha256_hex(str(body)) if found else "",
                     })
@@ -2131,7 +2593,7 @@ class Handler(BaseHTTPRequestHandler):
                         "max_matches": int(max_matches),
                         "items": [
                             {
-                                "header": str(h),
+                                "header": f"SOURCE_FILE: {src_filename} | {str(h)}",  # 追加した処理: 各コンテキスト断片のヘッダにも抽出元ファイル名を付与する
                                 "text": str(t),
                                 "sha256": sha256_hex(str(t)),
                             }
@@ -2144,6 +2606,21 @@ class Handler(BaseHTTPRequestHandler):
                     "blocks": blocks,
                 })
 
+            # ------------------------------------------------------------
+            # ★ 後方互換（legacy fields）
+            # ------------------------------------------------------------
+            # 既存UIが resp.filename / resp.blocks を前提にしている可能性が高い。
+            # results が 1件のときは先頭をトップレベルへ併記する。
+            first_filename = ""
+            first_blocks = []
+            if isinstance(results, list) and len(results) > 0:
+                first = results[0] if isinstance(results[0], dict) else None
+                if first:
+                    first_filename = str(first.get("filename") or "")
+                    fb = first.get("blocks")
+                    if isinstance(fb, list):
+                        first_blocks = fb
+
             resp = {
                 "ok": True,
                 "symbols": symbols,
@@ -2152,6 +2629,10 @@ class Handler(BaseHTTPRequestHandler):
                 "max_matches": int(max_matches),
                 "extract_from": extract_from,
                 "results": results,
+
+                # legacy fields（単体表示用）
+                "filename": first_filename,
+                "blocks": first_blocks,
             }
 
             body = json.dumps(resp, ensure_ascii=False).encode("utf-8")
@@ -2179,6 +2660,11 @@ class Handler(BaseHTTPRequestHandler):
             iife_grace_ratio = DEFAULT_IIFE_GRACE_RATIO
 
         instruction = str(req.get("instruction") or "")
+
+        # 追加した処理: SCOPE CHECK 用の抽出コード（UI入力）
+        # - split対象のJS本文に混ぜない
+        # - 最終パート（EXEC_TASK）にだけ固定挿入するため、ここで受け取って下流へ渡す
+        scope_extract_code = str(req.get("scope_extract_code") or "")
 
         project_id = str(req.get("project_id") or "").strip()
         task_id = str(req.get("task_id") or "").strip()
@@ -2208,35 +2694,34 @@ class Handler(BaseHTTPRequestHandler):
                 return
             split_targets = [{"filename": filename, "content": content}]
 
+        try:
+            session_id, out_dir, parts, payloads = generate_parts(
+                split_targets=split_targets,
+                prefix=prefix,
+                lang=lang,
+                maxchars=maxchars,
+                maxlines=maxlines,
+                instruction=instruction,
+                outroot=outroot,
+                max_keep_logs=maxlogs,
+                split_mode=split_mode,
+                iife_grace_ratio=iife_grace_ratio,
+                project_id=project_id,
+                task_id=task_id,
+                include_rules=include_rules,
+                scope_extract_code=scope_extract_code,
+            )
+        except Exception as e:
+            self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
+            return
+
+        # ★ 追加した処理: UI 互換のため results を “ファイル別” にも組み立てる
         results = []
 
+        # payloads は global_index-1 で取れる
         for tgt in split_targets:
             t_filename = str(tgt.get("filename") or "input.js")
-            t_content = str(tgt.get("content") or "")
-
-            if t_content == "":
-                continue
-
-            try:
-                session_id, out_dir, parts, payloads = generate_parts(
-                    filename=t_filename,
-                    content=t_content,
-                    prefix=prefix,
-                    lang=lang,
-                    maxchars=maxchars,
-                    maxlines=maxlines,
-                    instruction=instruction,
-                    outroot=outroot,
-                    max_keep_logs=maxlogs,
-                    split_mode=split_mode,
-                    iife_grace_ratio=iife_grace_ratio,
-                    project_id=project_id,
-                    task_id=task_id,
-                    include_rules=include_rules,
-                )
-            except Exception as e:
-                self._send(500, f"Split failed: {e}".encode("utf-8"), "text/plain; charset=utf-8")
-                return
+            file_parts = [p for p in parts if str(p.source_filename) == t_filename]
 
             results.append({
                 "filename": t_filename,
@@ -2244,22 +2729,22 @@ class Handler(BaseHTTPRequestHandler):
                 "output_dir": str(out_dir),
                 "parts": [
                     {
-                        "index": p.index,
-                        "total": p.total,
+                        "index": int(p.global_index),
+                        "total": int(p.global_total),
                         "part_id": p.part_id,
 
-                        # UI表示用: パート本文SHA256（貼り間違い検出）
-                        "part_sha256": p.part_sha256,
+                        "source_filename": str(p.source_filename),
+                        "file_tag": str(p.file_tag),
 
-                        # UI表示用: SHA8（人間が一瞬で照合できる短縮）
+                        "part_sha256": p.part_sha256,
                         "part_sha8": p.part_sha256[:8].upper(),
 
                         "start_offset": p.start_offset,
                         "end_offset": p.end_offset,
                         "len_chars": len(p.text),
-                        "payload": payloads[p.index - 1],
+                        "payload": payloads[int(p.global_index) - 1],
                     }
-                    for p in parts
+                    for p in file_parts
                 ],
             })
 
@@ -2272,15 +2757,35 @@ class Handler(BaseHTTPRequestHandler):
         # ★ 後方互換を強制
         # ------------------------------------------------------------
         # 従来UIはトップレベルの session_id/output_dir/parts を前提にしている可能性が高い。
-        # 複数ファイルでも「先頭結果」を legacy fields として必ず併記し、
-        # 新I/F は results に全件を載せる。
+        # ここで返す parts は「全体パート列（PROTOCOL_PREAMBLE / JS本体 / 追加パート / EXEC_TASK）」を必ず含める。
+        # そうすることで manifest.json の total_parts と API の parts 件数が一致し、「7のはずが5」問題を根絶する。
         first = results[0]
+
+        all_parts = [
+            {
+                "index": int(p.global_index),
+                "total": int(p.global_total),
+                "part_id": p.part_id,
+
+                "source_filename": str(p.source_filename),
+                "file_tag": str(p.file_tag),
+
+                "part_sha256": p.part_sha256,
+                "part_sha8": p.part_sha256[:8].upper(),
+
+                "start_offset": p.start_offset,
+                "end_offset": p.end_offset,
+                "len_chars": len(p.text),
+                "payload": payloads[int(p.global_index) - 1],
+            }
+            for p in parts
+        ]
 
         resp = {
             "ok": True,
             "session_id": str(first.get("session_id") or ""),
             "output_dir": str(first.get("output_dir") or ""),
-            "parts": list(first.get("parts") or []),
+            "parts": all_parts,
             "results": results,
             "multi": bool(len(results) > 1),
         }

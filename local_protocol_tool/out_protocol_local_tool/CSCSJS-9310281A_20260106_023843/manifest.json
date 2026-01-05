@@ -1,0 +1,94 @@
+{
+  "session_id": "CSCSJS-9310281A",
+  "created_at": "2026-01-06T02:38:44",
+  "instruction": "【WORK_HEADER（共通ID）】\n[SESSION_ID: CSCSJS-9310281A]\n[REQUEST_ID: REQ-96C1524C]\n\n【USER_INSTRUCTION】\nテスト\n",
+  "work": {
+    "project_id": "",
+    "task_id": "",
+    "request_id": "REQ-96C1524C"
+  },
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 173845,
+    "sha256": "c905f0e55c99e51863e92f10d1abca5af42648f1314216fa4010dbaa7ad333a3",
+    "saved_copy": "original/"
+  },
+  "split": {
+    "total_parts": 7,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P01-of-07",
+      "part_sha256": "b9f7be1b5128483d65798742547cc12dd626042729b88f6a0e413bf35e1c52a7",
+      "start_offset": 0,
+      "end_offset": 0,
+      "len_chars": 1122,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P02-of-07",
+      "part_sha256": "786ec4ac1ac68c0a808948f11176946106281a4f49f0026f57b36444970347cd",
+      "start_offset": 0,
+      "end_offset": 33950,
+      "len_chars": 33950,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P03-of-07",
+      "part_sha256": "a6bb3c250d6543fcc6f3334f2474e274b21e97a5eb0ba5aded7ed368aa915c7d",
+      "start_offset": 33950,
+      "end_offset": 70963,
+      "len_chars": 37013,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P04-of-07",
+      "part_sha256": "af70cfaf810569077ede9cdf03040d678d9cc53ad717ab4239676935785ce0e3",
+      "start_offset": 70963,
+      "end_offset": 114468,
+      "len_chars": 43505,
+      "file": "parts/part_04.txt"
+    },
+    {
+      "index": 5,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P05-of-07",
+      "part_sha256": "dc93c03e795018e53c55922bbee6dc0a890a76f93af29a5ad69e2965c162e585",
+      "start_offset": 114468,
+      "end_offset": 158960,
+      "len_chars": 44492,
+      "file": "parts/part_05.txt"
+    },
+    {
+      "index": 6,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P06-of-07",
+      "part_sha256": "168e3620f6b914d332b57b4bc5a45646bf7396945601689693064e7ea2ceb49d",
+      "start_offset": 158960,
+      "end_offset": 172723,
+      "len_chars": 13763,
+      "file": "parts/part_06.txt"
+    },
+    {
+      "index": 7,
+      "total": 7,
+      "part_id": "CSCSJS-9310281A-P07-of-07",
+      "part_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "start_offset": 0,
+      "end_offset": 0,
+      "len_chars": 0,
+      "file": "parts/part_07.txt"
+    }
+  ]
+}

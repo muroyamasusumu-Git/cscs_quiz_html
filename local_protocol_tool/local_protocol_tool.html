@@ -319,6 +319,10 @@ local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
     .muted.small  {
     font-size: 12px;
     }
+
+    .topHint {
+      text-align: center;
+    }
     
     .sectionTitle {
       font-weight: 700; /* 見出しを太字 */
@@ -472,8 +476,74 @@ local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
       cursor: pointer;
     }
 
-    .splitModePick input[type="radio"] {
+    .splitModePick input[type="radio"],
+    .splitModePick input[type="checkbox"],
+    #js_file_list input[type="checkbox"] {
       transform: translateY(1px);
+
+      /* 追加した処理:
+         ON / OFF でチェックボックス自体のサイズが
+         一切変わらないよう、外形を完全固定する */
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+
+      box-sizing: border-box;
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      min-height: 16px;
+      max-width: 16px;
+      max-height: 16px;
+
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #0c1016;
+
+      display: inline-grid;
+      place-content: center;
+
+      /* 外側に影を出さず、内部だけで表現 */
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    /* 追加した処理:
+       チェックON時は window 非アクティブでも
+       常に同じアクセント色で表示する */
+    .splitModePick input[type="checkbox"]:checked,
+    #js_file_list input[type="checkbox"]:checked {
+      /* 追加した処理:
+         強調はすべて内側(inset)で行い、
+         外形サイズは絶対に変えない */
+      border-color: var(--accent);
+      background: rgba(125, 211, 252, 0.25);
+      box-shadow:
+        inset 0 0 0 2px rgba(125, 211, 252, 0.55);
+    }
+
+    /* 追加した処理:
+       チェックマークを疑似要素で描画（OS依存を排除） */
+    .splitModePick input[type="checkbox"]:checked::before,
+    #js_file_list input[type="checkbox"]:checked::before {
+      /* 追加した処理:
+         チェックマークは中央固定。
+         ON / OFF でレイアウトに一切影響を与えない */
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 2px;
+      box-sizing: border-box;
+    }
+
+    /* 追加した処理:
+       フォーカス有無で見た目が変わらないようにする */
+    .splitModePick input[type="checkbox"]:focus,
+    .splitModePick input[type="checkbox"]:focus-visible {
+      outline: none;
+      box-shadow:
+        inset 0 0 0 1px rgba(125, 211, 252, 0.55),
+        0 0 0 2px rgba(125, 211, 252, 0.20);
     }
 
     .splitModeDesc {
@@ -643,9 +713,9 @@ local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
   </style>
 </head>
 <body>
-  <h2>Protocol Splitter（ローカル専用）</h2>
-  <div class="muted">① assets内のJSを選ぶ（ドラッグ&ドロップも可） → ② 指示を書く → ③ 生成 → ④ パートを表示してコピー</div>
-  <div class="muted small">cd /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/local_protocol_tool<br>
+  <h2>Protocol Splitter（4000行を超えたJS分割コード生成ツール）</h2>
+  <div class="muted topHint">① assets内のJSを選ぶ（ドラッグ&ドロップも可） → ② 指示を書く → ③ 生成 → ④ パートを表示してコピー</div>
+  <div class="muted small topHint">cd /Users/muroyamasusumu/Documents/cscs_video_quiz/quiz_html/local_protocol_tool<br>
   python3 local_protocol_tool.py<br>
   http://127.0.0.1:8787</div>
   
@@ -667,7 +737,7 @@ local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
         ============================================================ -->
         <div id="js_file_list" style="margin-top:10px;">
           <div class="muted" style="font-size:12px; line-height:1.35; margin-bottom:8px;">
-            読み込んだJS一覧（Split / Extractで送る対象をチェック）
+            読み込んだJS一覧（Split / Extractで送る対象をチェック）※現状はLLMでは一つのJSしか正しく読み込まれないので、今後バージョンアップまで待機。
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -807,6 +877,20 @@ local_protocol_tool.html / local_protocol_tool.js / local_protocol_tool.py は
         <div class="ta-resize-wrap" data-target="instruction" style="margin-top:10px;">
           <textarea id="instruction" placeholder="ここに作業指示を書く（この内容が最終パートの EXEC_TASK になる）"></textarea>
           <div class="ta-resize-handle" role="separator" aria-label="Resize instruction textarea"> <div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+        </div>
+
+        <!-- 追加した処理: SCOPE CHECK 用の抽出コード入力欄（最終パート固定挿入） -->
+        <!-- 追加した処理: split 対象のJS本文には混ぜず、EXEC_TASK 側（最終パート）にだけ差し込む前提の入力欄 -->
+        <div style="margin-top:10px;">
+          <div class="muted sectionTitle">SCOPE CHECK 抽出コード（最終パート固定挿入）</div>
+          <div class="muted splitModeDesc" style="margin-top:6px;">
+            ここに貼ったコードは分割対象に混ぜず、最終パートの EXEC_TASK にだけ固定で差し込む前提です。
+          </div>
+
+          <div class="ta-resize-wrap" data-target="scope_extract_code" style="margin-top:10px;">
+            <textarea id="scope_extract_code" placeholder="ここに SCOPE CHECK 用の抽出コードを貼る（最終パート固定挿入）"></textarea>
+            <div class="ta-resize-handle" role="separator" aria-label="Resize scope_extract_code textarea"><div class="ta-resize-hint">⇕ ここをドラッグして高さ変更</div></div>
+          </div>
         </div>
       </div>
 
