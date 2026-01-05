@@ -617,7 +617,11 @@
       if (!h1) {
         return "";
       }
-      var t = String(h1.textContent || "").trim();
+
+      // ▼ 改行や連続空白を1つのスペースに正規化して、履歴パネル内で改行させない
+      var tRaw = String(h1.textContent || "");
+      var t = tRaw.replace(/\s+/g, " ").trim();
+
       if (!t) {
         return "";
       }
@@ -909,7 +913,7 @@
         '<a href="' + url + '" data-cscs-recent-qid="' + qid + '" style="color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.45);">' +
         '<span style="display:inline-block; width: 18px; color: rgba(255,255,255,0.9);">' + mark + "</span>" +
         qid +
-        '<span id="' + spanId + '" data-cscs-filled="0" style="color: rgba(255,255,255,0.78);"></span>' +
+        '<span id="' + spanId + '" data-cscs-filled="0" style="display:inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: rgba(255,255,255,0.78);"></span>' +
         "</a>" +
         "</div>";
     }

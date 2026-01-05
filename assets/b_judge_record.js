@@ -60,7 +60,7 @@
 // ├────────────┼───────────────────────────────┼───────────────────────────────────────────────────────┤
 // │ 連続不正解 │ cscs_wrong_streak_len                 │ 現在の連続不正解数                                         │
 // │             │ cscs_wrong_streak3_total              │ 3連不正解達成回数の累計                                   │
-// │             │ cscc_wrong_streak3_log                │ 3連不正解達成履歴。{ts,qid,day,choice} の配列              │
+// │             │ cscs_wrong_streak3_log                │ 3連不正解達成履歴。{ts,qid,day,choice} の配列              │
 // │             │ cscs_q_wrong_streak_len:{qid}         │ その問題における現在の連続不正解数                         │
 // │             │ cscs_q_wrong_streak_max:{qid}         │ その問題における最高連続不正解数（過去最高を更新した瞬間に保存） │
 // │             │ cscs_q_wrong_streak_max_day:{qid}     │ 上記「最高連続不正解数」を最後に更新した達成日（JST YYYYMMDD）   │
