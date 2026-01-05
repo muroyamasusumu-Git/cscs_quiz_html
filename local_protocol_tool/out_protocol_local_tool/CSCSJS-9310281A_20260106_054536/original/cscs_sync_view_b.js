@@ -1,5 +1,4 @@
 // assets/cscs_sync_view_b.js
-
 (function () {
   "use strict";
 
@@ -13,39 +12,7 @@
   // ============================================================
   var SYNC_STATE_ENDPOINT = "/api/sync/state";
   var SYNC_MERGE_ENDPOINT = "/api/sync/merge";
-  // ============================================================
-  // cscs_sync_view_b.js が行う SYNC 通信（送信/確認）まとめ
-  // ============================================================
-  //
-  // 【送信する主な差分（diff）】
-  //   A) refreshAndSend() → sendDiffToServer()
-  //      - 問題qidごとの累計・ストリーク系の差分を /api/sync/merge へ送信する。
-  //        * correctDelta / incorrectDelta
-  //        * streak3Delta / streakLenDelta
-  //        * streak3WrongDelta / streakWrongLenDelta
-  //      - 送信後に /api/sync/state を再取得し、HUDを「送信後の最新 state」に更新する。
-  //
-  //   B) oncePerDayTodayDelta（O.D.O.A Mode / once-per-day 計測）
-  //      - /api/sync/state のスナップショット(syncState)と local の oncePerDayToday を突き合わせ、
-  //        今日の「初回だけ計測する」結果を差分として /api/sync/merge へ送信する。
-  //      - O.D.O.A Mode の表示/状態確認も HUD に反映する。
-  //
-  //   C) window.CSCS_SYNC.recordStreak3TodayUnique()
-  //      - localStorage（cscs_streak3_today_day / cscs_streak3_today_qids 等）を読み、
-  //        streak3TodayDelta（day, qids）を /api/sync/merge へ送信する（オンライン時のみ）。
-  //      - O.D.O.A が on_nocount の場合は「★だけ増える事故」を防ぐため送信をブロックする。
-  //
-  //   D) window.CSCS_SYNC.recordStreak3WrongTodayUnique()
-  //      - localStorage（cscs_streak3_wrong_today_day / cscs_streak3_wrong_today_qids 等）を読み、
-  //        streak3WrongTodayDelta（day, qids）を /api/sync/merge へ送信する（オンライン時のみ）。
-  //      - O.D.O.A が on_nocount の場合は「💣だけ増える事故」を防ぐため送信をブロックする。
-  //
-  // 【送信を止める条件（このファイル内の明示ガード）】
-  //   - navigator.onLine === false（オフライン）
-  //   - CSCS_VERIFY_MODE=on（計測ガード：diff送信なし）
-  //   - O.D.O.A が on_nocount（streak3Today / streak3WrongToday の送信ブロック）
-  //
-  // ============================================================
+
   /**
    * CSCS SYNC ビュー（Bパート）で使用しているキー対応表
    * LocalStorage ⇔ SYNC(JSON) / payload の対応（qid は "YYYYMMDD-NNN"）
