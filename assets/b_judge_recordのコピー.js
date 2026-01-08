@@ -10,7 +10,7 @@
  *  - ChatGPTはこのブロックを優先的に参照し、更新内容をここに反映する。
  *
  * ファイル: b_judge_record.js
- * 最終更新: 2026-01-09
+ * 最終更新: 2026-01-01
  *
  * === SPEC CONTENT ===
  */
@@ -211,9 +211,6 @@
 // ・最高値（cscs_q_correct_streak_max:{qid} / cscs_q_wrong_streak_max:{qid}）と達成日（*_streak_max_day:{qid}）は、
 //   「リセットなしで伸び続ける streak_len」と整合するロジックで更新（過去最高を上回った瞬間のみ更新）。
 // ・*_streak_max_day:{qid} は JST YYYYMMDD を number として保存（localStorage 上は数値文字列、例: "20251231"）。
-// 🆕 2026-01-09 追加
-// ・計測処理が「すべて」完了した合図を 1 回だけ発火する仕組みを追加。
-//   送信側（b_sync_merge.js 等）はこの合図を起点に、まとめて同期処理を開始できる。
 // ===========================================================
 // === END SPEC HEADER (keep synchronized with implementation) ===
 (function(){

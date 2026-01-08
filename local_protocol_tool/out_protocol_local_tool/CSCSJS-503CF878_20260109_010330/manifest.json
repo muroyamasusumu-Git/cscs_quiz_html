@@ -1,0 +1,94 @@
+{
+  "session_id": "CSCSJS-503CF878",
+  "created_at": "2026-01-09T01:03:30",
+  "instruction": "【WORK_HEADER（共通ID）】\n[SESSION_ID: CSCSJS-503CF878]\n[REQUEST_ID: REQ-1EFB1D98]\n\n【USER_INSTRUCTION】\nOncePerDayToday / O.D.O.A Mode (local)　内の情報をどのように取得し、またどのように結果判定しているのかをコードブロック形式で一つにまとめて書き出してほしい\n",
+  "work": {
+    "project_id": "",
+    "task_id": "",
+    "request_id": "REQ-1EFB1D98"
+  },
+  "input": {
+    "filename": "cscs_sync_view_b.js",
+    "size_chars": 175553,
+    "sha256": "e91716e4f9eaa2d330568b73f2605938ffe5f624ef42dfa81e45737c2d6cf0c0",
+    "saved_copy": "original/"
+  },
+  "split": {
+    "total_parts": 7,
+    "max_chars_per_part": 60000,
+    "max_lines_per_part": 1200,
+    "strategy": "split_on_newline_preferably_else_hard"
+  },
+  "parts": [
+    {
+      "index": 1,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P01-of-07",
+      "part_sha256": "fb602fc00a6037a12ee56d65e11eee0d39b892c486772d707deeb0ad33a9848e",
+      "start_offset": 0,
+      "end_offset": 0,
+      "len_chars": 1215,
+      "file": "parts/part_01.txt"
+    },
+    {
+      "index": 2,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P02-of-07",
+      "part_sha256": "88962f4ea7e0f1719610cd81a9a294f45611b65edeb2d16cf86e7be4ccf1179c",
+      "start_offset": 0,
+      "end_offset": 35565,
+      "len_chars": 35565,
+      "file": "parts/part_02.txt"
+    },
+    {
+      "index": 3,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P03-of-07",
+      "part_sha256": "a6bb3c250d6543fcc6f3334f2474e274b21e97a5eb0ba5aded7ed368aa915c7d",
+      "start_offset": 35565,
+      "end_offset": 72578,
+      "len_chars": 37013,
+      "file": "parts/part_03.txt"
+    },
+    {
+      "index": 4,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P04-of-07",
+      "part_sha256": "af70cfaf810569077ede9cdf03040d678d9cc53ad717ab4239676935785ce0e3",
+      "start_offset": 72578,
+      "end_offset": 116083,
+      "len_chars": 43505,
+      "file": "parts/part_04.txt"
+    },
+    {
+      "index": 5,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P05-of-07",
+      "part_sha256": "dc93c03e795018e53c55922bbee6dc0a890a76f93af29a5ad69e2965c162e585",
+      "start_offset": 116083,
+      "end_offset": 160575,
+      "len_chars": 44492,
+      "file": "parts/part_05.txt"
+    },
+    {
+      "index": 6,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P06-of-07",
+      "part_sha256": "168e3620f6b914d332b57b4bc5a45646bf7396945601689693064e7ea2ceb49d",
+      "start_offset": 160575,
+      "end_offset": 174338,
+      "len_chars": 13763,
+      "file": "parts/part_06.txt"
+    },
+    {
+      "index": 7,
+      "total": 7,
+      "part_id": "CSCSJS-503CF878-P07-of-07",
+      "part_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "start_offset": 0,
+      "end_offset": 0,
+      "len_chars": 0,
+      "file": "parts/part_07.txt"
+    }
+  ]
+}

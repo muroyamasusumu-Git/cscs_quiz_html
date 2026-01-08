@@ -1,0 +1,92 @@
+<<<PART_BEGIN>>>
+【分割コード(1)の開始】
+PartID: CSCSJS-9310281A-P01-of-07
+SourceFile: PROTOCOL_PREAMBLE
+PartSHA256: e6294abd66fc1c7cfb62d6c1798efe8bc392ec6e6300ea118de6d3fd7d81a702
+Range: chars 0..0 (len=1936)
+FirstLine: 【プロトコル宣言（PART_01=PROTOCOL_PREAMBLE / PART_02..=CODE / LAST_PART=EXEC_TASK）】
+LastLine: 以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。
+EndNewline: YES
+PART_SCOPE_HINT: LineRange=L0..L0 | BraceDepth=0->0
+PART_SCOPE_HINT_TOP_IDENTIFIERS: js:9, EXEC_TASK:4, cscs_sync_view_b:4, SessionID:3, CSCSJS:3, api:3, sync:3, localStorage:3, merge:3, b_sync_merge:3, PART_01:2, PROTOCOL_PREAMBLE:2
+PART_SCOPE_HINT_DEFINES: (none)
+
+```text
+【プロトコル宣言（PART_01=PROTOCOL_PREAMBLE / PART_02..=CODE / LAST_PART=EXEC_TASK）】
+SessionID: CSCSJS-9310281A
+TargetFile: MULTI_FILES
+Split: total_parts=7, max_chars_per_part=60000, max_lines_per_part=1200
+
+【あなた（ChatGPT）への最重要ルール（厳守）】
+0) 分割コード受領中は、内容の解釈・要約・推測・修正案提示を一切禁止。
+1) 分割コード(1..N-1)受領時の返答は必ず：
+   ACK: <PartID> / WAITING_NEXT
+2) 最終分割コード(N)受領時は、末尾の RECEIPT_INPUT を用いて受領確認を実施すること。
+3) 同一 SessionID に属する EXPECTED_PARTIDS の過去PART本文は、常に参照対象とする。
+3.5) 異なる SessionID の PART を参照することは禁止する。
+4) 実行指示（EXEC_TASK）は『最終メッセージ内の EXEC_TASK』のみを真とする。PART_01（PROTOCOL_PREAMBLE）は参考であり実行根拠にしない。
+5) RECEIPT_CHECK: OK の同一返信内で、JOIN_READY/JOIN_ACTION/EXEC_START を必ず出力し、直ちに EXEC_TASK を実行する。
+6) JOIN（連結）ルール（強制）:
+   - 分割コードを連結して“完全なJS”を作る際、パート境界に改行や空白を勝手に追加してはならない。
+   - 各パート本文は『提示された文字列をそのまま』連結する（パート間に暗黙の改行は存在しない）。
+   - したがって、分割コード同士の間に改行の明記が無い限りは『必ず連続行として読み取る』こと。
+   - 各パートには EndNewline: YES/NO が付く。境界が連続行かどうかはこれを唯一の根拠として判定する。
+
+【指示内容（概要：参考用／実行根拠にしない）】
+【WORK_HEADER（共通ID）】
+[SESSION_ID: CSCSJS-9310281A]
+[REQUEST_ID: REQ-AB2DD98D]
+
+【USER_INSTRUCTION】
+【WORK_HEADER（共通ID）】
+[SESSION_ID: CSCSJS-9310281A]
+[REQUEST_ID: REQ-D55FC74D]
+
+【USER_INSTRUCTION】
+✅ cscs_sync_view_b.js（表示専任）
+	•	/api/sync/state を読んで window.CSCS_SYNC_DATA を更新
+	•	localStorage の値と突き合わせて「今どういう状態か」を正確に表示する
+	•	/api/sync/merge を叩かない
+	•	payload を組まない
+	•	増分計算をしない
+
+✅ b_sync_merge.js（送信専任）
+	•	localStorage を読み、増分や最新値を組み立てて /api/sync/merge にPOST
+	•	recordStreak3TodayUnique / recordStreak3WrongTodayUnique / recordStreakLen を ここで実装
+	•	B遷移直後の自動送信トリガー（いまの hidden button + autoclick）は維持してOK（送信“専任”の範囲）
+
+
+Bページでの正しい順番は：
+	1.	cscs_sync_bootstrap_a.js（最速）
+	2.	b_judge_record.js（計測して localStorage を更新）
+	3.	b_sync_merge.js（local → merge を送る、record* を提供）
+	4.	cscs_sync_view_b.js（state取得して表示）
+
+二つのjsの役割分担をこのようにはっきり分けたい。「cscs_sync_view_b.js」がしていたStreak3TodayUnique Streak3WrongTodayUnique　のマージ処理を 「b_sync_merge.js」に全て移動させる。
+
+【MULTI_FILE_TARGETS（順序固定）】
+- F01: cscs_sync_view_b.js
+
+【分割コード貼り付け開始】
+以降は分割コード本文。上記ルールに従って受領・照合・実行せよ。
+
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 7
+RECEIVED_TOTAL: 1
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-9310281A-P01-of-07
+
+【ChatGPTへの強制ルール】
+・受領確認および実行フェーズでは、同一 SessionID に属する過去PART本文を必ず全て参照すること。
+・参照対象は、同一 SessionID の EXPECTED_PARTIDS に含まれる PART に限定すること。
+・受領確認OK前は、作業開始（JOIN/EXEC）を行わないこと。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【分割コード(1)の終了】→ 次は 分割コード(2) を送ります（全7分割）
+【ChatGPTへの指示】解釈・要約・推測・修正案提示は禁止。返答は次のみ。
+ACK: <PartID> / WAITING_NEXT

@@ -1,0 +1,1286 @@
+<<<PART_BEGIN>>>
+【分割コード(7)の開始】
+PartID: CSCSJS-503CF878-P07-of-07
+SourceFile: EXEC_TASK
+PartSHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Range: chars 0..0 (len=0)
+FirstLine: 
+LastLine: 
+EndNewline: NO
+PART_SCOPE_HINT: LineRange=L0..L0 | BraceDepth=0->0
+PART_SCOPE_HINT_TOP_IDENTIFIERS: (none)
+PART_SCOPE_HINT_DEFINES: (none)
+
+```text
+
+```
+<<<PART_END>>>
+【RECEIPT_INPUT（このメッセージ内だけを真とする）】
+EXPECTED_TOTAL: 7
+RECEIVED_TOTAL: 7
+
+CUMULATIVE_RECEIVED_PARTIDS:
+- CSCSJS-503CF878-P01-of-07
+- CSCSJS-503CF878-P02-of-07
+- CSCSJS-503CF878-P03-of-07
+- CSCSJS-503CF878-P04-of-07
+- CSCSJS-503CF878-P05-of-07
+- CSCSJS-503CF878-P06-of-07
+- CSCSJS-503CF878-P07-of-07
+
+EXPECTED_PARTIDS_WITH_SHA256:
+- CSCSJS-503CF878-P01-of-07 | fb602fc00a6037a12ee56d65e11eee0d39b892c486772d707deeb0ad33a9848e
+- CSCSJS-503CF878-P02-of-07 | 88962f4ea7e0f1719610cd81a9a294f45611b65edeb2d16cf86e7be4ccf1179c
+- CSCSJS-503CF878-P03-of-07 | a6bb3c250d6543fcc6f3334f2474e274b21e97a5eb0ba5aded7ed368aa915c7d
+- CSCSJS-503CF878-P04-of-07 | af70cfaf810569077ede9cdf03040d678d9cc53ad717ab4239676935785ce0e3
+- CSCSJS-503CF878-P05-of-07 | dc93c03e795018e53c55922bbee6dc0a890a76f93af29a5ad69e2965c162e585
+- CSCSJS-503CF878-P06-of-07 | 168e3620f6b914d332b57b4bc5a45646bf7396945601689693064e7ea2ceb49d
+- CSCSJS-503CF878-P07-of-07 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+【ChatGPTへの強制ルール】
+・受領確認および実行フェーズでは、同一 SessionID に属する過去PART本文を必ず全て参照すること。
+・参照対象は、同一 SessionID の EXPECTED_PARTIDS に含まれる PART に限定すること。
+・受領確認OK前は、作業開始（JOIN/EXEC）を行わないこと。
+
+RECEIPT_REQUIRED_RESPONSE_TEMPLATE:
+ACK: <PartID> <PartSHA256_8> / WAITING_NEXT
+
+【EXEC_TASK（このメッセージ内だけを真とする：唯一の実行指示）】
+REFERENCE_SOURCE: 各 <<<PART_BEGIN>>> ヘッダの SourceFile を参照元の唯一の根拠として扱うこと（推測で他ファイル由来にしない）
+【WORK_HEADER（共通ID）】
+[SESSION_ID: CSCSJS-503CF878]
+[REQUEST_ID: REQ-1EFB1D98]
+
+【USER_INSTRUCTION】
+OncePerDayToday / O.D.O.A Mode (local)　内の情報をどのように取得し、またどのように結果判定しているのかをコードブロック形式で一つにまとめて書き出してほしい
+
+【SCOPE_INDEX（連結後JSの探索用索引）】
+・この索引は、分割前の元JS全文（= 連結後JS）から抽出しています。
+・まずここを見て「存在する/しない」を確定し、不要な全文探索や見落としを減らしてください。
+・識別子だけでなく DOM/selector/storage key も含めています。
+
+【SUMMARY】
+TOTAL_IDENTIFIERS_UNIQ: 1033
+TOTAL_DOM_IDS_UNIQ: 3
+TOTAL_DOM_CLASSES_UNIQ: 0
+TOTAL_DOM_NAMES_UNIQ: 0
+TOTAL_SELECTORS_UNIQ: 8
+TOTAL_LOCALSTORAGE_KEYS_UNIQ: 12
+TOTAL_SESSIONSTORAGE_KEYS_UNIQ: 0
+
+【IDENTIFIERS_TOP_FREQUENT（頻出上位）】
+- qid (285)
+- svb (216)
+- SYNC (167)
+- card (146)
+- state (120)
+- window (115)
+- console (106)
+- O (104)
+- grid (103)
+- local (101)
+- document (100)
+- appendChild (97)
+- String (96)
+- model (92)
+- className (91)
+- B (90)
+- day (88)
+- localStorage (86)
+- createElement (78)
+- syncState (77)
+- info (77)
+- div (68)
+- payload (64)
+- head (64)
+- cscs_sync_view_b_body (60)
+- log (60)
+- body (57)
+- odoaModeText (57)
+- oncePerDayToday (56)
+- correct (55)
+- cscs (55)
+- A (54)
+- box (54)
+- __cscs_sync_state (54)
+- D (53)
+- streak3Today (52)
+- once (51)
+- streak3WrongToday (50)
+- odoa (50)
+- textContent (50)
+- freshState (50)
+- localStreakLen (49)
+- qids (47)
+- object (47)
+- Number (46)
+- error (45)
+- isFinite (44)
+- number (43)
+- localCorrect (43)
+- localWrong (43)
+- serverStreakLen (43)
+- diffCorrect (41)
+- diffWrong (41)
+- stateAfter (41)
+- results (40)
+- lastday (40)
+- diffStreak3 (40)
+- data (40)
+- Mode (39)
+- wide (39)
+- ON (39)
+- params (39)
+- max (37)
+- pending (37)
+- serverCorrect (37)
+- serverWrong (37)
+- localStreak3 (37)
+- streak (36)
+- localWrongStreakLen (36)
+- merge (35)
+- title (35)
+- k (34)
+- sync (33)
+- text (33)
+- h (33)
+- s (33)
+- string (32)
+- length (32)
+- serverStreak3 (32)
+- serverWrongStreakLen (32)
+
+【IDENTIFIERS_ALL（ユニーク識別子一覧）】
+- A
+- AFTER
+- Array
+- B
+- C
+- CALLED
+- CSCS
+- CSCS_MULTI_FILE_BEGIN
+- CSCS_MULTI_FILE_END
+- CSCS_ODOA_MODE
+- CSCS_SYNC
+- CSCS_SYNC_KEY
+- CSCS_SYNC_VIEW_B_CSS
+- CSCS_VERIFY_MODE
+- CSS
+- Content
+- Correct
+- Counts
+- D
+- DD
+- DOM
+- DOMContentLoaded
+- Date
+- DayDelta
+- Delta
+- Df
+- ERROR
+- Error
+- FAILED
+- FALSE
+- FILE
+- GET
+- HTTP
+- HUD
+- JSON
+- JST
+- KV
+- Key
+- LastDay
+- Lcl
+- Len
+- LocalStorage
+- MERGE
+- MM
+- Math
+- Max
+- Mode
+- NG
+- NNN
+- NO
+- NOT
+- NaN
+- No
+- Number
+- O
+- ODOA
+- OFF
+- OK
+- ON
+- Object
+- Once
+- OncePerDayToday
+- POST
+- Pending
+- Roboto
+- SEND
+- SYNC
+- SYNC_BOOTSTRAP_NOT_READY
+- SYNC_MERGE_ENDPOINT
+- SYNC_STATE_ENDPOINT
+- Segoe
+- Status
+- Streak
+- Streak3Today
+- Streak3TodayUnique
+- Streak3WrongToday
+- Streak3WrongTodayUq
+- String
+- Syc
+- TRUE
+- Today
+- Totals
+- Type
+- UI
+- UPDATED
+- Unique
+- VERIFY
+- Wide
+- Worker
+- Workers
+- Wrong
+- X
+- YYYY
+- YYYYMMDD
+- Yes
+- __CSCS_SYNC_KEY_PROMISE__
+- __CSCS_SYNC_VIEW_B_LAST_BOX__
+- __CSCS_SYNC_VIEW_B_LAST_PAYLOAD__
+- __CSCS_SYNC_VIEW_B_TODAY_UNIQUE_LISTENER_INSTALLED__
+- __cscs_sync_b_manual_send_ts
+- __cscs_sync_state
+- __keep__
+- _b
+- _build_cscs_
+- _e
+- _e0
+- _e1
+- _e2
+- _e3
+- _e4
+- _eAll
+- _eAssignFresh
+- _eDate
+- _eDate2
+- _eFindOnceCards
+- _eForce
+- _eHide
+- _eInstallTodayUniqueListener
+- _eKeep
+- _eKeepLast
+- _eLast
+- _eLocalOnceModel
+- _eLocalS3TodayQids
+- _eLocalS3WrongTodayQids
+- _eLsKey
+- _eNF
+- _eOdoaLower
+- _eOdoaLower2
+- _eOdoaModeRaw
+- _eOdoaModeText
+- _eOdoaOn
+- _eOdoaPick
+- _eOdoaPick2
+- _eOnce
+- _eOnceAll
+- _eOnceCollapsedLocal
+- _eOnceCollapsedSync
+- _ePendingAfterPost
+- _ePendingCollapsed
+- _eS3TodaySyncQids
+- _eS3WrongTodaySyncQids
+- _eS3t
+- _eS3t2
+- _eS3w
+- _eS3w2
+- _eSaveOnceSplit
+- _eSavePending
+- _eSt
+- _eStMax
+- _eStateWrong
+- _eSuppressPick
+- _eVerify
+- _eWinKey
+- _ev
+- a
+- abort
+- aborted
+- active
+- addEventListener
+- addNo
+- addOdoaSingleRow
+- addPart
+- addRow
+- after
+- align
+- all
+- allCards
+- allowToggle
+- alreadyCounted
+- anchorCard
+- api
+- appearance
+- append
+- appendChild
+- appendCountsSectionInline
+- appendGridRow
+- appendGridSection
+- appendLastDayCard
+- appendStreakLenSyncPairCards
+- appendStreakMaxPairCards
+- appendStreakQuad4WideCards
+- appendTodayUniquePair
+- appended
+- apple
+- application
+- applyCollapsed
+- applyCollapsedClass
+- aria
+- arr
+- asDayNum
+- assets
+- async
+- attach
+- attached
+- auto
+- b
+- b_judge_record
+- b_sync_merge
+- background
+- base
+- baseClass
+- baseline
+- because
+- before
+- best
+- between
+- bis
+- bits
+- block
+- body
+- bootstrap
+- border
+- bottom
+- box
+- btn
+- btnText
+- build
+- buildCorrectCard
+- buildCorrectSyncCard
+- buildGridRowsFromModel
+- buildHeader
+- buildLocalOnceModel
+- buildOncePerDayTodayDelta
+- buildWrongCard
+- buildWrongSyncCard
+- but
+- button
+- c
+- cDay
+- cMax
+- cVal
+- cache
+- call
+- card
+- cardEl
+- cardKind
+- cards
+- cell
+- center
+- chev
+- child
+- childNodes
+- className
+- clearEl
+- clearOnceOdoaNoFlashStyle
+- clearSyncBody
+- click
+- cnt
+- col
+- collapsed
+- collapsedKey
+- collapsible
+- color
+- column
+- columns
+- computePendingFlags
+- console
+- contains
+- content
+- corL
+- corMax
+- corS
+- correct
+- correctDelta
+- correctDeltaObj
+- counts
+- create
+- createElement
+- createPanel
+- createTextNode
+- credentials
+- cscs
+- cscs_once_per_day_today_day
+- cscs_once_per_day_today_results
+- cscs_q_correct_streak3_total
+- cscs_q_correct_streak_len
+- cscs_q_correct_streak_max
+- cscs_q_correct_streak_max_day
+- cscs_q_correct_total
+- cscs_q_last_correct_day
+- cscs_q_last_seen_day
+- cscs_q_last_wrong_day
+- cscs_q_wrong_streak3_total
+- cscs_q_wrong_streak_len
+- cscs_q_wrong_streak_max
+- cscs_q_wrong_streak_max_day
+- cscs_q_wrong_total
+- cscs_streak3_today_day
+- cscs_streak3_today_qids
+- cscs_streak3_today_unique_count
+- cscs_streak3_wrong_today_day
+- cscs_streak3_wrong_today_qids
+- cscs_streak3_wrong_today_unique_count
+- cscs_sync_bootstrap_a
+- cscs_sync_key
+- cscs_sync_monitor_b
+- cscs_sync_view_b
+- cscs_sync_view_b_body
+- cscs_sync_view_b_correct_streak_collapsed
+- cscs_sync_view_b_inline_css
+- cscs_sync_view_b_once_odoa_collapsed
+- cscs_sync_view_b_once_odoa_collapsed_local
+- cscs_sync_view_b_once_odoa_collapsed_sync
+- cscs_sync_view_b_once_odoa_local_collapsed
+- cscs_sync_view_b_once_odoa_no_flash
+- cscs_sync_view_b_pending_collapsed
+- cscs_sync_view_b_send_btn
+- cscs_sync_view_b_status
+- cscs_sync_view_b_title
+- cscs_total_questions
+- css
+- cssText
+- cursor
+- d
+- data
+- day
+- dayNum
+- dayStr
+- delta
+- deltaResults
+- desired
+- details
+- detectInfo
+- detected
+- diff
+- diffCorrect
+- diffCorrect2
+- diffCounts
+- diffIsZero
+- diffProgress
+- diffStreak3
+- diffStreak3Wrong
+- diffStreak3Wrong2
+- diffStreak3_2
+- diffStreakLen
+- diffStreakLen_2
+- diffWrong
+- diffWrong2
+- diffWrongProgress
+- diffWrongStreakLen
+- diffWrongStreakLen2
+- display
+- div
+- document
+- dual
+- dualCells
+- e
+- e2
+- e4
+- e5
+- eFetchAfterPost
+- eLast
+- eMaxSync
+- ePickFresh
+- eRerender
+- eStreakMax
+- eWrong
+- eWrongStreakMax
+- eee
+- el
+- ellipsis
+- end
+- endpoint
+- endpoints
+- ensureCard
+- ensureLocalOnceOdoaWideCard
+- ensureOnceOdoaNoFlashStyle
+- ensureOnceOdoaWideTitles
+- ensureSyncViewBStyles
+- error
+- errorText
+- ev
+- even
+- expanded
+- failed
+- fallback
+- fatal
+- fetch
+- fetchState
+- filter
+- first
+- firstChild
+- fixed
+- flags
+- flex
+- fmtDay8ToDateText
+- fmtDayPair
+- fmtNumPair
+- fmtQidsPreview
+- fold
+- font
+- forceQid
+- forceReason
+- forceSend
+- found
+- freshState
+- from
+- full
+- g
+- gPending
+- gap
+- getCollapsed
+- getDate
+- getElementById
+- getElementsByTagName
+- getFullYear
+- getItem
+- getMonth
+- global
+- grid
+- gridEl
+- group
+- groupEnd
+- h
+- has
+- hasBox
+- hasCorrectDeltaInPayload
+- hasGlobalTotalQuestionsInPayload
+- hasIncorrectDeltaInPayload
+- hasLastCorrectDayDeltaInPayload
+- hasLastCorrectDayDiff
+- hasLastSeenDayDeltaInPayload
+- hasLastSeenDayDiff
+- hasLastWrongDayDeltaInPayload
+- hasLastWrongDayDiff
+- hasOncePerDayDelta
+- hasOncePerDayDeltaInPayload
+- hasOwnProperty
+- hasPayload
+- hasState
+- hasStreak3DeltaInPayload
+- hasStreak3WrongDeltaInPayload
+- hasStreakLenDeltaInPayload
+- hasStreakWrongLenDeltaInPayload
+- head
+- headKey
+- headLocal
+- headSync
+- headers
+- height
+- hidden
+- hide
+- hk
+- hl
+- hover
+- hs
+- html
+- i
+- id
+- important
+- include
+- incorrect
+- incorrectDelta
+- incorrectDeltaObj
+- index
+- indexOf
+- info
+- inherit
+- init
+- initial
+- injected
+- inline
+- innerHTML
+- insert
+- insertBefore
+- inset
+- int
+- internal
+- is
+- isArray
+- isCollapsed
+- isFinite
+- isMuted
+- items
+- j
+- join
+- js
+- json
+- justify
+- k
+- kText
+- keepLocal
+- keepSync
+- keepalive
+- key
+- keyClass
+- keyForMerge
+- keys
+- l
+- label
+- last
+- lastBox
+- lastChild
+- lastCorrect
+- lastCorrectDay
+- lastCorrectDayDelta
+- lastCorrectDayDeltaObj
+- lastCorrectLocalLabel
+- lastCorrectSyncLabel
+- lastDay
+- lastPayload
+- lastSeen
+- lastSeenDay
+- lastSeenDayDelta
+- lastSeenDayDeltaObj
+- lastSeenLocalLabel
+- lastSeenSyncLabel
+- lastWrong
+- lastWrongDay
+- lastWrongDayDelta
+- lastWrongDayDeltaObj
+- lastWrongLocalLabel
+- lastWrongSyncLabel
+- lastday
+- layout
+- left
+- leftText
+- length
+- letter
+- line
+- loading
+- loc1
+- loc2
+- loc3
+- locCor
+- locSeen
+- locWro
+- local
+- localArr
+- localCard
+- localCnt
+- localCorrect
+- localCorrectStreakLen
+- localCorrectStreakMax
+- localCorrectStreakMaxDay
+- localCorrectStreakMaxDayLabel
+- localCount
+- localDay
+- localDayW
+- localLastCorrectDay
+- localLastSeenDay
+- localLastWrongDay
+- localNum
+- localOnce
+- localOnceDay
+- localOnceModel
+- localOnceVal
+- localProgress
+- localQids
+- localQidsW
+- localS3TodayCnt
+- localS3TodayDay
+- localS3TodayQids
+- localS3WrongTodayCnt
+- localS3WrongTodayDay
+- localS3WrongTodayQids
+- localStorage
+- localStreak3
+- localStreak3Wrong
+- localStreakLen
+- localText
+- localVal
+- localWrong
+- localWrongProgress
+- localWrongStreakLen
+- localWrongStreakMax
+- localWrongStreakMaxDay
+- localWrongStreakMaxDayLabel
+- location
+- log
+- m
+- makeCard
+- makeCell
+- makeTodayCard
+- manifest
+- manual
+- manual_button
+- margin
+- match
+- max
+- max2
+- maxDayNum
+- maxWrongDayNum
+- max_day
+- merge
+- mergeErrorOncePerDayStatus
+- mergeResponse
+- merged
+- message
+- method
+- mid
+- min
+- minmax
+- missing
+- missingW
+- mode
+- model
+- modelForCard
+- moved
+- muted
+- n
+- navigator
+- network
+- networkErrorOncePerDayStatus
+- newDiffCorrect
+- newDiffStreak3
+- newDiffStreak3Wrong
+- newDiffStreakLen
+- newDiffWrong
+- newDiffWrongStreakLen
+- newOnceVal
+- newServerCorrect
+- newServerStreak3
+- newServerStreak3Wrong
+- newServerStreakLen
+- newServerWrong
+- newServerWrongStreakLen
+- next
+- nextSibling
+- no
+- nocount
+- node
+- non
+- none
+- not
+- now
+- nowrap
+- nth
+- num3
+- number
+- numeric
+- nums
+- object
+- odoa
+- odoaIsOn
+- odoaLine
+- odoaLower
+- odoaMode
+- odoaModeRaw
+- odoaModeText
+- odoaRaw
+- odoaResultSuffix
+- odoaStatusText
+- odoaStatusTextForPanel
+- odoaStatusTextForPanelAfter
+- odoaStatusTextForPanelInit
+- odoaStatusTextForPanelMergeError
+- odoaStatusTextForPanelNetworkError
+- odoaStatusTextForPanelOffline
+- odoaStatusTextForPanelStateError
+- odoaSuffix
+- odoa_mode
+- off
+- offline
+- offlineOncePerDayStatus
+- ok
+- okng
+- on
+- onLine
+- on_nocount
+- once
+- onceCollapsedLocal
+- onceCollapsedSync
+- onceCountableLabel
+- onceMeasureOkLabel
+- onceOdoaAnchorEl
+- onceOdoaLabel
+- oncePerDay
+- oncePerDayDelta
+- oncePerDayStatus
+- oncePerDayToday
+- oncePerDayTodayDelta
+- onceQidLabel
+- onceRecordLabel
+- onceResultLabel
+- onceStateLabel
+- onceTodayDateLabel
+- online
+- only
+- opacity
+- options
+- or
+- out
+- overflow
+- padStart
+- padding
+- pair
+- pairSync
+- params
+- parentNode
+- parse
+- parseInt
+- parsed
+- parsedLocalCnt
+- parsedLocalS3TodayQids
+- parsedLocalS3WrongTodayQids
+- parsedLocalWrongCnt
+- parsedW
+- part
+- path
+- pathname
+- payload
+- payloadType
+- pending
+- pendingAfterPost
+- pendingBtn
+- pendingCard
+- pendingCollapsed
+- pendingDiffCounts
+- pendingH
+- pendingHead
+- pendingLastCorrectDay
+- pendingLastSeenDay
+- pendingLastWrongDay
+- pendingOncePerDayToday
+- pendingStreak3Today
+- pendingStreak3WrongToday
+- pendingText
+- per
+- pick
+- pickLocalOnlyQids
+- placeAfter
+- pointer
+- position
+- pre
+- prevOnceVal
+- preventDefault
+- previous
+- progress
+- prototype
+- push
+- q
+- qid
+- qidForLastDay
+- qidForMax
+- qidForStreakWrong
+- qids
+- qidsLength
+- quad
+- querySelector
+- querySelectorAll
+- r
+- radius
+- raw
+- rawCnt
+- rawLocalCnt
+- rawLocalS3TodayQids
+- rawLocalS3WrongTodayQids
+- rawLocalWrongCnt
+- rawQids
+- rawW
+- read
+- readDayFromLocalStorage
+- readIntFromLocalStorage
+- readOncePerDayTodayFromLocal
+- readSyncKey
+- readTotalQuestionsFromLocalStorage
+- readyState
+- rec
+- received
+- recordForDisplay
+- recordStreak3TodayUnique
+- recordStreak3WrongTodayUnique
+- ref
+- refEl
+- refresh
+- refreshAndSend
+- refreshLocalOnceOdoaCard
+- refreshOncePerDayAndOdoaWideCardsInBody
+- refreshed
+- refreshedDiffCorrect
+- refreshedDiffStreak3
+- refreshedDiffStreak3Wrong
+- refreshedDiffStreakLen
+- refreshedDiffWrong
+- refreshedDiffWrongStreakLen
+- refreshedServerCorrect
+- refreshedServerStreak3
+- refreshedServerStreak3Wrong
+- refreshedServerStreakLen
+- refreshedServerWrong
+- refreshedServerWrongStreakLen
+- refs
+- removeChild
+- render
+- renderPanel
+- replace
+- request
+- rerender
+- res
+- resolve
+- response
+- result
+- results
+- returned
+- rgba
+- right
+- rightText
+- root
+- row
+- rowKey
+- rows
+- runtime
+- s
+- s3
+- s3TodayDayLabel
+- s3TodayMissing
+- s3TodaySyncCnt
+- s3TodaySyncDay
+- s3TodaySyncQids
+- s3W
+- s3WrongTodayDayLabel
+- s3WrongTodayMissing
+- s3WrongTodaySyncCnt
+- s3WrongTodaySyncDay
+- s3WrongTodaySyncQids
+- s3w
+- s3wVal
+- sCor
+- sOnceAfter
+- sOnceBefore
+- sResultsAfter
+- sResultsBefore
+- sSeen
+- sVal
+- sWrong
+- same
+- sans
+- save
+- seenL
+- seenMax
+- seenS
+- self
+- send
+- sendDiffToServer
+- sending
+- serif
+- server
+- serverCorrect
+- serverCorrect2
+- serverCorrectStreakMax
+- serverCorrectStreakMaxDay
+- serverCorrectStreakMaxDayLabel
+- serverLastCorrectDay
+- serverLastSeenDay
+- serverLastWrongDay
+- serverOnceDay
+- serverOnceVal
+- serverProgress
+- serverResults
+- serverStreak3
+- serverStreak3Wrong
+- serverStreak3Wrong2
+- serverStreak3_2
+- serverStreakLen
+- serverStreakLen_2
+- serverVal
+- serverWrong
+- serverWrong2
+- serverWrongProgress
+- serverWrongStreakLen
+- serverWrongStreakLen2
+- serverWrongStreakMax
+- serverWrongStreakMaxDay
+- serverWrongStreakMaxDayLabel
+- set
+- setAttribute
+- setCollapsed
+- setItem
+- setW
+- shadow
+- show
+- showLabel
+- single
+- singleCell
+- size
+- sizing
+- skip
+- slVal
+- slice
+- slides
+- slw
+- slwVal
+- snapshot
+- solid
+- space
+- spacing
+- span
+- srvCor
+- srvSeen
+- srvWro
+- st
+- stMax
+- stOnce
+- state
+- stateAfter
+- stateErrorOncePerDayStatus
+- stateForWrong
+- status
+- statusDiv
+- statusMsg
+- statusText
+- statusTextForRender
+- stopPropagation
+- storageKey
+- store
+- streak
+- streak3
+- streak3Delta
+- streak3DeltaObj
+- streak3Today
+- streak3TodayDelta
+- streak3Wrong
+- streak3WrongDelta
+- streak3WrongDeltaObj
+- streak3WrongToday
+- streak3WrongTodayDelta
+- streakLen
+- streakLenDelta
+- streakLenDeltaObj
+- streakMax
+- streakMaxDay
+- streakWrongLen
+- streakWrongLenDelta
+- streakWrongLenDeltaObj
+- streakWrongMax
+- streakWrongMaxDay
+- streak_len
+- streak_max
+- stretch
+- strict
+- string
+- stringify
+- strong
+- strongLeft
+- strongRight
+- style
+- styleId
+- success
+- suf
+- suffix
+- suppressDiffSend
+- suppressed
+- svb
+- sync
+- syncArr
+- syncCard
+- syncCards
+- syncCnt
+- syncDay
+- syncDayW
+- syncNum
+- syncQids
+- syncQidsW
+- syncState
+- syncText
+- synced
+- syncedOncePerDay
+- system
+- t
+- tabular
+- template
+- test
+- text
+- textContent
+- then
+- tighter
+- time
+- title
+- titleText
+- to
+- toLowerCase
+- toUpperCase
+- today
+- todayUniqueUpdated
+- toggle
+- top
+- totalQuestions
+- transform
+- translateY
+- transparent
+- trim
+- ts
+- type
+- ui
+- undefined
+- under
+- unique
+- unique_count
+- unsent
+- updateOnceBtnLabel
+- updatePendingBtnLabel
+- updateSyncBodyGrid
+- updateSyncBodyText
+- updated
+- updatedAt
+- upsertStyleTag
+- use
+- uses
+- v
+- v1
+- v2
+- v3
+- valClass
+- valid
+- value
+- valueText
+- values
+- variant
+- verify
+- verifyModeOn
+- view
+- visibility
+- vs
+- w
+- wDay
+- wMax
+- wVal
+- warn
+- webkit
+- weight
+- white
+- wide
+- width
+- window
+- wrap
+- wroL
+- wroMax
+- wroS
+- wrong
+- x
+- y
+- z
+
+【DOM_IDS（getElementById の文字列）】
+- cscs_sync_view_b
+- cscs_sync_view_b_body
+- cscs_sync_view_b_status
+
+【DOM_CLASSES（getElementsByClassName の文字列）】
+
+【DOM_NAMES（getElementsByName の文字列）】
+
+【SELECTORS（querySelector/querySelectorAll の文字列）】
+- .cscs-svb-card-title
+- .svb-once-odoa-card
+- .svb-once-odoa-card-local
+- .svb-once-odoa-card:not(.svb-once-odoa-card-local)
+- .svb-wide-dual-cell
+- .svb-wide-dual-grid
+- .svb-wide-single
+- div.wrap
+
+【LOCALSTORAGE_KEYS】
+- cscs_once_per_day_today_day
+- cscs_once_per_day_today_results
+- cscs_streak3_today_day
+- cscs_streak3_today_qids
+- cscs_streak3_today_unique_count
+- cscs_streak3_wrong_today_day
+- cscs_streak3_wrong_today_qids
+- cscs_streak3_wrong_today_unique_count
+- cscs_sync_key
+- cscs_sync_view_b_once_odoa_collapsed_local
+- cscs_sync_view_b_once_odoa_collapsed_sync
+- cscs_sync_view_b_pending_collapsed
+
+【SESSIONSTORAGE_KEYS】
+
+【出力仕様（パッチ規約：厳守）】
+- 参照元のコードから「確実に検索できる」形で提示すること（検索しやすい連続行を含める）
+- 必ず参照元と「同じインデント」で提示すること
+- 「置換前／置換後」を明確に分けること（それぞれ別のコードブロック）
+- 「...」「（中略）」「省略」などの省略表現は禁止（置換対象行は省略なし）
+- 出力は「フル」ではなく「置換部分のみ」
+- 置換前コードブロック内に「参照元本文に無いコメント」を追加しないこと
+- フォールバックの設定・保険・自動互換コードの追加は基本的に禁止（必要なら理由と影響を明示して停止し確認を取る）
+- 追加した処理には、処理ごとに『何をしているか』の補足コメントを置換後側に入れること
+
+【ChatGPT 実行ルール（強制）】
+・RECEIPT_CHECK: OK の場合、実行対象は上記 EXEC_TASK のみ。別の問題分析や一般論は禁止。
+・重要：指示に対してプロトコル内の『禁止項目』により実行不可となった処理がある場合は、その事実を必ず簡潔に明記すること。
+  - 出力形式（1行固定）: BLOCKED_BY_PROTOCOL: <実行不可になった処理> | <該当した禁止項目>
+・SCOPE_CHECK は原則として OK / WARN の2段階のみ（FAIL を返して停止することは禁止）。
+・識別子/DOM/関数が『SCOPE_INDEX に見当たらない』場合でも、ただちに停止しない。まず次を必ず実施する：
+  1) SCOPE_INDEX の確認（スペル違い/大文字小文字/略称を含め再確認）
+  2) 受領した各パート本文の範囲で全文検索（Partごとの PART_SCOPE_HINT も活用）
+  3) 近似一致の探索（例：大小文字差 / _-差 / 前後の接頭辞差）を試し、最も近い候補を採用する
+  4) EXEC_TASK は『可能な範囲で推測して前進』する（作業を止めない）
+・見つからない場合は SCOPE_CHECK: WARN を返し、次を必ず出力する：
+  - NOT_FOUND: 見つからなかった識別子/DOM/関数（名称をそのまま列挙）
+  - SEARCHED_IN: 検索した範囲（SCOPE_INDEX / PartID一覧 / 具体的キーワード）
+  - INFERRED_ACTION: 推測で行った判断（どの候補に寄せたか / どこに挿入したか）
+  - EXEC_CONTINUED: 続行できた作業内容（未実施があれば『未実施』として明示）
+  - USER_EXTRACT_REQUEST: 次の4項目を、ユーザーが『元のJS』から抽出して提示するよう要求する（この4項目のみ例外的に要求を許可）
+    * EXTRACT_SYMBOLS: 抽出したい関数名/識別子（カンマ区切り）
+    * EXTRACT_NEEDLES: 抽出したい検索語（カンマ区切り）
+    * PURPOSE: 抽出の目的（1行）
+    * DEPENDS: 依存関数/依存データの存在列挙（カンマ区切り）
+    （追加した処理: WARN時にユーザーへ extract 実行を誘導し、必要メタ4項目の“値”を確実に回収する）
+・重要：SCOPE_CHECK: WARN でも『ユーザーへ追加情報を要求する行為』は禁止。
+  （追加した処理: ただし EXTRACT_SYMBOLS / EXTRACT_NEEDLES / PURPOSE / DEPENDS の4項目の提示要求だけは例外として許可する）
+・重要：SCOPE_CHECK: WARN の場合でも、最終アウトプットは必ず提示する（停止しない）。
+
+【分割コード(7)の終了】→ これで最後です（全7分割）
+
+【分割終了宣言】
+これで分割コードは最後です。直後の RECEIPT_INPUT（このメッセージ内）を用いて受領確認を実施してください。
+
+【ChatGPTへの最終手順（強制）】
+1) このメッセージ内の CUMULATIVE_RECEIVED_PARTIDS を受領一覧として採用する（会話履歴参照は禁止）。
+2) このメッセージ内の EXPECTED_PARTIDS と照合し、欠落/重複/不一致を判定する。
+3) 判定結果を以下の形式で必ず返す：
+   RECEIPT_CHECK: OK もしくは NG
+   RECEIPT_MISSING: （不足があれば列挙、なければ EMPTY）
+   RECEIPT_DUPLICATE: （重複があれば列挙、なければ EMPTY）
+   RECEIPT_MISMATCH: （不一致があれば列挙、なければ EMPTY）
+
+4) 重要：RECEIPT_CHECK: OK の場合、同じ返答の中で必ず続けて次も出力し、直ちに実行する：
+   JOIN_READY: YES
+   JOIN_ACTION: P01→P02→...→Pn の順に全パートを連結して完全なJSを構築する
+   EXEC_START: このメッセージ内の EXEC_TASK（唯一の実行指示）を完全なJSに対して実行し、結果を提示する
+
+5) 重要：RECEIPT_CHECK: NG の場合、同じ返答の中で必ず続けて次も出力して終了する：
+   JOIN_READY: NO
+   RESEND_REQUEST: 不足/重複/不一致の PartID をそのまま列挙して再送要求する
+   EXEC_START: BLOCKED
+
+【禁止事項（再掲）】
+・受領確認OK前に、コードの要約/推測/修正提案/作業開始をしない。
+・RECEIPT_CHECK: OK の場合でも、上記の JOIN_READY/JOIN_ACTION/EXEC_START を同じ返答で出す前に止まらない。
+・実行根拠は最終メッセージ内 EXEC_TASK のみ。PART_01の文を理由に別作業を開始しない。
+
