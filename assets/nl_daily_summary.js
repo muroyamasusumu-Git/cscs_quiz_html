@@ -356,7 +356,7 @@
 
 /* ---- cells (shared base) ---- */
 #nl-progress-header .nl-ph-cell{
-  height: 12px;
+  height: 3px;
   border-radius: 2px;
   background: rgba(255,255,255,0.02);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
