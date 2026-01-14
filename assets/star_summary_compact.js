@@ -172,8 +172,11 @@
 
       needLine.style.display = "block";
       needLine.style.position = "fixed";
-      needLine.style.inset = "10px 20px 10px 0";
-      needLine.style.marginLeft = "71%";
+      needLine.style.top = "10px";
+      needLine.style.right = "20px";
+      needLine.style.left = "71%";
+      needLine.style.bottom = "10px";
+      needLine.style.marginLeft = "0px";
       needLine.style.fontWeight = "500";
 
       // 追加した処理:
