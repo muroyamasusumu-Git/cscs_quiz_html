@@ -97,6 +97,10 @@
       "  backdrop-filter: blur(2px);",
       "  font-size: 12.5px;",
       "  line-height: 1.35;",
+      "  display: flex;",
+      "  flex-direction: column;",
+      "  align-items: flex-end;",
+      "  justify-content: flex-start;",
       "}",
       ".cscs-star-summary-line-compact .cscs-star-row {",
       "  display: flex;",
@@ -158,6 +162,7 @@
       "  font-size: 14px;",
       "  margin-left: 0px;",
       "  width: 54%;",
+      "  justify-items: end;",
       "}",
 
       "",
@@ -172,6 +177,7 @@
       "  margin-left: 0px;",
       "  width: 54%;",
       "  padding-bottom: 0px;",
+      "  justify-items: end;",
       "}",
 
       "",
