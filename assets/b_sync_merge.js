@@ -378,6 +378,22 @@
       });
     }
 
+    // max / max_day は「更新が起きたときだけ」送信するため、前回送信値を読む
+    const lastMaxOpt          = loadIntOptional(KEY_LAST_STREAK_MAX);
+    const lastMaxDayOpt       = loadDayOptional(KEY_LAST_STREAK_MAX_DAY);
+    const lastWrongMaxOpt     = loadIntOptional(KEY_LAST_STREAK_WRONG_MAX);
+    const lastWrongMaxDayOpt  = loadDayOptional(KEY_LAST_STREAK_WRONG_MAX_DAY);
+
+    const maxChanged = (
+      (streakMaxOpt.ok && (!lastMaxOpt.ok || lastMaxOpt.value !== streakMaxOpt.value)) ||
+      (streakMaxDayOpt.ok && (!lastMaxDayOpt.ok || lastMaxDayOpt.value !== streakMaxDayOpt.value))
+    );
+
+    const wrongMaxChanged = (
+      (streakWrongMaxOpt.ok && (!lastWrongMaxOpt.ok || lastWrongMaxOpt.value !== streakWrongMaxOpt.value)) ||
+      (streakWrongMaxDayOpt.ok && (!lastWrongMaxDayOpt.ok || lastWrongMaxDayOpt.value !== streakWrongMaxDayOpt.value))
+    );
+
     // 重要:
     //   - この syncFromTotals() が作る merge payload には「今日のユニーク（streak3Today / streak3WrongToday）」は含めない。
     //   - 今日ユニークの送信は、window.CSCS_SYNC.recordStreak3TodayUnique() / recordStreak3WrongTodayUnique() 側で行い、
@@ -401,22 +417,6 @@
       });
       return;
     }
-
-    // max / max_day は「更新が起きたときだけ」送信するため、前回送信値を読む
-    const lastMaxOpt          = loadIntOptional(KEY_LAST_STREAK_MAX);
-    const lastMaxDayOpt       = loadDayOptional(KEY_LAST_STREAK_MAX_DAY);
-    const lastWrongMaxOpt     = loadIntOptional(KEY_LAST_STREAK_WRONG_MAX);
-    const lastWrongMaxDayOpt  = loadDayOptional(KEY_LAST_STREAK_WRONG_MAX_DAY);
-
-    const maxChanged = (
-      (streakMaxOpt.ok && (!lastMaxOpt.ok || lastMaxOpt.value !== streakMaxOpt.value)) ||
-      (streakMaxDayOpt.ok && (!lastMaxDayOpt.ok || lastMaxDayOpt.value !== streakMaxDayOpt.value))
-    );
-
-    const wrongMaxChanged = (
-      (streakWrongMaxOpt.ok && (!lastWrongMaxOpt.ok || lastWrongMaxOpt.value !== streakWrongMaxOpt.value)) ||
-      (streakWrongMaxDayOpt.ok && (!lastWrongMaxDayOpt.ok || lastWrongMaxDayOpt.value !== streakWrongMaxDayOpt.value))
-    );
 
     // 4) /api/sync/merge へ「差分だけ」を送信
     const payload = {
