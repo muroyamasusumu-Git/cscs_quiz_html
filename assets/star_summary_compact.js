@@ -99,19 +99,20 @@
       "  backdrop-filter: blur(2px);",
       "  font-size: 12.5px;",
       "  line-height: 1.35;",
-      "  display: grid;",
-      "  grid-template-columns: 1fr;",
-      "  row-gap: 4px;",
-      "  justify-items: end;",
+      "  display: flex;",
+      "  flex-direction: column;",
+      "  align-items: flex-end;",
+      "  justify-content: flex-start;",
       "}",
       ".cscs-star-summary-line-compact .cscs-star-row {",
-      "  display: inline-flex;",
+      "  display: flex;",
       "  align-items: center;",
       "  gap: 6px;",
-      "  margin: 0;",
+      "  margin: 4px 0;",
       "  white-space: nowrap;",
       "  opacity: 0.65;",
-      "  width: max-content;",
+      "  width: fit-content;",
+      "  margin-left: auto;",
       "  justify-content: flex-end;",
       "}",
       ".cscs-star-summary-line-compact .cscs-star-meter {",
@@ -208,36 +209,19 @@
       if (!id) {
         return;
       }
-
-      var cssText = String(CONFIG.CSS_TEXT || "");
-
       var exists = null;
       try {
         exists = document.getElementById(id);
       } catch (_eGet) {
         exists = null;
       }
-
-      // 既に style がある場合は「上書き更新」する（旧CSSが残って崩れるのを防ぐ）
       if (exists) {
-        try {
-          exists.textContent = cssText;
-        } catch (_eUpdate) {
-          try {
-            while (exists.firstChild) {
-              exists.removeChild(exists.firstChild);
-            }
-            exists.appendChild(document.createTextNode(cssText));
-          } catch (_eUpdate2) {
-          }
-        }
         return;
       }
-
       var style = document.createElement("style");
       style.id = id;
       style.type = "text/css";
-      style.appendChild(document.createTextNode(cssText));
+      style.appendChild(document.createTextNode(String(CONFIG.CSS_TEXT || "")));
       (document.head || document.documentElement).appendChild(style);
     } catch (_eInject) {
     }
