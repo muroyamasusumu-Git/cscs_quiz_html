@@ -79,7 +79,7 @@
       top: "10px",
       right: "20px",
       left: "71%",
-      bottom: "10px",
+      bottom: "auto",
       marginLeft: "0px",
       fontWeight: "500",
       width: "auto",
