@@ -208,19 +208,36 @@
       if (!id) {
         return;
       }
+
+      var cssText = String(CONFIG.CSS_TEXT || "");
+
       var exists = null;
       try {
         exists = document.getElementById(id);
       } catch (_eGet) {
         exists = null;
       }
+
+      // 既に style がある場合は「上書き更新」する（旧CSSが残って崩れるのを防ぐ）
       if (exists) {
+        try {
+          exists.textContent = cssText;
+        } catch (_eUpdate) {
+          try {
+            while (exists.firstChild) {
+              exists.removeChild(exists.firstChild);
+            }
+            exists.appendChild(document.createTextNode(cssText));
+          } catch (_eUpdate2) {
+          }
+        }
         return;
       }
+
       var style = document.createElement("style");
       style.id = id;
       style.type = "text/css";
-      style.appendChild(document.createTextNode(String(CONFIG.CSS_TEXT || "")));
+      style.appendChild(document.createTextNode(cssText));
       (document.head || document.documentElement).appendChild(style);
     } catch (_eInject) {
     }
