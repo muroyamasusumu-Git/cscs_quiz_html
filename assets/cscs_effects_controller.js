@@ -46,6 +46,7 @@
     { id: "field_summary", label: "FieldSummary" },
     { id: "cscs_state_empty_watch", label: "StateEmptyWatch" },
     { id: "a_auto_next", label: "AutoNext" },
+    { id: "a_recent_history", label: "RecentHistory" },    
     { id: "cscs_net_watch", label: "NetWatch" },
     { id: "cscs_sync_header_compare", label: "HeaderCompare" },
     { id: "cscs_debug_trace", label: "DebugTrace" },
