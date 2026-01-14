@@ -260,7 +260,6 @@
         "<span class=\"cscs-star-label\">本日の目標</span>" +
         "<span class=\"cscs-star-percent\">⭐️" + targetNum + "個</span>" +
         "<span class=\"cscs-star-label\">／リーチ⚡️" + reachCount + "個／連続✨" + preReachCount + "個</span>" +
-        "<span class=\"cscs-star-mood\"></span>" +
       "</div>" +
 
       "<div class=\"cscs-star-row cscs-star-row-today\">" +
