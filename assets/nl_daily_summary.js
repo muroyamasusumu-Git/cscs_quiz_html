@@ -303,7 +303,7 @@
 #nl-daily-summary-host{
   display: block;
   position: fixed;
-  inset: 10px 20px 10px 0;
+  inset: 90px 20px 10px 0;
   margin-left: 71%;
 }
 
