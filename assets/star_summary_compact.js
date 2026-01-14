@@ -96,7 +96,6 @@
       "  padding: 0px 0px;",
       "  border-radius: 10px;",
       "  background: rgba(0,0,0,0.04);",
-      "  backdrop-filter: blur(2px);",
       "  font-size: 12.5px;",
       "  line-height: 1.35;",
       "  display: flex;",
