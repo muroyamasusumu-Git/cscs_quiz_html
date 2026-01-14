@@ -88,49 +88,6 @@
         z-index: 20;
     }
 
-    /* 追加した処理:
-       - Aパート(body.mode-a)のときだけ、compact行の見た目を指定スタイルで上書きする
-       - Bパートには影響しない（セレクタを body.mode-a に限定） */
-    body.mode-a .cscs-star-summary-line-compact {
-        display: grid;
-        grid-template-columns: 1fr;
-        row-gap: 6px;
-        font-size: 16px;
-        margin-bottom: -5px;
-        margin-left: 0px;
-        width: 54%;
-        padding-bottom: 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-        margin-top: 10px;
-        opacity: 0.5;
-    }
-
-    /* 追加した処理:
-       - Bパート用（セレクタを body.mode-a に限定） */
-    body.mode-b .cscs-star-summary-line-compact {
-        display: grid;
-        grid-template-columns: 1fr;
-        row-gap: 6px;
-        font-size: 16px;
-        margin-bottom: 15px;
-        margin-left: 0px;
-        width: 54%;
-        padding-bottom: 0px;
-        border-bottom: 0px solid rgba(255, 255, 255, 0.18);
-        margin-top: 15px;
-        opacity: 0.5;
-    }
-   
-    .cscs-star-main-compact {
-        font-weight: 600;
-    }
-
-    .cscs-star-mood {
-        margin-left: 6px;
-        opacity: 0.8;
-        white-space: nowrap;
-    }
-
     /* 3行それぞれの「区画」 */
     .cscs-star-row {
         display: grid;
