@@ -515,7 +515,7 @@
       inset 0 1px 0 rgba(255,255,255,0.06);
 
     border-bottom-left-radius: 20px;
-    height: 12px;
+    height: 3px;
 
     /* 変更:
        - filter を使わないので transition から除外（“全体明暗”の原因を断つ） */
