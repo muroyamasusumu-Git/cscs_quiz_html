@@ -118,7 +118,7 @@
 
       "/* goal行だけフォントサイズを上げる */",
       ".cscs-star-summary-line-compact .cscs-star-row-goal {",
-      "  font-size: 15px;",
+      "  font-size: 16px;",
       "}",
 
       ".cscs-star-summary-line-compact .cscs-star-meter {",
