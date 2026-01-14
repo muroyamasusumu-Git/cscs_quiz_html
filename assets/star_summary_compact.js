@@ -61,6 +61,164 @@
     return;
   }
 
+  // ============================================================
+  // 【編集しやすい設定まとめ】
+  // ------------------------------------------------------------
+  // - 見た目の編集 → CONFIG.CSS_TEXT を触る
+  // - 位置・サイズの編集 → CONFIG.CONTAINER_STYLE を触る
+  // - HTMLの文言や構造の編集 → buildCompactHTML() を触る
+  // ============================================================
+
+  var CONFIG = {
+    STYLE_TAG_ID: "cscs-star-summary-compact-style",
+
+    // ここが「固定配置の見た目」編集ポイント（JS style直書きを集約）
+    CONTAINER_STYLE: {
+      display: "block",
+      position: "fixed",
+      top: "10px",
+      right: "20px",
+      left: "71%",
+      bottom: "10px",
+      marginLeft: "0px",
+      fontWeight: "500",
+      width: "auto",
+      zIndex: "9999"
+    },
+    
+    // ここが「CSS」編集ポイント（後からここだけ触ればOK）
+    // ※既存のCSSが別ファイルにあるなら、ここは最小でもOK
+    CSS_TEXT: [
+      ".cscs-star-summary-line-compact {",
+      "  box-sizing: border-box;",
+      "  padding: 8px 10px;",
+      "  border-radius: 10px;",
+      "  background: rgba(0,0,0,0.04);",
+      "  backdrop-filter: blur(2px);",
+      "  font-size: 12.5px;",
+      "  line-height: 1.35;",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-row {",
+      "  display: flex;",
+      "  align-items: center;",
+      "  gap: 6px;",
+      "  margin: 4px 0;",
+      "  white-space: nowrap;",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-label {",
+      "  opacity: 0.85;",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-percent {",
+      "  font-weight: 700;",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-meter {",
+      "  position: relative;",
+      "  flex: 1 1 auto;",
+      "  min-width: 60px;",
+      "  height: 6px;",
+      "  border-radius: 999px;",
+      "  background: rgba(0,0,0,0.10);",
+      "  overflow: hidden;",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-meter-fill {",
+      "  display: block;",
+      "  height: 100%;",
+      "  width: var(--todayPercent, 0%);",
+      "  background: rgba(0,0,0,0.35);",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-meter-fill-total {",
+      "  width: var(--totalPercent, 0%);",
+      "  background: rgba(0,0,0,0.55);",
+      "}",
+      ".cscs-star-summary-line-compact .cscs-star-mood {",
+      "  opacity: 0.95;",
+      "}",
+      ""
+    ].join("\n")
+  };
+
+  function injectCSSOnce() {
+    try {
+      var id = String(CONFIG.STYLE_TAG_ID || "");
+      if (!id) {
+        return;
+      }
+      var exists = null;
+      try {
+        exists = document.getElementById(id);
+      } catch (_eGet) {
+        exists = null;
+      }
+      if (exists) {
+        return;
+      }
+      var style = document.createElement("style");
+      style.id = id;
+      style.type = "text/css";
+      style.appendChild(document.createTextNode(String(CONFIG.CSS_TEXT || "")));
+      (document.head || document.documentElement).appendChild(style);
+    } catch (_eInject) {
+    }
+  }
+
+  function applyInlineStyles(el, styleObj) {
+    try {
+      if (!el || !styleObj) {
+        return;
+      }
+      var keys = Object.keys(styleObj);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        try {
+          el.style[k] = String(styleObj[k]);
+        } catch (_eSet) {
+        }
+      }
+    } catch (_eAll) {
+    }
+  }
+
+  function buildCompactHTML(data) {
+    var targetNum = String(data.targetNum);
+    var reachCount = String(data.reachCount);
+    var preReachCount = String(data.preReachCount);
+
+    var starTodayCount = String(data.starTodayCount);
+    var todayPercentText = String(data.todayPercent);
+    var moodText = String(data.moodText);
+
+    var starTotalSolvedQuestions = String(data.starTotalSolvedQuestions);
+    var totalPercentText = String(data.totalPercent);
+
+    // HTMLの編集はここだけ見ればOK（テンプレ文字列で一塊）
+    return (
+      "<div class=\"cscs-star-row cscs-star-row-goal\">" +
+        "<span class=\"cscs-star-label\">本日の目標</span>" +
+        "<span class=\"cscs-star-percent\">⭐️" + targetNum + "個</span>" +
+        "<span class=\"cscs-star-label\">／リーチ⚡️" + reachCount + "個／連続✨" + preReachCount + "個</span>" +
+        "<span class=\"cscs-star-mood\"></span>" +
+      "</div>" +
+
+      "<div class=\"cscs-star-row cscs-star-row-today\">" +
+        "<span class=\"cscs-star-label\">本日の獲得分</span>" +
+        "<span class=\"cscs-star-percent\">+" + starTodayCount + "</span>" +
+        "<span class=\"cscs-star-meter\">" +
+          "<span class=\"cscs-star-meter-fill\"></span>" +
+        "</span>" +
+        "<span class=\"cscs-star-mood\">" + todayPercentText + "% (状況:" + moodText + ")</span>" +
+      "</div>" +
+
+      "<div class=\"cscs-star-row cscs-star-row-total\">" +
+        "<span class=\"cscs-star-label\">現在の総進捗</span>" +
+        "<span class=\"cscs-star-percent\">" + starTotalSolvedQuestions + "個</span>" +
+        "<span class=\"cscs-star-meter\">" +
+          "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\"></span>" +
+        "</span>" +
+        "<span class=\"cscs-star-mood\">" + totalPercentText + "% (状況:" + moodText + ")</span>" +
+      "</div>"
+    );
+  }
+
   // ------------------------------------------------------------
   // 公開API:
   //   window.CSCSStarSummaryCompact.render(opts)
@@ -134,50 +292,37 @@
         preReachCount = 0;
       }
 
+      // CSSはここで1回だけ注入（編集は CONFIG.CSS_TEXT）
+      injectCSSOnce();
+
       // コンパクトな進捗行を構築（3行・縦並び）
       var needLine = document.createElement("div");
       needLine.className = "cscs-star-summary-line-compact";
 
-      var html = "";
+      // CSS変数でゲージ幅を渡す（HTMLの構造を固定化できて編集しやすい）
+      try {
+        needLine.style.setProperty("--todayPercent", String(todayPercent) + "%");
+      } catch (_eVarToday) {
+      }
+      try {
+        needLine.style.setProperty("--totalPercent", String(totalPercent.toFixed(2)) + "%");
+      } catch (_eVarTotal) {
+      }
 
-      // 1) 本日の目標（⭐️ / ⚡️ / ✨）
-      html += "<div class=\"cscs-star-row cscs-star-row-goal\">";
-      html += "<span class=\"cscs-star-label\">本日の目標</span>";
-      html += "<span class=\"cscs-star-percent\">⭐️" + String(targetNum) + "個</span>";
-      html += "<span class=\"cscs-star-label\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個</span>";
-      html += "<span class=\"cscs-star-mood\"></span>";
-      html += "</div>";
+      // HTMLは関数1箇所に集約（編集は buildCompactHTML）
+      needLine.innerHTML = buildCompactHTML({
+        targetNum: targetNum,
+        starTodayCount: starTodayCount,
+        todayPercent: String(todayPercent),
+        starTotalSolvedQuestions: starTotalSolvedQuestions,
+        totalPercent: String(totalPercent.toFixed(2)),
+        moodText: moodText,
+        reachCount: reachCount,
+        preReachCount: preReachCount
+      });
 
-      // 2) 本日の獲得分（+X / ゲージ / % / 状況）
-      html += "<div class=\"cscs-star-row cscs-star-row-today\">";
-      html += "<span class=\"cscs-star-label\">本日の獲得分</span>";
-      html += "<span class=\"cscs-star-percent\">+" + String(starTodayCount) + "</span>";
-      html += "<span class=\"cscs-star-meter\">";
-      html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
-      html += "</span>";
-      html += "<span class=\"cscs-star-mood\">" + String(todayPercent) + "% (状況:" + moodText + ")</span>";
-      html += "</div>";
-
-      // 3) 現在の総進捗（獲得数 / ゲージ / % / 状況）
-      html += "<div class=\"cscs-star-row cscs-star-row-total\">";
-      html += "<span class=\"cscs-star-label\">現在の総進捗</span>";
-      html += "<span class=\"cscs-star-percent\">" + String(starTotalSolvedQuestions) + "個</span>";
-      html += "<span class=\"cscs-star-meter\">";
-      html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
-      html += "</span>";
-      html += "<span class=\"cscs-star-mood\">" + totalPercent.toFixed(2) + "% (状況:" + moodText + ")</span>";
-      html += "</div>";
-
-      needLine.innerHTML = html;
-
-      needLine.style.display = "block";
-      needLine.style.position = "fixed";
-      needLine.style.top = "10px";
-      needLine.style.right = "20px";
-      needLine.style.left = "71%";
-      needLine.style.bottom = "10px";
-      needLine.style.marginLeft = "0px";
-      needLine.style.fontWeight = "500";
+      // スタイルは設定1箇所に集約（編集は CONFIG.CONTAINER_STYLE）
+      applyInlineStyles(needLine, CONFIG.CONTAINER_STYLE);
 
       // 追加した処理:
       // - div.cscs-star-summary-line-compact は常に <div id="root"> 直下へ入れる
