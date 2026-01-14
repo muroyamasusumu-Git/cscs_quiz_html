@@ -170,46 +170,27 @@
 
       needLine.innerHTML = html;
 
-      needLine.style.marginLeft = "0px";
+      needLine.style.display = "block";
+      needLine.style.position = "fixed";
+      needLine.style.inset = "10px 20px 10px 0";
+      needLine.style.marginLeft = "71%";
       needLine.style.fontWeight = "500";
 
       // 追加した処理:
-      // - Aパート(body.mode-a)のとき：
-      //     compact行(div.cscs-star-summary-line-compact)を <div id="similar-list"> の直前へ移動して挿入する
-      //     similar-list が無い場合は移動せず、panel 内に入れる
-      // - Bパート(body.mode-b)のとき：
-      //     compact行を <div class="explain_menu"> の直前へ移動して挿入する
-      //     explain_menu が無い場合は panel 内に入れる
+      // - div.cscs-star-summary-line-compact は常に <div id="root"> 直下へ入れる
+      // - #root が無い場合のみ panel にフォールバック
       (function () {
-        var isModeA = false;
-        var isModeB = false;
+        var root = null;
 
         try {
-          isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
-        } catch (_eModeA) {
-          isModeA = false;
+          root = document.getElementById("root");
+        } catch (_eRoot) {
+          root = null;
         }
 
-        try {
-          isModeB = !!(document.body && document.body.classList && document.body.classList.contains("mode-b"));
-        } catch (_eModeB) {
-          isModeB = false;
-        }
-
-        if (isModeA) {
-          var similar = document.getElementById("similar-list");
-          if (similar && similar.parentNode) {
-            similar.parentNode.insertBefore(needLine, similar);
-            return;
-          }
-        }
-
-        if (isModeB) {
-          var explainMenu = document.querySelector(".explain_menu");
-          if (explainMenu && explainMenu.parentNode) {
-            explainMenu.parentNode.insertBefore(needLine, explainMenu);
-            return;
-          }
+        if (root && root.insertBefore) {
+          root.insertBefore(needLine, root.firstChild);
+          return;
         }
 
         if (panel && panel.appendChild) {
