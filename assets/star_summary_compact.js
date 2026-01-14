@@ -158,8 +158,6 @@
       "  font-size: 14px;",
       "  margin-left: 0px;",
       "  width: 54%;",
-      "  padding-bottom: 14px;",
-      "  border-bottom: 1px solid rgba(255, 255, 255, 0.18);",
       "}",
 
       "",
@@ -174,7 +172,6 @@
       "  margin-left: 0px;",
       "  width: 54%;",
       "  padding-bottom: 0px;",
-      "  border-bottom: 0px solid rgba(255, 255, 255, 0.18);",
       "}",
 
       "",
