@@ -115,6 +115,12 @@
       ".cscs-star-summary-line-compact .cscs-star-percent {",
       "  font-weight: 700;",
       "}",
+
+      "/* goal行だけフォントサイズを上げる */",
+      ".cscs-star-summary-line-compact .cscs-star-row-goal {",
+      "  font-size: 15px;",
+      "}",
+
       ".cscs-star-summary-line-compact .cscs-star-meter {",
       "  position: relative;",
       "  flex: 1 1 auto;",
