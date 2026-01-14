@@ -2454,9 +2454,7 @@
   }
   
   // =========================
-  // 「前の問題へ」ボタンの生成
-  // - 画面左端に固定（他の列は100px右へ逃がしているので干渉しにくい）
-  // - クリックで「直近問題ID一覧」パネルを開閉トグル
+  // 「画面を更新」ボタンの生成
   // =========================
   function createPrevQuestionToggleButton() {
     var existing = document.getElementById("auto-prev-toggle");
@@ -2472,10 +2470,12 @@
     var btn = document.createElement("a");
     btn.id = "auto-prev-toggle";
     btn.className = "back-to-top";
-    btn.textContent = "［履歴を見る］";
 
-    // 左端固定（バーの外側に置く）
-    // ▼ 位置調整は CSS と一致させる（left/bottom は inline が強いのでここで揃える）
+    // 追加した処理:
+    // - 履歴UIは a_recent_history.js に完全分離するため、
+    //   このボタンは「画面更新」のみを担当する
+    btn.textContent = "［画面を更新］";
+
     btn.style.cssText =
       "position: fixed;" +
       "left: 16px;" +
@@ -2488,12 +2488,16 @@
       try {
         ev.preventDefault();
       } catch (_e) {}
-      toggleRecentPanel();
+
+      // 追加した処理:
+      // - 履歴表示は別JSが常時表示で行う
+      // - ここでは単純にページを再読み込みするだけ
+      location.reload();
     });
 
     document.body.appendChild(btn);
     return btn;
-  }  
+  }
   
   // =========================
   // 「次の問題へ」リンク（back-to-top ボタン）の生成
@@ -2815,16 +2819,9 @@
     // 左端に「↑前の問題へ」ボタンを作る（押下で一覧ウィンドウ開閉）
     createPrevQuestionToggleButton();
 
-    // ▼ 追加: 直近一覧パネルをデフォルトで開いた状態にする
-    try {
-      var p = getOrCreateRecentPanel();
-      if (p) {
-        recentPanelOpen = true;
-        renderRecentPanel();
-        p.style.display = "block";
-        p.style.pointerEvents = "auto";
-      }
-    } catch (_eOpen) {}
+    // 追加した処理:
+    // - 直近履歴パネルの生成・表示は a_recent_history.js に完全委譲する
+    // - a_auto_next.js では一切関与しない
 
     // まず ODOA / oncePerDayToday を考慮した「次の URL」を計算
     NEXT_URL = await buildNextUrlConsideringOdoa();
