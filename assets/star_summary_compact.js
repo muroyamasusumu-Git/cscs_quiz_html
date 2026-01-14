@@ -91,7 +91,7 @@
     CSS_TEXT: [
       ".cscs-star-summary-line-compact {",
       "  box-sizing: border-box;",
-      "  padding: 8px 10px;",
+      "  padding: 0px 0px;",
       "  border-radius: 10px;",
       "  background: rgba(0,0,0,0.04);",
       "  backdrop-filter: blur(2px);",
