@@ -1363,8 +1363,6 @@
     }
 
     // 上部に表示する「⭐️本日の目標〜」行を構築
-    var needLine = document.createElement("div");
-
     // SYNCから計算された「本日の目標（★何個/日）」を使用
     var targetNum = Number(starTargetPerDay);
     if (!Number.isFinite(targetNum) || targetNum < 0) {
@@ -1403,11 +1401,7 @@
       totalPercent = Number(totalPercent.toFixed(2));
     }
 
-    // コンパクトな進捗行を構築（3行・縦並び）
-    needLine.className = "cscs-star-summary-line-compact";
-
     var moodText = mood || "順調";
-    var html = "";
 
     // SYNC から計算された「リーチ⚡️（2連続正解）」の問題数
     var reachCount = Number(starReachCountFromSync || 0);
@@ -1421,80 +1415,27 @@
       preReachCount = 0;
     }
 
-    // 1) 本日の目標（⭐️ / ⚡️ / ✨）
-    html += "<div class=\"cscs-star-row cscs-star-row-goal\">";
-    html += "<span class=\"cscs-star-label\">本日の目標</span>";
-    html += "<span class=\"cscs-star-percent\">⭐️" + String(targetNum) + "個</span>";
-    html += "<span class=\"cscs-star-label\">／リーチ⚡️" + String(reachCount) + "個／連続✨" + String(preReachCount) + "個</span>";
-    html += "<span class=\"cscs-star-mood\"></span>";
-    html += "</div>";
+    var needLine = null;
 
-    // 2) 本日の獲得分（+X / ゲージ / % / 状況）
-    html += "<div class=\"cscs-star-row cscs-star-row-today\">";
-    html += "<span class=\"cscs-star-label\">本日の獲得分</span>";
-    html += "<span class=\"cscs-star-percent\">+" + String(starTodayCount) + "</span>";
-    html += "<span class=\"cscs-star-meter\">";
-    html += "<span class=\"cscs-star-meter-fill\" style=\"width:" + String(todayPercent) + "%;\"></span>";
-    html += "</span>";
-    html += "<span class=\"cscs-star-mood\">" + String(todayPercent) + "% (状況:" + moodText + ")</span>";
-    html += "</div>";
-
-    // 3) 現在の総進捗（獲得数 / ゲージ / % / 状況）
-    html += "<div class=\"cscs-star-row cscs-star-row-total\">";
-    html += "<span class=\"cscs-star-label\">現在の総進捗</span>";
-    html += "<span class=\"cscs-star-percent\">" + String(starTotalSolvedQuestions) + "個</span>";
-    html += "<span class=\"cscs-star-meter\">";
-    html += "<span class=\"cscs-star-meter-fill cscs-star-meter-fill-total\" style=\"width:" + totalPercent.toFixed(2) + "%;\"></span>";
-    html += "</span>";
-    html += "<span class=\"cscs-star-mood\">" + totalPercent.toFixed(2) + "% (状況:" + moodText + ")</span>";
-    html += "</div>";
-
-    needLine.innerHTML = html;
-
-    needLine.style.marginLeft = "0px";
-    needLine.style.fontWeight = "500";
-
-    /* 追加した処理:
-       - Aパート(body.mode-a)のとき：
-           compact行(div.cscs-star-summary-line-compact)を <div id="similar-list"> の直前へ移動して挿入する
-           similar-list が無い場合は移動せず、従来通り panel 内に入れる
-       - Bパートのとき：
-           compact行を <div class="explain_menu"> の直前へ移動して挿入する
-           explain_menu が無い場合は従来通り panel 内に入れる */
-    (function () {
-      var isModeA = false;
-      var isModeB = false;
-
-      try {
-        isModeA = !!(document.body && document.body.classList && document.body.classList.contains("mode-a"));
-      } catch (_eModeA) {
-        isModeA = false;
-      }
-
-      try {
-        isModeB = !!(document.body && document.body.classList && document.body.classList.contains("mode-b"));
-      } catch (_eModeB) {
-        isModeB = false;
-      }
-
-      if (isModeA) {
-        var similar = document.getElementById("similar-list");
-        if (similar && similar.parentNode) {
-          similar.parentNode.insertBefore(needLine, similar);
-          return;
-        }
-      }
-
-      if (isModeB) {
-        var explainMenu = document.querySelector(".explain_menu");
-        if (explainMenu && explainMenu.parentNode) {
-          explainMenu.parentNode.insertBefore(needLine, explainMenu);
-          return;
-        }
-      }
-
-      panel.appendChild(needLine);
-    })();
+    if (
+      window.CSCSStarSummaryCompact &&
+      typeof window.CSCSStarSummaryCompact === "object" &&
+      typeof window.CSCSStarSummaryCompact.render === "function"
+    ) {
+      needLine = window.CSCSStarSummaryCompact.render({
+        panel: panel,
+        targetNum: targetNum,
+        starTodayCount: starTodayCount,
+        todayPercent: todayPercent,
+        starTotalSolvedQuestions: starTotalSolvedQuestions,
+        totalPercent: totalPercent,
+        moodText: moodText,
+        reachCount: reachCount,
+        preReachCount: preReachCount
+      });
+    } else {
+      console.error("field_summary.js: CSCSStarSummaryCompact.render is not available");
+    }
 
     // コンソールに現在の目標値と進捗・リーチ数・✨数を出力して、値とレンダリング結果を確認できるようにする
     console.log("field_summary.js: compact star summary rendered", {
